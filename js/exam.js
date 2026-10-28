@@ -5,6 +5,7 @@
 
 import { Storage } from './storage.js';
 import { Auth } from './auth.js';
+import { escapeHtml } from './utils.js';
 
 export const Exam = {
   questions: [],
@@ -219,7 +220,7 @@ export const Exam = {
 
             <!-- Nội dung câu hỏi -->
             <h3 class="text-base sm:text-lg font-bold text-slate-800 dark:text-white leading-relaxed mb-6">
-              ${currentQ.question}
+              ${escapeHtml(currentQ.question)}
             </h3>
 
             <!-- Phương án trả lời -->
@@ -298,18 +299,18 @@ export const Exam = {
       // MCQ
       const options = q.displayOptions || q.options;
       return `
-        <div class="space-y-3">
+        <div class="space-y-3 w-full">
           ${options.map((opt, idx) => {
             const letter = letters[idx];
             const isChosen = (userAns && userAns.chosen === letter);
 
             return `
-              <button data-exam-mcq="${letter}" class="option-btn w-full text-left p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/60 flex items-start ${isChosen ? 'selected' : ''}">
+              <button type="button" data-exam-mcq="${letter}" class="option-btn w-full text-left p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/60 flex items-start ${isChosen ? 'selected' : ''}">
                 <span class="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${isChosen ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'} shrink-0 mr-3">
                   ${letter}
                 </span>
-                <span class="text-sm font-medium text-slate-800 dark:text-slate-200 pt-0.5">
-                  ${opt}
+                <span class="text-sm font-medium text-slate-800 dark:text-slate-200 pt-0.5 break-words">
+                  ${escapeHtml(opt)}
                 </span>
               </button>
             `;
@@ -322,23 +323,23 @@ export const Exam = {
       const choices = (userAns && userAns.choices) ? userAns.choices : ['', '', '', ''];
 
       return `
-        <div class="space-y-3">
+        <div class="space-y-3.5 w-full">
           <p class="text-xs text-slate-500 italic mb-2">Đánh dấu Đúng hoặc Sai cho mỗi ý:</p>
           ${q.options.map((opt, idx) => {
             const letter = subLetters[idx];
             const chosen = choices[idx];
 
             return `
-              <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div class="text-sm font-medium text-slate-800 dark:text-slate-200 flex items-start gap-2">
-                  <span class="font-bold text-blue-600">${letter})</span>
-                  <span>${opt}</span>
+              <div class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="text-sm font-medium text-slate-800 dark:text-slate-200 flex items-start gap-2.5 flex-1 pr-2">
+                  <span class="font-bold text-blue-600 dark:text-blue-400 shrink-0">${letter})</span>
+                  <span class="break-words leading-relaxed">${escapeHtml(opt)}</span>
                 </div>
                 <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                  <button data-exam-tf="${idx}" data-val="Đ" class="px-4 py-1.5 rounded-lg text-xs font-bold border transition ${chosen === 'Đ' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300'}">
+                  <button type="button" data-exam-tf="${idx}" data-val="Đ" class="px-4 py-2 rounded-xl text-xs font-bold border transition ${chosen === 'Đ' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:border-blue-400'}">
                     Đúng
                   </button>
-                  <button data-exam-tf="${idx}" data-val="S" class="px-4 py-1.5 rounded-lg text-xs font-bold border transition ${chosen === 'S' ? 'bg-rose-600 text-white border-rose-600' : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300'}">
+                  <button type="button" data-exam-tf="${idx}" data-val="S" class="px-4 py-2 rounded-xl text-xs font-bold border transition ${chosen === 'S' ? 'bg-rose-600 text-white border-rose-600 shadow-sm' : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:border-rose-400'}">
                     Sai
                   </button>
                 </div>
@@ -351,9 +352,9 @@ export const Exam = {
       // Trả lời ngắn
       const currentVal = (userAns && userAns.input) ? userAns.input : '';
       return `
-        <div class="space-y-3">
+        <div class="space-y-3 w-full">
           <p class="text-xs text-slate-500 italic mb-2">Nhập kết quả ngắn gọn vào ô bên dưới:</p>
-          <input type="text" id="exam-tln-input" value="${currentVal}" placeholder="Điền đáp án của bạn..." class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" />
+          <input type="text" id="exam-tln-input" value="${escapeHtml(currentVal)}" placeholder="Điền đáp án của bạn..." class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white" />
         </div>
       `;
     }
@@ -718,7 +719,7 @@ export const Exam = {
           </div>
 
           <h4 class="text-sm sm:text-base font-bold text-slate-800 dark:text-white mb-4">
-            ${q.question}
+            ${escapeHtml(q.question)}
           </h4>
 
           ${['1', '2', '3', '4'].includes(q.level) ? `
@@ -736,7 +737,7 @@ export const Exam = {
                   <div class="p-3 rounded-xl border text-xs sm:text-sm flex items-center justify-between ${optClass}">
                     <div class="flex items-center gap-2">
                       <span class="font-bold">${letter}.</span>
-                      <span>${opt}</span>
+                      <span>${escapeHtml(opt)}</span>
                     </div>
                     ${isCorrectAns ? '<span class="text-emerald-600 font-bold shrink-0 text-xs">Đáp án đúng</span>' : ''}
                     ${isUserChoice && !isCorrectAns ? '<span class="text-rose-600 font-bold shrink-0 text-xs">Bạn đã chọn</span>' : ''}
@@ -754,7 +755,7 @@ export const Exam = {
 
                 return `
                   <div class="p-2.5 rounded-lg border ${match ? 'border-emerald-300 bg-emerald-50/40' : 'border-rose-300 bg-rose-50/40'} flex items-center justify-between">
-                    <div><b>${subL})</b> ${opt}</div>
+                    <div><b>${subL})</b> ${escapeHtml(opt)}</div>
                     <div class="shrink-0 ml-2">
                       Bạn chọn: <b>${userVal || 'Bỏ qua'}</b> | Đ/A: <b class="text-blue-600">${correctVal}</b>
                     </div>
@@ -764,8 +765,8 @@ export const Exam = {
             </div>
           ` : `
             <div class="text-xs p-3 rounded-lg bg-slate-100 dark:bg-slate-700/60 space-y-1">
-              <div>Câu trả lời của bạn: <b>${item.userInput || 'Chưa nhập'}</b></div>
-              <div>Đáp án chính xác: <b class="text-emerald-600">${item.correctAnswer}</b></div>
+              <div>Câu trả lời của bạn: <b>${escapeHtml(item.userInput || 'Chưa nhập')}</b></div>
+              <div>Đáp án chính xác: <b class="text-emerald-600">${escapeHtml(item.correctAnswer)}</b></div>
             </div>
           `)}
         </div>

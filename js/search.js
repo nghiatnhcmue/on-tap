@@ -4,6 +4,7 @@
  */
 
 import { Storage } from './storage.js';
+import { escapeHtml } from './utils.js';
 
 export const Search = {
   allQuestions: [],
@@ -195,13 +196,16 @@ export const Search = {
   },
 
   highlightKeyword(text, kw) {
-    if (!kw || !text) return text;
+    if (!text) return '';
+    const safeText = escapeHtml(text);
+    if (!kw || !kw.trim()) return safeText;
     try {
-      const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const safeKw = escapeHtml(kw.trim());
+      const escaped = safeKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(`(${escaped})`, 'gi');
-      return text.replace(regex, '<mark class="bg-amber-200 dark:bg-amber-900/60 text-slate-900 dark:text-white px-0.5 rounded">$1</mark>');
+      return safeText.replace(regex, '<mark class="bg-amber-200 dark:bg-amber-900/60 text-slate-900 dark:text-white px-0.5 rounded">$1</mark>');
     } catch (e) {
-      return text;
+      return safeText;
     }
   },
 

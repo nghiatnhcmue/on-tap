@@ -4,6 +4,7 @@
  */
 
 import { Storage } from './storage.js';
+import { escapeHtml } from './utils.js';
 
 export const Practice = {
   questions: [],
@@ -159,7 +160,7 @@ export const Practice = {
           ${q.lesson}
         </div>
         <h2 class="text-base sm:text-lg font-bold text-slate-800 dark:text-white leading-relaxed mb-6">
-          ${q.question}
+          ${escapeHtml(q.question)}
         </h2>
 
         <!-- Khu vực phương án hoặc nhập liệu -->
@@ -190,7 +191,7 @@ export const Practice = {
     const isAnswered = !!userAns;
 
     return `
-      <div class="space-y-3 mb-6">
+      <div class="space-y-3 mb-6 w-full">
         ${q.options.map((opt, idx) => {
           const letter = letters[idx];
           let extraClass = 'border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 bg-slate-50/50 dark:bg-slate-800/60';
@@ -214,8 +215,8 @@ export const Practice = {
           return `
             <button data-opt="${letter}" ${isAnswered ? 'disabled' : ''} class="mcq-option-btn w-full text-left p-4 rounded-xl border transition flex items-start ${extraClass}">
               ${iconHtml}
-              <div class="text-sm font-medium text-slate-800 dark:text-slate-200 leading-relaxed pt-1">
-                ${opt}
+              <div class="text-sm font-medium text-slate-800 dark:text-slate-200 leading-relaxed pt-1 break-words">
+                ${escapeHtml(opt)}
               </div>
             </button>
           `;
@@ -226,7 +227,7 @@ export const Practice = {
         <div class="p-4 rounded-xl ${userAns.isCorrect ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300' : 'bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300'} text-sm animate-pulse-subtle">
           <div class="font-bold flex items-center gap-2 mb-1">
             <i class="${userAns.isCorrect ? 'fa-solid fa-circle-check text-emerald-500' : 'fa-solid fa-circle-xmark text-rose-500'}"></i>
-            ${userAns.isCorrect ? 'Chính xác!' : `Chưa chính xác! Đáp án đúng là: ${q.answer}`}
+            ${userAns.isCorrect ? 'Chính xác!' : `Chưa chính xác! Đáp án đúng là: ${escapeHtml(q.answer)}`}
           </div>
           <div class="text-xs opacity-90">
             ${userAns.isCorrect ? 'Bạn đã nắm vững kiến thức câu hỏi này.' : 'Hãy xem lại lý thuyết trong bài để khắc sâu kiến thức.'}
@@ -242,22 +243,22 @@ export const Practice = {
     const correctParts = (q.answer || 'Đ,Đ,Đ,Đ').split(',');
 
     return `
-      <div class="mb-6 space-y-4">
+      <div class="mb-6 space-y-4 w-full">
         <p class="text-xs text-slate-500 dark:text-slate-400 italic">
           * Chọn Đúng (Đ) hoặc Sai (S) cho từng ý dưới đây:
         </p>
 
-        <div class="space-y-3">
+        <div class="space-y-3.5 w-full">
           ${q.options.map((opt, idx) => {
             const letter = letters[idx];
             const correctVal = correctParts[idx] || 'Đ';
             const userChoice = userAns ? userAns.choices[idx] : null;
 
             return `
-              <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div class="text-sm font-medium text-slate-800 dark:text-slate-200 flex items-start gap-2">
-                  <span class="font-bold text-blue-600 dark:text-blue-400">${letter})</span>
-                  <span>${opt}</span>
+              <div class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="text-sm font-medium text-slate-800 dark:text-slate-200 flex items-start gap-2.5 flex-1 pr-2">
+                  <span class="font-bold text-blue-600 dark:text-blue-400 shrink-0">${letter})</span>
+                  <span class="break-words leading-relaxed">${escapeHtml(opt)}</span>
                 </div>
                 
                 <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
@@ -267,6 +268,17 @@ export const Practice = {
                   <button data-tf-idx="${idx}" data-val="S" ${isAnswered ? 'disabled' : ''} class="tf-btn px-4 py-1.5 rounded-lg text-xs font-bold transition border ${userChoice === 'S' ? 'bg-rose-600 text-white border-rose-600' : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:border-rose-400'}">
                     Sai
                   </button>
+
+                  ${isAnswered ? `
+                    <span class="ml-2 text-xs font-bold ${userChoice === correctVal ? 'text-emerald-500' : 'text-rose-500'}">
+                      (Đ/A: ${correctVal})
+                    </span>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
 
                   ${isAnswered ? `
                     <span class="ml-2 text-xs font-bold ${userChoice === correctVal ? 'text-emerald-500' : 'text-rose-500'}">
@@ -385,7 +397,7 @@ export const Practice = {
               </div>
 
               <h3 class="text-sm sm:text-base font-bold text-slate-800 dark:text-white mb-4">
-                ${q.question}
+                ${escapeHtml(q.question)}
               </h3>
 
               ${q.level in { '1': 1, '2': 1, '3': 1, '4': 1 } ? this.renderMCQOptions(q, userAns) : (q.level === 'DS' ? this.renderTrueFalseOptions(q, userAns) : this.renderShortAnswerInput(q, userAns))}

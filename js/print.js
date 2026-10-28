@@ -3,6 +3,8 @@
  * Tạo đề thi in ấn chuẩn A4 kèm phiếu đáp án dành cho giáo viên và học sinh
  */
 
+import { escapeHtml } from './utils.js';
+
 export const PrintManager = {
   generatePrintView(options) {
     const {
@@ -47,18 +49,18 @@ export const PrintManager = {
         ${questions.map((q, idx) => `
           <div class="print-question text-[10.5pt] leading-snug">
             <p class="font-bold mb-1">
-              Câu ${idx + 1}: <span class="font-normal">${q.question}</span>
+              Câu ${idx + 1}: <span class="font-normal">${escapeHtml(q.question)}</span>
             </p>
             ${['1', '2', '3', '4'].includes(q.level) ? `
               <div class="grid grid-cols-2 gap-x-6 gap-y-1 ml-4">
                 ${(q.options || []).map((opt, oIdx) => `
-                  <div><b>${letters[oIdx]}.</b> ${opt}</div>
+                  <div><b>${letters[oIdx]}.</b> ${escapeHtml(opt)}</div>
                 `).join('')}
               </div>
             ` : (q.level === 'DS' ? `
               <div class="ml-4 space-y-0.5">
                 ${(q.options || []).map((opt, oIdx) => `
-                  <div><b>${['a', 'b', 'c', 'd'][oIdx]})</b> ${opt}</div>
+                  <div><b>${['a', 'b', 'c', 'd'][oIdx]})</b> ${escapeHtml(opt)}</div>
                 `).join('')}
               </div>
             ` : `
