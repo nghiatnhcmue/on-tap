@@ -55,22 +55,26 @@ export const Exam = {
     let selectedQuestions = [];
 
     if (config.type === 'bgd_2025') {
-      // Đề chuẩn Bộ GD&ĐT 2025:
-      // Phần I: 24 câu trắc nghiệm nhiều lựa chọn (4 phương án)
-      // Phần II: 4 câu trắc nghiệm Đúng/Sai
-      // Phần III (nếu có TLN): 6 câu trả lời ngắn, hoặc tăng MCQ
+      // Đề chuẩn Bộ GD&ĐT môn Tin học (Kỳ thi Tốt nghiệp THPT):
+      // Gồm ĐÚNG 2 phần, tổng cộng 28 câu = 10 điểm (Thời gian: 50 phút)
+      // - Phần I: 24 câu trắc nghiệm nhiều lựa chọn = 6.0 điểm (mỗi câu 0.25đ)
+      // - Phần II: 4 câu hỏi trắc nghiệm Đúng/Sai = 4.0 điểm (mỗi câu tối đa 1.0đ)
+      // TUYỆT ĐỐI KHÔNG CÓ CÂU TRẢ LỜI NGẮN (TLN) trong cấu trúc đề thi tốt nghiệp THPT môn Tin học!
       const mcqPool = gradePool.filter(q => ['1', '2', '3', '4'].includes(q.level));
-      const dsPool = gradePool.filter(q => q.level === 'DS');
-      const tlnPool = gradePool.filter(q => q.level === 'TLN');
+      let dsPool = gradePool.filter(q => q.level === 'DS');
 
-      // Lấy 24 câu MCQ theo phân bổ
-      const mcqSelected = this.sampleQuestions(mcqPool, 24);
-      // Lấy 4 câu Đúng/Sai (nếu không đủ thì lấy tối đa)
-      const dsSelected = this.sampleQuestions(dsPool, 4);
-      // Lấy 6 câu TLN nếu khối có TLN
-      const tlnSelected = this.sampleQuestions(tlnPool, 6);
+      // Nếu khối đang chọn thiếu câu Đúng/Sai (ví dụ K11), lấy thêm từ ngân hàng DS của khối 12/10 để đảm bảo đủ 4 câu
+      if (dsPool.length < 4) {
+        const extraDs = this.allQuestions.filter(q => q.level === 'DS');
+        dsPool = [...dsPool, ...extraDs];
+      }
 
-      selectedQuestions = [...mcqSelected, ...dsSelected, ...tlnSelected];
+      // Lấy chính xác 24 câu MCQ
+      const mcqSelected = this.sampleQuestions(mcqPool, Math.min(24, mcqPool.length));
+      // Lấy chính xác 4 câu Đúng/Sai
+      const dsSelected = this.sampleQuestions(dsPool, Math.min(4, dsPool.length));
+
+      selectedQuestions = [...mcqSelected, ...dsSelected];
       this.totalSeconds = (config.duration || 50) * 60;
     } else {
       // Đề kiểm tra định kỳ hoặc tự chọn
@@ -476,6 +480,8 @@ export const Exam = {
 
     const timeSpent = this.totalSeconds - Math.max(0, this.remainingSeconds);
     let totalScore = 0;
+    let part1Score = 0;
+    let part2Score = 0;
     let correctCount = 0;
     const details = [];
 
@@ -488,15 +494,15 @@ export const Exam = {
       let isCorrect = false;
 
       if (['1', '2', '3', '4'].includes(q.level)) {
-        // Trắc nghiệm nhiều lựa chọn
+        // Trắc nghiệm nhiều lựa chọn: 24 câu = 6.0 điểm (mỗi câu 0.25đ)
         const correctAns = q.displayAnswer || q.answer;
         const chosen = userAns ? userAns.chosen : null;
         if (chosen === correctAns) {
           isCorrect = true;
           correctCount++;
-          // Nếu đề BGD 2025: 24 câu MCQ = 6.0 điểm (mỗi câu 0.25đ)
           itemScore = isBgdFormat ? 0.25 : (10 / this.examQuestions.length);
         }
+        part1Score += itemScore;
         details.push({
           question: q,
           userChoice: chosen,
@@ -505,7 +511,8 @@ export const Exam = {
           score: itemScore
         });
       } else if (q.level === 'DS') {
-        // Đúng / Sai
+        // Đúng / Sai: 4 câu = 4.0 điểm
+        // Quy chế chuẩn Bộ GD&ĐT: 1 ý = 0.1đ | 2 ý = 0.25đ | 3 ý = 0.5đ | 4 ý = 1.0đ
         const correctParts = (q.answer || 'Đ,Đ,Đ,Đ').split(',');
         const choices = (userAns && userAns.choices) ? userAns.choices : ['', '', '', ''];
         let correctSub = 0;
@@ -514,11 +521,11 @@ export const Exam = {
             correctSub++;
           }
         }
-        // Thang điểm Bộ GD&ĐT: 1 ý = 0.1đ, 2 ý = 0.25đ, 3 ý = 0.5đ, 4 ý = 1.0đ
         const pointMap = [0, 0.1, 0.25, 0.5, 1.0];
         itemScore = pointMap[correctSub];
         isCorrect = (correctSub === 4);
         if (correctSub >= 2) correctCount += (correctSub / 4);
+        part2Score += itemScore;
 
         details.push({
           question: q,
@@ -529,7 +536,7 @@ export const Exam = {
           score: itemScore
         });
       } else if (q.level === 'TLN') {
-        // Trả lời ngắn
+        // Trả lời ngắn (dành cho kiểm tra riêng nếu có)
         const inputVal = (userAns && userAns.input) ? userAns.input.trim() : '';
         const normUser = inputVal.toLowerCase().replace(/\s+/g, '');
         const normAns = (q.answer || '').toLowerCase().replace(/\s+/g, '');
@@ -557,8 +564,11 @@ export const Exam = {
 
     this.examResult = {
       title: this.examConfig.title,
+      type: this.examConfig.type,
       grade: this.examConfig.grade,
       score: totalScore,
+      part1Score: Math.round(part1Score * 100) / 100,
+      part2Score: Math.round(part2Score * 100) / 100,
       totalQuestions: this.examQuestions.length,
       correctCount: Math.round(correctCount),
       timeSpentSeconds: timeSpent,
@@ -624,10 +634,30 @@ export const Exam = {
           </p>
 
           <!-- Điểm số lớn -->
-          <div class="inline-flex flex-col items-center justify-center w-36 h-36 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-xl shadow-blue-500/25 mb-8">
+          <div class="inline-flex flex-col items-center justify-center w-36 h-36 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-xl shadow-blue-500/25 mb-6">
             <span class="text-4xl sm:text-5xl font-black">${res.score}</span>
             <span class="text-xs uppercase tracking-widest text-blue-200 font-bold">Thang điểm 10</span>
           </div>
+
+          <!-- Phân tích điểm theo cấu trúc đề chuẩn THPTQG -->
+          ${res.type === 'bgd_2025' ? `
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg mx-auto mb-6 text-left">
+              <div class="p-4 rounded-2xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 flex items-center justify-between">
+                <div>
+                  <span class="text-xs font-bold text-blue-700 dark:text-blue-300 block">Phần I: Trắc nghiệm (24 câu)</span>
+                  <span class="text-[11px] text-slate-400">Mỗi câu 0.25 điểm</span>
+                </div>
+                <span class="text-xl font-black text-blue-700 dark:text-blue-300 font-mono">${res.part1Score ?? 0} <span class="text-xs font-semibold text-slate-400">/ 6.0đ</span></span>
+              </div>
+              <div class="p-4 rounded-2xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 flex items-center justify-between">
+                <div>
+                  <span class="text-xs font-bold text-purple-700 dark:text-purple-300 block">Phần II: Đúng / Sai (4 câu)</span>
+                  <span class="text-[11px] text-slate-400">Thang điểm 0.1 - 0.25 - 0.5 - 1.0</span>
+                </div>
+                <span class="text-xl font-black text-purple-700 dark:text-purple-300 font-mono">${res.part2Score ?? 0} <span class="text-xs font-semibold text-slate-400">/ 4.0đ</span></span>
+              </div>
+            </div>
+          ` : ''}
 
           <!-- Các chỉ số thống kê -->
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-2xl mx-auto text-left">
