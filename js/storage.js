@@ -106,6 +106,20 @@ export const Storage = {
   saveExamResult(result) {
     try {
       const history = this.getExamHistory();
+      
+      // Lấy thông tin học sinh hiện tại từ auth
+      let student = { fullName: 'Thí sinh tự do', className: 'Tự do', school: 'Tự do', email: '' };
+      try {
+        const u = localStorage.getItem('tinhoc_user');
+        if (u) {
+          const parsed = JSON.parse(u);
+          if (parsed.fullName) student.fullName = parsed.fullName;
+          if (parsed.className) student.className = parsed.className;
+          if (parsed.school) student.school = parsed.school;
+          if (parsed.email) student.email = parsed.email;
+        }
+      } catch (err) {}
+
       const entry = {
         id: 'exam_' + Date.now(),
         date: new Date().toISOString(),
@@ -115,11 +129,15 @@ export const Storage = {
         totalQuestions: result.totalQuestions,
         correctCount: result.correctCount,
         timeSpentSeconds: result.timeSpentSeconds,
+        studentName: result.studentName || student.fullName,
+        studentClass: result.studentClass || student.className,
+        studentSchool: result.studentSchool || student.school,
+        studentEmail: result.studentEmail || student.email,
         details: result.details || [] // danh sách câu hỏi và câu trả lời
       };
       history.unshift(entry);
-      // Giữ tối đa 50 bài thi gần nhất
-      if (history.length > 50) history.pop();
+      // Giữ tối đa 100 bài thi gần nhất
+      if (history.length > 100) history.pop();
       localStorage.setItem(STORAGE_KEYS.EXAM_HISTORY, JSON.stringify(history));
       return entry;
     } catch (e) {

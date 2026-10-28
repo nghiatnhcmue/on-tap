@@ -4,6 +4,7 @@
  */
 
 import { Storage } from './storage.js';
+import { Auth } from './auth.js';
 
 export const Exam = {
   questions: [],
@@ -551,6 +552,8 @@ export const Exam = {
     // Giới hạn điểm từ 0 đến 10, làm tròn 2 chữ số thập phân
     totalScore = Math.min(10, Math.max(0, Math.round(totalScore * 100) / 100));
 
+    const user = Auth.currentUser;
+
     this.examResult = {
       title: this.examConfig.title,
       grade: this.examConfig.grade,
@@ -558,6 +561,10 @@ export const Exam = {
       totalQuestions: this.examQuestions.length,
       correctCount: Math.round(correctCount),
       timeSpentSeconds: timeSpent,
+      studentName: user?.fullName || 'Thí sinh tự do',
+      studentClass: user?.className || '',
+      studentSchool: user?.school || '',
+      studentEmail: user?.email || '',
       details
     };
 
@@ -597,9 +604,16 @@ export const Exam = {
         <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-8 text-center relative overflow-hidden">
           <div class="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl"></div>
           
-          <span class="inline-block px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-widest ${rankBadge.cls} mb-4">
+          <span class="inline-block px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-widest ${rankBadge.cls} mb-3">
             Xếp loại: ${rankBadge.text}
           </span>
+
+          <!-- Thẻ thông tin học sinh -->
+          <div class="mb-4 inline-flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs px-4 py-2 bg-slate-100 dark:bg-slate-700/60 rounded-2xl text-slate-700 dark:text-slate-200 font-medium">
+            <span><i class="fa-solid fa-user-graduate text-blue-600 mr-1.5"></i>Thí sinh: <b>${res.studentName}</b></span>
+            ${res.studentClass ? `<span>•</span><span>Lớp: <b>${res.studentClass}</b></span>` : ''}
+            ${res.studentSchool ? `<span>•</span><span>Trường: <b>${res.studentSchool}</b></span>` : ''}
+          </div>
 
           <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-800 dark:text-white mb-2">
             Kết Quả Bài Thi Thử

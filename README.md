@@ -31,6 +31,11 @@
   - Tìm kiếm tức thì theo từ khóa trong 4.449 câu hỏi kèm highlight từ khóa.
 - **Xuất bản in đề thi & Đáp án chuẩn A4 / PDF**:
   - Tự động định dạng trang in đề thi chuẩn Bộ/Sở GD&ĐT có thông tin trường lớp, thời gian, kèm phiếu đáp án ở cuối trang.
+- **Quản lý học sinh bằng Đăng nhập Google (Google Sign-In)**:
+  - Tích hợp chuẩn **Google Identity Services (GIS)** hiện đại.
+  - **Bắt buộc điền thông tin khi đăng ký**: Học sinh phải khai báo đầy đủ **Họ và tên**, **Khối**, **Lớp** và **Trường** trước khi làm bài thi.
+  - Điểm số và bài làm được gắn liền với định danh của học sinh.
+  - **Bảng điểm lớp & Quản lý kết quả**: Thầy cô giáo có thể lọc bảng điểm theo từng lớp/trường, tìm kiếm học sinh và **xuất toàn bộ bảng điểm ra file Excel (CSV)** với chuẩn tiếng Việt có dấu.
 - **Lưu trữ dữ liệu an toàn & Riêng tư**:
   - Lưu kết quả học tập trên trình duyệt (LocalStorage), không cần đăng ký tài khoản, không lo mất dữ liệu cá nhân.
 

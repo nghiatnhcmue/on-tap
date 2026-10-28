@@ -10,6 +10,8 @@ export const PrintManager = {
       school = 'TRƯỜNG THPT................................',
       grade = '12',
       duration = '45',
+      studentName = '',
+      studentClass = '',
       questions = [],
       includeAnswerKey = true
     } = options;
@@ -35,8 +37,8 @@ export const PrintManager = {
         <div class="text-center w-1/2">
           <p class="font-bold uppercase text-[12pt]">${title} - KHỐI ${grade}</p>
           <p class="italic">Thời gian làm bài: ${duration} phút (không kể thời gian phát đề)</p>
-          <p class="mt-2 text-left text-[10pt]">Họ và tên thí sinh: ..............................................................</p>
-          <p class="text-left text-[10pt]">Số báo danh: ............................. Lớp: .................................</p>
+          <p class="mt-2 text-left text-[10pt]">Họ và tên thí sinh: <span class="font-bold">${studentName || '..............................................................'}</span></p>
+          <p class="text-left text-[10pt]">Số báo danh: .............. Lớp: <span class="font-bold">${studentClass || '.................................'}</span></p>
         </div>
       </div>
 

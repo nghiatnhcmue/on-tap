@@ -8,6 +8,7 @@ import { Practice } from './practice.js';
 import { Exam } from './exam.js';
 import { Search } from './search.js';
 import { PrintManager } from './print.js';
+import { Auth } from './auth.js';
 
 class App {
   constructor() {
@@ -19,6 +20,8 @@ class App {
 
   async init() {
     this.initTheme();
+    Auth.init();
+    this.initAuthUI();
     this.bindGlobalEvents();
     await this.loadManifest();
     await this.switchGrade(this.currentGrade);
@@ -135,7 +138,7 @@ class App {
     });
 
     // Ẩn tất cả view
-    const views = ['view-home', 'view-practice', 'view-exam-setup', 'view-exam-room', 'view-search', 'view-bookmarks', 'view-history', 'view-print'];
+    const views = ['view-home', 'view-practice', 'view-exam-setup', 'view-exam-room', 'view-search', 'view-bookmarks', 'view-history', 'view-print', 'view-gradebook'];
     views.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.classList.add('hidden');
@@ -173,6 +176,10 @@ class App {
       case 'print':
         document.getElementById('view-print')?.classList.remove('hidden');
         this.renderPrintSetup();
+        break;
+      case 'gradebook':
+        document.getElementById('view-gradebook')?.classList.remove('hidden');
+        this.renderGradebook();
         break;
     }
   }
@@ -375,6 +382,18 @@ class App {
   }
 
   async startExam(config) {
+    // Kiểm tra đăng nhập và hồ sơ học sinh bắt buộc
+    if (!Auth.isLoggedIn()) {
+      alert('Quy định: Vui lòng đăng nhập bằng Google để hệ thống ghi nhận Họ tên, Lớp và Trường của bạn!');
+      document.getElementById('modal-login')?.classList.remove('hidden');
+      return;
+    }
+    if (!Auth.isProfileComplete()) {
+      alert('Hồ sơ học sinh chưa hoàn tất! Bạn bắt buộc phải điền Họ và tên, Lớp, Trường để tham gia thi.');
+      Auth.openRequiredProfileModal();
+      return;
+    }
+
     await this.loadGradeData(config.grade);
     const questions = this.gradeCache[config.grade] || [];
     this.switchTab('exam-room');
@@ -580,7 +599,7 @@ class App {
         const grade = gradeSelect ? gradeSelect.value : this.currentGrade;
         const count = parseInt(document.getElementById('print-cfg-count')?.value || '30', 10);
         const title = document.getElementById('print-cfg-title')?.value || 'ĐỀ THI THỬ MÔN TIN HỌC';
-        const school = document.getElementById('print-cfg-school')?.value || 'TRƯỜNG THPT................................';
+        const school = document.getElementById('print-cfg-school')?.value || (Auth.currentUser?.school || 'TRƯỜNG THPT................................');
         const duration = document.getElementById('print-cfg-duration')?.value || '45';
         const includeKey = document.getElementById('print-cfg-include-key')?.checked ?? true;
 
@@ -593,10 +612,339 @@ class App {
           school,
           grade,
           duration,
+          studentName: Auth.currentUser?.fullName || '',
+          studentClass: Auth.currentUser?.className || '',
           questions: sample,
           includeAnswerKey: includeKey
         });
       };
+    }
+  }
+
+  // --- QUẢN LÝ BẢNG ĐIỂM HỌC SINH (GRADEBOOK) ---
+  renderGradebook() {
+    const history = Storage.getExamHistory();
+    const container = document.getElementById('gradebook-list-area');
+    if (!container) return;
+
+    if (history.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-16 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 p-8">
+          <i class="fa-solid fa-clipboard-list text-4xl text-slate-300 dark:text-slate-600 mb-3"></i>
+          <h3 class="text-base font-bold text-slate-700 dark:text-slate-300">Chưa có kết quả thi nào trong hệ thống</h3>
+          <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+            Khi học sinh hoàn thành các bài thi thử, điểm số cùng Họ tên, Lớp và Trường sẽ tự động được tổng hợp tại đây.
+          </p>
+        </div>
+      `;
+      return;
+    }
+
+    // Lấy danh sách lớp và trường duy nhất để làm bộ lọc
+    const classes = [...new Set(history.map(item => item.studentClass).filter(Boolean))];
+    const schools = [...new Set(history.map(item => item.studentSchool).filter(Boolean))];
+
+    container.innerHTML = `
+      <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-6">
+        
+        <!-- Header & Action -->
+        <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-700">
+          <div>
+            <h3 class="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <i class="fa-solid fa-graduation-cap text-blue-600"></i>
+              Bảng Điểm & Quản Lý Kết Quả Học Sinh
+            </h3>
+            <p class="text-xs text-slate-400">
+              Tổng số ${history.length} bài thi đã hoàn thành
+            </p>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <button id="btn-export-gradebook-csv" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+              <i class="fa-solid fa-file-excel"></i> Xuất file Excel (CSV)
+            </button>
+          </div>
+        </div>
+
+        <!-- Bộ lọc lớp & trường & tìm kiếm -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div>
+            <input type="text" id="gb-filter-search" placeholder="Tìm theo tên học sinh..." class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-medium focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <select id="gb-filter-class" class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold">
+              <option value="all">Tất cả các lớp</option>
+              ${classes.map(c => `<option value="${c}">Lớp ${c}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <select id="gb-filter-school" class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold">
+              <option value="all">Tất cả các trường</option>
+              ${schools.map(s => `<option value="${s}">${s}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <!-- Bảng danh sách kết quả -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs" id="gradebook-table">
+            <thead>
+              <tr class="border-b border-slate-200 dark:border-slate-700 text-slate-400 font-bold uppercase tracking-wider">
+                <th class="py-3 px-3">STT</th>
+                <th class="py-3 px-3">Họ và Tên</th>
+                <th class="py-3 px-3">Lớp</th>
+                <th class="py-3 px-3">Trường</th>
+                <th class="py-3 px-3">Bài thi</th>
+                <th class="py-3 px-3 text-center">Điểm</th>
+                <th class="py-3 px-3">Thời gian</th>
+                <th class="py-3 px-3">Ngày thi</th>
+              </tr>
+            </thead>
+            <tbody id="gradebook-table-body" class="divide-y divide-slate-100 dark:divide-slate-700/60 font-medium">
+              ${this.renderGradebookRows(history)}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    `;
+
+    // Bind filters
+    const searchInput = container.querySelector('#gb-filter-search');
+    const classSelect = container.querySelector('#gb-filter-class');
+    const schoolSelect = container.querySelector('#gb-filter-school');
+
+    const applyTableFilter = () => {
+      const q = searchInput.value.toLowerCase().trim();
+      const c = classSelect.value;
+      const s = schoolSelect.value;
+
+      const filtered = history.filter(item => {
+        if (q && !(item.studentName || '').toLowerCase().includes(q)) return false;
+        if (c !== 'all' && item.studentClass !== c) return false;
+        if (s !== 'all' && item.studentSchool !== s) return false;
+        return true;
+      });
+
+      const tbody = container.querySelector('#gradebook-table-body');
+      if (tbody) tbody.innerHTML = this.renderGradebookRows(filtered);
+    };
+
+    if (searchInput) searchInput.oninput = applyTableFilter;
+    if (classSelect) classSelect.onchange = applyTableFilter;
+    if (schoolSelect) schoolSelect.onchange = applyTableFilter;
+
+    // Export CSV
+    const exportBtn = container.querySelector('#btn-export-gradebook-csv');
+    if (exportBtn) {
+      exportBtn.onclick = () => this.exportGradebookToCSV(history);
+    }
+  }
+
+  renderGradebookRows(list) {
+    if (list.length === 0) {
+      return `<tr><td colspan="8" class="text-center py-8 text-slate-400">Không tìm thấy kết quả phù hợp.</td></tr>`;
+    }
+
+    return list.map((item, idx) => {
+      const date = new Date(item.date).toLocaleString('vi-VN');
+      const mins = Math.floor(item.timeSpentSeconds / 60);
+      const secs = item.timeSpentSeconds % 60;
+
+      let scoreColor = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300';
+      if (item.score < 5.0) scoreColor = 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300';
+      else if (item.score < 6.5) scoreColor = 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300';
+      else if (item.score < 8.0) scoreColor = 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300';
+
+      return `
+        <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition">
+          <td class="py-3 px-3 text-slate-400">${idx + 1}</td>
+          <td class="py-3 px-3 font-bold text-slate-800 dark:text-white">
+            ${item.studentName || 'Thí sinh tự do'}
+          </td>
+          <td class="py-3 px-3">
+            <span class="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold">
+              ${item.studentClass || 'Tự do'}
+            </span>
+          </td>
+          <td class="py-3 px-3 text-slate-600 dark:text-slate-300">${item.studentSchool || '-'}</td>
+          <td class="py-3 px-3 max-w-[200px] truncate text-slate-700 dark:text-slate-300" title="${item.title}">${item.title}</td>
+          <td class="py-3 px-3 text-center">
+            <span class="px-2.5 py-1 rounded-lg font-black ${scoreColor}">
+              ${item.score}
+            </span>
+          </td>
+          <td class="py-3 px-3 text-slate-400 font-mono">${mins}p ${secs}s</td>
+          <td class="py-3 px-3 text-slate-400">${date}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  exportGradebookToCSV(history) {
+    const headers = ['STT', 'Họ và tên', 'Lớp', 'Trường', 'Email', 'Tên đề thi', 'Khối', 'Điểm số (Thang 10)', 'Số câu đúng', 'Tổng số câu', 'Thời gian làm bài', 'Thời điểm nộp'];
+    const rows = history.map((item, idx) => {
+      const mins = Math.floor(item.timeSpentSeconds / 60);
+      const secs = item.timeSpentSeconds % 60;
+      return [
+        idx + 1,
+        `"${(item.studentName || '').replace(/"/g, '""')}"`,
+        `"${(item.studentClass || '').replace(/"/g, '""')}"`,
+        `"${(item.studentSchool || '').replace(/"/g, '""')}"`,
+        `"${(item.studentEmail || '').replace(/"/g, '""')}"`,
+        `"${(item.title || '').replace(/"/g, '""')}"`,
+        item.grade || '12',
+        item.score,
+        item.correctCount,
+        item.totalQuestions,
+        `"${mins}p ${secs}s"`,
+        `"${new Date(item.date).toLocaleString('vi-VN')}"`
+      ];
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Bang_Diem_Tin_Hoc_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // --- AUTH UI & PROFILE MANAGEMENT ---
+  initAuthUI() {
+    // Lắng nghe thay đổi trạng thái user
+    Auth.onAuthChange((user) => {
+      const loginBtn = document.getElementById('auth-btn-login');
+      const profileMenu = document.getElementById('auth-profile-menu');
+      const userNameEl = document.getElementById('auth-user-name');
+      const userBadgeEl = document.getElementById('auth-user-badge');
+      const userAvatarEl = document.getElementById('auth-user-avatar');
+
+      if (user) {
+        if (loginBtn) loginBtn.classList.add('hidden');
+        if (profileMenu) profileMenu.classList.remove('hidden');
+        if (userNameEl) userNameEl.textContent = user.fullName || 'Học sinh';
+        if (userBadgeEl) {
+          userBadgeEl.textContent = user.className ? `Lớp ${user.className}` : (user.school || 'Đã đăng nhập');
+        }
+        if (userAvatarEl && user.avatar) userAvatarEl.src = user.avatar;
+      } else {
+        if (loginBtn) loginBtn.classList.remove('hidden');
+        if (profileMenu) profileMenu.classList.add('hidden');
+      }
+    });
+
+    // Mở modal đăng nhập
+    document.querySelectorAll('[data-open-login-modal]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.getElementById('modal-login')?.classList.remove('hidden');
+        Auth.initGoogleIdentity();
+      });
+    });
+
+    // Đóng các modal
+    document.querySelectorAll('[data-close-modal]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const modalId = btn.getAttribute('data-close-modal');
+        document.getElementById(modalId)?.classList.add('hidden');
+      });
+    });
+
+    // Nút đăng nhập thử nghiệm / demo Google
+    const demoLoginBtn = document.getElementById('btn-demo-google-login');
+    if (demoLoginBtn) {
+      demoLoginBtn.addEventListener('click', () => {
+        document.getElementById('modal-login')?.classList.add('hidden');
+        Auth.loginWithGoogleDemo({
+          fullName: 'Nguyễn Văn An',
+          email: 'nguyenvanan.thpt@gmail.com'
+        });
+      });
+    }
+
+    // Toggle dropdown profile menu
+    const profilePillBtn = document.getElementById('btn-user-profile-pill');
+    const profileDropdown = document.getElementById('user-profile-dropdown');
+    if (profilePillBtn && profileDropdown) {
+      profilePillBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        profileDropdown.classList.toggle('hidden');
+      });
+      document.addEventListener('click', () => {
+        profileDropdown.classList.add('hidden');
+      });
+    }
+
+    // Nút Đăng xuất
+    const logoutBtn = document.getElementById('btn-auth-logout');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        if (confirm('Bạn có chắc chắn muốn đăng xuất tài khoản?')) {
+          Auth.logout();
+        }
+      });
+    }
+
+    // Nút Sửa hồ sơ học sinh
+    const editProfileBtn = document.getElementById('btn-edit-profile');
+    if (editProfileBtn) {
+      editProfileBtn.addEventListener('click', () => {
+        Auth.openRequiredProfileModal();
+      });
+    }
+
+    // Form lưu thông tin bắt buộc: Họ và tên, Lớp, Trường
+    const formProfile = document.getElementById('form-required-profile');
+    if (formProfile) {
+      formProfile.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const fullName = document.getElementById('profile-input-fullname')?.value || '';
+        const grade = document.getElementById('profile-input-grade')?.value || '12';
+        const className = document.getElementById('profile-input-class')?.value || '';
+        const school = document.getElementById('profile-input-school')?.value || '';
+
+        if (!fullName.trim()) {
+          alert('Vui lòng nhập Họ và tên của bạn!');
+          return;
+        }
+        if (!className.trim()) {
+          alert('Vui lòng nhập Lớp của bạn (Ví dụ: 12A1)!');
+          return;
+        }
+        if (!school.trim()) {
+          alert('Vui lòng nhập tên Trường của bạn (Ví dụ: THPT Nguyễn Huệ)!');
+          return;
+        }
+
+        Auth.updateProfile({ fullName, grade, className, school });
+        Auth.closeRequiredProfileModal();
+        alert('Cập nhật thông tin học sinh thành công! Chúc bạn ôn tập tốt.');
+      });
+    }
+
+    // Modal cấu hình Google Client ID cho giáo viên
+    const btnOpenGoogleConfig = document.getElementById('btn-open-google-config');
+    const modalGoogleConfig = document.getElementById('modal-google-config');
+    const inputClientId = document.getElementById('input-google-client-id');
+    const btnSaveClientId = document.getElementById('btn-save-client-id');
+
+    if (btnOpenGoogleConfig) {
+      btnOpenGoogleConfig.addEventListener('click', () => {
+        if (inputClientId) inputClientId.value = Auth.getGoogleClientId();
+        modalGoogleConfig?.classList.remove('hidden');
+      });
+    }
+
+    if (btnSaveClientId && inputClientId) {
+      btnSaveClientId.addEventListener('click', () => {
+        Auth.setGoogleClientId(inputClientId.value);
+        modalGoogleConfig?.classList.add('hidden');
+        alert('Đã lưu Google Client ID thành công!');
+      });
     }
   }
 

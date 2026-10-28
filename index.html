@@ -33,6 +33,9 @@
   <!-- Canvas Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
 
+  <!-- Google Identity Services (GIS) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
   <!-- Custom CSS -->
   <link rel="stylesheet" href="css/style.css" />
 </head>
@@ -77,13 +80,58 @@
         <button data-tab-target="history" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
           <i class="fa-regular fa-clock text-xs"></i> Lịch sử
         </button>
+        <button data-tab-target="gradebook" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-graduation-cap text-xs text-blue-600"></i> Bảng điểm
+        </button>
         <button data-tab-target="print" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
           <i class="fa-solid fa-print text-xs"></i> In đề
         </button>
       </nav>
 
-      <!-- Right Controls: Grade Pill & Theme Toggle -->
+      <!-- Right Controls: Auth Profile, Grade Pill & Theme Toggle -->
       <div class="flex items-center gap-2 sm:gap-3">
+        
+        <!-- Google Auth Button (When NOT logged in) -->
+        <button id="auth-btn-login" data-open-login-modal class="px-3.5 py-1.5 rounded-2xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold hover:border-blue-500 hover:text-blue-600 transition flex items-center gap-2 shadow-sm">
+          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          <span class="hidden sm:inline">Đăng nhập Google</span>
+          <span class="sm:hidden">Đăng nhập</span>
+        </button>
+
+        <!-- User Profile Pill & Dropdown (When Logged in) -->
+        <div id="auth-profile-menu" class="hidden relative">
+          <button id="btn-user-profile-pill" class="flex items-center gap-2 p-1 pl-2 sm:pr-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition border border-slate-200 dark:border-slate-700 text-left">
+            <img id="auth-user-avatar" src="" alt="Avatar" class="w-7 h-7 rounded-xl object-cover ring-2 ring-blue-500/30 shrink-0" />
+            <div class="hidden sm:block leading-tight pr-1">
+              <span id="auth-user-name" class="text-xs font-bold text-slate-800 dark:text-white block max-w-[110px] truncate">Học sinh</span>
+              <span id="auth-user-badge" class="text-[10px] text-blue-600 dark:text-blue-400 font-semibold block">Lớp 12</span>
+            </div>
+            <i class="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
+          </button>
+
+          <!-- Dropdown menu -->
+          <div id="user-profile-dropdown" class="hidden absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-2 z-50 text-xs">
+            <button id="btn-edit-profile" class="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
+              <i class="fa-solid fa-user-pen text-blue-600 w-4"></i> Cập nhật Họ tên, Lớp, Trường
+            </button>
+            <button data-tab-target="gradebook" class="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
+              <i class="fa-solid fa-graduation-cap text-indigo-600 w-4"></i> Bảng điểm & Quản lý lớp
+            </button>
+            <button id="btn-open-google-config" class="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
+              <i class="fa-brands fa-google text-amber-500 w-4"></i> Cài đặt Google Client ID
+            </button>
+            <div class="my-1 border-t border-slate-100 dark:border-slate-700"></div>
+            <button id="btn-auth-logout" class="w-full text-left px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 font-bold">
+              <i class="fa-solid fa-arrow-right-from-bracket w-4"></i> Đăng xuất
+            </button>
+          </div>
+        </div>
+
         <!-- Grade Pills -->
         <div class="hidden sm:flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700">
           <button data-nav-grade="10" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 transition">K10</button>
@@ -131,6 +179,9 @@
       </button>
       <button data-tab-target="history" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
         <i class="fa-regular fa-clock w-5 text-cyan-600"></i> Lịch sử thi
+      </button>
+      <button data-tab-target="gradebook" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
+        <i class="fa-solid fa-graduation-cap w-5 text-blue-600"></i> Bảng điểm & Quản lý
       </button>
       <button data-tab-target="print" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
         <i class="fa-solid fa-print w-5 text-purple-600"></i> In đề kiểm tra / PDF
@@ -524,6 +575,174 @@
         </button>
       </div>
     </section>
+
+    <!-- VIEW: QUẢN LÝ BẢNG ĐIỂM & HỌC SINH (GRADEBOOK) -->
+    <section id="view-gradebook" class="hidden max-w-6xl mx-auto">
+      <div id="gradebook-list-area"></div>
+    </section>
+
+  </main>
+
+  <!-- ==================== MODAL: ĐĂNG NHẬP GOOGLE ==================== -->
+  <div id="modal-login" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative">
+      <button data-close-modal="modal-login" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="text-center mb-6">
+        <div class="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-3 text-2xl shadow-inner">
+          <i class="fa-solid fa-graduation-cap"></i>
+        </div>
+        <h3 class="text-lg sm:text-xl font-extrabold text-slate-800 dark:text-white mb-1">
+          Đăng Nhập Tài Khoản
+        </h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+          Đăng nhập bằng tài khoản Google để lưu kết quả thi thử, điểm số và xếp loại học tập của bạn.
+        </p>
+      </div>
+
+      <!-- Container chính của Google Identity Services button -->
+      <div id="google-signin-btn-container" class="flex justify-center mb-4 min-h-[44px]"></div>
+
+      <div class="flex items-center gap-3 my-4">
+        <div class="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">HOẶC DÀNH CHO THỬ NGHIỆM</span>
+        <div class="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+      </div>
+
+      <!-- Nút đăng nhập thử nghiệm không cần Client ID -->
+      <button id="btn-demo-google-login" class="w-full py-3 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-750 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition">
+        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+        </svg>
+        <span>Đăng nhập nhanh với Google (Chế độ Trải nghiệm)</span>
+      </button>
+
+      <p class="text-[11px] text-slate-400 text-center mt-4">
+        Khi đăng nhập, hệ thống sẽ yêu cầu bạn xác nhận <b>Họ và tên</b>, <b>Lớp</b> và <b>Trường</b> để lưu bảng điểm.
+      </p>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: BẮT BUỘC ĐIỀN THÔNG TIN HỌC SINH ==================== -->
+  <div id="modal-required-profile" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8">
+      
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center text-lg shrink-0">
+          <i class="fa-solid fa-id-card"></i>
+        </div>
+        <div>
+          <h3 class="text-base sm:text-lg font-bold text-slate-800 dark:text-white">
+            Hoàn Tất Hồ Sơ Học Sinh
+          </h3>
+          <span class="inline-block text-[11px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">
+            Bắt buộc điền đầy đủ để lưu kết quả thi
+          </span>
+        </div>
+      </div>
+
+      <p class="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+        Quy định hệ thống: Để kết quả thi thử và bài kiểm tra được tính điểm chính xác và xếp loại theo lớp, vui lòng nhập chính xác thông tin bên dưới:
+      </p>
+
+      <form id="form-required-profile" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Tài khoản Email Google</label>
+          <div class="px-4 py-2.5 bg-slate-100 dark:bg-slate-900 rounded-xl text-xs font-mono text-slate-600 dark:text-slate-300 flex items-center gap-2">
+            <i class="fa-solid fa-envelope text-slate-400"></i>
+            <span id="profile-email-display">-</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            Họ và Tên Học Sinh <span class="text-rose-500">*</span>
+          </label>
+          <input type="text" id="profile-input-fullname" required placeholder="Ví dụ: Nguyễn Văn An" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Khối Lớp <span class="text-rose-500">*</span>
+            </label>
+            <select id="profile-input-grade" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500">
+              <option value="12">Khối 12</option>
+              <option value="11">Khối 11</option>
+              <option value="10">Khối 10</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Lớp <span class="text-rose-500">*</span>
+            </label>
+            <input type="text" id="profile-input-class" required placeholder="Ví dụ: 12A1, 11B2..." class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            Trường THPT <span class="text-rose-500">*</span>
+          </label>
+          <input type="text" id="profile-input-school" required placeholder="Ví dụ: THPT Nguyễn Huệ..." class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div class="pt-3">
+          <button type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs transition shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
+            <i class="fa-solid fa-check"></i> Xác Nhận Thông Tin & Bắt Đầu Học
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: CÀI ĐẶT GOOGLE CLIENT ID ==================== -->
+  <div id="modal-google-config" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative">
+      <button data-close-modal="modal-google-config" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg shrink-0">
+          <i class="fa-brands fa-google"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-slate-800 dark:text-white">
+            Cài Đặt Google OAuth 2.0 Client ID
+          </h3>
+          <p class="text-xs text-slate-400">Dành cho Giáo viên / Quản trị viên</p>
+        </div>
+      </div>
+
+      <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
+        Để kích hoạt nút đăng nhập Google chính thức trên tên miền của Thầy (trên Cloudflare Pages), hãy dán mã Google Client ID tạo từ Google Cloud Console vào đây:
+      </p>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Google Client ID</label>
+          <input type="text" id="input-google-client-id" placeholder="ví dụ: 123456789-xxx.apps.googleusercontent.com" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div class="p-3 bg-slate-50 dark:bg-slate-750 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-300 space-y-1">
+          <p class="font-bold text-slate-700 dark:text-slate-200">Các miền cần thêm vào Authorized JavaScript origins:</p>
+          <p>• <code class="bg-black/10 px-1.5 py-0.5 rounded font-mono">https://tinhoc-thpt.pages.dev</code></p>
+          <p>• <code class="bg-black/10 px-1.5 py-0.5 rounded font-mono">http://localhost:8080</code></p>
+        </div>
+
+        <button id="btn-save-client-id" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs transition shadow-md shadow-blue-500/20">
+          Lưu Cấu Hình
+        </button>
+      </div>
+    </div>
+  </div>
 
   </main>
 
