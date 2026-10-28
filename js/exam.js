@@ -742,6 +742,9 @@ export const Exam = {
             <button id="btn-retake-exam" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-blue-500/20 flex items-center gap-2">
               <i class="fa-solid fa-arrows-rotate"></i> Làm lại đề này
             </button>
+            <button id="btn-view-leaderboard" class="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-amber-500/25 flex items-center gap-2">
+              <i class="fa-solid fa-crown text-yellow-300"></i> Xem Bảng Vinh Danh
+            </button>
             <button id="btn-new-exam" class="px-6 py-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-sm transition flex items-center gap-2">
               <i class="fa-solid fa-plus"></i> Tạo đề thi mới
             </button>
@@ -865,6 +868,13 @@ export const Exam = {
   bindResultEvents() {
     const retakeBtn = this.container.querySelector('#btn-retake-exam');
     const newExamBtn = this.container.querySelector('#btn-new-exam');
+    const lbBtn = this.container.querySelector('#btn-view-leaderboard');
+
+    if (lbBtn) {
+      lbBtn.addEventListener('click', () => {
+        window.dispatchEvent(new CustomEvent('nav-to-tab', { detail: 'leaderboard' }));
+      });
+    }
 
     if (retakeBtn) {
       retakeBtn.addEventListener('click', () => {

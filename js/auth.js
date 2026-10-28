@@ -52,6 +52,66 @@ export const Auth = {
     return !!this.currentUser;
   },
 
+  isAdmin() {
+    return this.currentUser?.role === 'admin';
+  },
+
+  isTeacher() {
+    return this.currentUser?.role === 'teacher' || this.currentUser?.role === 'admin';
+  },
+
+  isStudent() {
+    return !this.currentUser || this.currentUser?.role === 'student';
+  },
+
+  canManageQuestions() {
+    return this.isTeacher();
+  },
+
+  canAccessSystemSettings() {
+    return this.isAdmin();
+  },
+
+  getRoleLabel(role = null) {
+    const r = role || this.currentUser?.role || 'student';
+    if (r === 'admin') return 'Quản trị viên (Admin)';
+    if (r === 'teacher') return 'Giáo viên (GV)';
+    return 'Học sinh (HS)';
+  },
+
+  upgradeRoleWithCode(secretCode) {
+    if (!this.currentUser) {
+      return { success: false, message: 'Vui lòng đăng nhập trước khi kích hoạt vai trò!' };
+    }
+    const code = (secretCode || '').trim();
+    const config = Storage.getAdminConfig();
+
+    if (code === config.adminSecretCode) {
+      this.currentUser.role = 'admin';
+      this.saveUser(this.currentUser);
+      return { success: true, role: 'admin', message: 'Chúc mừng! Bạn đã kích hoạt quyền Quản trị viên (Admin).' };
+    } else if (code === config.teacherSecretCode) {
+      this.currentUser.role = 'teacher';
+      this.saveUser(this.currentUser);
+      return { success: true, role: 'teacher', message: 'Chúc mừng! Bạn đã kích hoạt quyền Giáo viên (GV).' };
+    } else {
+      return { success: false, message: 'Mã xác thực không chính xác! Vui lòng liên hệ Quản trị viên.' };
+    }
+  },
+
+  switchRoleDemo(role) {
+    if (!this.currentUser) {
+      this.loginWithGoogleDemo({
+        fullName: role === 'admin' ? 'Thầy Nghĩa (Admin)' : (role === 'teacher' ? 'Cô Mai (Giáo viên)' : 'Nguyễn Văn An (Học sinh)'),
+        email: role === 'admin' ? 'admin.tinhoc@gmail.com' : (role === 'teacher' ? 'giaovien.tinhoc@gmail.com' : 'hocsinh.tinhoc@gmail.com'),
+        role
+      });
+      return;
+    }
+    this.currentUser.role = role;
+    this.saveUser(this.currentUser);
+  },
+
   isProfileComplete() {
     if (!this.currentUser) return false;
     const { fullName, className, school } = this.currentUser;
@@ -111,10 +171,17 @@ export const Auth = {
       const name = payload.name || '';
       const picture = payload.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'Học Sinh')}&background=3b82f6&color=fff`;
 
-      // Kiểm tra xem đã có hồ sơ học sinh trước đó chưa
+      // Tự động gán quyền Admin nếu email khớp với cấu hình Admin
+      const adminConfig = Storage.getAdminConfig();
+      const isAdminEmail = (adminConfig.adminEmail && email.toLowerCase() === adminConfig.adminEmail.toLowerCase());
+
+      // Kiểm tra xem đã có hồ sơ trước đó chưa
       let existingProfile = this.currentUser;
       if (!existingProfile || existingProfile.email !== email) {
-        // Tìm trong danh sách học sinh đã lưu trước đó nếu có
+        // Tìm trong danh sách tài khoản đã lưu nếu có
+        const savedAccounts = Storage.getAccountsList();
+        const found = savedAccounts.find(a => a.email.toLowerCase() === email.toLowerCase());
+
         existingProfile = {
           uid: 'google_' + payload.sub,
           email,
@@ -123,11 +190,12 @@ export const Auth = {
           grade: '12',
           className: '',
           school: '',
-          role: 'student',
+          role: isAdminEmail ? 'admin' : (found?.role || 'student'),
           createdAt: new Date().toISOString()
         };
       } else {
         existingProfile.avatar = picture;
+        if (isAdminEmail) existingProfile.role = 'admin';
       }
 
       this.saveUser(existingProfile);
@@ -142,17 +210,35 @@ export const Auth = {
     }
   },
 
-  // Hỗ trợ đăng nhập nhanh (mô phỏng hoặc trực tiếp) khi chưa cấu hình Client ID của riêng mình
+  // Hỗ trợ đăng nhập nhanh mô phỏng với từng vai trò
   loginWithGoogleDemo(customData = {}) {
+    const role = customData.role || 'student';
+    let defaultName = 'Học Sinh Mẫu';
+    let defaultEmail = 'hocsinh.tinhoc@gmail.com';
+    let defaultClass = '12A1';
+    let defaultSchool = 'THPT Chu Văn An';
+
+    if (role === 'teacher') {
+      defaultName = 'Cô Hoàng Mai (GV Tin học)';
+      defaultEmail = 'giaovien.mai@gmail.com';
+      defaultClass = 'Tổ Tin học';
+      defaultSchool = 'THPT Thực Hành HCMUE';
+    } else if (role === 'admin') {
+      defaultName = 'Thầy Nghĩa (Quản trị viên)';
+      defaultEmail = 'nghiatnhcmue@gmail.com';
+      defaultClass = 'Quản trị hệ thống';
+      defaultSchool = 'Trường ĐH Sư Phạm TP.HCM';
+    }
+
     const dummyUser = {
-      uid: 'google_' + Date.now(),
-      email: customData.email || 'hocsinh.tinhoc@gmail.com',
-      fullName: customData.fullName || 'Học Sinh Mẫu',
-      avatar: customData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(customData.fullName || 'Học Sinh')}&background=3b82f6&color=fff`,
+      uid: 'demo_' + Date.now(),
+      email: customData.email || defaultEmail,
+      fullName: customData.fullName || defaultName,
+      avatar: customData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(customData.fullName || defaultName)}&background=${role === 'admin' ? 'ef4444' : (role === 'teacher' ? '8b5cf6' : '3b82f6')}&color=fff`,
       grade: customData.grade || '12',
-      className: customData.className || '',
-      school: customData.school || '',
-      role: 'student',
+      className: customData.className || defaultClass,
+      school: customData.school || defaultSchool,
+      role: role,
       createdAt: new Date().toISOString()
     };
 
@@ -166,6 +252,7 @@ export const Auth = {
   saveUser(user) {
     this.currentUser = user;
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+    Storage.saveAccountRecord(user);
     this.notifyAuthChange();
   },
 

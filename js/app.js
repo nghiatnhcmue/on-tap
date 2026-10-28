@@ -10,6 +10,9 @@ import { Search } from './search.js';
 import { PrintManager } from './print.js';
 import { Auth } from './auth.js';
 import { escapeHtml } from './utils.js';
+import { Leaderboard } from './leaderboard.js';
+import { QuestionsManager } from './questions-manager.js';
+import { AdminManager } from './admin-manager.js';
 
 class App {
   constructor() {
@@ -59,16 +62,17 @@ class App {
   }
 
   async loadGradeData(grade) {
-    if (this.gradeCache[grade]) {
-      return this.gradeCache[grade];
+    if (!this.rawGradeCache) this.rawGradeCache = {};
+    if (this.rawGradeCache[grade]) {
+      return Storage.applyCustomizations(grade, this.rawGradeCache[grade]);
     }
     this.showGlobalLoading(true);
     try {
       const res = await fetch(`data/grade_${grade}.json`);
       const data = await res.json();
-      this.gradeCache[grade] = data;
+      this.rawGradeCache[grade] = data;
       this.showGlobalLoading(false);
-      return data;
+      return Storage.applyCustomizations(grade, data);
     } catch (e) {
       this.showGlobalLoading(false);
       console.error(`Không thể nạp dữ liệu Khối ${grade}`, e);
@@ -123,6 +127,16 @@ class App {
 
   // --- ROUTING / TABS ---
   async switchTab(tab) {
+    // Kiểm tra quyền truy cập theo vai trò (RBAC)
+    if (tab === 'admin-system' && !Auth.isAdmin()) {
+      alert('Chức năng Quản Trị Hệ Thống chỉ dành riêng cho Quản trị viên (Admin)!');
+      return;
+    }
+    if ((tab === 'questions-manage' || tab === 'gradebook') && !Auth.isTeacher()) {
+      alert('Chức năng này dành cho Giáo viên (GV) & Quản trị viên (Admin)!\nHọc sinh vui lòng tham gia thi thử và xem bảng vinh danh.');
+      return;
+    }
+
     this.currentTab = tab;
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -139,7 +153,11 @@ class App {
     });
 
     // Ẩn tất cả view
-    const views = ['view-home', 'view-practice', 'view-exam-setup', 'view-exam-room', 'view-search', 'view-bookmarks', 'view-history', 'view-print', 'view-gradebook'];
+    const views = [
+      'view-home', 'view-practice', 'view-exam-setup', 'view-exam-room',
+      'view-search', 'view-bookmarks', 'view-history', 'view-print',
+      'view-gradebook', 'view-leaderboard', 'view-questions-manage', 'view-admin-system'
+    ];
     views.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.classList.add('hidden');
@@ -181,6 +199,18 @@ class App {
       case 'gradebook':
         document.getElementById('view-gradebook')?.classList.remove('hidden');
         this.renderGradebook();
+        break;
+      case 'leaderboard':
+        document.getElementById('view-leaderboard')?.classList.remove('hidden');
+        Leaderboard.init(document.getElementById('leaderboard-area'));
+        break;
+      case 'questions-manage':
+        document.getElementById('view-questions-manage')?.classList.remove('hidden');
+        QuestionsManager.init(document.getElementById('questions-manage-area'), this.manifest, (g) => this.loadGradeData(g));
+        break;
+      case 'admin-system':
+        document.getElementById('view-admin-system')?.classList.remove('hidden');
+        AdminManager.init(document.getElementById('admin-system-area'));
         break;
     }
   }
@@ -824,19 +854,47 @@ class App {
       const userNameEl = document.getElementById('auth-user-name');
       const userBadgeEl = document.getElementById('auth-user-badge');
       const userAvatarEl = document.getElementById('auth-user-avatar');
+      const dropdownRoleBadge = document.getElementById('dropdown-user-role-badge');
+      const dropdownEmail = document.getElementById('dropdown-user-email');
 
       if (user) {
         if (loginBtn) loginBtn.classList.add('hidden');
         if (profileMenu) profileMenu.classList.remove('hidden');
-        if (userNameEl) userNameEl.textContent = user.fullName || 'Học sinh';
+        if (userNameEl) userNameEl.textContent = user.fullName || 'Người dùng';
+
+        let roleName = 'Học sinh';
+        let roleBadgeColor = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
+        if (user.role === 'admin') {
+          roleName = 'Quản trị viên (Admin)';
+          roleBadgeColor = 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 font-bold';
+        } else if (user.role === 'teacher') {
+          roleName = 'Giáo viên (GV)';
+          roleBadgeColor = 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 font-bold';
+        } else if (user.className) {
+          roleName = `Lớp ${user.className}`;
+        }
+
         if (userBadgeEl) {
-          userBadgeEl.textContent = user.className ? `Lớp ${user.className}` : (user.school || 'Đã đăng nhập');
+          userBadgeEl.textContent = roleName;
+          if (user.role === 'admin') userBadgeEl.className = 'text-[10px] text-rose-600 dark:text-rose-400 font-bold block';
+          else if (user.role === 'teacher') userBadgeEl.className = 'text-[10px] text-purple-600 dark:text-purple-400 font-bold block';
+          else userBadgeEl.className = 'text-[10px] text-blue-600 dark:text-blue-400 font-semibold block';
+        }
+
+        if (dropdownRoleBadge) {
+          dropdownRoleBadge.textContent = Auth.getRoleLabel();
+          dropdownRoleBadge.className = `px-2 py-0.5 rounded text-[10px] ${roleBadgeColor}`;
+        }
+        if (dropdownEmail) {
+          dropdownEmail.textContent = user.email || '';
         }
         if (userAvatarEl && user.avatar) userAvatarEl.src = user.avatar;
       } else {
         if (loginBtn) loginBtn.classList.remove('hidden');
         if (profileMenu) profileMenu.classList.add('hidden');
       }
+
+      this.updateRolePermissionsUI(user);
     });
 
     // Mở modal đăng nhập
@@ -855,15 +913,50 @@ class App {
       });
     });
 
-    // Nút đăng nhập thử nghiệm / demo Google
-    const demoLoginBtn = document.getElementById('btn-demo-google-login');
-    if (demoLoginBtn) {
-      demoLoginBtn.addEventListener('click', () => {
-        document.getElementById('modal-login')?.classList.add('hidden');
-        Auth.loginWithGoogleDemo({
-          fullName: 'Nguyễn Văn An',
-          email: 'nguyenvanan.thpt@gmail.com'
-        });
+    // 3 Nút đăng nhập trải nghiệm theo vai trò (HS, GV, Admin)
+    document.getElementById('btn-demo-login-student')?.addEventListener('click', () => {
+      document.getElementById('modal-login')?.classList.add('hidden');
+      Auth.loginWithGoogleDemo({ role: 'student' });
+    });
+
+    document.getElementById('btn-demo-login-teacher')?.addEventListener('click', () => {
+      document.getElementById('modal-login')?.classList.add('hidden');
+      Auth.loginWithGoogleDemo({ role: 'teacher' });
+    });
+
+    document.getElementById('btn-demo-login-admin')?.addEventListener('click', () => {
+      document.getElementById('modal-login')?.classList.add('hidden');
+      Auth.loginWithGoogleDemo({ role: 'admin' });
+    });
+
+    // Nút mở modal nâng cấp vai trò bằng mã xác thực
+    const btnOpenUpgrade = document.getElementById('btn-open-upgrade-role');
+    const modalUpgrade = document.getElementById('modal-upgrade-role');
+    const formUpgrade = document.getElementById('form-upgrade-role');
+    const inputSecretCode = document.getElementById('input-upgrade-secret-code');
+
+    if (btnOpenUpgrade) {
+      btnOpenUpgrade.addEventListener('click', () => {
+        if (!Auth.isLoggedIn()) {
+          alert('Vui lòng đăng nhập trước khi kích hoạt vai trò!');
+          document.getElementById('modal-login')?.classList.remove('hidden');
+          return;
+        }
+        modalUpgrade?.classList.remove('hidden');
+        if (inputSecretCode) inputSecretCode.value = '';
+      });
+    }
+
+    if (formUpgrade) {
+      formUpgrade.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const code = inputSecretCode?.value || '';
+        const res = Auth.upgradeRoleWithCode(code);
+        alert(res.message);
+        if (res.success) {
+          modalUpgrade?.classList.add('hidden');
+          this.switchTab(res.role === 'admin' ? 'admin-system' : 'questions-manage');
+        }
       });
     }
 
@@ -886,6 +979,7 @@ class App {
       logoutBtn.addEventListener('click', () => {
         if (confirm('Bạn có chắc chắn muốn đăng xuất tài khoản?')) {
           Auth.logout();
+          this.switchTab('home');
         }
       });
     }
@@ -947,6 +1041,20 @@ class App {
         alert('Đã lưu Google Client ID thành công!');
       });
     }
+  }
+
+  updateRolePermissionsUI(user) {
+    const isTeacher = Auth.isTeacher();
+    const isAdmin = Auth.isAdmin();
+
+    // Ẩn/hiển thị các tab & nút theo quyền yêu cầu
+    document.querySelectorAll('[data-role-req="teacher"]').forEach(el => {
+      el.classList.toggle('hidden', !isTeacher);
+    });
+
+    document.querySelectorAll('[data-role-req="admin"]').forEach(el => {
+      el.classList.toggle('hidden', !isAdmin);
+    });
   }
 
   // --- GLOBAL EVENTS ---
