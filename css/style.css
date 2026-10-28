@@ -180,6 +180,42 @@ body.in-exam .mobile-bottom-bar {
   display: none !important;
 }
 
+/* =========================================================
+   PROCTOR & CHỐNG GIAN LẬN THI TRỰC TUYẾN
+   ========================================================= */
+body.in-proctored-exam {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+}
+
+body.in-proctored-exam img {
+  pointer-events: none !important;
+  -webkit-user-drag: none !important;
+  user-drag: none !important;
+}
+
+@keyframes alert-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+
+.animate-alert-shake {
+  animation: alert-shake 0.45s ease-in-out;
+}
+
+/* Hiệu ứng nhấp nháy cảnh báo vi phạm */
+@keyframes proctor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.animate-proctor-blink {
+  animation: proctor-blink 1.2s infinite ease-in-out;
+}
+
 /* Tránh che nội dung trên màn hình điện thoại có bottom bar */
 @media (max-width: 768px) {
   body:not(.in-exam) {

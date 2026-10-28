@@ -6,6 +6,7 @@
 import { Storage } from './storage.js';
 import { Auth } from './auth.js';
 import { escapeHtml } from './utils.js';
+import { Proctor } from './proctor.js';
 
 export const Exam = {
   questions: [],
@@ -19,6 +20,9 @@ export const Exam = {
   examConfig: null,
   examState: 'idle', // 'idle' | 'taking' | 'submitted'
   examResult: null,
+  isProctored: false,
+  isDisqualified: false,
+  disqualifiedReason: '',
 
   init(containerEl, allQuestions, manifest) {
     this.container = containerEl;
@@ -30,6 +34,7 @@ export const Exam = {
   resetState() {
     if (this.timerInterval) clearInterval(this.timerInterval);
     document.body.classList.remove('in-exam');
+    if (this.isProctored) Proctor.stop();
     this.examQuestions = [];
     this.userAnswers = {};
     this.flaggedQuestions = new Set();
@@ -39,6 +44,9 @@ export const Exam = {
     this.examConfig = null;
     this.examState = 'idle';
     this.examResult = null;
+    this.isProctored = false;
+    this.isDisqualified = false;
+    this.disqualifiedReason = '';
   },
 
   // --- TẠO ĐỀ THI ---
@@ -52,11 +60,34 @@ export const Exam = {
     const shouldShuffleQuestions = (config.shuffleQuestions !== undefined) ? !!config.shuffleQuestions : (settings.shuffleQuestions ?? true);
     const shouldShuffleOptions = (config.shuffleOptions !== undefined) ? !!config.shuffleOptions : (settings.shuffleOptions ?? true);
 
+    const antiCheatCfg = config.antiCheat || config.room?.antiCheat || { enabled: false };
+    this.isProctored = !!antiCheatCfg.enabled;
+    this.maxViolations = antiCheatCfg.maxViolations || 3;
+    this.isDisqualified = false;
+    this.disqualifiedReason = '';
+
     this.examConfig = {
       ...config,
       shuffleQuestions: shouldShuffleQuestions,
-      shuffleOptions: shouldShuffleOptions
+      shuffleOptions: shouldShuffleOptions,
+      antiCheat: antiCheatCfg
     };
+
+    if (this.isProctored) {
+      Proctor.init(antiCheatCfg,
+        (record, remaining, total) => {
+          const badgeEl = document.getElementById('proctor-violation-badge');
+          if (badgeEl) {
+            badgeEl.innerHTML = `Vi phạm: <strong class="text-white">${total}</strong>/${this.maxViolations}`;
+            badgeEl.className = 'text-[11px] font-mono px-2.5 py-1 rounded-lg bg-rose-600 text-white font-bold animate-pulse';
+          }
+        },
+        (logs) => {
+          this.terminateExamDueToCheating(logs);
+        }
+      );
+      setTimeout(() => Proctor.start(), 400);
+    }
 
     if (gradePool.length === 0) {
       alert('Không có dữ liệu câu hỏi cho khối lớp này!');
@@ -231,6 +262,31 @@ export const Exam = {
         
         <!-- Cột 1: Câu hỏi đang hiển thị (3 phần) -->
         <div class="lg:col-span-3 space-y-6">
+
+          <!-- Banner Giám Sát Chống Gian Lận (Nếu có bật) -->
+          ${this.isProctored ? `
+            <div class="p-3.5 bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-sm border border-slate-700/80">
+              <div class="flex items-center gap-2.5">
+                <span class="w-3 h-3 rounded-full ${Proctor.violationCount > 0 ? 'bg-amber-400 animate-ping' : 'bg-emerald-400 animate-pulse'}"></span>
+                <div>
+                  <span class="font-bold text-xs flex items-center gap-1.5 text-white">
+                    <i class="fa-solid fa-shield-halved text-blue-400"></i> Phòng thi được giám sát chống gian lận
+                  </span>
+                  <span class="text-[10px] text-slate-400 block">Nghiêm cấm chuyển tab, thu nhỏ hoặc rời khỏi cửa sổ thi</span>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <span id="proctor-violation-badge" class="text-[11px] font-mono px-3 py-1 rounded-xl ${Proctor.violationCount > 0 ? 'bg-rose-600 text-white font-bold animate-pulse' : 'bg-white/10 text-slate-300'}">
+                  Vi phạm: <strong class="text-white">${Proctor.violationCount}</strong>/${this.maxViolations || 3}
+                </span>
+                <button type="button" id="btn-toggle-fullscreen" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-slate-200 rounded-xl text-xs font-semibold transition border border-white/10 flex items-center gap-1">
+                  <i class="fa-solid fa-expand text-[10px]"></i> Toàn màn hình
+                </button>
+              </div>
+            </div>
+          ` : ''}
+
           <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 sm:p-8">
             
             <!-- Header câu hỏi -->
@@ -427,6 +483,14 @@ export const Exam = {
   },
 
   bindExamEvents(currentQ) {
+    // Fullscreen Toggle in Proctor mode
+    const fsBtn = this.container.querySelector('#btn-toggle-fullscreen');
+    if (fsBtn) {
+      fsBtn.addEventListener('click', () => {
+        Proctor.requestFullscreen();
+      });
+    }
+
     // Mobile Drawer Open / Close
     const openMobilePaletteBtn = this.container.querySelector('#btn-open-mobile-palette');
     const closeMobilePaletteBtn = this.container.querySelector('#btn-close-mobile-palette');
@@ -549,11 +613,21 @@ export const Exam = {
     }
   },
 
+  terminateExamDueToCheating(logs) {
+    this.isDisqualified = true;
+    this.disqualifiedReason = `Đình chỉ thi do vi phạm quy chế quá ${this.maxViolations} lần cho phép (rời khỏi màn hình làm bài)`;
+    this.submitExam(true, this.disqualifiedReason, logs);
+  },
+
   // --- NỘP BÀI & CHẤM ĐIỂM ---
-  submitExam() {
+  submitExam(isForced = false, forceReason = '', forcedLogs = null) {
     if (this.timerInterval) clearInterval(this.timerInterval);
     document.body.classList.remove('in-exam');
     this.examState = 'submitted';
+
+    if (this.isProctored) {
+      Proctor.stop();
+    }
 
     const timeSpent = this.totalSeconds - Math.max(0, this.remainingSeconds);
     let totalScore = 0;
@@ -637,13 +711,19 @@ export const Exam = {
     // Giới hạn điểm từ 0 đến 10, làm tròn 2 chữ số thập phân
     totalScore = Math.min(10, Math.max(0, Math.round(totalScore * 100) / 100));
 
+    const isDisqualified = this.isDisqualified || isForced;
+    const disqualifiedReason = this.disqualifiedReason || forceReason || '';
+    const violationLogs = forcedLogs || (this.isProctored ? Proctor.violationLogs : []);
+    const violationCount = this.isProctored ? Proctor.violationCount : 0;
+
     const user = Auth.currentUser;
 
     this.examResult = {
       title: this.examConfig.title,
       type: this.examConfig.type,
       grade: this.examConfig.grade,
-      score: totalScore,
+      score: isDisqualified ? 0.0 : totalScore,
+      rawScore: totalScore,
       part1Score: Math.round(part1Score * 100) / 100,
       part2Score: Math.round(part2Score * 100) / 100,
       totalQuestions: this.examQuestions.length,
@@ -653,14 +733,21 @@ export const Exam = {
       studentClass: user?.className || '',
       studentSchool: user?.school || '',
       studentEmail: user?.email || '',
+      roomId: this.examConfig.roomId || null,
+      roomTitle: this.examConfig.roomTitle || null,
+      isProctored: this.isProctored,
+      violationCount,
+      violationLogs,
+      isDisqualified,
+      disqualifiedReason,
       details
     };
 
     // Lưu vào LocalStorage
     Storage.saveExamResult(this.examResult);
 
-    // Kích hoạt pháo hoa chúc mừng nếu đạt điểm cao
-    if (totalScore >= 8.0 && window.confetti) {
+    // Kích hoạt pháo hoa chúc mừng nếu đạt điểm cao và không bị đình chỉ
+    if (!isDisqualified && totalScore >= 8.0 && window.confetti) {
       window.confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
     }
 
@@ -701,7 +788,43 @@ export const Exam = {
             <span><i class="fa-solid fa-user-graduate text-blue-600 mr-1.5"></i>Thí sinh: <b>${res.studentName}</b></span>
             ${res.studentClass ? `<span>•</span><span>Lớp: <b>${res.studentClass}</b></span>` : ''}
             ${res.studentSchool ? `<span>•</span><span>Trường: <b>${res.studentSchool}</b></span>` : ''}
+            ${res.roomId ? `<span>•</span><span class="px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-bold font-mono">Phòng: ${res.roomId}</span>` : ''}
           </div>
+
+          <!-- Thông báo kết quả giám sát chống gian lận -->
+          ${res.isDisqualified ? `
+            <div class="p-5 bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-500 rounded-3xl text-center space-y-3 mb-6 shadow-sm max-w-lg mx-auto">
+              <div class="w-14 h-14 rounded-full bg-rose-600 text-white flex items-center justify-center text-2xl mx-auto shadow-lg shadow-rose-600/30">
+                <i class="fa-solid fa-ban"></i>
+              </div>
+              <h3 class="text-base font-black text-rose-700 dark:text-rose-300">
+                BÀI THI BỊ ĐÌNH CHỈ DO GIAN LẬN
+              </h3>
+              <p class="text-xs text-rose-600 dark:text-rose-400 font-bold leading-relaxed">
+                ${escapeHtml(res.disqualifiedReason || 'Vi phạm quy chế quá số lần cho phép')}
+              </p>
+              <div class="p-3 bg-white dark:bg-slate-800 rounded-2xl border border-rose-200 dark:border-rose-900 text-left text-xs space-y-1">
+                <p class="font-bold text-slate-800 dark:text-white mb-1 flex items-center gap-1.5">
+                  <i class="fa-solid fa-clipboard-list text-rose-500"></i> Biên bản mốc thời gian vi phạm:
+                </p>
+                ${(res.violationLogs || []).map((l, i) => `
+                  <p class="text-rose-600 dark:text-rose-400 font-mono text-[11px] leading-snug">
+                    • [${l.time}] Lần ${i+1}: ${escapeHtml(l.reason)}
+                  </p>
+                `).join('')}
+              </div>
+            </div>
+          ` : (res.violationCount > 0 ? `
+            <div class="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-2xl text-left text-xs mb-6 max-w-lg mx-auto flex items-start gap-2.5">
+              <i class="fa-solid fa-triangle-exclamation text-amber-500 text-base mt-0.5 shrink-0"></i>
+              <div>
+                <strong class="text-amber-800 dark:text-amber-300 block mb-0.5">Cảnh báo giám sát phòng thi:</strong>
+                <span class="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
+                  Hệ thống ghi nhận thí sinh có <b>${res.violationCount} lần</b> rời màn hình hoặc chuyển tab. Mốc thời gian vi phạm đã được ghi vào biên bản nộp cho Thầy Cô.
+                </span>
+              </div>
+            </div>
+          ` : '')}
 
           <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-800 dark:text-white mb-2">
             Kết Quả Bài Thi Thử

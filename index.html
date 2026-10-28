@@ -75,6 +75,9 @@
           <i class="fa-solid fa-crown text-xs"></i> Vinh danh
         </button>
         <!-- Tab dành cho Giáo viên (GV) & Admin -->
+        <button data-tab-target="exam-rooms" data-role-req="teacher" class="hidden px-3 py-2 rounded-xl text-emerald-600 dark:text-emerald-400 font-bold hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-chalkboard-user text-xs"></i> Giao đề thi
+        </button>
         <button data-tab-target="questions-manage" data-role-req="teacher" class="hidden px-3 py-2 rounded-xl text-purple-600 dark:text-purple-400 font-bold hover:bg-purple-50 dark:hover:bg-purple-950/30 transition flex items-center gap-1.5">
           <i class="fa-solid fa-database text-xs"></i> Quản lý đề
         </button>
@@ -141,6 +144,9 @@
             <button data-tab-target="leaderboard" class="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
               <i class="fa-solid fa-crown text-amber-500 w-4"></i> Bảng vinh danh học sinh giỏi
             </button>
+            <button data-tab-target="exam-rooms" data-role-req="teacher" class="hidden w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
+              <i class="fa-solid fa-chalkboard-user text-emerald-600 w-4"></i> Quản lý phòng thi & giao đề
+            </button>
             <button data-tab-target="questions-manage" data-role-req="teacher" class="hidden w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
               <i class="fa-solid fa-database text-purple-600 w-4"></i> Quản lý ngân hàng câu hỏi
             </button>
@@ -199,6 +205,9 @@
       <button data-tab-target="leaderboard" class="w-full text-left px-3 py-2.5 rounded-xl font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 flex items-center gap-2">
         <i class="fa-solid fa-crown w-5 text-amber-500"></i> Bảng vinh danh học sinh giỏi
       </button>
+      <button data-tab-target="exam-rooms" class="w-full text-left px-3 py-2.5 rounded-xl font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 flex items-center gap-2">
+        <i class="fa-solid fa-door-open w-5 text-emerald-600"></i> Phòng thi & Giao đề thi
+      </button>
       <button data-tab-target="questions-manage" data-role-req="teacher" class="hidden w-full text-left px-3 py-2.5 rounded-xl font-bold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 flex items-center gap-2">
         <i class="fa-solid fa-database w-5 text-purple-600"></i> Quản lý câu hỏi (GV & Admin)
       </button>
@@ -251,6 +260,9 @@
             </button>
             <button data-tab-target="exam-setup" class="px-5 sm:px-6 py-3.5 bg-blue-700/80 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs sm:text-sm backdrop-blur-md transition border border-white/20 flex items-center gap-2">
               <i class="fa-solid fa-pen-clip"></i> Thi thử đề chuẩn 2025
+            </button>
+            <button data-tab-target="exam-rooms" class="px-5 sm:px-6 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-emerald-500/25 flex items-center gap-2">
+              <i class="fa-solid fa-door-open"></i> Vào phòng thi
             </button>
             <button data-tab-target="leaderboard" class="px-5 sm:px-6 py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-amber-500/25 flex items-center gap-2">
               <i class="fa-solid fa-crown text-yellow-300"></i> Bảng Vinh Danh
@@ -434,11 +446,65 @@
       
       <div class="text-center">
         <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-800 dark:text-white mb-2">
-          Hệ Thống Thi Thử Trực Tuyến
+          Hệ Thống Thi & Kiểm Tra Trực Tuyến
         </h2>
         <p class="text-sm text-slate-500 dark:text-slate-400">
-          Luyện tập kỹ năng làm bài dưới áp lực thời gian với ngân hàng đề phong phú
+          Vào phòng thi do Thầy Cô giao hoặc tự do luyện tập kỹ năng dưới áp lực thời gian
         </p>
+      </div>
+
+      <!-- Thẻ VÀO PHÒNG THI ĐƯỢC GIAO (Thời gian, Password, Chống gian lận) -->
+      <div class="bg-gradient-to-br from-indigo-900 via-blue-900 to-slate-900 text-white p-6 sm:p-8 rounded-3xl shadow-xl border border-indigo-700/60 relative overflow-hidden">
+        <div class="absolute -top-20 -right-20 w-60 h-60 bg-blue-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+          <div class="max-w-xl">
+            <div class="flex items-center gap-2 mb-2 flex-wrap">
+              <span class="px-3 py-1 bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-sm">
+                Dành cho học sinh làm bài theo lớp
+              </span>
+              <span class="px-2.5 py-1 bg-white/10 text-slate-200 text-[10px] font-bold rounded-lg flex items-center gap-1">
+                <i class="fa-solid fa-shield-halved text-emerald-400"></i> Giám sát chống gian lận
+              </span>
+            </div>
+            <h3 class="text-xl sm:text-2xl font-black text-white leading-snug">
+              Vào Phòng Thi Được Giao
+            </h3>
+            <p class="text-xs text-blue-200 mt-1 leading-relaxed">
+              Nhập mã phòng thi và mật khẩu do Giáo viên cấp để bắt đầu làm bài thi chính thức. Hệ thống sẽ tự động đối chiếu thời gian mở/đóng đề và kích hoạt cơ chế bảo vệ bài thi.
+            </p>
+          </div>
+
+          <!-- Form nhập mã & mật khẩu -->
+          <div class="bg-white/10 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-white/20 w-full lg:w-auto lg:min-w-[360px] space-y-3 shrink-0">
+            <div>
+              <label class="block text-[11px] font-bold text-blue-200 uppercase tracking-wider mb-1">Mã phòng thi</label>
+              <div class="relative">
+                <i class="fa-solid fa-hashtag absolute left-3.5 top-3 text-blue-300 text-xs"></i>
+                <input type="text" id="input-enter-room-id" placeholder="Ví dụ: TIN12-HK1" class="w-full pl-9 pr-4 py-2.5 bg-black/30 border border-white/20 rounded-xl text-xs font-mono font-bold text-white uppercase placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-blue-200 uppercase tracking-wider mb-1">Mật khẩu phòng thi (Password)</label>
+              <div class="relative">
+                <i class="fa-solid fa-key absolute left-3.5 top-3 text-amber-300 text-xs"></i>
+                <input type="password" id="input-enter-room-pwd" placeholder="Nhập mật khẩu vào thi..." class="w-full pl-9 pr-4 py-2.5 bg-black/30 border border-white/20 rounded-xl text-xs text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              </div>
+            </div>
+
+            <button type="button" id="btn-enter-room-exam" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2">
+              <i class="fa-solid fa-right-to-bracket"></i> Bắt đầu vào thi
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phân cách: Tự Luyện Đề Tự Do -->
+      <div class="flex items-center gap-4 my-2">
+        <div class="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Hoặc tự luyện đề tự do</span>
+        <div class="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
       </div>
 
       <!-- Chọn khối thi -->
@@ -684,6 +750,16 @@
           <i class="fa-solid fa-print"></i> Xem trước & In đề thi ngay (PDF)
         </button>
       </div>
+    </section>
+
+    <!-- VIEW: QUẢN LÝ PHÒNG THI & GIAO ĐỀ THI (DÀNH CHO GV & ADMIN) -->
+    <section id="view-exam-rooms" class="hidden max-w-6xl mx-auto">
+      <div id="exam-rooms-list-area"></div>
+    </section>
+
+    <!-- VIEW: QUẢN LÝ PHÒNG THI & GIAO ĐỀ THI (EXAM ROOMS) -->
+    <section id="view-exam-rooms" class="hidden max-w-6xl mx-auto">
+      <div id="exam-rooms-area"></div>
     </section>
 
     <!-- VIEW: QUẢN LÝ BẢNG ĐIỂM & HỌC SINH (GRADEBOOK) -->
@@ -953,6 +1029,169 @@
           Lưu Cấu Hình
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: TẠO PHÒNG THI MỚI (GIAO ĐỀ THEO GIỜ & PASS) ==================== -->
+  <div id="modal-create-exam-room" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[90dvh] overflow-y-auto space-y-5">
+      <button id="btn-close-room-modal" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl shrink-0">
+          <i class="fa-solid fa-chalkboard-user"></i>
+        </div>
+        <div>
+          <h3 class="text-base sm:text-lg font-bold text-slate-800 dark:text-white">
+            Tạo Phòng Thi / Giao Đề Mới
+          </h3>
+          <p class="text-xs text-slate-400">Thiết lập thời gian làm bài, mật khẩu và giám sát gian lận</p>
+        </div>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        <div>
+          <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+            Tên bài kiểm tra / Đợt thi <span class="text-rose-500">*</span>
+          </label>
+          <input type="text" id="room-input-title" placeholder="Ví dụ: Kiểm tra 1 tiết Tin học 12 - Học kỳ I" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Mã phòng thi (Access Code) <span class="text-rose-500">*</span>
+            </label>
+            <input type="text" id="room-input-id" placeholder="Ví dụ: TIN12-HK1" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-mono font-bold uppercase text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+
+          <div>
+            <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Khối lớp <span class="text-rose-500">*</span>
+            </label>
+            <select id="room-input-grade" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <option value="12">Khối 12</option>
+              <option value="11">Khối 11</option>
+              <option value="10">Khối 10</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Mật khẩu vào thi (Password)
+            </label>
+            <input type="text" id="room-input-pwd" placeholder="Mật khẩu vào phòng (vd: 1234)" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-mono font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            <span class="text-[10px] text-slate-400 mt-0.5 block">Học sinh phải nhập đúng mật khẩu này mới mở được đề</span>
+          </div>
+
+          <div>
+            <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Thời gian làm bài (Phút) <span class="text-rose-500">*</span>
+            </label>
+            <input type="number" id="room-input-duration" value="45" min="5" max="180" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Thời gian Mở đề (Bắt đầu)
+            </label>
+            <input type="datetime-local" id="room-input-start" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+
+          <div>
+            <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Thời gian Đóng đề (Kết thúc)
+            </label>
+            <input type="datetime-local" id="room-input-end" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Cấu trúc đề thi</label>
+          <select id="room-input-type" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white">
+            <option value="bgd_2025">Đề chuẩn Bộ GD&ĐT 2025 (24 trắc nghiệm + 4 đúng/sai - 50 phút)</option>
+            <option value="custom">Đề kiểm tra định kỳ 30 câu (trộn theo khối)</option>
+          </select>
+        </div>
+
+        <!-- Cấu hình Chống Gian Lận (Proctoring) -->
+        <div class="p-4 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-2xl border border-indigo-200 dark:border-indigo-800/80 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-shield-halved text-indigo-600 dark:text-indigo-400 text-base"></i>
+              <span class="font-bold text-slate-800 dark:text-white">Kích hoạt Giám Sát Chống Gian Lận</span>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="room-input-anticheat" checked class="sr-only peer" />
+              <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-[11px] text-slate-600 dark:text-slate-400 border-t border-indigo-100 dark:border-indigo-900/60">
+            <div>
+              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Số lần cảnh báo vi phạm tối đa</label>
+              <select id="room-input-max-violations" class="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-bold text-slate-800 dark:text-white">
+                <option value="1">1 lần (Nghiêm ngặt nhất - Khóa ngay)</option>
+                <option value="2">2 lần cảnh báo</option>
+                <option value="3" selected>3 lần cảnh báo (Tiêu chuẩn)</option>
+                <option value="5">5 lần cảnh báo</option>
+              </select>
+            </div>
+            <div class="space-y-1">
+              <p class="font-bold text-slate-700 dark:text-slate-300">Tính năng bảo vệ tự động:</p>
+              <p>• Phát hiện chuyển tab / rời cửa sổ làm bài</p>
+              <p>• Chặn copy / chuột phải / phím tắt F12, DevTools</p>
+              <p>• Bắt buộc chế độ toàn màn hình</p>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" id="btn-save-exam-room" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl text-xs uppercase tracking-wider transition shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-check"></i> Lưu & Kích Hoạt Phòng Thi
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: XEM BIÊN BẢN VI PHẠM (AUDIT LOGS) ==================== -->
+  <div id="modal-violation-audit" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[90dvh] overflow-y-auto space-y-4">
+      <button data-close-modal="modal-violation-audit" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xl shrink-0">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-slate-800 dark:text-white">
+            Biên Bản Giám Sát Thi
+          </h3>
+          <p class="text-xs text-slate-400" id="audit-student-subtitle">Nhật ký rời màn hình và vi phạm quy chế</p>
+        </div>
+      </div>
+
+      <div class="p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs space-y-1.5" id="audit-student-info">
+        <!-- Thông tin thí sinh -->
+      </div>
+
+      <div>
+        <h4 class="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">Chi tiết từng mốc thời gian vi phạm:</h4>
+        <div class="space-y-2 max-h-60 overflow-y-auto pr-1" id="audit-violations-list">
+          <!-- Danh sách vi phạm -->
+        </div>
+      </div>
+
+      <button data-close-modal="modal-violation-audit" class="w-full py-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-xs transition">
+        Đóng Biên Bản
+      </button>
     </div>
   </div>
 

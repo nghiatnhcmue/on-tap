@@ -52,6 +52,7 @@ export const AdminManager = {
     const accounts = Storage.getAccountsList();
     const adminConfig = Storage.getAdminConfig();
     const history = Storage.getExamHistory();
+    const examRooms = Storage.getExamRooms();
     const customQuestions12 = Storage.getCustomQuestions('12');
     const customQuestions11 = Storage.getCustomQuestions('11');
     const customQuestions10 = Storage.getCustomQuestions('10');
@@ -70,7 +71,7 @@ export const AdminManager = {
               Bảng Điều Khiển Quản Trị Viên (Admin)
             </h2>
             <p class="text-xs sm:text-sm text-slate-400 mt-1">
-              Toàn quyền cấu hình máy chủ, phân bổ vai trò thành viên (Admin, GV, HS) và bảo trì hệ thống.
+              Toàn quyền cấu hình máy chủ, phân bổ vai trò thành viên (Admin, GV, HS), giám sát phòng thi và bảo trì hệ thống.
             </p>
           </div>
 
@@ -81,10 +82,15 @@ export const AdminManager = {
         </div>
 
         <!-- Thống Kê Nhanh -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
           <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
             <span class="text-xs text-slate-400 font-bold block mb-1">TÀI KHOẢN ĐÃ LƯU</span>
             <span class="text-2xl font-black text-slate-800 dark:text-white">${accounts.length}</span>
+          </div>
+
+          <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+            <span class="text-xs text-slate-400 font-bold block mb-1">PHÒNG THI / GIAO ĐỀ</span>
+            <span class="text-2xl font-black text-emerald-600 dark:text-emerald-400">${examRooms.length}</span>
           </div>
 
           <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">

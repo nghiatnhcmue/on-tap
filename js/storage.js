@@ -12,7 +12,8 @@ const STORAGE_KEYS = {
   MODIFIED_QUESTIONS: 'tinhoc_modified_questions',
   DELETED_QUESTIONS: 'tinhoc_deleted_question_ids',
   ACCOUNTS: 'tinhoc_user_accounts',
-  ADMIN_CONFIG: 'tinhoc_admin_config'
+  ADMIN_CONFIG: 'tinhoc_admin_config',
+  EXAM_ROOMS: 'tinhoc_exam_rooms'
 };
 
 export const Storage = {
@@ -102,6 +103,151 @@ export const Storage = {
       console.error('Error updating role', e);
       return false;
     }
+  },
+
+  // --- QUẢN LÝ PHÒNG THI / GIAO ĐỀ THI (THỜI GIAN, PASSWORD, CHỐNG GIAN LẬN) ---
+  getExamRooms() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.EXAM_ROOMS);
+      if (data) return JSON.parse(data);
+
+      // Phòng thi mẫu ban đầu để trải nghiệm
+      const defaultRoom = {
+        id: 'TIN12-HK1',
+        title: 'Kiểm tra Giữa kỳ I - Tin học 12',
+        grade: '12',
+        createdDate: new Date().toISOString(),
+        createdBy: 'nghiatnhcmue@gmail.com',
+        creatorName: 'Thầy Nghĩa',
+        startTime: new Date(Date.now() - 3600000).toISOString(),
+        endTime: new Date(Date.now() + 86400000 * 7).toISOString(),
+        duration: 50,
+        password: '123',
+        type: 'bgd_2025',
+        questionCount: 28,
+        shuffleQuestions: true,
+        shuffleOptions: true,
+        antiCheat: {
+          enabled: true,
+          maxViolations: 3,
+          enforceFullscreen: true,
+          preventTabSwitch: true,
+          disableCopyPaste: true,
+          blockDevTools: true
+        },
+        status: 'active'
+      };
+      localStorage.setItem(STORAGE_KEYS.EXAM_ROOMS, JSON.stringify([defaultRoom]));
+      return [defaultRoom];
+    } catch (e) {
+      console.error('Error loading exam rooms', e);
+      return [];
+    }
+  },
+
+  getExamRoom(roomId) {
+    if (!roomId) return null;
+    const rooms = this.getExamRooms();
+    const cleanId = roomId.trim().toUpperCase();
+    return rooms.find(r => r.id.toUpperCase() === cleanId) || null;
+  },
+
+  saveExamRoom(roomData) {
+    try {
+      const rooms = this.getExamRooms();
+      const cleanId = (roomData.id || ('ROOM-' + Math.floor(1000 + Math.random() * 9000))).trim().toUpperCase();
+      const existingIdx = rooms.findIndex(r => r.id.toUpperCase() === cleanId);
+      
+      const newRoom = {
+        ...roomData,
+        id: cleanId,
+        updatedAt: new Date().toISOString()
+      };
+
+      if (existingIdx >= 0) {
+        rooms[existingIdx] = { ...rooms[existingIdx], ...newRoom };
+      } else {
+        newRoom.createdDate = new Date().toISOString();
+        rooms.unshift(newRoom);
+      }
+
+      localStorage.setItem(STORAGE_KEYS.EXAM_ROOMS, JSON.stringify(rooms));
+      return newRoom;
+    } catch (e) {
+      console.error('Error saving exam room', e);
+      return null;
+    }
+  },
+
+  deleteExamRoom(roomId) {
+    try {
+      let rooms = this.getExamRooms();
+      const cleanId = roomId.trim().toUpperCase();
+      rooms = rooms.filter(r => r.id.toUpperCase() !== cleanId);
+      localStorage.setItem(STORAGE_KEYS.EXAM_ROOMS, JSON.stringify(rooms));
+      return true;
+    } catch (e) {
+      console.error('Error deleting exam room', e);
+      return false;
+    }
+  },
+
+  validateRoomAccess(roomId, enteredPassword) {
+    const room = this.getExamRoom(roomId);
+    if (!room) {
+      return {
+        valid: false,
+        reason: 'NOT_FOUND',
+        message: 'Mã phòng thi không tồn tại trong hệ thống! Vui lòng kiểm tra lại.'
+      };
+    }
+
+    // Kiểm tra mật khẩu (nếu phòng có cài mật khẩu)
+    if (room.password && room.password.trim() !== '') {
+      if (!enteredPassword || enteredPassword.trim() !== room.password.trim()) {
+        return {
+          valid: false,
+          room,
+          reason: 'WRONG_PASSWORD',
+          message: 'Mật khẩu vào phòng thi chưa chính xác! Vui lòng hỏi lại Giáo viên phụ trách.'
+        };
+      }
+    }
+
+    // Kiểm tra khung thời gian
+    const now = new Date();
+    if (room.startTime) {
+      const start = new Date(room.startTime);
+      if (now < start) {
+        return {
+          valid: false,
+          room,
+          reason: 'NOT_STARTED',
+          message: `Phòng thi chưa đến giờ mở đề!\nThời gian mở thi: ${start.toLocaleString('vi-VN')}`,
+          startTime: start
+        };
+      }
+    }
+
+    if (room.endTime) {
+      const end = new Date(room.endTime);
+      if (now > end) {
+        return {
+          valid: false,
+          room,
+          reason: 'EXPIRED',
+          message: `Đã hết thời hạn làm bài của phòng thi này!\nThời gian đóng đề: ${end.toLocaleString('vi-VN')}`,
+          endTime: end
+        };
+      }
+    }
+
+    return {
+      valid: true,
+      room,
+      reason: 'OK',
+      message: 'Hợp lệ'
+    };
   },
 
   // --- QUẢN LÝ NGÂN HÀNG CÂU HỎI TÙY CHỈNH (CRUD GV & ADMIN) ---
@@ -289,8 +435,9 @@ export const Storage = {
         startTime = new Date(0); // Tất cả
       }
 
-      // Lọc theo mốc thời gian và khối
+      // Lọc theo mốc thời gian và khối (loại bỏ bài thi bị đình chỉ gian lận)
       const filtered = history.filter(item => {
+        if (item.isDisqualified) return false;
         const itemDate = new Date(item.date);
         if (itemDate < startTime) return false;
         if (grade !== 'all' && String(item.grade) !== String(grade)) return false;
@@ -469,6 +616,13 @@ export const Storage = {
         studentClass: result.studentClass || student.className,
         studentSchool: result.studentSchool || student.school,
         studentEmail: result.studentEmail || student.email,
+        roomId: result.roomId || null,
+        roomTitle: result.roomTitle || null,
+        isProctored: !!result.isProctored,
+        violationCount: result.violationCount || 0,
+        violationLogs: result.violationLogs || [],
+        isDisqualified: !!result.isDisqualified,
+        disqualifiedReason: result.disqualifiedReason || '',
         details: result.details || [] // danh sách câu hỏi và câu trả lời
       };
       history.unshift(entry);
@@ -517,7 +671,8 @@ export const Storage = {
       bookmarks: this.getBookmarks(),
       history: this.getExamHistory(),
       settings: this.getSettings(),
-      stats: this.getPracticeStats()
+      stats: this.getPracticeStats(),
+      examRooms: this.getExamRooms()
     }, null, 2);
   },
 
@@ -528,6 +683,7 @@ export const Storage = {
       if (data.history) localStorage.setItem(STORAGE_KEYS.EXAM_HISTORY, JSON.stringify(data.history));
       if (data.settings) localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(data.settings));
       if (data.stats) localStorage.setItem(STORAGE_KEYS.PRACTICE_STATS, JSON.stringify(data.stats));
+      if (data.examRooms) localStorage.setItem(STORAGE_KEYS.EXAM_ROOMS, JSON.stringify(data.examRooms));
       return true;
     } catch (e) {
       console.error('Invalid backup data', e);

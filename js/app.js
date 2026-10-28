@@ -13,6 +13,13 @@ import { escapeHtml } from './utils.js';
 import { Leaderboard } from './leaderboard.js';
 import { QuestionsManager } from './questions-manager.js';
 import { AdminManager } from './admin-manager.js';
+import { ExamRooms } from './exam-rooms.js';
+import { Proctor } from './proctor.js';
+
+window.Storage = Storage;
+window.Exam = Exam;
+window.Proctor = Proctor;
+window.ExamRooms = ExamRooms;
 
 class App {
   constructor() {
@@ -30,6 +37,31 @@ class App {
     await this.loadManifest();
     await this.switchGrade(this.currentGrade);
     this.renderHome();
+
+    // Tự động nhận diện mã phòng thi qua URL param (?room=XYZ hoặc ?phong=XYZ)
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomParam = urlParams.get('room') || urlParams.get('phong');
+    if (roomParam) {
+      setTimeout(() => {
+        this.switchTab('exam-setup');
+        const input = document.getElementById('input-enter-room-id');
+        if (input) {
+          input.value = roomParam.toUpperCase();
+          document.getElementById('input-enter-room-pwd')?.focus();
+        }
+      }, 400);
+    }
+
+    // Lắng nghe sự kiện lọc bảng điểm theo phòng thi
+    window.addEventListener('filter-gradebook-by-room', async (e) => {
+      const roomId = e.detail?.roomId;
+      await this.switchTab('gradebook');
+      const roomSelect = document.getElementById('gb-filter-room');
+      if (roomSelect && roomId) {
+        roomSelect.value = roomId;
+        roomSelect.dispatchEvent(new Event('change'));
+      }
+    });
   }
 
   // --- THEME ---
@@ -136,7 +168,7 @@ class App {
       alert('Chức năng Quản Trị Hệ Thống chỉ dành riêng cho Quản trị viên (Admin)!');
       return;
     }
-    if ((tab === 'questions-manage' || tab === 'gradebook') && !Auth.isTeacher()) {
+    if ((tab === 'questions-manage' || tab === 'gradebook' || tab === 'exam-rooms') && !Auth.isTeacher()) {
       alert('Chức năng này dành cho Giáo viên (GV) & Quản trị viên (Admin)!\nHọc sinh vui lòng tham gia thi thử và xem bảng vinh danh.');
       return;
     }
@@ -160,7 +192,8 @@ class App {
     const views = [
       'view-home', 'view-practice', 'view-exam-setup', 'view-exam-room',
       'view-search', 'view-bookmarks', 'view-history', 'view-print',
-      'view-gradebook', 'view-leaderboard', 'view-questions-manage', 'view-admin-system'
+      'view-gradebook', 'view-leaderboard', 'view-questions-manage', 'view-admin-system',
+      'view-exam-rooms'
     ];
     views.forEach(id => {
       const el = document.getElementById(id);
@@ -180,6 +213,10 @@ class App {
       case 'exam-setup':
         document.getElementById('view-exam-setup')?.classList.remove('hidden');
         this.renderExamSetup();
+        break;
+      case 'exam-rooms':
+        document.getElementById('view-exam-rooms')?.classList.remove('hidden');
+        ExamRooms.init(document.getElementById('exam-rooms-list-area'));
         break;
       case 'exam-room':
         document.getElementById('view-exam-room')?.classList.remove('hidden');
@@ -409,6 +446,44 @@ class App {
       return { shuffleQuestions, shuffleOptions };
     };
 
+    // Vào phòng thi theo mã & mật khẩu (Đợt thi được giao)
+    const btnEnterRoom = document.getElementById('btn-enter-room-exam');
+    if (btnEnterRoom) {
+      btnEnterRoom.onclick = async () => {
+        const roomIdInput = document.getElementById('input-enter-room-id');
+        const roomPwdInput = document.getElementById('input-enter-room-pwd');
+        const roomId = roomIdInput?.value.trim().toUpperCase();
+        const pwd = roomPwdInput?.value.trim() || '';
+
+        if (!roomId) {
+          alert('Vui lòng nhập Mã phòng thi do Giáo viên cấp!');
+          roomIdInput?.focus();
+          return;
+        }
+
+        const access = Storage.validateRoomAccess(roomId, pwd);
+        if (!access.valid) {
+          alert(`⚠️ KHÔNG THỂ VÀO THI:\n${access.message}`);
+          return;
+        }
+
+        const room = access.room;
+
+        // Bắt đầu làm bài thi của phòng
+        await this.startExam({
+          type: room.type || 'bgd_2025',
+          title: room.title,
+          grade: room.grade,
+          duration: room.duration || 50,
+          roomId: room.id,
+          roomTitle: room.title,
+          shuffleQuestions: room.shuffleQuestions ?? true,
+          shuffleOptions: room.shuffleOptions ?? true,
+          antiCheat: room.antiCheat || { enabled: false }
+        });
+      };
+    }
+
     const btnStartBgd = document.getElementById('btn-start-bgd-exam');
     if (btnStartBgd) {
       btnStartBgd.onclick = async () => {
@@ -625,9 +700,19 @@ class App {
                 <h4 class="text-sm font-bold text-slate-800 dark:text-white">
                   ${item.title}
                 </h4>
-                <div class="flex items-center gap-3 text-xs text-slate-500 mt-2">
+                <div class="flex items-center gap-3 text-xs text-slate-500 mt-2 flex-wrap">
+                  ${item.roomId ? `<span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">Phòng: ${escapeHtml(item.roomId)}</span>` : ''}
                   <span><i class="fa-regular fa-clock mr-1"></i>${mins}p ${secs}s</span>
                   <span><i class="fa-solid fa-check mr-1 text-emerald-500"></i>${item.correctCount}/${item.totalQuestions} câu đúng</span>
+                  ${item.isDisqualified ? `
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                      <i class="fa-solid fa-ban mr-1"></i>Đình chỉ (${item.violationCount || 0} lần vi phạm)
+                    </span>
+                  ` : (item.violationCount > 0 ? `
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+                      <i class="fa-solid fa-triangle-exclamation mr-1"></i>${item.violationCount} lần cảnh báo
+                    </span>
+                  ` : '')}
                 </div>
               </div>
 
@@ -711,9 +796,10 @@ class App {
       return;
     }
 
-    // Lấy danh sách lớp và trường duy nhất để làm bộ lọc
+    // Lấy danh sách lớp, trường và phòng thi duy nhất để làm bộ lọc
     const classes = [...new Set(history.map(item => item.studentClass).filter(Boolean))];
     const schools = [...new Set(history.map(item => item.studentSchool).filter(Boolean))];
+    const roomsList = [...new Set(history.map(item => item.roomId).filter(Boolean))];
 
     container.innerHTML = `
       <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-6">
@@ -737,8 +823,8 @@ class App {
           </div>
         </div>
 
-        <!-- Bộ lọc lớp & trường & tìm kiếm -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+        <!-- Bộ lọc lớp & trường & tìm kiếm & phòng thi -->
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
           <div>
             <input type="text" id="gb-filter-search" placeholder="Tìm theo tên học sinh..." class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-medium focus:ring-2 focus:ring-blue-500" />
           </div>
@@ -754,6 +840,12 @@ class App {
               ${schools.map(s => `<option value="${s}">${s}</option>`).join('')}
             </select>
           </div>
+          <div>
+            <select id="gb-filter-room" class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold font-mono">
+              <option value="all">Tất cả phòng & tự do</option>
+              ${roomsList.map(r => `<option value="${r}">Phòng: ${r}</option>`).join('')}
+            </select>
+          </div>
         </div>
 
         <!-- Bảng danh sách kết quả -->
@@ -765,8 +857,10 @@ class App {
                 <th class="py-3 px-3">Họ và Tên</th>
                 <th class="py-3 px-3">Lớp</th>
                 <th class="py-3 px-3">Trường</th>
+                <th class="py-3 px-3">Phòng thi</th>
                 <th class="py-3 px-3">Bài thi</th>
                 <th class="py-3 px-3 text-center">Điểm</th>
+                <th class="py-3 px-3 text-center">Giám sát vi phạm</th>
                 <th class="py-3 px-3">Thời gian</th>
                 <th class="py-3 px-3">Ngày thi</th>
               </tr>
@@ -784,26 +878,50 @@ class App {
     const searchInput = container.querySelector('#gb-filter-search');
     const classSelect = container.querySelector('#gb-filter-class');
     const schoolSelect = container.querySelector('#gb-filter-school');
+    const roomSelect = container.querySelector('#gb-filter-room');
+
+    const bindAuditButtons = () => {
+      container.querySelectorAll('[data-view-audit]').forEach(btn => {
+        btn.onclick = () => {
+          const id = btn.getAttribute('data-view-audit');
+          const target = history.find(h => h.id === id);
+          if (target) this.openViolationAuditModal(target);
+        };
+      });
+    };
 
     const applyTableFilter = () => {
       const q = searchInput.value.toLowerCase().trim();
       const c = classSelect.value;
       const s = schoolSelect.value;
+      const r = roomSelect.value;
 
       const filtered = history.filter(item => {
-        if (q && !(item.studentName || '').toLowerCase().includes(q)) return false;
+        if (q) {
+          const matchName = (item.studentName || '').toLowerCase().includes(q);
+          const matchRoom = (item.roomId || '').toLowerCase().includes(q);
+          const matchTitle = (item.title || '').toLowerCase().includes(q);
+          if (!matchName && !matchRoom && !matchTitle) return false;
+        }
         if (c !== 'all' && item.studentClass !== c) return false;
         if (s !== 'all' && item.studentSchool !== s) return false;
+        if (r !== 'all' && item.roomId !== r) return false;
         return true;
       });
 
       const tbody = container.querySelector('#gradebook-table-body');
-      if (tbody) tbody.innerHTML = this.renderGradebookRows(filtered);
+      if (tbody) {
+        tbody.innerHTML = this.renderGradebookRows(filtered);
+        bindAuditButtons();
+      }
     };
 
     if (searchInput) searchInput.oninput = applyTableFilter;
     if (classSelect) classSelect.onchange = applyTableFilter;
     if (schoolSelect) schoolSelect.onchange = applyTableFilter;
+    if (roomSelect) roomSelect.onchange = applyTableFilter;
+
+    bindAuditButtons();
 
     // Export CSV
     const exportBtn = container.querySelector('#btn-export-gradebook-csv');
@@ -814,7 +932,7 @@ class App {
 
   renderGradebookRows(list) {
     if (list.length === 0) {
-      return `<tr><td colspan="8" class="text-center py-8 text-slate-400">Không tìm thấy kết quả phù hợp.</td></tr>`;
+      return `<tr><td colspan="10" class="text-center py-8 text-slate-400">Không tìm thấy kết quả phù hợp.</td></tr>`;
     }
 
     return list.map((item, idx) => {
@@ -827,24 +945,46 @@ class App {
       else if (item.score < 6.5) scoreColor = 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300';
       else if (item.score < 8.0) scoreColor = 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300';
 
+      const proctorBadge = item.isDisqualified ? `
+        <button type="button" data-view-audit="${item.id}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 hover:scale-105 transition" title="Bấm để xem chi tiết mốc thời gian vi phạm">
+          <i class="fa-solid fa-ban text-[9px]"></i> Đình chỉ (${item.violationCount || 0}) <i class="fa-solid fa-magnifying-glass text-[8px] ml-0.5"></i>
+        </button>
+      ` : (item.violationCount > 0 ? `
+        <button type="button" data-view-audit="${item.id}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 hover:scale-105 transition" title="Bấm để xem mốc thời gian cảnh báo">
+          <i class="fa-solid fa-triangle-exclamation text-[9px]"></i> Cảnh báo (${item.violationCount}) <i class="fa-solid fa-magnifying-glass text-[8px] ml-0.5"></i>
+        </button>
+      ` : (item.isProctored ? `
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+          <i class="fa-solid fa-check text-[9px]"></i> 0 vi phạm
+        </span>
+      ` : `<span class="text-slate-400 font-mono text-[11px]">Tự do</span>`));
+
       return `
         <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition">
           <td class="py-3 px-3 text-slate-400">${idx + 1}</td>
           <td class="py-3 px-3 font-bold text-slate-800 dark:text-white">
-            ${item.studentName || 'Thí sinh tự do'}
+            ${escapeHtml(item.studentName || 'Thí sinh tự do')}
           </td>
           <td class="py-3 px-3">
             <span class="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold">
-              ${item.studentClass || 'Tự do'}
+              ${escapeHtml(item.studentClass || 'Tự do')}
             </span>
           </td>
-          <td class="py-3 px-3 text-slate-600 dark:text-slate-300">${item.studentSchool || '-'}</td>
-          <td class="py-3 px-3 max-w-[200px] truncate text-slate-700 dark:text-slate-300" title="${item.title}">${item.title}</td>
+          <td class="py-3 px-3 text-slate-600 dark:text-slate-300">${escapeHtml(item.studentSchool || '-')}</td>
+          <td class="py-3 px-3">
+            ${item.roomId ? `
+              <span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                ${escapeHtml(item.roomId)}
+              </span>
+            ` : `<span class="text-slate-400 italic">Tự do</span>`}
+          </td>
+          <td class="py-3 px-3 max-w-[180px] truncate text-slate-700 dark:text-slate-300" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</td>
           <td class="py-3 px-3 text-center">
             <span class="px-2.5 py-1 rounded-lg font-black ${scoreColor}">
               ${item.score}
             </span>
           </td>
+          <td class="py-3 px-3">${proctorBadge}</td>
           <td class="py-3 px-3 text-slate-400 font-mono">${mins}p ${secs}s</td>
           <td class="py-3 px-3 text-slate-400">${date}</td>
         </tr>
@@ -853,22 +993,27 @@ class App {
   }
 
   exportGradebookToCSV(history) {
-    const headers = ['STT', 'Họ và tên', 'Lớp', 'Trường', 'Email', 'Tên đề thi', 'Khối', 'Điểm số (Thang 10)', 'Số câu đúng', 'Tổng số câu', 'Thời gian làm bài', 'Thời điểm nộp'];
+    const headers = ['STT', 'Họ và tên', 'Lớp', 'Trường', 'Email', 'Mã phòng thi', 'Tên đề thi', 'Khối', 'Điểm số (Thang 10)', 'Số câu đúng', 'Tổng số câu', 'Thời gian làm bài', 'Giám sát chống gian lận', 'Số lần vi phạm', 'Trạng thái', 'Thời điểm nộp'];
     const rows = history.map((item, idx) => {
       const mins = Math.floor(item.timeSpentSeconds / 60);
       const secs = item.timeSpentSeconds % 60;
+      const statusText = item.isDisqualified ? 'Bị đình chỉ thi' : (item.violationCount > 0 ? `Cảnh báo (${item.violationCount} lần)` : 'Hợp lệ');
       return [
         idx + 1,
         `"${(item.studentName || '').replace(/"/g, '""')}"`,
         `"${(item.studentClass || '').replace(/"/g, '""')}"`,
         `"${(item.studentSchool || '').replace(/"/g, '""')}"`,
         `"${(item.studentEmail || '').replace(/"/g, '""')}"`,
+        `"${(item.roomId || 'Tự do').replace(/"/g, '""')}"`,
         `"${(item.title || '').replace(/"/g, '""')}"`,
         item.grade || '12',
         item.score,
         item.correctCount,
         item.totalQuestions,
         `"${mins}p ${secs}s"`,
+        item.isProctored ? 'Bật' : 'Tắt',
+        item.violationCount || 0,
+        `"${statusText}"`,
         `"${new Date(item.date).toLocaleString('vi-VN')}"`
       ];
     });
@@ -883,6 +1028,60 @@ class App {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }
+
+  // --- MODAL XEM BIÊN BẢN VI PHẠM (AUDIT LOGS) ---
+  openViolationAuditModal(item) {
+    const modal = document.getElementById('modal-violation-audit');
+    if (!modal) return;
+
+    const subtitleEl = document.getElementById('audit-student-subtitle');
+    const infoEl = document.getElementById('audit-student-info');
+    const listEl = document.getElementById('audit-violations-list');
+
+    if (subtitleEl) {
+      subtitleEl.textContent = `Bài thi: ${item.title || 'Đề thi'} • Thời điểm nộp: ${new Date(item.date).toLocaleString('vi-VN')}`;
+    }
+
+    if (infoEl) {
+      infoEl.innerHTML = `
+        <div class="grid grid-cols-2 gap-2 text-slate-700 dark:text-slate-300">
+          <div><span class="text-slate-400">Thí sinh:</span> <b>${escapeHtml(item.studentName || '')}</b></div>
+          <div><span class="text-slate-400">Email:</span> <b>${escapeHtml(item.studentEmail || 'Chưa có')}</b></div>
+          <div><span class="text-slate-400">Lớp:</span> <b>${escapeHtml(item.studentClass || '-')}</b></div>
+          <div><span class="text-slate-400">Trường:</span> <b>${escapeHtml(item.studentSchool || '-')}</b></div>
+          <div><span class="text-slate-400">Phòng thi:</span> <b class="font-mono text-blue-600">${escapeHtml(item.roomId || 'Tự do')}</b></div>
+          <div><span class="text-slate-400">Điểm số:</span> <b class="text-base ${item.isDisqualified ? 'text-rose-600' : 'text-emerald-600'}">${item.score}/10</b></div>
+        </div>
+        <div class="pt-2 border-t border-slate-200 dark:border-slate-700 font-bold ${item.isDisqualified ? 'text-rose-600' : 'text-amber-600'}">
+          Trạng thái: ${item.isDisqualified ? `⛔ BỊ ĐÌNH CHỈ THI (${escapeHtml(item.disqualifiedReason || 'Vi phạm quá số lần cho phép')})` : `⚠️ Hoàn thành với ${item.violationCount} lần cảnh báo`}
+        </div>
+      `;
+    }
+
+    if (listEl) {
+      const logs = item.violationLogs || [];
+      if (logs.length === 0) {
+        listEl.innerHTML = `<p class="text-slate-400 italic text-center py-4">Không có nhật ký vi phạm nào.</p>`;
+      } else {
+        listEl.innerHTML = logs.map((log, i) => `
+          <div class="p-3 bg-rose-50/80 dark:bg-rose-950/40 rounded-xl border border-rose-200 dark:border-rose-900/60 flex items-center justify-between text-xs font-mono">
+            <span class="text-rose-700 dark:text-rose-300 font-bold">
+              <i class="fa-solid fa-triangle-exclamation mr-1 text-rose-500"></i> Lần ${i + 1}: ${escapeHtml(log.reason)}
+            </span>
+            <span class="text-slate-500 dark:text-slate-400 font-semibold shrink-0 ml-2">
+              ${log.time}
+            </span>
+          </div>
+        `).join('');
+      }
+    }
+
+    modal.classList.remove('hidden');
+
+    modal.querySelectorAll('[data-close-modal="modal-violation-audit"]').forEach(btn => {
+      btn.onclick = () => modal.classList.add('hidden');
+    });
   }
 
   // --- AUTH UI & PROFILE MANAGEMENT ---
@@ -1122,6 +1321,16 @@ class App {
       if (e.detail) this.switchTab(e.detail);
     });
 
+    // Nút xác nhận vào phòng thi từ card view-exam-setup
+    const btnEnterRoom = document.getElementById('btn-enter-room-exam');
+    if (btnEnterRoom) {
+      btnEnterRoom.addEventListener('click', () => {
+        const roomId = document.getElementById('input-enter-room-id')?.value.trim();
+        const pwd = document.getElementById('input-enter-room-pwd')?.value.trim();
+        ExamRooms.processJoinRoom(roomId, pwd);
+      });
+    }
+
     // Mobile menu toggle
     const mobileMenuBtn = document.getElementById('btn-mobile-menu');
     const mobileMenu = document.getElementById('mobile-nav-drawer');
@@ -1138,9 +1347,14 @@ class App {
   }
 }
 
-// Chạy khởi tạo ứng dụng khi DOM đã sẵn sàng
-document.addEventListener('DOMContentLoaded', () => {
+// Khởi tạo ứng dụng an toàn cho cả khi DOM đã sẵn sàng hoặc đang nạp
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    window.AppInstance = new App();
+    window.AppInstance.init();
+  });
+} else {
   window.AppInstance = new App();
   window.AppInstance.init();
-});
+}
 

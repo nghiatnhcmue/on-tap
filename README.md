@@ -32,6 +32,11 @@
   - Tìm kiếm tức thì theo từ khóa trong 4.449 câu hỏi kèm highlight từ khóa.
 - **Xuất bản in đề thi & Đáp án chuẩn A4 / PDF**:
   - Tự động định dạng trang in đề thi chuẩn Bộ/Sở GD&ĐT có thông tin trường lớp, thời gian, kèm phiếu đáp án ở cuối trang.
+- **Hệ thống Giao đề thi theo Thời gian, Mật khẩu & Giám sát Chống gian lận (Proctored Exam Rooms)**:
+  - **Giao đề theo phòng thi**: Giáo viên tạo phòng thi có Mã phòng riêng (Access Code), đặt Mật khẩu (Password), cấu hình khung giờ Mở đề và Đóng đề chuẩn xác.
+  - **Giám sát chống gian lận đa tầng**: Tự động phát hiện chuyển tab hoặc thu nhỏ trình duyệt, rời khỏi cửa sổ thi, thoát toàn màn hình; vô hiệu hóa sao chép đề, chuột phải và phím tắt DevTools (F12, Ctrl+Shift+I).
+  - **Cơ chế đình chỉ tự động**: Cảnh báo vi phạm tức thì kèm âm thanh; tự động khóa bài thi và đình chỉ kết quả nếu học sinh cố tình vi phạm quá số lần quy định.
+  - **Biên bản vi phạm chi tiết (Audit Logs)**: Lưu từng mốc thời gian vi phạm vào Bảng điểm giúp Thầy Cô tra cứu và đối soát minh bạch.
 - **Quản lý học sinh bằng Đăng nhập Google (Google Sign-In)**:
   - Tích hợp chuẩn **Google Identity Services (GIS)** hiện đại.
   - **Bắt buộc điền thông tin khi đăng ký**: Học sinh phải khai báo đầy đủ **Họ và tên**, **Khối**, **Lớp** và **Trường** trước khi làm bài thi.
