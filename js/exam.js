@@ -48,6 +48,16 @@ export const Exam = {
     const grade = config.grade || '12';
     const gradePool = this.allQuestions.filter(q => q.grade === grade);
 
+    const settings = Storage.getSettings();
+    const shouldShuffleQuestions = (config.shuffleQuestions !== undefined) ? !!config.shuffleQuestions : (settings.shuffleQuestions ?? true);
+    const shouldShuffleOptions = (config.shuffleOptions !== undefined) ? !!config.shuffleOptions : (settings.shuffleOptions ?? true);
+
+    this.examConfig = {
+      ...config,
+      shuffleQuestions: shouldShuffleQuestions,
+      shuffleOptions: shouldShuffleOptions
+    };
+
     if (gradePool.length === 0) {
       alert('Không có dữ liệu câu hỏi cho khối lớp này!');
       return false;
@@ -60,7 +70,6 @@ export const Exam = {
       // Gồm ĐÚNG 2 phần, tổng cộng 28 câu = 10 điểm (Thời gian: 50 phút)
       // - Phần I: 24 câu trắc nghiệm nhiều lựa chọn = 6.0 điểm (mỗi câu 0.25đ)
       // - Phần II: 4 câu hỏi trắc nghiệm Đúng/Sai = 4.0 điểm (mỗi câu tối đa 1.0đ)
-      // TUYỆT ĐỐI KHÔNG CÓ CÂU TRẢ LỜI NGẮN (TLN) trong cấu trúc đề thi tốt nghiệp THPT môn Tin học!
       const mcqPool = gradePool.filter(q => ['1', '2', '3', '4'].includes(q.level));
       let dsPool = gradePool.filter(q => q.level === 'DS');
 
@@ -70,10 +79,10 @@ export const Exam = {
         dsPool = [...dsPool, ...extraDs];
       }
 
-      // Lấy chính xác 24 câu MCQ
-      const mcqSelected = this.sampleQuestions(mcqPool, Math.min(24, mcqPool.length));
+      // Lấy chính xác 24 câu MCQ (có hoặc không xáo trộn ngẫu nhiên)
+      const mcqSelected = this.sampleQuestions(mcqPool, Math.min(24, mcqPool.length), shouldShuffleQuestions);
       // Lấy chính xác 4 câu Đúng/Sai
-      const dsSelected = this.sampleQuestions(dsPool, Math.min(4, dsPool.length));
+      const dsSelected = this.sampleQuestions(dsPool, Math.min(4, dsPool.length), shouldShuffleQuestions);
 
       selectedQuestions = [...mcqSelected, ...dsSelected];
       this.totalSeconds = (config.duration || 50) * 60;
@@ -84,17 +93,16 @@ export const Exam = {
         pool = pool.filter(q => q.topic === config.topic);
       }
       const count = Math.min(config.count || 30, pool.length);
-      selectedQuestions = this.sampleQuestions(pool, count);
+      selectedQuestions = this.sampleQuestions(pool, count, shouldShuffleQuestions);
       this.totalSeconds = (config.duration || 45) * 60;
     }
 
-    // Xáo trộn và chuẩn bị dữ liệu câu hỏi
+    // Chuẩn bị dữ liệu câu hỏi & xử lý xáo trộn phương án
     this.examQuestions = selectedQuestions.map((q, index) => {
-      // Copy để không ảnh hưởng dữ liệu gốc
       const item = { ...q, examIndex: index + 1 };
       
-      // Xáo trộn đáp án cho MCQ để tránh học vẹt
-      if (['1', '2', '3', '4'].includes(item.level) && item.options && item.options.length === 4) {
+      // Xáo trộn đáp án cho MCQ nếu tùy chọn bật
+      if (shouldShuffleOptions && ['1', '2', '3', '4'].includes(item.level) && item.options && item.options.length === 4) {
         const correctLetter = item.answer || 'A';
         const correctIdx = ['A', 'B', 'C', 'D'].indexOf(correctLetter);
         const correctText = item.options[correctIdx];
@@ -109,7 +117,7 @@ export const Exam = {
         item.displayAnswer = newAnswerLetter;
       } else {
         item.displayOptions = item.options || [];
-        item.displayAnswer = item.answer;
+        item.displayAnswer = item.answer || 'A';
       }
 
       return item;
@@ -123,9 +131,12 @@ export const Exam = {
     return true;
   },
 
-  sampleQuestions(pool, count) {
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, count);
+  sampleQuestions(pool, count, shouldShuffle = true) {
+    if (shouldShuffle) {
+      const shuffled = [...pool].sort(() => Math.random() - 0.5);
+      return shuffled.slice(0, count);
+    }
+    return pool.slice(0, count);
   },
 
   // --- TIMER ---
@@ -183,6 +194,14 @@ export const Exam = {
               <p class="text-xs text-slate-500 dark:text-slate-400">
                 Khối ${this.examConfig.grade} • Tổng số ${total} câu hỏi
               </p>
+              <div class="flex items-center gap-1.5 flex-wrap mt-1">
+                <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${this.examConfig.shuffleQuestions ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}">
+                  <i class="fa-solid fa-shuffle text-[9px]"></i> Đảo câu: ${this.examConfig.shuffleQuestions ? 'Bật' : 'Tắt'}
+                </span>
+                <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${this.examConfig.shuffleOptions ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}">
+                  <i class="fa-solid fa-list-check text-[9px]"></i> Đảo phương án: ${this.examConfig.shuffleOptions ? 'Bật' : 'Tắt'}
+                </span>
+              </div>
             </div>
           </div>
 

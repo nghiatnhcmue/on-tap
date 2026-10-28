@@ -64,7 +64,9 @@ class App {
   async loadGradeData(grade) {
     if (!this.rawGradeCache) this.rawGradeCache = {};
     if (this.rawGradeCache[grade]) {
-      return Storage.applyCustomizations(grade, this.rawGradeCache[grade]);
+      const customized = Storage.applyCustomizations(grade, this.rawGradeCache[grade]);
+      this.gradeCache[grade] = customized;
+      return customized;
     }
     this.showGlobalLoading(true);
     try {
@@ -72,7 +74,9 @@ class App {
       const data = await res.json();
       this.rawGradeCache[grade] = data;
       this.showGlobalLoading(false);
-      return Storage.applyCustomizations(grade, data);
+      const customized = Storage.applyCustomizations(grade, data);
+      this.gradeCache[grade] = customized;
+      return customized;
     } catch (e) {
       this.showGlobalLoading(false);
       console.error(`Không thể nạp dữ liệu Khối ${grade}`, e);
@@ -319,6 +323,17 @@ class App {
     Practice.init(container, questions, this.manifest);
     this.populatePracticeFilters();
     Practice.setQuestions(questions);
+
+    // Bật tắt xáo trộn câu hỏi và phương án trong Luyện tập
+    const pShuffleQ = document.getElementById('practice-cfg-shuffle-questions');
+    const pShuffleOpt = document.getElementById('practice-cfg-shuffle-options');
+    if (pShuffleQ && pShuffleOpt) {
+      const onPracticeShuffleChange = () => {
+        Practice.setShuffle(pShuffleQ.checked, pShuffleOpt.checked);
+      };
+      pShuffleQ.onchange = onPracticeShuffleChange;
+      pShuffleOpt.onchange = onPracticeShuffleChange;
+    }
   }
 
   populatePracticeFilters() {
@@ -380,15 +395,32 @@ class App {
     const gradeSelect = document.getElementById('exam-cfg-grade');
     if (gradeSelect) gradeSelect.value = this.currentGrade;
 
+    // Thiết lập trạng thái toggle theo Storage
+    const settings = Storage.getSettings();
+    const shuffleQCheckbox = document.getElementById('exam-cfg-shuffle-questions');
+    const shuffleOptCheckbox = document.getElementById('exam-cfg-shuffle-options');
+    if (shuffleQCheckbox) shuffleQCheckbox.checked = settings.shuffleQuestions ?? true;
+    if (shuffleOptCheckbox) shuffleOptCheckbox.checked = settings.shuffleOptions ?? true;
+
+    const getExamShuffleConfig = () => {
+      const shuffleQuestions = shuffleQCheckbox ? shuffleQCheckbox.checked : true;
+      const shuffleOptions = shuffleOptCheckbox ? shuffleOptCheckbox.checked : true;
+      Storage.saveSettings({ shuffleQuestions, shuffleOptions });
+      return { shuffleQuestions, shuffleOptions };
+    };
+
     const btnStartBgd = document.getElementById('btn-start-bgd-exam');
     if (btnStartBgd) {
       btnStartBgd.onclick = async () => {
         const grade = gradeSelect ? gradeSelect.value : this.currentGrade;
+        const { shuffleQuestions, shuffleOptions } = getExamShuffleConfig();
         await this.startExam({
           type: 'bgd_2025',
           title: `Đề thi thử Tốt nghiệp THPT 2025 môn Tin học - Khối ${grade}`,
           grade,
-          duration: 50
+          duration: 50,
+          shuffleQuestions,
+          shuffleOptions
         });
       };
     }
@@ -400,13 +432,16 @@ class App {
         const count = parseInt(document.getElementById('exam-cfg-count')?.value || '30', 10);
         const duration = parseInt(document.getElementById('exam-cfg-duration')?.value || '45', 10);
         const title = `Đề kiểm tra Tin học ${duration} phút - Khối ${grade}`;
+        const { shuffleQuestions, shuffleOptions } = getExamShuffleConfig();
 
         await this.startExam({
           type: 'custom',
           title,
           grade,
           count,
-          duration
+          duration,
+          shuffleQuestions,
+          shuffleOptions
         });
       };
     }
@@ -633,10 +668,14 @@ class App {
         const school = document.getElementById('print-cfg-school')?.value || (Auth.currentUser?.school || 'TRƯỜNG THPT................................');
         const duration = document.getElementById('print-cfg-duration')?.value || '45';
         const includeKey = document.getElementById('print-cfg-include-key')?.checked ?? true;
+        const shuffleQuestions = document.getElementById('print-cfg-shuffle-questions')?.checked ?? true;
+        const shuffleOptions = document.getElementById('print-cfg-shuffle-options')?.checked ?? true;
 
         await this.loadGradeData(grade);
         const pool = this.gradeCache[grade] || [];
-        const sample = [...pool].sort(() => Math.random() - 0.5).slice(0, count);
+        const sample = shuffleQuestions
+          ? [...pool].sort(() => Math.random() - 0.5).slice(0, count)
+          : [...pool].slice(0, count);
 
         PrintManager.generatePrintView({
           title,
@@ -646,7 +685,8 @@ class App {
           studentName: Auth.currentUser?.fullName || '',
           studentClass: Auth.currentUser?.className || '',
           questions: sample,
-          includeAnswerKey: includeKey
+          includeAnswerKey: includeKey,
+          shuffleOptions
         });
       };
     }

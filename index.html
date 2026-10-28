@@ -407,6 +407,21 @@
           </div>
 
         </div>
+
+        <!-- Tùy chọn Bật/Tắt Đảo câu hỏi & Đảo phương án trong Luyện tập -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-700/60 text-xs">
+          <div class="flex items-center gap-5 flex-wrap">
+            <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-700 dark:text-slate-300">
+              <input type="checkbox" id="practice-cfg-shuffle-questions" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer" />
+              <span><i class="fa-solid fa-shuffle text-blue-600 mr-1"></i>Đảo thứ tự câu hỏi</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-700 dark:text-slate-300">
+              <input type="checkbox" id="practice-cfg-shuffle-options" checked class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 cursor-pointer" />
+              <span><i class="fa-solid fa-list-ol text-purple-600 mr-1"></i>Đảo phương án (A, B, C, D)</span>
+            </label>
+          </div>
+          <span class="text-[11px] text-slate-400">Tùy chọn xáo trộn chống học vẹt</span>
+        </div>
       </div>
 
       <!-- Khu vực hiển thị câu hỏi luyện tập -->
@@ -437,6 +452,47 @@
           <option value="11">Khối 11 (Cơ sở dữ liệu & mạng)</option>
           <option value="10">Khối 10 (Lập trình Python & đồ họa)</option>
         </select>
+      </div>
+
+      <!-- Cấu hình Trộn đề: Đảo câu hỏi & Đảo phương án -->
+      <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+        <div class="flex items-center gap-2.5 pb-2 border-b border-slate-100 dark:border-slate-700">
+          <div class="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-shuffle"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-800 dark:text-white">Cấu Hình Trộn Đề & Đảo Phương Án</h3>
+            <p class="text-[11px] text-slate-400">Tùy chỉnh xáo trộn giúp học sinh rèn luyện tư duy thực chất và chống học vẹt</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Toggle 1: Đảo thứ tự câu hỏi -->
+          <label class="flex items-start gap-3 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 bg-slate-50/50 dark:bg-slate-900/40 cursor-pointer transition group">
+            <input type="checkbox" id="exam-cfg-shuffle-questions" checked class="w-5 h-5 mt-0.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer" />
+            <div class="flex-1">
+              <span class="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                <i class="fa-solid fa-shuffle text-blue-600"></i> Đảo thứ tự câu hỏi
+              </span>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                Xáo trộn ngẫu nhiên vị trí các câu hỏi trong đề ở mỗi lượt thi mới.
+              </p>
+            </div>
+          </label>
+
+          <!-- Toggle 2: Đảo thứ tự phương án A, B, C, D -->
+          <label class="flex items-start gap-3 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-purple-400 dark:hover:border-purple-500 bg-slate-50/50 dark:bg-slate-900/40 cursor-pointer transition group">
+            <input type="checkbox" id="exam-cfg-shuffle-options" checked class="w-5 h-5 mt-0.5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer" />
+            <div class="flex-1">
+              <span class="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                <i class="fa-solid fa-list-ol text-purple-600"></i> Đảo phương án (A, B, C, D)
+              </span>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                Đảo ngẫu nhiên vị trí 4 đáp án trong từng câu (đáp án đúng tự cập nhật theo).
+              </p>
+            </div>
+          </label>
+        </div>
       </div>
 
       <!-- 2 Lựa chọn cấu trúc thi -->
@@ -599,16 +655,26 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100 dark:border-slate-700/60">
             <div>
               <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Thời gian (phút)</label>
               <input type="number" id="print-cfg-duration" value="45" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold" />
             </div>
 
-            <div class="flex items-center pt-6">
+            <div class="sm:col-span-2 flex flex-wrap items-center gap-4 sm:gap-6 pt-4">
               <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-300">
                 <input type="checkbox" id="print-cfg-include-key" checked class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
-                <span>Kèm trang đáp án ở cuối</span>
+                <span>Kèm bảng đáp án</span>
+              </label>
+
+              <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-300">
+                <input type="checkbox" id="print-cfg-shuffle-questions" checked class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
+                <span><i class="fa-solid fa-shuffle text-blue-600 mr-1"></i>Đảo câu hỏi</span>
+              </label>
+
+              <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-300">
+                <input type="checkbox" id="print-cfg-shuffle-options" checked class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500" />
+                <span><i class="fa-solid fa-list-ol text-purple-600 mr-1"></i>Đảo đáp án</span>
               </label>
             </div>
           </div>
@@ -878,6 +944,7 @@
 
         <div class="p-3 bg-slate-50 dark:bg-slate-750 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-300 space-y-1">
           <p class="font-bold text-slate-700 dark:text-slate-200">Các miền cần thêm vào Authorized JavaScript origins:</p>
+          <p>• <code class="bg-black/10 px-1.5 py-0.5 rounded font-mono">https://on-tap.nghiaedu.workers.dev</code></p>
           <p>• <code class="bg-black/10 px-1.5 py-0.5 rounded font-mono">https://tinhoc-thpt.pages.dev</code></p>
           <p>• <code class="bg-black/10 px-1.5 py-0.5 rounded font-mono">http://localhost:8080</code></p>
         </div>

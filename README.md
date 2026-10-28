@@ -2,8 +2,9 @@
 
 > **Website chuyên biệt phục vụ học sinh ôn tập và giáo viên soạn đề, thi thử môn Tin học cấp THPT** (Khối 10, Khối 11, Khối 12) theo **Chương trình Giáo dục phổ thông 2018** và cấu trúc định dạng đề thi Tốt nghiệp THPT mới nhất của Bộ GD&ĐT.
 
-🔗 **Website đã được triển khai trực tiếp trên Cloudflare Pages:**
-👉 **[https://tinhoc-thpt.pages.dev/](https://tinhoc-thpt.pages.dev/)**
+🔗 **Website chính thức:**
+👉 **[https://on-tap.nghiaedu.workers.dev/](https://on-tap.nghiaedu.workers.dev/)**
+*(Hoặc tên miền dự phòng: [https://tinhoc-thpt.pages.dev/](https://tinhoc-thpt.pages.dev/))*
 
 ---
 

@@ -8,11 +8,14 @@ import { escapeHtml } from './utils.js';
 
 export const Practice = {
   questions: [],
+  rawFilteredQuestions: [],
   filteredQuestions: [],
   currentIndex: 0,
   viewMode: 'single', // 'single' | 'list'
   sessionStats: { answered: 0, correct: 0, wrong: 0 },
   userAnswers: {}, // key: question.id -> answer state
+  shuffleQuestions: false,
+  shuffleOptions: true,
 
   init(containerEl, allQuestions, manifest) {
     this.container = containerEl;
@@ -21,11 +24,15 @@ export const Practice = {
     this.sessionStats = { answered: 0, correct: 0, wrong: 0 };
     this.userAnswers = {};
     this.currentIndex = 0;
+    const settings = Storage.getSettings();
+    this.shuffleQuestions = false;
+    this.shuffleOptions = settings.shuffleOptions ?? true;
   },
 
   setQuestions(questions) {
     this.questions = questions;
-    this.filteredQuestions = [...questions];
+    this.rawFilteredQuestions = [...questions];
+    this.applyShuffle();
     this.currentIndex = 0;
     this.userAnswers = {};
     this.render();
@@ -47,9 +54,50 @@ export const Practice = {
       result = result.filter(q => q.level === level);
     }
 
-    this.filteredQuestions = result;
+    this.rawFilteredQuestions = result;
+    this.applyShuffle();
     this.currentIndex = 0;
     this.render();
+  },
+
+  setShuffle(shuffleQuestions, shuffleOptions) {
+    this.shuffleQuestions = !!shuffleQuestions;
+    this.shuffleOptions = !!shuffleOptions;
+    this.applyShuffle();
+    this.currentIndex = 0;
+    this.userAnswers = {};
+    this.render();
+  },
+
+  applyShuffle() {
+    let list = [...(this.rawFilteredQuestions || this.questions || [])];
+    if (this.shuffleQuestions) {
+      list.sort(() => Math.random() - 0.5);
+    }
+
+    this.filteredQuestions = list.map(q => {
+      if (this.shuffleOptions && ['1', '2', '3', '4'].includes(q.level) && Array.isArray(q.options) && q.options.length === 4) {
+        const correctLetter = q.answer || 'A';
+        const correctIdx = ['A', 'B', 'C', 'D'].indexOf(correctLetter);
+        const correctText = q.options[correctIdx];
+
+        const indices = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
+        const displayOptions = indices.map(i => q.options[i]);
+        const newCorrectIdx = displayOptions.indexOf(correctText);
+        const displayAnswer = ['A', 'B', 'C', 'D'][newCorrectIdx];
+        return {
+          ...q,
+          displayOptions,
+          displayAnswer
+        };
+      } else {
+        return {
+          ...q,
+          displayOptions: q.options || [],
+          displayAnswer: q.answer || 'A'
+        };
+      }
+    });
   },
 
   render() {
@@ -189,16 +237,18 @@ export const Practice = {
   renderMCQOptions(q, userAns) {
     const letters = ['A', 'B', 'C', 'D'];
     const isAnswered = !!userAns;
+    const options = q.displayOptions || q.options || [];
+    const answer = q.displayAnswer || q.answer || 'A';
 
     return `
       <div class="space-y-3 mb-6 w-full">
-        ${q.options.map((opt, idx) => {
+        ${options.map((opt, idx) => {
           const letter = letters[idx];
           let extraClass = 'border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 bg-slate-50/50 dark:bg-slate-800/60';
           let iconHtml = `<span class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 shrink-0 mr-3">${letter}</span>`;
 
           if (isAnswered) {
-            const isCorrectAnswer = (letter === q.answer);
+            const isCorrectAnswer = (letter === answer);
             const isUserChoice = (userAns.chosen === letter);
 
             if (isCorrectAnswer) {
@@ -227,7 +277,7 @@ export const Practice = {
         <div class="p-4 rounded-xl ${userAns.isCorrect ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300' : 'bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300'} text-sm animate-pulse-subtle">
           <div class="font-bold flex items-center gap-2 mb-1">
             <i class="${userAns.isCorrect ? 'fa-solid fa-circle-check text-emerald-500' : 'fa-solid fa-circle-xmark text-rose-500'}"></i>
-            ${userAns.isCorrect ? 'Chính xác!' : `Chưa chính xác! Đáp án đúng là: ${escapeHtml(q.answer)}`}
+            ${userAns.isCorrect ? 'Chính xác!' : `Chưa chính xác! Đáp án đúng là: ${escapeHtml(answer)}`}
           </div>
           <div class="text-xs opacity-90">
             ${userAns.isCorrect ? 'Bạn đã nắm vững kiến thức câu hỏi này.' : 'Hãy xem lại lý thuyết trong bài để khắc sâu kiến thức.'}
@@ -465,7 +515,8 @@ export const Practice = {
     mcqBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const chosen = btn.getAttribute('data-opt');
-        const isCorrect = (chosen === q.answer);
+        const correctAns = q.displayAnswer || q.answer || 'A';
+        const isCorrect = (chosen === correctAns);
         this.userAnswers[q.id] = { chosen, isCorrect };
         
         this.sessionStats.answered++;
@@ -580,6 +631,29 @@ export const Practice = {
           Storage.toggleBookmark(targetQ);
           this.render();
         }
+      });
+    });
+
+    // MCQ clicks in list
+    this.container.querySelectorAll('.mcq-option-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const card = btn.closest('[id^="q-card-"]');
+        if (!card) return;
+        const qId = card.id.replace('q-card-', '');
+        const targetQ = this.filteredQuestions.find(item => item.id === qId);
+        if (!targetQ || this.userAnswers[qId]) return;
+
+        const chosen = btn.getAttribute('data-opt');
+        const correctAns = targetQ.displayAnswer || targetQ.answer || 'A';
+        const isCorrect = (chosen === correctAns);
+        this.userAnswers[qId] = { chosen, isCorrect };
+
+        this.sessionStats.answered++;
+        if (isCorrect) this.sessionStats.correct++;
+        else this.sessionStats.wrong++;
+        Storage.recordPracticeResult(isCorrect);
+
+        this.render();
       });
     });
   }

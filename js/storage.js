@@ -343,15 +343,23 @@ export const Storage = {
   getSettings() {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-      return data ? JSON.parse(data) : {
+      return data ? {
         theme: 'light', // 'light' | 'dark' | 'system'
+        shuffleQuestions: true, // Mặc định bật xáo trộn thứ tự câu hỏi
+        shuffleOptions: true,   // Mặc định bật xáo trộn phương án A, B, C, D
+        autoNext: false,
+        soundEnabled: true,
+        ...JSON.parse(data)
+      } : {
+        theme: 'light',
+        shuffleQuestions: true,
         shuffleOptions: true,
         autoNext: false,
         soundEnabled: true
       };
     } catch (e) {
       console.error('Error loading settings', e);
-      return { theme: 'light', shuffleOptions: true, autoNext: false, soundEnabled: true };
+      return { theme: 'light', shuffleQuestions: true, shuffleOptions: true, autoNext: false, soundEnabled: true };
     }
   },
 
