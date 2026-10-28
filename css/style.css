@@ -1,6 +1,6 @@
 /* =========================================================
-   TIN HỌC HUB - STYLESHEET CHÍNH
-   Hệ thống Ôn tập & Thi thử Tin học THPT Chuẩn GDPT 2018
+   TIN HỌC HUB - STYLESHEET TƯƠNG THÍCH ĐA TỈ LỆ KHUNG HÌNH
+   Hỗ trợ 100% Phone (16:9 đến 21:9), Foldables, Tablet, Desktop, Ultrawide
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
@@ -8,10 +8,26 @@
 :root {
   --font-main: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   font-family: var(--font-main);
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  overflow-x: hidden;
+  padding-top: var(--sat);
+  padding-left: var(--sal);
+  padding-right: var(--sar);
+  -webkit-tap-highlight-color: transparent;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
@@ -19,18 +35,23 @@ code, pre, .font-code {
   font-family: var(--font-mono);
 }
 
+/* Tối ưu cảm ứng cho điện thoại & máy tính bảng (loại bỏ 300ms delay) */
+button, a, input, select, textarea, [role="button"] {
+  touch-action: manipulation;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(0, 0, 0, 0.03);
 }
 
 .dark ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -44,21 +65,23 @@ code, pre, .font-code {
 
 /* Glassmorphism */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .dark .glass-panel {
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
-/* Option Cards for Questions */
+/* Option Cards for Questions (Touch Target >= 44px) */
 .option-btn {
+  min-height: 48px;
   transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
   user-select: none;
+  -webkit-user-select: none;
 }
 
 .option-btn:hover:not(:disabled) {
@@ -91,6 +114,8 @@ code, pre, .font-code {
 
 /* Palette items for Exam mode */
 .palette-btn {
+  min-width: 36px;
+  min-height: 36px;
   transition: all 0.15s ease;
 }
 
@@ -146,6 +171,22 @@ code, pre, .font-code {
   animation: pulse-subtle 2s infinite ease-in-out;
 }
 
+/* Mobile Bottom Navigation Bar (Dành cho màn hình điện thoại tỉ lệ 16:9 đến 21:9) */
+.mobile-bottom-bar {
+  padding-bottom: calc(var(--sab) + 0.35rem);
+}
+
+body.in-exam .mobile-bottom-bar {
+  display: none !important;
+}
+
+/* Tránh che nội dung trên màn hình điện thoại có bottom bar */
+@media (max-width: 768px) {
+  body:not(.in-exam) {
+    padding-bottom: calc(var(--sab) + 4.5rem);
+  }
+}
+
 /* =========================================================
    PRINT STYLES - XUẤT ĐỀ THI & ĐÁP ÁN RA GIẤY / PDF
    ========================================================= */
@@ -155,9 +196,10 @@ code, pre, .font-code {
     color: #000000 !important;
     font-size: 11pt !important;
     line-height: 1.4 !important;
+    padding: 0 !important;
   }
 
-  .no-print, header, nav, footer, #timer-container, #palette-container, .btn-action, .modal-backdrop {
+  .no-print, header, nav, footer, #timer-container, #palette-container, .btn-action, .modal-backdrop, .mobile-bottom-bar {
     display: none !important;
   }
 
@@ -189,4 +231,3 @@ code, pre, .font-code {
     margin-top: 4px;
   }
 }
-

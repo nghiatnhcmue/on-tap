@@ -9,6 +9,7 @@ import { Exam } from './exam.js';
 import { Search } from './search.js';
 import { PrintManager } from './print.js';
 import { Auth } from './auth.js';
+import { escapeHtml } from './utils.js';
 
 class App {
   constructor() {
@@ -473,7 +474,7 @@ class App {
             </div>
 
             <h4 class="text-sm font-bold text-slate-800 dark:text-white mb-3">
-              ${q.question}
+              ${escapeHtml(q.question)}
             </h4>
 
             ${['1', '2', '3', '4'].includes(q.level) && q.options ? `
@@ -483,13 +484,13 @@ class App {
                   const isCorrect = (letter === q.answer);
                   return `
                     <div class="p-2 rounded-lg border ${isCorrect ? 'border-emerald-400 bg-emerald-50 text-emerald-900 font-bold' : 'border-slate-200 text-slate-600'}">
-                      ${letter}. ${opt}
+                      ${letter}. ${escapeHtml(opt)}
                     </div>
                   `;
                 }).join('')}
               </div>
             ` : `
-              <div class="text-xs text-emerald-600 font-bold">Đáp án: ${q.answer}</div>
+              <div class="text-xs text-emerald-600 font-bold">Đáp án: ${escapeHtml(q.answer)}</div>
             `}
           </div>
         `).join('')}

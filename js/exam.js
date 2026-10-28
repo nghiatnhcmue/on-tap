@@ -29,6 +29,7 @@ export const Exam = {
 
   resetState() {
     if (this.timerInterval) clearInterval(this.timerInterval);
+    document.body.classList.remove('in-exam');
     this.examQuestions = [];
     this.userAnswers = {};
     this.flaggedQuestions = new Set();
@@ -116,6 +117,7 @@ export const Exam = {
 
     this.remainingSeconds = this.totalSeconds;
     this.examState = 'taking';
+    document.body.classList.add('in-exam');
     this.startTimer();
     this.renderExamInterface();
     return true;
@@ -184,16 +186,22 @@ export const Exam = {
             </div>
           </div>
 
-          <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2 sm:gap-4">
+            <!-- Nút mở bảng câu hỏi trên điện thoại -->
+            <button id="btn-open-mobile-palette" class="lg:hidden px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs font-bold flex items-center gap-1.5 shadow-sm">
+              <i class="fa-solid fa-table-cells"></i>
+              <span>${Object.keys(this.userAnswers).length}/${total}</span>
+            </button>
+
             <!-- Đồng hồ bấm giờ -->
-            <div class="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700">
-              <i class="fa-regular fa-clock text-slate-400 text-sm"></i>
-              <span id="exam-timer" class="text-blue-600 dark:text-blue-400 font-bold text-xl font-mono">00:00</span>
+            <div class="flex items-center gap-1.5 sm:gap-2 bg-slate-100 dark:bg-slate-800 px-3 sm:px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700">
+              <i class="fa-regular fa-clock text-slate-400 text-xs sm:text-sm"></i>
+              <span id="exam-timer" class="text-blue-600 dark:text-blue-400 font-bold text-base sm:text-xl font-mono">00:00</span>
             </div>
 
             <!-- Nút nộp bài -->
-            <button id="btn-submit-exam" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 transition flex items-center gap-1.5">
-              <i class="fa-solid fa-cloud-arrow-up"></i> Nộp bài
+            <button id="btn-submit-exam" class="px-3.5 sm:px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 transition flex items-center gap-1.5">
+              <i class="fa-solid fa-cloud-arrow-up"></i> <span class="hidden sm:inline">Nộp bài</span>
             </button>
           </div>
         </div>
@@ -268,31 +276,55 @@ export const Exam = {
             </div>
           </div>
 
-          <!-- Lưới các ô câu hỏi -->
+          <!-- Lưới các ô câu hỏi trên máy tính / tablet -->
           <div class="grid grid-cols-5 gap-2 max-h-[380px] overflow-y-auto pr-1">
-            ${this.examQuestions.map((q, idx) => {
-              const isAnswered = !!this.userAnswers[q.id];
-              const isCurrent = (idx === this.currentIndex);
-              const flagged = this.flaggedQuestions.has(q.id);
-
-              let cls = isAnswered ? 'answered' : 'unanswered';
-              if (flagged) cls += ' flagged';
-              if (isCurrent) cls += ' active';
-
-              return `
-                <button data-jump-idx="${idx}" class="palette-btn w-full aspect-square rounded-xl text-xs font-bold flex items-center justify-center ${cls}">
-                  ${idx + 1}
-                </button>
-              `;
-            }).join('')}
+            ${this.renderPaletteButtons()}
           </div>
         </div>
 
+      </div>
+
+      <!-- Mobile Bottom Sheet Drawer cho danh sách câu hỏi (Điện thoại 16:9 đến 21:9) -->
+      <div id="mobile-palette-drawer" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end lg:hidden">
+        <div class="bg-white dark:bg-slate-800 w-full max-h-[75dvh] rounded-t-3xl p-5 overflow-y-auto border-t border-slate-200 dark:border-slate-700 shadow-2xl">
+          <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 dark:border-slate-700">
+            <div>
+              <h4 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-list-ol text-blue-600"></i> Bảng điều hướng (${total} câu)
+              </h4>
+              <span class="text-[11px] text-slate-400">Đã làm: ${Object.keys(this.userAnswers).length}/${total}</span>
+            </div>
+            <button id="btn-close-mobile-palette" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-slate-800 flex items-center justify-center text-xs">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <div class="grid grid-cols-7 sm:grid-cols-10 gap-2 mb-2">
+            ${this.renderPaletteButtons()}
+          </div>
+        </div>
       </div>
     `;
 
     this.updateTimerDisplay();
     this.bindExamEvents(currentQ);
+  },
+
+  renderPaletteButtons() {
+    return this.examQuestions.map((q, idx) => {
+      const isAnswered = !!this.userAnswers[q.id];
+      const isCurrent = (idx === this.currentIndex);
+      const flagged = this.flaggedQuestions.has(q.id);
+
+      let cls = isAnswered ? 'answered' : 'unanswered';
+      if (flagged) cls += ' flagged';
+      if (isCurrent) cls += ' active';
+
+      return `
+        <button type="button" data-jump-idx="${idx}" class="palette-btn w-full aspect-square rounded-xl text-xs font-bold flex items-center justify-center ${cls}">
+          ${idx + 1}
+        </button>
+      `;
+    }).join('');
   },
 
   renderExamOptions(q) {
@@ -376,6 +408,31 @@ export const Exam = {
   },
 
   bindExamEvents(currentQ) {
+    // Mobile Drawer Open / Close
+    const openMobilePaletteBtn = this.container.querySelector('#btn-open-mobile-palette');
+    const closeMobilePaletteBtn = this.container.querySelector('#btn-close-mobile-palette');
+    const mobilePaletteDrawer = this.container.querySelector('#mobile-palette-drawer');
+
+    if (openMobilePaletteBtn && mobilePaletteDrawer) {
+      openMobilePaletteBtn.addEventListener('click', () => {
+        mobilePaletteDrawer.classList.remove('hidden');
+      });
+    }
+
+    if (closeMobilePaletteBtn && mobilePaletteDrawer) {
+      closeMobilePaletteBtn.addEventListener('click', () => {
+        mobilePaletteDrawer.classList.add('hidden');
+      });
+    }
+
+    if (mobilePaletteDrawer) {
+      mobilePaletteDrawer.addEventListener('click', (e) => {
+        if (e.target === mobilePaletteDrawer) {
+          mobilePaletteDrawer.classList.add('hidden');
+        }
+      });
+    }
+
     // Jump Palette
     this.container.querySelectorAll('[data-jump-idx]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -476,6 +533,7 @@ export const Exam = {
   // --- NỘP BÀI & CHẤM ĐIỂM ---
   submitExam() {
     if (this.timerInterval) clearInterval(this.timerInterval);
+    document.body.classList.remove('in-exam');
     this.examState = 'submitted';
 
     const timeSpent = this.totalSeconds - Math.max(0, this.remainingSeconds);
