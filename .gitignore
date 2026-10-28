@@ -1,0 +1,14 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Cloudflare Wrangler cache
+.wrangler/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Temporary / Log files
+*.log

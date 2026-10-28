@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="vi" class="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TinHocHub - Ôn Tập & Thi Thử Tin Học THPT (GDPT 2018)</title>
+  <meta name="description" content="Nền tảng ôn tập chuyên đề và thi thử trực tuyến môn Tin học THPT với hơn 4.400 câu hỏi chuẩn Chương trình GDPT 2018 và cấu trúc đề thi tốt nghiệp 2025." />
+  
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💻</text></svg>" />
+
+  <!-- Tailwind CSS & Font Awesome -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
+
+  <!-- ==================== HEADER & NAVBAR ==================== -->
+  <header class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 no-print transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      
+      <!-- Brand Logo -->
+      <a href="#" data-tab-target="home" class="flex items-center gap-3 group shrink-0">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-lg shadow-md shadow-blue-500/20 group-hover:scale-105 transition">
+          <i class="fa-solid fa-laptop-code"></i>
+        </div>
+        <div>
+          <span class="text-lg font-black tracking-tight text-slate-900 dark:text-white block leading-none">
+            TinHoc<span class="text-blue-600 dark:text-blue-400">Hub</span>
+          </span>
+          <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mt-0.5">
+            Ôn Tập & Thi Thử THPT
+          </span>
+        </div>
+      </a>
+
+      <!-- Desktop Navigation Menu -->
+      <nav class="hidden md:flex items-center gap-1 text-sm">
+        <button data-tab-target="home" class="px-3 py-2 rounded-xl text-blue-600 dark:text-blue-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-house text-xs"></i> Trang chủ
+        </button>
+        <button data-tab-target="practice" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-book-open-reader text-xs"></i> Ôn tập
+        </button>
+        <button data-tab-target="exam-setup" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-pen-clip text-xs"></i> Thi thử
+        </button>
+        <button data-tab-target="search" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-magnifying-glass text-xs"></i> Tra cứu
+        </button>
+        <button data-tab-target="bookmarks" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+          <i class="fa-regular fa-bookmark text-xs"></i> Đã lưu
+        </button>
+        <button data-tab-target="history" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+          <i class="fa-regular fa-clock text-xs"></i> Lịch sử
+        </button>
+        <button data-tab-target="print" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-print text-xs"></i> In đề
+        </button>
+      </nav>
+
+      <!-- Right Controls: Grade Pill & Theme Toggle -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Grade Pills -->
+        <div class="hidden sm:flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700">
+          <button data-nav-grade="10" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 transition">K10</button>
+          <button data-nav-grade="11" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 transition">K11</button>
+          <button data-nav-grade="12" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white transition shadow-sm">K12</button>
+        </div>
+
+        <!-- Dark/Light Mode -->
+        <button id="btn-toggle-theme" class="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700 transition" title="Đổi giao diện Sáng / Tối">
+          <i class="fa-regular fa-sun hidden dark:inline-block"></i>
+          <i class="fa-regular fa-moon dark:hidden"></i>
+        </button>
+
+        <!-- Mobile Menu Hamburger -->
+        <button id="btn-mobile-menu" class="md:hidden p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Mobile Navigation Drawer -->
+    <div id="mobile-nav-drawer" class="hidden md:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-4 space-y-2">
+      <!-- Mobile Grade Pills -->
+      <div class="flex items-center justify-around bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl mb-3">
+        <button data-nav-grade="10" class="flex-1 py-1.5 text-center text-xs font-semibold rounded-lg">Khối 10</button>
+        <button data-nav-grade="11" class="flex-1 py-1.5 text-center text-xs font-semibold rounded-lg">Khối 11</button>
+        <button data-nav-grade="12" class="flex-1 py-1.5 text-center text-xs font-bold rounded-lg bg-blue-600 text-white">Khối 12</button>
+      </div>
+
+      <button data-tab-target="home" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
+        <i class="fa-solid fa-house w-5 text-blue-600"></i> Trang chủ
+      </button>
+      <button data-tab-target="practice" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
+        <i class="fa-solid fa-book-open-reader w-5 text-emerald-600"></i> Ôn tập chuyên đề
+      </button>
+      <button data-tab-target="exam-setup" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
+        <i class="fa-solid fa-pen-clip w-5 text-indigo-600"></i> Thi thử trực tuyến
+      </button>
+      <button data-tab-target="search" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
+        <i class="fa-solid fa-magnifying-glass w-5 text-amber-600"></i> Tra cứu ngân hàng đề
+      </button>
+      <button data-tab-target="bookmarks" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
+        <i class="fa-regular fa-bookmark w-5 text-rose-600"></i> Câu hỏi đã lưu
+      </button>
+      <button data-tab-target="history" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
+        <i class="fa-regular fa-clock w-5 text-cyan-600"></i> Lịch sử thi
+      </button>
+      <button data-tab-target="print" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
+        <i class="fa-solid fa-print w-5 text-purple-600"></i> In đề kiểm tra / PDF
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN CONTENT CONTAINER ==================== -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 no-print">
+
+    <!-- VIEW: TRANG CHỦ (HOME) -->
+    <section id="view-home" class="space-y-10">
+      
+      <!-- Hero Banner -->
+      <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white p-8 sm:p-12 shadow-xl shadow-blue-500/20">
+        <div class="relative z-10 max-w-3xl">
+          <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-white/20 backdrop-blur-md mb-4 uppercase tracking-wider text-blue-100">
+            <i class="fa-solid fa-shield-halved"></i> Chuẩn Chương Trình GDPT 2018 & Đề Thi 2025
+          </span>
+          <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight mb-4">
+            Ôn Tập & Thi Thử Tin Học Toàn Diện
+          </h1>
+          <p class="text-base sm:text-lg text-blue-100 leading-relaxed mb-8">
+            Ngân hàng câu hỏi trắc nghiệm, đúng/sai và trả lời ngắn đồ sộ với hơn <strong class="text-white" id="stat-total-q">4.400+</strong> câu hỏi bao quát trọn vẹn chương trình Tin học 10, 11 và 12. Miễn phí 100%, không quảng cáo, tối ưu cho Cloudflare.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-4">
+            <button data-tab-target="practice" class="px-6 py-3.5 bg-white text-blue-600 font-bold rounded-2xl text-sm hover:bg-blue-50 transition shadow-lg shadow-black/10 flex items-center gap-2">
+              <i class="fa-solid fa-book-open-reader"></i> Bắt đầu ôn tập ngay
+            </button>
+            <button data-tab-target="exam-setup" class="px-6 py-3.5 bg-blue-700/80 hover:bg-blue-700 text-white font-bold rounded-2xl text-sm backdrop-blur-md transition border border-white/20 flex items-center gap-2">
+              <i class="fa-solid fa-pen-clip"></i> Thi thử đề chuẩn 2025
+            </button>
+          </div>
+        </div>
+
+        <div class="hidden lg:block absolute -right-10 -bottom-10 opacity-15 text-[280px] pointer-events-none">
+          <i class="fa-solid fa-code"></i>
+        </div>
+      </div>
+
+      <!-- User Progress Stats Quick Bar -->
+      <div id="home-user-stats"></div>
+
+      <!-- 3 Grade Cards -->
+      <div>
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-xl font-extrabold text-slate-800 dark:text-white">
+              Phân Phối Chương Trình Theo Khối Lớp
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">Lựa chọn khối lớp để bắt đầu luyện tập</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          <!-- Card K10 -->
+          <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition group flex flex-col justify-between">
+            <div>
+              <div class="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition">
+                <i class="fa-brands fa-python"></i>
+              </div>
+              <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-2">Tin Học Lớp 10</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
+                Máy tính & Xã hội tri thức, Mạng máy tính, An toàn số, Thiết kế đồ họa Inkscape, Lập trình Python căn bản.
+              </p>
+            </div>
+            <div class="pt-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
+              <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400"><span id="stat-k10-q">1.700</span> câu hỏi</span>
+              <button data-nav-grade="10" onclick="window.AppInstance.switchTab('practice')" class="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold rounded-xl text-xs transition">
+                Học Khối 10
+              </button>
+            </div>
+          </div>
+
+          <!-- Card K11 -->
+          <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition group flex flex-col justify-between">
+            <div>
+              <div class="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition">
+                <i class="fa-solid fa-database"></i>
+              </div>
+              <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-2">Tin Học Lớp 11</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
+                Hệ điều hành & Phần mềm nguồn mở, Mạng & Lưu trữ đám mây, Cơ sở dữ liệu quan hệ, SQL & GIMP/Video.
+              </p>
+            </div>
+            <div class="pt-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
+              <span class="text-xs font-bold text-blue-600 dark:text-blue-400"><span id="stat-k11-q">1.240</span> câu hỏi</span>
+              <button data-nav-grade="11" onclick="window.AppInstance.switchTab('practice')" class="px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold rounded-xl text-xs transition">
+                Học Khối 11
+              </button>
+            </div>
+          </div>
+
+          <!-- Card K12 -->
+          <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition group flex flex-col justify-between border-blue-300 dark:border-blue-700 ring-2 ring-blue-500/10">
+            <div>
+              <div class="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition">
+                <i class="fa-solid fa-brain"></i>
+              </div>
+              <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-2 flex items-center justify-between">
+                <span>Tin Học Lớp 12</span>
+                <span class="px-2 py-0.5 rounded text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 uppercase">Trọng tâm</span>
+              </h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
+                Trí tuệ nhân tạo (AI), Giao thức mạng & thiết bị kết nối, Lập trình trang web HTML/CSS, Định hướng nghề nghiệp CNTT.
+              </p>
+            </div>
+            <div class="pt-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
+              <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400"><span id="stat-k12-q">1.509</span> câu hỏi</span>
+              <button data-nav-grade="12" onclick="window.AppInstance.switchTab('practice')" class="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl text-xs transition shadow-md shadow-indigo-500/20">
+                Học Khối 12
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Featured Topics Grid for Current Grade -->
+      <div>
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-base font-bold text-slate-800 dark:text-white">
+            Các Chuyên Đề Của Khối Lớp Đang Chọn
+          </h3>
+          <span class="text-xs text-slate-400">Chọn chuyên đề để bắt đầu ôn</span>
+        </div>
+        <div id="home-topics-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+      </div>
+
+    </section>
+
+    <!-- VIEW: ÔN TẬP CHUYÊN ĐỀ (PRACTICE) -->
+    <section id="view-practice" class="hidden space-y-6">
+      
+      <!-- Thanh bộ lọc chuyên đề -->
+      <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 sm:p-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          
+          <div>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">
+              Khối lớp
+            </label>
+            <select id="practice-grade-select" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500">
+              <option value="10">Tin học Lớp 10</option>
+              <option value="11">Tin học Lớp 11</option>
+              <option value="12">Tin học Lớp 12</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">
+              Chủ đề kiến thức
+            </label>
+            <select id="practice-topic-select" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500">
+              <option value="all">Tất cả chủ đề</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">
+              Bài học cụ thể
+            </label>
+            <select id="practice-lesson-select" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500" disabled>
+              <option value="all">Tất cả bài học</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">
+              Mức độ nhận thức
+            </label>
+            <select id="practice-level-select" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500">
+              <option value="all">Tất cả các mức độ</option>
+              <option value="1">Mức 1: Nhận biết</option>
+              <option value="2">Mức 2: Thông hiểu</option>
+              <option value="3">Mức 3: Vận dụng</option>
+              <option value="4">Mức 4: Vận dụng cao</option>
+              <option value="DS">Dạng câu hỏi Đúng / Sai</option>
+              <option value="TLN">Dạng Trả lời ngắn</option>
+            </select>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Khu vực hiển thị câu hỏi luyện tập -->
+      <div id="practice-question-area" class="max-w-4xl mx-auto"></div>
+
+    </section>
+
+    <!-- VIEW: CẤU HÌNH THI THỬ (EXAM SETUP) -->
+    <section id="view-exam-setup" class="hidden space-y-8 max-w-4xl mx-auto">
+      
+      <div class="text-center">
+        <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-800 dark:text-white mb-2">
+          Hệ Thống Thi Thử Trực Tuyến
+        </h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400">
+          Luyện tập kỹ năng làm bài dưới áp lực thời gian với ngân hàng đề phong phú
+        </p>
+      </div>
+
+      <!-- Chọn khối thi -->
+      <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div>
+          <h3 class="text-sm font-bold text-slate-800 dark:text-white">Lựa chọn Khối Lớp Thi Thử</h3>
+          <p class="text-xs text-slate-400">Đề thi sẽ được tạo ngẫu nhiên từ ngân hàng câu hỏi của khối này</p>
+        </div>
+        <select id="exam-cfg-grade" class="px-5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500">
+          <option value="12">Khối 12 (Trọng tâm tốt nghiệp)</option>
+          <option value="11">Khối 11 (Cơ sở dữ liệu & mạng)</option>
+          <option value="10">Khối 10 (Lập trình Python & đồ họa)</option>
+        </select>
+      </div>
+
+      <!-- 2 Lựa chọn cấu trúc thi -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Đề chuẩn Bộ GD&ĐT 2025 -->
+        <div class="bg-white dark:bg-slate-800 p-8 rounded-3xl border-2 border-blue-500 dark:border-blue-600 shadow-lg shadow-blue-500/10 flex flex-col justify-between relative overflow-hidden">
+          <div class="absolute top-4 right-4">
+            <span class="px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">
+              Khuyến nghị
+            </span>
+          </div>
+
+          <div>
+            <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-xl mb-4">
+              <i class="fa-solid fa-award"></i>
+            </div>
+            <h3 class="text-xl font-extrabold text-slate-800 dark:text-white mb-2">
+              Đề Chuẩn Tốt Nghiệp THPT 2025
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+              Thiết kế bám sát 100% đề minh họa và quy chế mới nhất của Bộ GD&ĐT:
+            </p>
+
+            <ul class="space-y-2.5 text-xs text-slate-600 dark:text-slate-300 mb-8">
+              <li class="flex items-center gap-2">
+                <i class="fa-solid fa-check text-emerald-500"></i>
+                <span><strong>Phần I:</strong> 24 câu trắc nghiệm nhiều lựa chọn (6.0 điểm)</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <i class="fa-solid fa-check text-emerald-500"></i>
+                <span><strong>Phần II:</strong> 4 câu hỏi trắc nghiệm Đúng/Sai (4.0 điểm)</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <i class="fa-solid fa-check text-emerald-500"></i>
+                <span><strong>Thời gian:</strong> 50 phút đếm ngược</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <i class="fa-solid fa-check text-emerald-500"></i>
+                <span><strong>Chấm điểm:</strong> Chuẩn thang điểm phân nhánh của Bộ</span>
+              </li>
+            </ul>
+          </div>
+
+          <button id="btn-start-bgd-exam" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-sm transition shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
+            <i class="fa-solid fa-play"></i> Bắt đầu thi thử đề chuẩn
+          </button>
+        </div>
+
+        <!-- Đề thi tùy chỉnh / Kiểm tra định kỳ -->
+        <div class="bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center text-xl mb-4">
+              <i class="fa-solid fa-sliders"></i>
+            </div>
+            <h3 class="text-xl font-extrabold text-slate-800 dark:text-white mb-2">
+              Đề Tùy Biến / Kiểm Tra Nhanh
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+              Tự cấu hình số câu hỏi và thời gian để kiểm tra 15 phút, 1 tiết hoặc ôn luyện nhanh.
+            </p>
+
+            <div class="space-y-4 mb-8">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Số lượng câu hỏi</label>
+                <select id="exam-cfg-count" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
+                  <option value="10">10 câu (Kiểm tra nhanh 15 phút)</option>
+                  <option value="20">20 câu (Kiểm tra 30 phút)</option>
+                  <option value="30" selected>30 câu (Kiểm tra 45 phút)</option>
+                  <option value="40">40 câu (Đề tổng hợp toàn khóa)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Thời gian làm bài</label>
+                <select id="exam-cfg-duration" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
+                  <option value="15">15 phút</option>
+                  <option value="30">30 phút</option>
+                  <option value="45" selected>45 phút (1 tiết tiêu chuẩn)</option>
+                  <option value="50">50 phút</option>
+                  <option value="60">60 phút</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <button id="btn-start-custom-exam" class="w-full py-3.5 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-bold rounded-2xl text-sm transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-play"></i> Bắt đầu làm bài
+          </button>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- VIEW: PHÒNG THI (EXAM ROOM) -->
+    <section id="view-exam-room" class="hidden"></section>
+
+    <!-- VIEW: TRA CỨU NGÂN HÀNG CÂU HỎI (SEARCH) -->
+    <section id="view-search" class="hidden">
+      <div id="search-results-area"></div>
+    </section>
+
+    <!-- VIEW: CÂU HỎI ĐÃ LƯU (BOOKMARKS) -->
+    <section id="view-bookmarks" class="hidden max-w-4xl mx-auto">
+      <div id="bookmarks-list-area"></div>
+    </section>
+
+    <!-- VIEW: LỊCH SỬ THI THỬ (HISTORY) -->
+    <section id="view-history" class="hidden max-w-4xl mx-auto">
+      <div id="history-list-area"></div>
+    </section>
+
+    <!-- VIEW: CẤU HÌNH IN ĐỀ / PDF (PRINT SETUP) -->
+    <section id="view-print" class="hidden max-w-2xl mx-auto">
+      <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-8 space-y-6">
+        <div>
+          <h2 class="text-xl font-extrabold text-slate-800 dark:text-white mb-1">
+            Xuất Đề Thi In Ấn & PDF Chuẩn A4
+          </h2>
+          <p class="text-xs text-slate-400">
+            Dành cho quý thầy cô giáo in đề kiểm tra trên lớp hoặc học sinh in ra giấy làm bài.
+          </p>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Tiêu đề đề thi</label>
+            <input type="text" id="print-cfg-title" value="ĐỀ KIỂM TRA ĐỊNH KỲ MÔN TIN HỌC" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Tên đơn vị / Trường</label>
+            <input type="text" id="print-cfg-school" value="SỞ GD&ĐT .................... - TRƯỜNG THPT ...................." class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Khối lớp</label>
+              <select id="print-cfg-grade" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold">
+                <option value="12">Khối 12</option>
+                <option value="11">Khối 11</option>
+                <option value="10">Khối 10</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Số câu hỏi</label>
+              <select id="print-cfg-count" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold">
+                <option value="20">20 câu</option>
+                <option value="25">25 câu</option>
+                <option value="30">30 câu</option>
+                <option value="40" selected>40 câu (chuẩn)</option>
+                <option value="50">50 câu</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Thời gian (phút)</label>
+              <input type="number" id="print-cfg-duration" value="45" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold" />
+            </div>
+
+            <div class="flex items-center pt-6">
+              <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-300">
+                <input type="checkbox" id="print-cfg-include-key" checked class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
+                <span>Kèm trang đáp án ở cuối</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <button id="btn-generate-print" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-sm transition shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-print"></i> Xem trước & In đề thi ngay (PDF)
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-8 no-print transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
+      <div class="flex items-center gap-2">
+        <span class="w-6 h-6 rounded-lg bg-blue-600 text-white font-black flex items-center justify-center text-[10px]">TH</span>
+        <span><strong>TinHocHub</strong> - Ngân hàng ôn tập & thi thử Tin học 10, 11, 12</span>
+      </div>
+
+      <div class="flex items-center gap-4 text-xs">
+        <span class="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
+          <i class="fa-solid fa-cloud"></i> Tối ưu Cloudflare Pages Free
+        </span>
+        <span>•</span>
+        <span>Offline-Ready (PWA)</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==================== GLOBAL LOADING SPINNER ==================== -->
+  <div id="global-loading" class="hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
+    <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-2xl flex items-center gap-4 border border-slate-200 dark:border-slate-700">
+      <div class="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <div class="text-sm font-bold text-slate-800 dark:text-white">Đang nạp dữ liệu ngân hàng đề...</div>
+    </div>
+  </div>
+
+  <!-- Main Application Script (ES Modules) -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
+

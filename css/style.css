@@ -1,0 +1,192 @@
+/* =========================================================
+   TIN HỌC HUB - STYLESHEET CHÍNH
+   Hệ thống Ôn tập & Thi thử Tin học THPT Chuẩn GDPT 2018
+   ========================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --font-main: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+body {
+  font-family: var(--font-main);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+code, pre, .font-code {
+  font-family: var(--font-mono);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
+}
+
+/* Glassmorphism */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.dark .glass-panel {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Option Cards for Questions */
+.option-btn {
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.option-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.option-btn.selected {
+  border-color: #3b82f6 !important;
+  background-color: rgba(59, 130, 246, 0.08) !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+.dark .option-btn.selected {
+  border-color: #60a5fa !important;
+  background-color: rgba(96, 165, 250, 0.15) !important;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.3);
+}
+
+.option-btn.correct {
+  border-color: #10b981 !important;
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+}
+
+.option-btn.wrong {
+  border-color: #ef4444 !important;
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3);
+}
+
+/* Palette items for Exam mode */
+.palette-btn {
+  transition: all 0.15s ease;
+}
+
+.palette-btn.unanswered {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.dark .palette-btn.unanswered {
+  background-color: #1e293b;
+  color: #94a3b8;
+  border: 1px solid #334155;
+}
+
+.palette-btn.answered {
+  background-color: #3b82f6;
+  color: #ffffff;
+  border: 1px solid #2563eb;
+}
+
+.palette-btn.flagged {
+  border: 2px solid #f59e0b !important;
+  position: relative;
+}
+
+.palette-btn.flagged::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #f59e0b;
+}
+
+.palette-btn.active {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #3b82f6;
+}
+
+.dark .palette-btn.active {
+  box-shadow: 0 0 0 2px #0f172a, 0 0 0 4px #60a5fa;
+}
+
+/* Animations */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s infinite ease-in-out;
+}
+
+/* =========================================================
+   PRINT STYLES - XUẤT ĐỀ THI & ĐÁP ÁN RA GIẤY / PDF
+   ========================================================= */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+  }
+
+  .no-print, header, nav, footer, #timer-container, #palette-container, .btn-action, .modal-backdrop {
+    display: none !important;
+  }
+
+  #print-area {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-page-break {
+    page-break-before: always;
+  }
+
+  .print-header {
+    border-bottom: 2px solid #000;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+
+  .print-question {
+    page-break-inside: avoid;
+    margin-bottom: 14px;
+    font-size: 11pt;
+  }
+
+  .print-option {
+    margin-left: 15px;
+    margin-top: 4px;
+  }
+}
+

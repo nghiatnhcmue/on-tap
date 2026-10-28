@@ -1,0 +1,1225 @@
+{
+  "total_questions": 4449,
+  "grades": {
+    "10": {
+      "name": "Tin học Lớp 10",
+      "total": 1700,
+      "levels": {
+        "1": 318,
+        "2": 478,
+        "3": 225,
+        "4": 41,
+        "DS": 317,
+        "TLN": 321
+      },
+      "topics": {
+        "1: Máy tính và xã hội tri thức": {
+          "name": "1: Máy tính và xã hội tri thức",
+          "total": 350,
+          "lessons": {
+            "Bài 1: Thông tin và xử lí thông tin": {
+              "name": "Bài 1: Thông tin và xử lí thông tin",
+              "total": 50,
+              "levels": {
+                "1": 10,
+                "2": 16,
+                "3": 7,
+                "4": 2,
+                "DS": 9,
+                "TLN": 6
+              }
+            },
+            "Bài 2: Vai trò của thiết bị thông minh": {
+              "name": "Bài 2: Vai trò của thiết bị thông minh",
+              "total": 50,
+              "levels": {
+                "1": 14,
+                "2": 16,
+                "3": 8,
+                "DS": 6,
+                "TLN": 6
+              }
+            },
+            "Bài 3: Một số kiểu dữ liệu và dữ liệu văn bản": {
+              "name": "Bài 3: Một số kiểu dữ liệu và dữ liệu văn bản",
+              "total": 50,
+              "levels": {
+                "1": 4,
+                "2": 13,
+                "3": 9,
+                "4": 4,
+                "DS": 10,
+                "TLN": 10
+              }
+            },
+            "Bài 4: Hệ nhị phân và số nguyên": {
+              "name": "Bài 4: Hệ nhị phân và số nguyên",
+              "total": 50,
+              "levels": {
+                "1": 11,
+                "2": 15,
+                "3": 10,
+                "DS": 9,
+                "TLN": 5
+              }
+            },
+            "Bài 5: Dữ liệu lôgic": {
+              "name": "Bài 5: Dữ liệu lôgic",
+              "total": 50,
+              "levels": {
+                "1": 4,
+                "2": 9,
+                "3": 8,
+                "4": 5,
+                "DS": 10,
+                "TLN": 14
+              }
+            },
+            "Bài 6: Dữ liệu âm thanh và hình ảnh": {
+              "name": "Bài 6: Dữ liệu âm thanh và hình ảnh",
+              "total": 50,
+              "levels": {
+                "1": 11,
+                "2": 16,
+                "3": 9,
+                "DS": 4,
+                "TLN": 10
+              }
+            },
+            "Bài 7: Thực hành sử dụng thiết bị số thông dụng": {
+              "name": "Bài 7: Thực hành sử dụng thiết bị số thông dụng",
+              "total": 50,
+              "levels": {
+                "1": 13,
+                "2": 12,
+                "3": 5,
+                "DS": 10,
+                "TLN": 10
+              }
+            }
+          }
+        },
+        "2: Mạng máy tính và Internet": {
+          "name": "2: Mạng máy tính và Internet",
+          "total": 100,
+          "lessons": {
+            "Bài 8: Mạng máy tính trong cuộc sống hiện đại": {
+              "name": "Bài 8: Mạng máy tính trong cuộc sống hiện đại",
+              "total": 50,
+              "levels": {
+                "1": 11,
+                "2": 13,
+                "3": 6,
+                "DS": 10,
+                "TLN": 10
+              }
+            },
+            "Bài 10: Thực hành khai thác tài nguyên trên Internet": {
+              "name": "Bài 10: Thực hành khai thác tài nguyên trên Internet",
+              "total": 50,
+              "levels": {
+                "1": 10,
+                "2": 12,
+                "3": 7,
+                "4": 1,
+                "DS": 10,
+                "TLN": 10
+              }
+            }
+          }
+        },
+        "3: Đạo đức, pháp luật và văn hoá": {
+          "name": "3: Đạo đức, pháp luật và văn hoá",
+          "total": 50,
+          "lessons": {
+            "Bài 9: An toàn trên không gian mạng": {
+              "name": "Bài 9: An toàn trên không gian mạng",
+              "total": 50,
+              "levels": {
+                "1": 6,
+                "2": 17,
+                "3": 7,
+                "DS": 10,
+                "TLN": 10
+              }
+            }
+          }
+        },
+        "3: Đạo đức, pháp luật và văn hoá trong môi trường số": {
+          "name": "3: Đạo đức, pháp luật và văn hoá trong môi trường số",
+          "total": 50,
+          "lessons": {
+            "Bài 11: Ứng xử trên môi trường số. Nghĩa vụ tôn trọng bản quyền": {
+              "name": "Bài 11: Ứng xử trên môi trường số. Nghĩa vụ tôn trọng bản quyền",
+              "total": 50,
+              "levels": {
+                "1": 10,
+                "2": 16,
+                "3": 4,
+                "DS": 10,
+                "TLN": 10
+              }
+            }
+          }
+        },
+        "4: Ứng dụng tin học": {
+          "name": "4: Ứng dụng tin học",
+          "total": 200,
+          "lessons": {
+            "Bài 12: Phần mềm thiết kế đồ hoạ": {
+              "name": "Bài 12: Phần mềm thiết kế đồ hoạ",
+              "total": 50,
+              "levels": {
+                "1": 7,
+                "2": 14,
+                "3": 8,
+                "DS": 10,
+                "TLN": 10,
+                "4": 1
+              }
+            },
+            "Bài 13: Bổ sung các đối tượng đồ họa": {
+              "name": "Bài 13: Bổ sung các đối tượng đồ họa",
+              "total": 50,
+              "levels": {
+                "1": 8,
+                "2": 12,
+                "3": 6,
+                "4": 4,
+                "DS": 10,
+                "TLN": 10
+              }
+            },
+            "Bài 14: Làm việc với đối tượng đường và văn bản": {
+              "name": "Bài 14: Làm việc với đối tượng đường và văn bản",
+              "total": 50,
+              "levels": {
+                "1": 9,
+                "2": 15,
+                "3": 9,
+                "DS": 9,
+                "TLN": 8
+              }
+            },
+            "Bài 15: Hoàn thiện hình ảnh đồ hoạ": {
+              "name": "Bài 15: Hoàn thiện hình ảnh đồ hoạ",
+              "total": 50,
+              "levels": {
+                "1": 11,
+                "2": 15,
+                "3": 5,
+                "4": 1,
+                "DS": 6,
+                "TLN": 12
+              }
+            }
+          }
+        },
+        "5: Giải quyết vấn đề với sự trợ giúp của máy tính": {
+          "name": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
+          "total": 850,
+          "lessons": {
+            "Bài 16: Ngôn ngữ lập trình bậc cao và Python": {
+              "name": "Bài 16: Ngôn ngữ lập trình bậc cao và Python",
+              "total": 50,
+              "levels": {
+                "1": 12,
+                "2": 15,
+                "3": 3,
+                "DS": 10,
+                "TLN": 10
+              }
+            },
+            "Bài 17: Biến và lệnh gán": {
+              "name": "Bài 17: Biến và lệnh gán",
+              "total": 50,
+              "levels": {
+                "1": 8,
+                "2": 8,
+                "3": 7,
+                "4": 7,
+                "DS": 10,
+                "TLN": 10
+              }
+            },
+            "Bài 18: Các lệnh vào ra đơn giản": {
+              "name": "Bài 18: Các lệnh vào ra đơn giản",
+              "total": 50,
+              "levels": {
+                "1": 14,
+                "2": 17,
+                "3": 5,
+                "DS": 9,
+                "TLN": 5
+              }
+            },
+            "Bài 19: Lệnh rẽ nhánh if": {
+              "name": "Bài 19: Lệnh rẽ nhánh if",
+              "total": 50,
+              "levels": {
+                "1": 11,
+                "2": 12,
+                "TLN": 10,
+                "DS": 10,
+                "3": 6,
+                "4": 1
+              }
+            },
+            "Bài 20: Câu lệnh lặp for": {
+              "name": "Bài 20: Câu lệnh lặp for",
+              "total": 50,
+              "levels": {
+                "1": 7,
+                "2": 18,
+                "3": 5,
+                "DS": 10,
+                "TLN": 10
+              }
+            },
+            "Bài 21: Lệnh lặp while": {
+              "name": "Bài 21: Lệnh lặp while",
+              "total": 50,
+              "levels": {
+                "1": 9,
+                "2": 15,
+                "3": 10,
+                "4": 2,
+                "DS": 7,
+                "TLN": 7
+              }
+            },
+            "Bài 22: Kiểu dữ liệu danh sách": {
+              "name": "Bài 22: Kiểu dữ liệu danh sách",
+              "total": 50,
+              "levels": {
+                "1": 10,
+                "2": 14,
+                "3": 6,
+                "TLN": 10,
+                "DS": 10
+              }
+            },
+            "Bài 23: Một số lệnh làm việc với dữ liệu danh sách": {
+              "name": "Bài 23: Một số lệnh làm việc với dữ liệu danh sách",
+              "total": 50,
+              "levels": {
+                "1": 5,
+                "2": 10,
+                "3": 10,
+                "TLN": 12,
+                "DS": 10,
+                "4": 3
+              }
+            },
+            "Bài 24: Xâu kí tự": {
+              "name": "Bài 24: Xâu kí tự",
+              "total": 50,
+              "levels": {
+                "1": 8,
+                "2": 15,
+                "3": 7,
+                "DS": 10,
+                "TLN": 10
+              }
+            },
+            "Bài 25: Một số lệnh làm việc với xâu kí tự": {
+              "name": "Bài 25: Một số lệnh làm việc với xâu kí tự",
+              "total": 50,
+              "levels": {
+                "1": 14,
+                "2": 14,
+                "3": 2,
+                "DS": 10,
+                "TLN": 10
+              }
+            },
+            "Bài 26: Hàm trong Python": {
+              "name": "Bài 26: Hàm trong Python",
+              "total": 50,
+              "levels": {
+                "1": 8,
+                "2": 9,
+                "3": 8,
+                "4": 5,
+                "DS": 10,
+                "TLN": 10
+              }
+            },
+            "Bài 27: Tham số của hàm": {
+              "name": "Bài 27: Tham số của hàm",
+              "total": 50,
+              "levels": {
+                "1": 9,
+                "2": 17,
+                "3": 4,
+                "DS": 10,
+                "TLN": 10
+              }
+            },
+            "Bài 28: Phạm vi của biến": {
+              "name": "Bài 28: Phạm vi của biến",
+              "total": 50,
+              "levels": {
+                "1": 10,
+                "2": 15,
+                "3": 9,
+                "4": 2,
+                "DS": 8,
+                "TLN": 6
+              }
+            },
+            "Bài 29: Nhận biết lỗi chương trình": {
+              "name": "Bài 29: Nhận biết lỗi chương trình",
+              "total": 50,
+              "levels": {
+                "1": 4,
+                "2": 18,
+                "3": 8,
+                "DS": 10,
+                "TLN": 10
+              }
+            },
+            "Bài 30: Kiểm thử và gỡ lỗi chương trình": {
+              "name": "Bài 30: Kiểm thử và gỡ lỗi chương trình",
+              "total": 50,
+              "levels": {
+                "2": 18,
+                "1": 7,
+                "3": 5,
+                "DS": 10,
+                "TLN": 10
+              }
+            },
+            "Bài 31: Thực hành Python": {
+              "name": "Bài 31: Thực hành Python",
+              "total": 50,
+              "levels": {
+                "1": 7,
+                "2": 13,
+                "3": 9,
+                "4": 1,
+                "DS": 10,
+                "TLN": 10
+              }
+            },
+            "Bài 32: Ôn tập lập trình Python": {
+              "name": "Bài 32: Ôn tập lập trình Python",
+              "total": 50,
+              "levels": {
+                "1": 18,
+                "2": 12,
+                "DS": 10,
+                "TLN": 10
+              }
+            }
+          }
+        },
+        "6: Hướng nghiệp với Tin học": {
+          "name": "6: Hướng nghiệp với Tin học",
+          "total": 50,
+          "lessons": {
+            "Bài 33: Nghề thiết kế đồ hoạ máy tính": {
+              "name": "Bài 33: Nghề thiết kế đồ hoạ máy tính",
+              "total": 50,
+              "levels": {
+                "1": 8,
+                "2": 15,
+                "3": 7,
+                "DS": 10,
+                "TLN": 10
+              }
+            }
+          }
+        },
+        "6: Hướng nghiệp với tin học": {
+          "name": "6: Hướng nghiệp với tin học",
+          "total": 50,
+          "lessons": {
+            "Bài 34: Nghề phát triển phần mềm": {
+              "name": "Bài 34: Nghề phát triển phần mềm",
+              "total": 50,
+              "levels": {
+                "1": 10,
+                "2": 12,
+                "3": 6,
+                "4": 2,
+                "DS": 10,
+                "TLN": 10
+              }
+            }
+          }
+        }
+      }
+    },
+    "11": {
+      "name": "Tin học Lớp 11",
+      "total": 1240,
+      "levels": {
+        "1": 310,
+        "2": 310,
+        "3": 310,
+        "4": 310
+      },
+      "topics": {
+        "Chủ đề 1: Máy tính và xã hội tri thức": {
+          "name": "Chủ đề 1: Máy tính và xã hội tri thức",
+          "total": 200,
+          "lessons": {
+            "Bài 1: Hệ điều hành": {
+              "name": "Bài 1: Hệ điều hành",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 2: Thực hành sử dụng hệ điều hành": {
+              "name": "Bài 2: Thực hành sử dụng hệ điều hành",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 3: Phần mềm nguồn mở và phần mềm chạy trên Internet": {
+              "name": "Bài 3: Phần mềm nguồn mở và phần mềm chạy trên Internet",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 4: Bên trong máy tính": {
+              "name": "Bài 4: Bên trong máy tính",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 5: Kết nối máy tính với các thiết bị số": {
+              "name": "Bài 5: Kết nối máy tính với các thiết bị số",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            }
+          }
+        },
+        "Chủ đề 2. Tổ chức lưu trữ, tìm kiếm và trao đổi thông tin": {
+          "name": "Chủ đề 2. Tổ chức lưu trữ, tìm kiếm và trao đổi thông tin",
+          "total": 120,
+          "lessons": {
+            "Bài 6. Lưu trữ và chia sẻ tệp tin trên Internet": {
+              "name": "Bài 6. Lưu trữ và chia sẻ tệp tin trên Internet",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 7. Thực hành tìm kiếm thông tin trên Internet": {
+              "name": "Bài 7. Thực hành tìm kiếm thông tin trên Internet",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 8. Thực hành nâng cao sử dụng thư điện tử và mạng xã hội": {
+              "name": "Bài 8. Thực hành nâng cao sử dụng thư điện tử và mạng xã hội",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            }
+          }
+        },
+        "Chủ đề 3. Đạo đức, pháp luật và văn hoá trong môi trường số": {
+          "name": "Chủ đề 3. Đạo đức, pháp luật và văn hoá trong môi trường số",
+          "total": 40,
+          "lessons": {
+            "Bài 9. Giao tiếp an toàn trên Internet": {
+              "name": "Bài 9. Giao tiếp an toàn trên Internet",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            }
+          }
+        },
+        "Chủ đề 4. Giới thiệu các hệ cơ sở dữ liệu": {
+          "name": "Chủ đề 4. Giới thiệu các hệ cơ sở dữ liệu",
+          "total": 240,
+          "lessons": {
+            "Bài 10. Lưu trữ dữ liệu và khai thác thông tin phục vụ quản lí": {
+              "name": "Bài 10. Lưu trữ dữ liệu và khai thác thông tin phục vụ quản lí",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 11. Cơ sở dữ liệu": {
+              "name": "Bài 11. Cơ sở dữ liệu",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 12. Hệ quản trị cơ sở dữ liệu và hệ cơ sở dữ liệu": {
+              "name": "Bài 12. Hệ quản trị cơ sở dữ liệu và hệ cơ sở dữ liệu",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 13. Cơ sở dữ liệu quan hệ": {
+              "name": "Bài 13. Cơ sở dữ liệu quan hệ",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 14. SQL – Ngôn ngữ truy vấn có cấu trúc": {
+              "name": "Bài 14. SQL – Ngôn ngữ truy vấn có cấu trúc",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 15. Bảo mật và an toàn hệ cơ sở dữ liệu": {
+              "name": "Bài 15. Bảo mật và an toàn hệ cơ sở dữ liệu",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            }
+          }
+        },
+        "Chủ đề 5. Hướng nghiệp với tin học": {
+          "name": "Chủ đề 5. Hướng nghiệp với tin học",
+          "total": 40,
+          "lessons": {
+            "Bài 16. Công việc quản trị cơ sở dữ liệu": {
+              "name": "Bài 16. Công việc quản trị cơ sở dữ liệu",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            }
+          }
+        },
+        "Chủ đề 6: Thực hành tạo và khai thác cơ sở dữ liệu": {
+          "name": "Chủ đề 6: Thực hành tạo và khai thác cơ sở dữ liệu",
+          "total": 320,
+          "lessons": {
+            "Bài 17. Quản trị cơ sở dữ liệu trên máy tính": {
+              "name": "Bài 17. Quản trị cơ sở dữ liệu trên máy tính",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 18. Thực hành xác định cấu trúc bảng và các trường khoá": {
+              "name": "Bài 18. Thực hành xác định cấu trúc bảng và các trường khoá",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 19. Thực hành tạo lập cơ sở dữ liệu và các bảng": {
+              "name": "Bài 19. Thực hành tạo lập cơ sở dữ liệu và các bảng",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 20. Thực hành tạo lập các bảng có khoá ngoài": {
+              "name": "Bài 20. Thực hành tạo lập các bảng có khoá ngoài",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 21. Thực hành cập nhật và truy xuất dữ liệu các bảng": {
+              "name": "Bài 21. Thực hành cập nhật và truy xuất dữ liệu các bảng",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 22. Thực hành cập nhật bảng dữ liệu có tham chiếu": {
+              "name": "Bài 22. Thực hành cập nhật bảng dữ liệu có tham chiếu",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 23. Thực hành truy xuất dữ liệu qua liên kết các bảng": {
+              "name": "Bài 23. Thực hành truy xuất dữ liệu qua liên kết các bảng",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 24. Thực hành sao lưu dữ liệu": {
+              "name": "Bài 24. Thực hành sao lưu dữ liệu",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            }
+          }
+        },
+        "Chủ đề 7: Phần mềm chỉnh sửa ảnh và làm video": {
+          "name": "Chủ đề 7: Phần mềm chỉnh sửa ảnh và làm video",
+          "total": 280,
+          "lessons": {
+            "Bài 25. Phần mềm chỉnh sửa ảnh": {
+              "name": "Bài 25. Phần mềm chỉnh sửa ảnh",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 26. Công cụ tinh chỉnh màu sắc và công cụ chọn": {
+              "name": "Bài 26. Công cụ tinh chỉnh màu sắc và công cụ chọn",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 27. Công cụ vẽ và một số ứng dụng": {
+              "name": "Bài 27. Công cụ vẽ và một số ứng dụng",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 28. Tạo ảnh động": {
+              "name": "Bài 28. Tạo ảnh động",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 29. Khám phá phần mềm làm phim": {
+              "name": "Bài 29. Khám phá phần mềm làm phim",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 30. Biên tập phim": {
+              "name": "Bài 30. Biên tập phim",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            },
+            "Bài 31. Thực hành tạo phim hoạt hình": {
+              "name": "Bài 31. Thực hành tạo phim hoạt hình",
+              "total": 40,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10
+              }
+            }
+          }
+        }
+      }
+    },
+    "12": {
+      "name": "Tin học Lớp 12",
+      "total": 1509,
+      "levels": {
+        "1": 365,
+        "2": 364,
+        "3": 365,
+        "4": 365,
+        "DS": 20,
+        "TLN": 30
+      },
+      "topics": {
+        "1. MÁY TÍNH VÀ XÃ HỘI TRI THỨC": {
+          "name": "1. MÁY TÍNH VÀ XÃ HỘI TRI THỨC",
+          "total": 96,
+          "lessons": {
+            "Bài 01. Làm quen với trí tuệ nhân tạo": {
+              "name": "Bài 01. Làm quen với trí tuệ nhân tạo",
+              "total": 48,
+              "levels": {
+                "1": 12,
+                "2": 12,
+                "3": 12,
+                "4": 12
+              }
+            },
+            "Bài 02. Trí tuệ nhân tạo trong khoa học và đời sống": {
+              "name": "Bài 02. Trí tuệ nhân tạo trong khoa học và đời sống",
+              "total": 48,
+              "levels": {
+                "1": 12,
+                "2": 12,
+                "3": 12,
+                "4": 12
+              }
+            }
+          }
+        },
+        "2. MẠNG MÁY TÍNH VÀ INTERNET": {
+          "name": "2. MẠNG MÁY TÍNH VÀ INTERNET",
+          "total": 147,
+          "lessons": {
+            "Bài 03. Một số thiết bị mạng thông dụng": {
+              "name": "Bài 03. Một số thiết bị mạng thông dụng",
+              "total": 47,
+              "levels": {
+                "1": 12,
+                "2": 11,
+                "3": 12,
+                "4": 12
+              }
+            },
+            "Bài 04. Giao thức mạng": {
+              "name": "Bài 04. Giao thức mạng",
+              "total": 48,
+              "levels": {
+                "1": 12,
+                "2": 12,
+                "3": 12,
+                "4": 12
+              }
+            },
+            "Bài 05. Thực hành chia sẻ tài nguyên trên mạng": {
+              "name": "Bài 05. Thực hành chia sẻ tài nguyên trên mạng",
+              "total": 52,
+              "levels": {
+                "1": 13,
+                "2": 13,
+                "3": 13,
+                "4": 13
+              }
+            }
+          }
+        },
+        "3. ĐẠO ĐỨC PHÁP LUẬT VÀ VĂN HÓA TRONG MÔI TRƯỜNG SỐ": {
+          "name": "3. ĐẠO ĐỨC PHÁP LUẬT VÀ VĂN HÓA TRONG MÔI TRƯỜNG SỐ",
+          "total": 52,
+          "lessons": {
+            "Bài 06. Giao tiếp và ứng xử trong không gian mạng": {
+              "name": "Bài 06. Giao tiếp và ứng xử trong không gian mạng",
+              "total": 52,
+              "levels": {
+                "1": 13,
+                "2": 13,
+                "3": 13,
+                "4": 13
+              }
+            }
+          }
+        },
+        "4. GIẢI QUYẾT VẤN ĐỀ VỚI SỰ TRỢ GIÚP CỦA MÁY TÍNH": {
+          "name": "4. GIẢI QUYẾT VẤN ĐỀ VỚI SỰ TRỢ GIÚP CỦA MÁY TÍNH",
+          "total": 612,
+          "lessons": {
+            "Bài 07. HTML và cấu trúc trang web": {
+              "name": "Bài 07. HTML và cấu trúc trang web",
+              "total": 48,
+              "levels": {
+                "1": 12,
+                "2": 12,
+                "3": 12,
+                "4": 12
+              }
+            },
+            "Bài 08. Định dạng văn bản": {
+              "name": "Bài 08. Định dạng văn bản",
+              "total": 48,
+              "levels": {
+                "1": 12,
+                "2": 12,
+                "3": 12,
+                "4": 12
+              }
+            },
+            "Bài 09. Tạo danh sách, bảng": {
+              "name": "Bài 09. Tạo danh sách, bảng",
+              "total": 48,
+              "levels": {
+                "1": 12,
+                "2": 12,
+                "3": 12,
+                "4": 12
+              }
+            },
+            "Bài 10. Tạo liên kết": {
+              "name": "Bài 10. Tạo liên kết",
+              "total": 48,
+              "levels": {
+                "1": 12,
+                "2": 12,
+                "3": 12,
+                "4": 12
+              }
+            },
+            "Bài 11. Chèn tệp đa phương tiên và khung nội tuyến vào trang web": {
+              "name": "Bài 11. Chèn tệp đa phương tiên và khung nội tuyến vào trang web",
+              "total": 16,
+              "levels": {
+                "1": 4,
+                "2": 4,
+                "3": 4,
+                "4": 4
+              }
+            },
+            "Bài 11. Chèn tệp đa phương tiện và khung nội tuyến vào trang web": {
+              "name": "Bài 11. Chèn tệp đa phương tiện và khung nội tuyến vào trang web",
+              "total": 32,
+              "levels": {
+                "1": 8,
+                "2": 8,
+                "3": 8,
+                "4": 8
+              }
+            },
+            "Bài 12. Tạo biểu mẫu": {
+              "name": "Bài 12. Tạo biểu mẫu",
+              "total": 48,
+              "levels": {
+                "1": 12,
+                "2": 12,
+                "3": 12,
+                "4": 12
+              }
+            },
+            "Bài 13. Khái niệm, vai trò của CSS": {
+              "name": "Bài 13. Khái niệm, vai trò của CSS",
+              "total": 56,
+              "levels": {
+                "1": 14,
+                "2": 14,
+                "3": 14,
+                "4": 14
+              }
+            },
+            "Bài 14. Định dạng văn bản bằng CSS": {
+              "name": "Bài 14. Định dạng văn bản bằng CSS",
+              "total": 64,
+              "levels": {
+                "1": 16,
+                "2": 16,
+                "3": 16,
+                "4": 16
+              }
+            },
+            "Bài 15. Tạo màu cho chữ và nền": {
+              "name": "Bài 15. Tạo màu cho chữ và nền",
+              "total": 56,
+              "levels": {
+                "1": 14,
+                "2": 14,
+                "3": 14,
+                "4": 14
+              }
+            },
+            "Bài 16. Định dạng khung": {
+              "name": "Bài 16. Định dạng khung",
+              "total": 52,
+              "levels": {
+                "1": 13,
+                "2": 13,
+                "3": 13,
+                "4": 13
+              }
+            },
+            "Bài 17. Các mức ưu tiên của bộ chọn": {
+              "name": "Bài 17. Các mức ưu tiên của bộ chọn",
+              "total": 48,
+              "levels": {
+                "1": 12,
+                "2": 12,
+                "3": 12,
+                "4": 12
+              }
+            },
+            "Bài 18. Thực hành tổng hợp thiết kế trang Web": {
+              "name": "Bài 18. Thực hành tổng hợp thiết kế trang Web",
+              "total": 48,
+              "levels": {
+                "1": 12,
+                "2": 12,
+                "3": 12,
+                "4": 12
+              }
+            }
+          }
+        },
+        "5. HƯỚNG NGHIỆP VỚI TIN HỌC": {
+          "name": "5. HƯỚNG NGHIỆP VỚI TIN HỌC",
+          "total": 144,
+          "lessons": {
+            "Bài 19. Dịch vụ sửa chữa và bảo trì máy tính": {
+              "name": "Bài 19. Dịch vụ sửa chữa và bảo trì máy tính",
+              "total": 48,
+              "levels": {
+                "1": 12,
+                "2": 12,
+                "3": 12,
+                "4": 12
+              }
+            },
+            "Bài 20. Nhóm nghề Quản trị thuộc ngành Công nghệ thông tin": {
+              "name": "Bài 20. Nhóm nghề Quản trị thuộc ngành Công nghệ thông tin",
+              "total": 48,
+              "levels": {
+                "1": 12,
+                "2": 12,
+                "3": 12,
+                "4": 12
+              }
+            },
+            "Bài 21 Hội thảo hướng nghiệp": {
+              "name": "Bài 21 Hội thảo hướng nghiệp",
+              "total": 16,
+              "levels": {
+                "1": 4,
+                "2": 4,
+                "3": 4,
+                "4": 4
+              }
+            },
+            "Bài 21: Hội thảo hướng nghiệp": {
+              "name": "Bài 21: Hội thảo hướng nghiệp",
+              "total": 32,
+              "levels": {
+                "1": 8,
+                "2": 8,
+                "3": 8,
+                "4": 8
+              }
+            }
+          }
+        },
+        "6. MÁY TÍNH VÀ XÃ HỘI TRI THỨC": {
+          "name": "6. MÁY TÍNH VÀ XÃ HỘI TRI THỨC",
+          "total": 48,
+          "lessons": {
+            "Bài 22. Thực hành kết nối các thiết bị số": {
+              "name": "Bài 22. Thực hành kết nối các thiết bị số",
+              "total": 48,
+              "levels": {
+                "1": 12,
+                "2": 12,
+                "3": 12,
+                "4": 12
+              }
+            }
+          }
+        },
+        "7. ỨNG DỤNG TIN HỌC": {
+          "name": "7. ỨNG DỤNG TIN HỌC",
+          "total": 410,
+          "lessons": {
+            "Bài 23. Chuẩn bị xây dựng trang web": {
+              "name": "Bài 23. Chuẩn bị xây dựng trang web",
+              "total": 48,
+              "levels": {
+                "1": 12,
+                "2": 12,
+                "3": 12,
+                "4": 12
+              }
+            },
+            "Bài 24. Xây dựng phần đầu trang web": {
+              "name": "Bài 24. Xây dựng phần đầu trang web",
+              "total": 48,
+              "levels": {
+                "1": 12,
+                "2": 12,
+                "3": 12,
+                "4": 12
+              }
+            },
+            "Bài 25 Xây dựng phần thân và chân trang web": {
+              "name": "Bài 25 Xây dựng phần thân và chân trang web",
+              "total": 16,
+              "levels": {
+                "1": 4,
+                "2": 4,
+                "3": 4,
+                "4": 4
+              }
+            },
+            "Bài 25. Xây dựng phần thân và chân trang web": {
+              "name": "Bài 25. Xây dựng phần thân và chân trang web",
+              "total": 50,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10,
+                "DS": 4,
+                "TLN": 6
+              }
+            },
+            "Bài 26: Liên kết và thanh điều hướng.": {
+              "name": "Bài 26: Liên kết và thanh điều hướng.",
+              "total": 16,
+              "levels": {
+                "1": 4,
+                "2": 4,
+                "3": 4,
+                "4": 4
+              }
+            },
+            "Bài 26. Liên kết và thanh điều hướng": {
+              "name": "Bài 26. Liên kết và thanh điều hướng",
+              "total": 50,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10,
+                "DS": 4,
+                "TLN": 6
+              }
+            },
+            "Bài 27: Biểu mẫu trên trang web.": {
+              "name": "Bài 27: Biểu mẫu trên trang web.",
+              "total": 16,
+              "levels": {
+                "1": 4,
+                "2": 4,
+                "3": 4,
+                "4": 4
+              }
+            },
+            "Bài 27. Biểu mẫu trên trang web": {
+              "name": "Bài 27. Biểu mẫu trên trang web",
+              "total": 50,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10,
+                "DS": 4,
+                "TLN": 6
+              }
+            },
+            "Bài 28. Thực hành tổng hợp": {
+              "name": "Bài 28. Thực hành tổng hợp",
+              "total": 66,
+              "levels": {
+                "1": 14,
+                "2": 14,
+                "3": 14,
+                "4": 14,
+                "DS": 4,
+                "TLN": 6
+              }
+            },
+            "Bài 28: Thực hành tổng hợp": {
+              "name": "Bài 28: Thực hành tổng hợp",
+              "total": 50,
+              "levels": {
+                "1": 10,
+                "2": 10,
+                "3": 10,
+                "4": 10,
+                "DS": 4,
+                "TLN": 6
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
