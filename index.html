@@ -41,7 +41,7 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261029_14" />
+  <link rel="stylesheet" href="css/style.css?v=20261029_15" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -1588,6 +1588,12 @@
         </div>
       </div>
 
+      <!-- Cảnh báo nếu API Key không hợp lệ -->
+      <div id="firebase-cfg-hint-container" class="hidden p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 leading-relaxed mb-4 flex items-start gap-2.5">
+        <i class="fa-solid fa-triangle-exclamation text-rose-500 mt-0.5 shrink-0 text-sm"></i>
+        <div id="firebase-cfg-hint-msg" class="flex-1 font-medium"></div>
+      </div>
+
       <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
         Dán mã <b>Web API Key</b> từ Firebase Console của Thầy để kích hoạt cửa sổ Popup đăng nhập tài khoản Google chính thức trên TinHocHub:
       </p>
@@ -1622,12 +1628,22 @@
           <p class="font-bold text-amber-800 dark:text-amber-300">Hướng dẫn kích hoạt Google Sign-In trong Firebase (2 phút):</p>
           <p>1. Vào <a href="https://console.firebase.google.com/" target="_blank" class="text-blue-600 underline font-bold">Firebase Console</a> → Chọn dự án của Thầy.</p>
           <p>2. Chọn menu <b>Authentication</b> → Tab <b>Sign-in method</b> → Bấm <b>Google</b> → Bật <b>Enable</b> và Lưu.</p>
-          <p>3. Vào <b>Project Settings (Bánh răng)</b> → Tab <b>General</b> → Cuộn xuống mục <i>Your apps</i> → Sao chép <b>Web API Key</b> dán vào ô trên.</p>
+          <p>3. Vào <b>Project Settings (Bánh răng)</b> → Tab <b>General</b> → Cuộn xuống mục <i>Your apps</i> → Sao chép <b>Web API Key</b> (bắt đầu bằng <code>AIzaSy...</code>) dán vào ô trên.</p>
         </div>
 
         <button type="submit" id="btn-save-firebase-auth" class="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl text-xs transition shadow-md shadow-amber-500/20 flex items-center justify-center gap-2">
           <i class="fa-solid fa-floppy-disk"></i> Lưu Cấu Hình & Kích Hoạt Firebase Google Auth
         </button>
+
+        <!-- Nút dự phòng không cần API Key -->
+        <div class="pt-2 border-t border-slate-100 dark:border-slate-700/80 flex items-center justify-between gap-2 flex-wrap">
+          <button type="button" id="btn-bypass-firebase-login" class="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-bold rounded-xl text-xs transition flex items-center gap-1.5 flex-1 justify-center">
+            <i class="fa-solid fa-arrow-right-to-bracket"></i> Đăng nhập bằng Email/Tên (Không cần API Key)
+          </button>
+          <button type="button" id="btn-clear-firebase-config" class="px-3 py-2.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl text-xs font-bold transition flex items-center gap-1">
+            <i class="fa-solid fa-trash-can"></i> Xóa cấu hình
+          </button>
+        </div>
       </form>
     </div>
   </div>
@@ -2324,7 +2340,7 @@
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261029_14"></script>
+  <script type="module" src="js/app.js?v=20261029_15"></script>
 </body>
 </html>
 

@@ -988,9 +988,15 @@ export const AdminManager = {
         });
 
         if (clientId.trim()) {
-          Storage.saveFirebaseAuthConfig({ apiKey: clientId.trim() });
-          Auth.setGoogleClientId(clientId.trim());
-          if (Auth.initFirebaseAuth) Auth.initFirebaseAuth();
+          const val = clientId.trim();
+          if (val.startsWith('AIza')) {
+            Storage.saveFirebaseAuthConfig({ apiKey: val });
+            if (Auth.initFirebaseAuth) Auth.initFirebaseAuth();
+          } else if (val.includes('googleusercontent.com')) {
+            Storage.saveAdminConfig({ googleClientId: val });
+          } else {
+            alert('Lưu ý: Mã Firebase Web API Key phải bắt đầu bằng "AIzaSy...". Vui lòng kiểm tra lại!');
+          }
         }
 
         alert('Đã lưu cấu hình hệ thống thành công!');

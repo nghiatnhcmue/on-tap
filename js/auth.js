@@ -169,6 +169,12 @@ export const Auth = {
   },
 
   // ==================== FIREBASE AUTHENTICATION (GOOGLE SIGN-IN) ====================
+  isFirebaseApiKey(key) {
+    if (!key || typeof key !== 'string') return false;
+    const clean = key.trim();
+    return clean.startsWith('AIza') && clean.length >= 25;
+  },
+
   initFirebaseAuth() {
     if (typeof firebase === 'undefined') {
       console.warn('Firebase SDK chưa được tải.');
@@ -176,7 +182,7 @@ export const Auth = {
     }
 
     const cfg = Storage.getFirebaseAuthConfig ? Storage.getFirebaseAuthConfig() : {};
-    if (!cfg.apiKey) {
+    if (!cfg.apiKey || !this.isFirebaseApiKey(cfg.apiKey)) {
       this.renderFallbackGoogleButtons();
       return false;
     }
@@ -184,7 +190,7 @@ export const Auth = {
     try {
       if (!firebase.apps || firebase.apps.length === 0) {
         firebase.initializeApp({
-          apiKey: cfg.apiKey,
+          apiKey: cfg.apiKey.trim(),
           authDomain: cfg.authDomain || (cfg.projectId ? `${cfg.projectId}.firebaseapp.com` : undefined),
           projectId: cfg.projectId,
           databaseURL: cfg.databaseURL
@@ -216,16 +222,20 @@ export const Auth = {
   },
 
   setGoogleClientId(clientId) {
-    // Lưu và chuyển sang cấu hình Firebase API key nếu người dùng nhập
     if (clientId) {
-      Storage.saveFirebaseAuthConfig({ apiKey: clientId.trim() });
-      this.initFirebaseAuth();
+      const clean = clientId.trim();
+      if (this.isFirebaseApiKey(clean)) {
+        Storage.saveFirebaseAuthConfig({ apiKey: clean });
+        this.initFirebaseAuth();
+      } else if (clean.includes('googleusercontent.com')) {
+        Storage.saveAdminConfig({ googleClientId: clean });
+      }
     }
   },
 
   getGoogleClientId() {
     const cfg = Storage.getFirebaseAuthConfig ? Storage.getFirebaseAuthConfig() : {};
-    return cfg.apiKey || '';
+    return (cfg.apiKey && this.isFirebaseApiKey(cfg.apiKey)) ? cfg.apiKey : '';
   },
 
   setupFirebaseAuthUI() {
@@ -286,6 +296,35 @@ export const Auth = {
       };
     }
 
+    // Nút Bỏ qua cấu hình để vào học ngay
+    const btnBypass = document.getElementById('btn-bypass-firebase-login');
+    if (btnBypass) {
+      btnBypass.onclick = () => {
+        const modal = document.getElementById('modal-firebase-config');
+        if (modal) modal.classList.add('hidden');
+        const inputId = document.getElementById('login-input-identity');
+        if (inputId) inputId.focus();
+      };
+    }
+
+    // Nút Xóa cấu hình Firebase API key
+    const btnClearCfg = document.getElementById('btn-clear-firebase-config');
+    if (btnClearCfg) {
+      btnClearCfg.onclick = () => {
+        Storage.saveFirebaseAuthConfig({ apiKey: '', projectId: '', authDomain: '' });
+        const inputKey = document.getElementById('input-firebase-api-key');
+        if (inputKey) inputKey.value = '';
+        if (this.firebaseAuth) {
+          try { firebase.app().delete(); } catch(e) {}
+          this.firebaseAuth = null;
+          this.isFirebaseInitialized = false;
+        }
+        alert('Đã xóa cấu hình Firebase API Key.');
+        const modal = document.getElementById('modal-firebase-config');
+        if (modal) modal.classList.add('hidden');
+      };
+    }
+
     // Mở modal cài đặt Firebase Auth
     const openBtns = [
       document.getElementById('btn-open-google-config'),
@@ -297,7 +336,7 @@ export const Auth = {
     });
   },
 
-  openFirebaseConfigModal() {
+  openFirebaseConfigModal(hintMessage = '') {
     const modal = document.getElementById('modal-firebase-config');
     if (modal) {
       modal.classList.remove('hidden');
@@ -305,9 +344,19 @@ export const Auth = {
       const inputKey = document.getElementById('input-firebase-api-key');
       const inputProj = document.getElementById('input-firebase-project-id');
       const inputDomain = document.getElementById('input-firebase-auth-domain');
-      if (inputKey && !inputKey.value) inputKey.value = cfg.apiKey || '';
+      if (inputKey) inputKey.value = (cfg.apiKey && this.isFirebaseApiKey(cfg.apiKey)) ? cfg.apiKey : '';
       if (inputProj && !inputProj.value) inputProj.value = cfg.projectId || '';
       if (inputDomain && !inputDomain.value) inputDomain.value = cfg.authDomain || '';
+
+      const hintEl = document.getElementById('firebase-cfg-hint-msg');
+      if (hintEl) {
+        if (hintMessage) {
+          hintEl.textContent = hintMessage;
+          hintEl.parentElement?.classList.remove('hidden');
+        } else {
+          hintEl.parentElement?.classList.add('hidden');
+        }
+      }
       inputKey?.focus();
     } else {
       const modalQuick = document.getElementById('modal-google-quick-prompt');
@@ -353,16 +402,23 @@ export const Auth = {
   async signInWithGoogleFirebase() {
     const cfg = Storage.getFirebaseAuthConfig ? Storage.getFirebaseAuthConfig() : {};
 
-    // Nếu chưa cấu hình Firebase API key, hướng dẫn cấu hình
-    if (!cfg.apiKey) {
-      this.openFirebaseConfigModal();
+    // Nếu chưa cấu hình Firebase API key hoặc API key không đúng chuẩn (phải bắt đầu bằng AIza)
+    if (!cfg.apiKey || !this.isFirebaseApiKey(cfg.apiKey)) {
+      if (cfg.apiKey && !this.isFirebaseApiKey(cfg.apiKey)) {
+        Storage.saveFirebaseAuthConfig({ apiKey: '' });
+      }
+      this.openFirebaseConfigModal(
+        '⚠️ Chưa cấu hình Firebase Web API Key hợp lệ!\nKhóa chuẩn của Firebase bắt đầu bằng "AIzaSy...". Bạn hãy dán Web API Key từ Firebase Console (Project Settings -> General) hoặc sử dụng tính năng Đăng nhập nhanh bên dưới.'
+      );
       return;
     }
 
     if (!this.firebaseAuth) {
       const ok = this.initFirebaseAuth();
       if (!ok || !this.firebaseAuth) {
-        this.openFirebaseConfigModal();
+        this.openFirebaseConfigModal(
+          '⚠️ Không thể khởi tạo Firebase Auth với API Key hiện tại. Vui lòng kiểm tra lại cấu hình Web API Key.'
+        );
         return;
       }
     }
@@ -384,7 +440,17 @@ export const Auth = {
       }
     } catch (err) {
       console.error('Lỗi đăng nhập Google Firebase:', err);
-      if (err.code === 'auth/popup-blocked') {
+      if (err.code === 'auth/api-key-not-valid' || err.code === 'auth/invalid-api-key' || (err.message && err.message.includes('api-key-not-valid'))) {
+        // Tự động xóa API key hỏng để không bao giờ bị kẹt lại
+        Storage.saveFirebaseAuthConfig({ apiKey: '' });
+        if (this.firebaseAuth) {
+          try { firebase.app().delete(); } catch (e) {}
+          this.firebaseAuth = null;
+          this.isFirebaseInitialized = false;
+        }
+        alert('⚠️ Khóa Firebase Web API Key không hợp lệ hoặc đã bị vô hiệu hóa trên Google Cloud!\n\nHệ thống đã tự động đặt lại mã này. Bạn có thể:\n1. Nhập Web API Key chuẩn từ Firebase Console (bắt đầu bằng "AIzaSy...").\n2. Hoặc sử dụng tính năng "Đăng nhập bằng Email/Họ tên" hoặc "Trải nghiệm nhanh" để vào học ngay lập tức!');
+        this.openFirebaseConfigModal('⚠️ Firebase Web API Key không hợp lệ (mã chuẩn phải bắt đầu bằng "AIzaSy..."). Vui lòng cập nhật lại.');
+      } else if (err.code === 'auth/popup-blocked') {
         alert('Trình duyệt đã chặn cửa sổ đăng nhập Google (Pop-up blocked)!\nVui lòng nhấp vào biểu tượng Pop-up trên thanh địa chỉ của trình duyệt để "Cho phép Pop-up", sau đó thử lại.');
       } else if (err.code === 'auth/unauthorized-domain') {
         const domain = window.location.hostname;

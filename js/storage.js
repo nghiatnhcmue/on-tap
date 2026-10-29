@@ -218,9 +218,18 @@ export const Storage = {
 
   // --- CẤU HÌNH XÁC THỰC GOOGLE BẰNG FIREBASE AUTH ---
   getFirebaseAuthConfig() {
+    let result = {
+      apiKey: '',
+      authDomain: '',
+      projectId: '',
+      databaseURL: ''
+    };
+
     try {
       const data = localStorage.getItem('tinhoc_firebase_auth_config');
-      if (data) return JSON.parse(data);
+      if (data) {
+        result = { ...result, ...JSON.parse(data) };
+      }
     } catch (e) {}
 
     const cloudCfg = JSON.parse(localStorage.getItem('tinhoc_cloud_config') || '{}');
@@ -231,12 +240,30 @@ export const Storage = {
       const m = dbUrl.match(/https?:\/\/([a-zA-Z0-9-]+)(?:-default-rtdb|\.firebaseio)/);
       if (m && m[1]) derivedProjectId = m[1];
     }
-    return {
-      apiKey: cloudCfg.apiKey || adminCfg.firebaseApiKey || '',
-      authDomain: cloudCfg.authDomain || (derivedProjectId ? `${derivedProjectId}.firebaseapp.com` : ''),
-      projectId: cloudCfg.projectId || derivedProjectId || '',
-      databaseURL: dbUrl
-    };
+
+    if (!result.apiKey) {
+      result.apiKey = cloudCfg.apiKey || adminCfg.firebaseApiKey || '';
+    }
+    if (!result.authDomain) {
+      result.authDomain = cloudCfg.authDomain || (derivedProjectId ? `${derivedProjectId}.firebaseapp.com` : '');
+    }
+    if (!result.projectId) {
+      result.projectId = cloudCfg.projectId || derivedProjectId || '';
+    }
+    if (!result.databaseURL) {
+      result.databaseURL = dbUrl;
+    }
+
+    // Kiểm tra tính hợp lệ của Firebase Web API Key: Phải bắt đầu bằng 'AIza'
+    // Loại trừ trường hợp nhầm lẫn với Google OAuth Client ID (...apps.googleusercontent.com)
+    if (result.apiKey && (!result.apiKey.trim().startsWith('AIza') || result.apiKey.length < 25)) {
+      result.apiKey = '';
+      try {
+        localStorage.setItem('tinhoc_firebase_auth_config', JSON.stringify({ ...result, apiKey: '' }));
+      } catch (e) {}
+    }
+
+    return result;
   },
 
   saveFirebaseAuthConfig(config) {
