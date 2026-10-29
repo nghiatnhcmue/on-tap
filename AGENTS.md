@@ -8,9 +8,8 @@ Tài liệu này được biên soạn nhằm giúp các Agent AI kế nhiệm n
 
 - **Tên dự án:** TinHocHub – Website Ôn tập & Thi thử môn Tin học THPT (Khối 10, 11, 12).
 - **Mục tiêu:** Cung cấp nền tảng ôn thi theo chương trình GDPT 2018 và cấu trúc định dạng đề thi Tốt nghiệp THPT 2025 của Bộ Giáo dục & Đào tạo.
-- **Mô hình kiến trúc:** Ứng dụng web tĩnh (Static Web App / SPA) thuần JavaScript ES Modules.
-- **Không sử dụng:** Backend máy chủ riêng, Node.js runtime khi chạy, bundler (Webpack/Vite), framework (React/Vue).
-- **Lưu trữ dữ liệu:** Phía client thông qua trình duyệt (`localStorage`), được đóng gói thống nhất qua module `js/storage.js`.
+- **Mô hình kiến trúc:** Ứng dụng Web Động Đa Nền Tảng (Dynamic Realtime Web App) theo kiến trúc Local-First kết hợp Cơ Sở Dữ Liệu Đám Mây (Google Firebase Realtime Database / REST API).
+- **Lưu trữ dữ liệu:** Cơ chế 2 tầng (Two-Tier Data Layer): Phía client siêu tốc qua `localStorage` (offline-first) và tự động đồng bộ thời gian thực đa thiết bị thông qua `CloudSync` (`js/cloud-sync.js`).
 - **Dữ liệu ngân hàng câu hỏi:** 4.098 câu hỏi chuẩn trắc nghiệm 4 lựa chọn (MCQ) và Đúng/Sai (DS) lưu tại thư mục `data/` (`grade_10.json`, `grade_11.json`, `grade_12.json`, `manifest.json`), được trích xuất và chuẩn hóa từ file Excel gốc `Ngan Hang de.xlsx`.
 - **Triển khai & Hosting:** Cloudflare Pages / Workers kết nối tự động với GitHub Repository:
   - GitHub Repo: `https://github.com/nghiatnhcmue/on-tap.git` (nhánh `main`).
@@ -28,7 +27,8 @@ D:\app-on-tap/
 ├── js/
 │   ├── app.js              # Controller trung tâm: routing tab, load dữ liệu, Auth Gatekeeper, Gradebook
 │   ├── auth.js             # Quản lý xác thực: Google Sign-In (GIS), Đăng ký tài khoản, phân quyền RBAC
-│   ├── storage.js          # Lớp truy xuất LocalStorage: tài khoản, lịch sử thi, phòng thi, tùy biến câu hỏi
+│   ├── cloud-sync.js       # Hệ thống Đồng bộ Cơ sở Dữ liệu Đám mây Real-time (Firebase / REST API)
+│   ├── storage.js          # Lớp truy xuất LocalStorage & điều phối CloudSync: tài khoản, lịch sử thi, phòng thi
 │   ├── practice.js         # Màn hình Ôn tập: hỗ trợ MCQ, Đúng/Sai (DS), Trả lời ngắn (TLN), Single & List mode
 │   ├── exam.js             # Màn hình Thi thử: đề chuẩn Bộ GD 2025 (28 câu = 10đ), đề tự chọn, timer, nộp bài
 │   ├── proctor.js          # Hệ thống Giám sát Chống gian lận: fullscreen, tab blur, chống copy/devtools

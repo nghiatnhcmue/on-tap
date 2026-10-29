@@ -7,6 +7,7 @@
 import { Storage } from './storage.js';
 import { Auth } from './auth.js';
 import { escapeHtml } from './utils.js';
+import { CloudSync } from './cloud-sync.js';
 
 export const AdminManager = {
   container: null,
@@ -57,6 +58,7 @@ export const AdminManager = {
     const customQuestions11 = Storage.getCustomQuestions('11');
     const customQuestions10 = Storage.getCustomQuestions('10');
     const totalCustomQs = customQuestions12.length + customQuestions11.length + customQuestions10.length;
+    const cloudStatus = CloudSync.getStatus();
 
     this.container.innerHTML = `
       <div class="space-y-8 animate-fadeIn">
@@ -104,10 +106,16 @@ export const AdminManager = {
           </div>
 
           <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-            <span class="text-xs text-slate-400 font-bold block mb-1">TRẠNG THÁI MÁY CHỦ</span>
-            <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 inline-block mt-1">
-              Cloudflare Pages OK
-            </span>
+            <span class="text-xs text-slate-400 font-bold block mb-1">CƠ SỞ DỮ LIỆU</span>
+            ${cloudStatus.isConfigured ? `
+              <span class="text-xs font-bold px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 inline-block mt-1">
+                🟢 Cloud Active
+              </span>
+            ` : `
+              <span class="text-xs font-bold px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 inline-block mt-1">
+                ⚪ Cục bộ (Local)
+              </span>
+            `}
           </div>
         </div>
 
@@ -170,6 +178,112 @@ export const AdminManager = {
                 }).join('')}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- 2. KẾT NỐI CƠ SỞ DỮ LIỆU ĐÁM MÂY (CLOUD DATABASE / REALTIME BACKEND) -->
+        <div id="admin-cloud-sync-card" class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 pb-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-cloud-arrow-up text-blue-600"></i> Cơ Sở Dữ Liệu Đám Mây (Cloud Real-Time Sync)
+              </h3>
+              <p class="text-xs text-slate-400 mt-0.5">
+                Chuyển đổi TinHocHub thành Web Động: Học sinh ở nhà đăng ký & nộp bài trên điện thoại sẽ tự động bay về máy Thầy tức thì.
+              </p>
+            </div>
+            <div>
+              ${cloudStatus.isConfigured ? `
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Đã kết nối Đám mây
+                </span>
+              ` : `
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                  <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                  Chưa kết nối (Chế độ Local)
+                </span>
+              `}
+            </div>
+          </div>
+
+          <!-- Form Cấu Hình Cloud Database -->
+          <form id="form-cloud-config" class="space-y-4">
+            <div class="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-700">
+              <div>
+                <label for="cloud-cfg-enabled" class="text-xs font-bold text-slate-800 dark:text-white block cursor-pointer">
+                  Kích hoạt Đồng bộ Đám mây (Cloud Sync)
+                </label>
+                <span class="text-[11px] text-slate-500 dark:text-slate-400">Bật tính năng này để mọi thiết bị (laptop của Thầy, điện thoại của HS) cùng chung 1 cơ sở dữ liệu.</span>
+              </div>
+              <input type="checkbox" id="cloud-cfg-enabled" ${cloudStatus.enabled ? 'checked' : ''} class="w-5 h-5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer" />
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  URL Cơ Sở Dữ Liệu Đám Mây (Google Firebase Realtime Database) *
+                </label>
+                <div class="flex gap-2">
+                  <input type="url" id="cloud-cfg-url" value="${escapeHtml(cloudStatus.databaseUrl || '')}" placeholder="https://tinhoc-thpt-default-rtdb.firebaseio.com" class="flex-1 px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500" />
+                  <button type="button" id="btn-cloud-test-conn" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 shrink-0">
+                    <i class="fa-solid fa-bolt"></i> Kiểm tra kết nối
+                  </button>
+                </div>
+                <span class="text-[11px] text-slate-400 mt-1 block">
+                  Đường dẫn Realtime Database miễn phí 100% của Google (hoặc endpoint REST API).
+                </span>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Tần suất tự động đồng bộ ngầm
+                </label>
+                <select id="cloud-cfg-interval" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
+                  <option value="0.5" ${CloudSync.config?.intervalMinutes === 0.5 ? 'selected' : ''}>Mỗi 30 giây (Nhanh nhất)</option>
+                  <option value="1" ${(!CloudSync.config?.intervalMinutes || CloudSync.config?.intervalMinutes === 1) ? 'selected' : ''}>Mỗi 1 phút (Chuẩn khuyến nghị)</option>
+                  <option value="2" ${CloudSync.config?.intervalMinutes === 2 ? 'selected' : ''}>Mỗi 2 phút</option>
+                  <option value="5" ${CloudSync.config?.intervalMinutes === 5 ? 'selected' : ''}>Mỗi 5 phút</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Thời gian đồng bộ gần nhất
+                </label>
+                <div class="px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-500 dark:text-slate-400">
+                  ${cloudStatus.lastSync ? new Date(cloudStatus.lastSync).toLocaleString('vi-VN') : 'Chưa đồng bộ lần nào'}
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 pt-2 flex-wrap">
+              <button type="submit" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-blue-500/20 flex items-center gap-2">
+                <i class="fa-solid fa-floppy-disk"></i> Lưu Cấu Hình Cloud
+              </button>
+              <button type="button" id="btn-cloud-sync-now" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-emerald-500/20 flex items-center gap-2">
+                <i class="fa-solid fa-arrows-rotate"></i> Đồng bộ ngay
+              </button>
+              <button type="button" id="btn-cloud-push-all" class="px-4 py-2.5 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Đẩy toàn bộ dữ liệu máy này lên Cloud
+              </button>
+              <button type="button" id="btn-cloud-pull-all" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                <i class="fa-solid fa-cloud-arrow-down"></i> Kéo toàn bộ từ Cloud về máy này
+              </button>
+            </div>
+          </form>
+
+          <!-- Hướng Dẫn Kích Hoạt Firebase 2 Phút Miễn Phí -->
+          <div class="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 text-xs space-y-2">
+            <h4 class="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-2 text-xs">
+              <i class="fa-brands fa-google text-amber-600"></i> Hướng dẫn kích hoạt Google Firebase Database miễn phí (2 phút):
+            </h4>
+            <ol class="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-300 leading-relaxed text-[11px]">
+              <li>Truy cập <a href="https://console.firebase.google.com/" target="_blank" class="text-blue-600 font-bold underline">Firebase Console</a> bằng tài khoản Google của Thầy.</li>
+              <li>Bấm <b>"Thêm dự án" (Add project)</b> & đặt tên (ví dụ: <code class="bg-amber-100 dark:bg-amber-900/60 px-1 py-0.5 rounded font-mono">tinhoc-hub</code>).</li>
+              <li>Tại menu bên trái, chọn <b>Build -> Realtime Database</b> -> Bấm <b>"Tạo cơ sở dữ liệu" (Create Database)</b> -> Chọn chế độ <b>"Bắt đầu ở chế độ thử nghiệm" (Start in test mode)</b>.</li>
+              <li>Sao chép đường link URL (dạng: <code class="bg-amber-100 dark:bg-amber-900/60 px-1 py-0.5 rounded font-mono">https://tinhoc-hub-default-rtdb.firebaseio.com</code>) rồi dán vào ô URL bên trên và bấm <b>"Lưu Cấu Hình Cloud"</b>. XONG! Mọi học sinh ở nhà sẽ tự động kết nối chung 1 cơ sở dữ liệu!</li>
+            </ol>
           </div>
         </div>
 
@@ -271,6 +385,80 @@ export const AdminManager = {
   },
 
   bindEvents() {
+    // 1. Cấu hình Cơ sở dữ liệu Đám mây (Cloud Database)
+    const formCloud = document.getElementById('form-cloud-config');
+    if (formCloud) {
+      formCloud.onsubmit = async (e) => {
+        e.preventDefault();
+        const enabled = document.getElementById('cloud-cfg-enabled')?.checked ?? true;
+        const url = document.getElementById('cloud-cfg-url')?.value.trim() || '';
+        const interval = parseFloat(document.getElementById('cloud-cfg-interval')?.value || '1');
+
+        CloudSync.saveConfig({
+          enabled,
+          databaseUrl: url,
+          intervalMinutes: interval
+        });
+
+        alert('Đã lưu cấu hình Cơ sở dữ liệu Đám mây thành công!');
+        this.render();
+
+        if (enabled && url) {
+          await CloudSync.syncAll(true);
+          this.render();
+        }
+      };
+    }
+
+    // Nút Kiểm tra kết nối Cloud
+    const btnTest = document.getElementById('btn-cloud-test-conn');
+    if (btnTest) {
+      btnTest.onclick = async () => {
+        const url = document.getElementById('cloud-cfg-url')?.value.trim() || '';
+        if (!url) {
+          alert('Vui lòng nhập URL Firebase Database trước khi kiểm tra!');
+          return;
+        }
+        btnTest.disabled = true;
+        btnTest.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Đang test...';
+        const res = await CloudSync.testConnection(url);
+        btnTest.disabled = false;
+        btnTest.innerHTML = '<i class="fa-solid fa-bolt mr-1"></i> Kiểm tra kết nối';
+        alert(res.message);
+      };
+    }
+
+    // Nút Đồng bộ ngay
+    const btnSyncNow = document.getElementById('btn-cloud-sync-now');
+    if (btnSyncNow) {
+      btnSyncNow.onclick = async () => {
+        btnSyncNow.disabled = true;
+        btnSyncNow.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Đang đồng bộ...';
+        await CloudSync.syncAll(true);
+        btnSyncNow.disabled = false;
+        btnSyncNow.innerHTML = '<i class="fa-solid fa-arrows-rotate mr-1"></i> Đồng bộ ngay';
+        this.render();
+      };
+    }
+
+    // Nút Đẩy dữ liệu lên Cloud
+    const btnPush = document.getElementById('btn-cloud-push-all');
+    if (btnPush) {
+      btnPush.onclick = async () => {
+        await CloudSync.pushAllLocalToCloud();
+        this.render();
+      };
+    }
+
+    // Nút Kéo dữ liệu từ Cloud về
+    const btnPull = document.getElementById('btn-cloud-pull-all');
+    if (btnPull) {
+      btnPull.onclick = async () => {
+        await CloudSync.pullAllCloudToLocal();
+        this.render();
+      };
+    }
+
     // Lưu cấu hình Admin & Security codes
     const form = document.getElementById('form-admin-config');
     if (form) {

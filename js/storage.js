@@ -21,6 +21,8 @@ const STORAGE_KEYS = {
 };
 
 export const Storage = {
+  cloudSync: null,
+
   // --- CẤU HÌNH ADMIN & MÃ BẢO MẬT PHÂN QUYỀN ---
   getAdminConfig() {
     try {
@@ -84,6 +86,9 @@ export const Storage = {
         list.unshift(record);
       }
       localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(list));
+      if (this.cloudSync) {
+        this.cloudSync.pushAccountToCloud(record).catch(() => {});
+      }
     } catch (e) {
       console.error('Error saving account record', e);
     }
@@ -101,6 +106,9 @@ export const Storage = {
       if (user) {
         user.role = newRole;
         localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(list));
+        if (this.cloudSync) {
+          this.cloudSync.pushAccountToCloud(user).catch(() => {});
+        }
       }
       // Cập nhật session hiện tại nếu trùng email hoặc uid
       const currentUserStr = localStorage.getItem('tinhoc_user');
@@ -185,6 +193,9 @@ export const Storage = {
       }
 
       localStorage.setItem(STORAGE_KEYS.EXAM_ROOMS, JSON.stringify(rooms));
+      if (this.cloudSync) {
+        this.cloudSync.pushRoomToCloud(newRoom).catch(() => {});
+      }
       return newRoom;
     } catch (e) {
       console.error('Error saving exam room', e);
@@ -198,6 +209,9 @@ export const Storage = {
       const cleanId = roomId.trim().toUpperCase();
       rooms = rooms.filter(r => r.id.toUpperCase() !== cleanId);
       localStorage.setItem(STORAGE_KEYS.EXAM_ROOMS, JSON.stringify(rooms));
+      if (this.cloudSync) {
+        this.cloudSync.deleteRoomFromCloud(cleanId).catch(() => {});
+      }
       return true;
     } catch (e) {
       console.error('Error deleting exam room', e);
@@ -696,6 +710,9 @@ export const Storage = {
       // Giữ tối đa 100 bài thi gần nhất
       if (history.length > 100) history.pop();
       localStorage.setItem(STORAGE_KEYS.EXAM_HISTORY, JSON.stringify(history));
+      if (this.cloudSync) {
+        this.cloudSync.pushExamResultToCloud(entry).catch(() => {});
+      }
 
       // Tự động xóa phiên làm bài nháp sau khi đã nộp bài
       this.clearActiveExamSession();

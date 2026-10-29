@@ -16,6 +16,7 @@ import { AdminManager } from './admin-manager.js';
 import { ExamRooms } from './exam-rooms.js';
 import { Proctor } from './proctor.js';
 import { Gradebook } from './gradebook.js';
+import { CloudSync } from './cloud-sync.js';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -24,6 +25,7 @@ if (typeof window !== 'undefined') {
   window.Proctor = Proctor;
   window.ExamRooms = ExamRooms;
   window.Gradebook = Gradebook;
+  window.CloudSync = CloudSync;
 }
 
 class App {
@@ -42,6 +44,11 @@ class App {
     Auth.init();
     this.initAuthUI();
     this.bindGlobalEvents();
+
+    // Khởi tạo Cloud Sync Engine chuyển đổi sang Web Động Đa Nền Tảng
+    Storage.cloudSync = CloudSync;
+    CloudSync.init();
+    this.initCloudSyncUI();
 
     // Khóa giao diện và mở modal đăng nhập NGAY LẬP TỨC (không chờ nạp manifest / đề thi)
     this.enforceAuthentication();
@@ -87,6 +94,42 @@ class App {
         const isDark = document.documentElement.classList.toggle('dark');
         Storage.saveSettings({ theme: isDark ? 'dark' : 'light' });
       });
+    }
+  }
+
+  // --- CLOUD SYNC UI & STATUS BADGE ---
+  initCloudSyncUI() {
+    const btnStatus = document.getElementById('btn-cloud-sync-status');
+    const textStatus = document.getElementById('cloud-sync-status-text');
+
+    const updateUI = (status) => {
+      if (!btnStatus || !textStatus) return;
+      if (status.isSyncing) {
+        btnStatus.className = 'px-2.5 py-1.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-[11px] font-bold text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 transition flex items-center gap-1.5 shadow-sm';
+        textStatus.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đồng bộ...';
+      } else if (status.isConfigured) {
+        btnStatus.className = 'px-2.5 py-1.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 transition flex items-center gap-1.5 shadow-sm';
+        textStatus.innerHTML = '🟢 Cloud';
+      } else {
+        btnStatus.className = 'px-2.5 py-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-300 border border-slate-200 dark:border-slate-700 transition flex items-center gap-1.5';
+        textStatus.innerHTML = '⚪ Local';
+      }
+    };
+
+    CloudSync.onStatusChange(updateUI);
+    updateUI(CloudSync.getStatus());
+
+    if (btnStatus) {
+      btnStatus.onclick = () => {
+        if (Auth.isAdmin()) {
+          this.switchTab('admin-system');
+          setTimeout(() => {
+            document.getElementById('admin-cloud-sync-card')?.scrollIntoView({ behavior: 'smooth' });
+          }, 200);
+        } else {
+          CloudSync.syncAll(true);
+        }
+      };
     }
   }
 
@@ -785,6 +828,11 @@ class App {
           alert('Vui lòng nhập Mã phòng thi do Giáo viên cấp!');
           roomIdInput?.focus();
           return;
+        }
+
+        // Nếu phòng thi chưa có trong máy, tự động kéo trực tiếp từ Cloud về
+        if (!Storage.getExamRoom(roomId) && CloudSync.isConfigured()) {
+          await CloudSync.fetchRoomFromCloud(roomId);
         }
 
         // Xác thực đối tượng vào thi (Trường, Khối, Lớp, Mật khẩu, Khung giờ)
