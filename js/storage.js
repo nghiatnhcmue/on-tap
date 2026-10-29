@@ -205,7 +205,7 @@ export const Storage = {
     }
   },
 
-  validateRoomAccess(roomId, enteredPassword) {
+  validateRoomAccess(roomId, enteredPassword, user = null) {
     const room = this.getExamRoom(roomId);
     if (!room) {
       return {
@@ -215,7 +215,7 @@ export const Storage = {
       };
     }
 
-    // Kiểm tra mật khẩu (nếu phòng có cài mật khẩu)
+    // 1. Kiểm tra mật khẩu (nếu phòng có cài mật khẩu)
     if (room.password && room.password.trim() !== '') {
       if (!enteredPassword || enteredPassword.trim() !== room.password.trim()) {
         return {
@@ -227,7 +227,7 @@ export const Storage = {
       }
     }
 
-    // Kiểm tra khung thời gian
+    // 2. Kiểm tra khung thời gian
     const now = new Date();
     if (room.startTime) {
       const start = new Date(room.startTime);
@@ -251,6 +251,56 @@ export const Storage = {
           reason: 'EXPIRED',
           message: `Đã hết thời hạn làm bài của phòng thi này!\nThời gian đóng đề: ${end.toLocaleString('vi-VN')}`,
           endTime: end
+        };
+      }
+    }
+
+    // 3. Kiểm tra Giới hạn Khối lớp (Target Grade)
+    const targetGrade = room.targetGrade || room.grade;
+    if (user && targetGrade && targetGrade !== 'all') {
+      if (user.grade && user.grade !== targetGrade) {
+        return {
+          valid: false,
+          room,
+          reason: 'GRADE_MISMATCH',
+          message: `Bài thi này chỉ dành cho học sinh Khối ${targetGrade}!\n(Hồ sơ hiện tại của bạn là Khối ${user.grade || 'khác'}).`
+        };
+      }
+    }
+
+    // 4. Kiểm tra Giới hạn Trường học (Target School)
+    if (user && room.targetSchool && room.targetSchool !== 'all') {
+      const studentSchool = (user.school || '').trim().toLowerCase();
+      const targetSchool = room.targetSchool.trim().toLowerCase();
+      const isMatch = studentSchool.includes(targetSchool) || targetSchool.includes(studentSchool);
+      if (!isMatch) {
+        return {
+          valid: false,
+          room,
+          reason: 'SCHOOL_MISMATCH',
+          message: `Bài thi này được giao riêng cho trường: ${room.targetSchool}!\n(Trường hiện tại của bạn: ${user.school || 'Chưa cập nhật'}).`
+        };
+      }
+    }
+
+    // 5. Kiểm tra Giới hạn Lớp học (Target Class / Classes)
+    const targetClass = room.targetClass || room.targetClasses;
+    if (user && targetClass && targetClass !== 'all') {
+      const studentClass = (user.className || '').trim().toUpperCase();
+      let isAllowed = false;
+      if (Array.isArray(targetClass)) {
+        isAllowed = targetClass.some(c => c.trim().toUpperCase() === studentClass);
+      } else if (typeof targetClass === 'string') {
+        const allowedList = targetClass.split(',').map(c => c.trim().toUpperCase());
+        isAllowed = allowedList.includes(studentClass);
+      }
+      if (!isAllowed) {
+        const classNames = Array.isArray(targetClass) ? targetClass.join(', ') : targetClass;
+        return {
+          valid: false,
+          room,
+          reason: 'CLASS_MISMATCH',
+          message: `Bài thi này được giao riêng cho lớp: ${classNames}!\n(Lớp hiện tại của bạn: ${user.className || 'Chưa cập nhật'}).`
         };
       }
     }
@@ -631,6 +681,10 @@ export const Storage = {
         studentEmail: result.studentEmail || student.email,
         roomId: result.roomId || null,
         roomTitle: result.roomTitle || null,
+        examCode: result.examCode || null,
+        examType: result.examType || result.type || null,
+        topic: result.topic || null,
+        lesson: result.lesson || null,
         isProctored: !!result.isProctored,
         violationCount: result.violationCount || 0,
         violationLogs: result.violationLogs || [],

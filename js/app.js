@@ -222,7 +222,7 @@ class App {
         break;
       case 'exam-rooms':
         document.getElementById('view-exam-rooms')?.classList.remove('hidden');
-        ExamRooms.init(document.getElementById('exam-rooms-list-area'));
+        ExamRooms.init(document.getElementById('exam-rooms-list-area'), this.manifest);
         break;
       case 'exam-room':
         document.getElementById('view-exam-room')?.classList.remove('hidden');
@@ -623,6 +623,98 @@ class App {
       };
     };
 
+    // Chuyển đổi giữa 4 chế độ tạo đề thi (Tabs)
+    const modeTabs = document.querySelectorAll('[data-exam-tab]');
+    const panels = {
+      bgd: document.getElementById('panel-exam-bgd'),
+      topic: document.getElementById('panel-exam-topic'),
+      lesson: document.getElementById('panel-exam-lesson'),
+      matrix: document.getElementById('panel-exam-matrix')
+    };
+
+    modeTabs.forEach(tab => {
+      tab.onclick = () => {
+        const targetMode = tab.getAttribute('data-exam-tab');
+        modeTabs.forEach(t => {
+          if (t === tab) {
+            t.className = 'px-3.5 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm transition whitespace-nowrap';
+          } else {
+            t.className = 'px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 transition whitespace-nowrap';
+          }
+        });
+
+        Object.keys(panels).forEach(key => {
+          if (panels[key]) {
+            panels[key].classList.toggle('hidden', key !== targetMode);
+          }
+        });
+      };
+    });
+
+    // Hàm điền dữ liệu Chủ đề & Bài học theo Khối
+    const populateExamSetupDropdowns = (grade) => {
+      if (!this.manifest || !this.manifest.grades[grade]) return;
+      const gradeData = this.manifest.grades[grade];
+      const topics = Object.keys(gradeData.topics || {});
+
+      // 1. Panel Theo Chủ đề
+      const topicSelect = document.getElementById('exam-topic-select');
+      if (topicSelect) {
+        let tHtml = `<option value="all">-- Tất cả các chủ đề trong Khối ${grade} (${gradeData.total} câu) --</option>`;
+        topics.forEach(t => {
+          tHtml += `<option value="${escapeHtml(t)}">${escapeHtml(t)} (${gradeData.topics[t].total} câu)</option>`;
+        });
+        topicSelect.innerHTML = tHtml;
+      }
+
+      // 2. Panel Theo Bài học
+      const lessonTopicSelect = document.getElementById('exam-lesson-topic-select');
+      const lessonSelect = document.getElementById('exam-lesson-select');
+      if (lessonTopicSelect) {
+        let ltHtml = `<option value="">-- Vui lòng chọn chủ đề --</option>`;
+        topics.forEach(t => {
+          ltHtml += `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`;
+        });
+        lessonTopicSelect.innerHTML = ltHtml;
+      }
+
+      const updateExamLessons = () => {
+        if (!lessonSelect) return;
+        const selTopic = lessonTopicSelect ? lessonTopicSelect.value : '';
+        if (!selTopic || !gradeData.topics[selTopic]) {
+          lessonSelect.innerHTML = `<option value="">-- Vui lòng chọn chủ đề trước --</option>`;
+        } else {
+          const lessons = Object.keys(gradeData.topics[selTopic].lessons || {});
+          let lHtml = `<option value="">-- Chọn bài học cụ thể (${lessons.length} bài) --</option>`;
+          lessons.forEach(l => {
+            const count = gradeData.topics[selTopic].lessons[l].total;
+            lHtml += `<option value="${escapeHtml(l)}">${escapeHtml(l)} (${count} câu)</option>`;
+          });
+          lessonSelect.innerHTML = lHtml;
+        }
+      };
+
+      if (lessonTopicSelect) {
+        lessonTopicSelect.onchange = updateExamLessons;
+      }
+      updateExamLessons();
+
+      // Cập nhật gợi ý mã đề chuẩn BGD
+      const bgdCodeEl = document.getElementById('bgd-suggested-code');
+      if (bgdCodeEl) {
+        bgdCodeEl.textContent = `Mã đề ${Math.floor(100 + Math.random() * 900)}`;
+      }
+    };
+
+    populateExamSetupDropdowns(gradeSelect ? gradeSelect.value : this.currentGrade);
+
+    if (gradeSelect) {
+      gradeSelect.onchange = async (e) => {
+        await this.switchGrade(e.target.value);
+        populateExamSetupDropdowns(e.target.value);
+      };
+    }
+
     // Vào phòng thi theo mã & mật khẩu (Đợt thi được giao)
     const btnEnterRoom = document.getElementById('btn-enter-room-exam');
     if (btnEnterRoom) {
@@ -638,7 +730,8 @@ class App {
           return;
         }
 
-        const access = Storage.validateRoomAccess(roomId, pwd);
+        // Xác thực đối tượng vào thi (Trường, Khối, Lớp, Mật khẩu, Khung giờ)
+        const access = Storage.validateRoomAccess(roomId, pwd, Auth.currentUser);
         if (!access.valid) {
           alert(`⚠️ KHÔNG THỂ VÀO THI:\n${access.message}`);
           return;
@@ -654,23 +747,31 @@ class App {
           duration: room.duration || 50,
           roomId: room.id,
           roomTitle: room.title,
+          topic: room.topic || null,
+          lesson: room.lesson || null,
+          count: room.questionCount || (room.type === 'bgd_2025' ? 28 : 30),
           shuffleQuestions: room.shuffleQuestions ?? true,
           shuffleOptions: room.shuffleOptions ?? true,
+          examCode: room.randomExamCode ? String(Math.floor(100 + Math.random() * 900)) : (room.examCode || '101'),
           antiCheat: room.antiCheat || { enabled: false }
         });
       };
     }
 
+    // 1. Nút thi Đề chuẩn Bộ GD&ĐT 2025
     const btnStartBgd = document.getElementById('btn-start-bgd-exam');
     if (btnStartBgd) {
       btnStartBgd.onclick = async () => {
         const grade = gradeSelect ? gradeSelect.value : this.currentGrade;
         const { shuffleQuestions, shuffleOptions, antiCheat } = getExamShuffleConfig();
+        const examCode = String(Math.floor(100 + Math.random() * 900));
         await this.startExam({
           type: 'bgd_2025',
           title: `Đề thi thử Tốt nghiệp THPT 2025 môn Tin học - Khối ${grade}`,
           grade,
           duration: 50,
+          count: 28,
+          examCode,
           shuffleQuestions,
           shuffleOptions,
           antiCheat
@@ -678,21 +779,105 @@ class App {
       };
     }
 
-    const btnStartCustom = document.getElementById('btn-start-custom-exam');
-    if (btnStartCustom) {
-      btnStartCustom.onclick = async () => {
+    // 2. Nút thi Trộn theo Chủ đề
+    const btnStartTopic = document.getElementById('btn-start-topic-exam');
+    if (btnStartTopic) {
+      btnStartTopic.onclick = async () => {
         const grade = gradeSelect ? gradeSelect.value : this.currentGrade;
-        const count = parseInt(document.getElementById('exam-cfg-count')?.value || '30', 10);
-        const duration = parseInt(document.getElementById('exam-cfg-duration')?.value || '45', 10);
-        const title = `Đề kiểm tra Tin học ${duration} phút - Khối ${grade}`;
+        const topic = document.getElementById('exam-topic-select')?.value || 'all';
+        const count = parseInt(document.getElementById('exam-topic-count')?.value || '20', 10);
+        const duration = parseInt(document.getElementById('exam-topic-duration')?.value || '30', 10);
+        const customTitle = document.getElementById('exam-topic-custom-title')?.value.trim();
+        const title = customTitle || (topic === 'all' ? `Kiểm tra tổng hợp các chủ đề - Khối ${grade}` : `Kiểm tra ${topic} - Khối ${grade}`);
         const { shuffleQuestions, shuffleOptions, antiCheat } = getExamShuffleConfig();
+        const examCode = String(Math.floor(100 + Math.random() * 900));
+
+        await this.startExam({
+          type: 'by_topic',
+          title,
+          grade,
+          topic: topic === 'all' ? null : topic,
+          count,
+          duration,
+          examCode,
+          shuffleQuestions,
+          shuffleOptions,
+          antiCheat
+        });
+      };
+    }
+
+    // 3. Nút thi Trộn theo Bài học (15 phút)
+    const btnStartLesson = document.getElementById('btn-start-lesson-exam');
+    if (btnStartLesson) {
+      btnStartLesson.onclick = async () => {
+        const grade = gradeSelect ? gradeSelect.value : this.currentGrade;
+        const topic = document.getElementById('exam-lesson-topic-select')?.value;
+        const lesson = document.getElementById('exam-lesson-select')?.value;
+
+        if (!topic) {
+          alert('Vui lòng chọn Chủ đề trước!');
+          document.getElementById('exam-lesson-topic-select')?.focus();
+          return;
+        }
+        if (!lesson) {
+          alert('Vui lòng chọn Bài học cụ thể cần kiểm tra!');
+          document.getElementById('exam-lesson-select')?.focus();
+          return;
+        }
+
+        const count = parseInt(document.getElementById('exam-lesson-count')?.value || '10', 10);
+        const duration = parseInt(document.getElementById('exam-lesson-duration')?.value || '15', 10);
+        const title = `Kiểm tra 15 phút: ${lesson} - Khối ${grade}`;
+        const { shuffleQuestions, shuffleOptions, antiCheat } = getExamShuffleConfig();
+        const examCode = String(Math.floor(100 + Math.random() * 900));
+
+        await this.startExam({
+          type: 'by_lesson',
+          title,
+          grade,
+          topic,
+          lesson,
+          count,
+          duration,
+          examCode,
+          shuffleQuestions,
+          shuffleOptions,
+          antiCheat
+        });
+      };
+    }
+
+    // 4. Nút thi Ma trận tự do
+    const btnStartMatrix = document.getElementById('btn-start-matrix-exam');
+    if (btnStartMatrix) {
+      btnStartMatrix.onclick = async () => {
+        const grade = gradeSelect ? gradeSelect.value : this.currentGrade;
+        const level = document.getElementById('exam-matrix-level')?.value || 'all';
+        const count = parseInt(document.getElementById('exam-matrix-count')?.value || '30', 10);
+        const duration = parseInt(document.getElementById('exam-matrix-duration')?.value || '45', 10);
+
+        const levelNames = {
+          '1': 'Mức 1: Nhận biết',
+          '2': 'Mức 2: Thông hiểu',
+          '3': 'Mức 3: Vận dụng',
+          '4': 'Mức 4: Vận dụng cao',
+          'DS': 'Dạng Đúng / Sai',
+          'TLN': 'Dạng Trả lời ngắn'
+        };
+        const levelSuffix = levelNames[level] ? ` (${levelNames[level]})` : '';
+        const title = `Kiểm tra Tin học ${duration} phút - Khối ${grade}${levelSuffix}`;
+        const { shuffleQuestions, shuffleOptions, antiCheat } = getExamShuffleConfig();
+        const examCode = String(Math.floor(100 + Math.random() * 900));
 
         await this.startExam({
           type: 'custom',
           title,
           grade,
+          level,
           count,
           duration,
+          examCode,
           shuffleQuestions,
           shuffleOptions,
           antiCheat

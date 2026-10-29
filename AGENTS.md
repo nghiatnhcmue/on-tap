@@ -98,17 +98,32 @@ Gồm 2 tab chuyển đổi:
 
 ## 4. Quy tắc Nghiệp vụ Đề thi, Ôn tập & Chống Gian Lận Đa Nền Tảng
 
-### 4.1. Cấu trúc Đề chuẩn Bộ GD&ĐT 2025 (`bgd_2025`)
-- Thời gian làm bài: **50 phút**.
-- Tổng số câu hỏi: **Đúng 28 câu = 10.0 điểm**, chia làm 2 phần:
-  - **Phần I (MCQ):** 24 câu hỏi trắc nghiệm 4 lựa chọn (mỗi câu 0.25 điểm = 6.0 điểm).
-  - **Phần II (Đúng/Sai - DS):** 4 câu hỏi trắc nghiệm Đúng/Sai (mỗi câu tối đa 1.0 điểm = 4.0 điểm).
-- **Thang điểm chấm câu Đúng/Sai chuẩn Bộ GD&ĐT:**
-  - Đúng 1 ý: **0.1 điểm**.
-  - Đúng 2 ý: **0.25 điểm**.
-  - Đúng 3 ý: **0.5 điểm**.
-  - Đúng 4 ý: **1.0 điểm**.
-- **Quy tắc đặc thù Khối 11:** Trong ngân hàng câu hỏi gốc, Khối 11 chỉ có câu hỏi MCQ (cấp độ 1–4) và không có câu hỏi Đúng/Sai (DS). Để đảm bảo luôn tạo được đề chuẩn 28 câu cho học sinh Khối 11, hàm `App.startExam()` trong `js/app.js` tự động bổ sung 4 câu DS từ Khối 12.
+### 4.1. Bộ Công Cụ Trộn Đề & Tạo Bài Kiểm Tra Chuẩn (`js/exam.js`)
+Hỗ trợ 4 chế độ sinh đề và trộn đề tự động từ ngân hàng câu hỏi chuẩn GDPT 2018:
+1. **🏛️ Đề Chuẩn Bộ GD&ĐT 2025 (`bgd_2025`):**
+   - Thời gian làm bài: **50 phút**.
+   - Tổng số câu hỏi: **Đúng 28 câu = 10.0 điểm**, chia làm 2 phần:
+     - **Phần I (MCQ):** 24 câu hỏi trắc nghiệm 4 lựa chọn (mỗi câu 0.25 điểm = 6.0 điểm).
+     - **Phần II (Đúng/Sai - DS):** 4 câu hỏi trắc nghiệm Đúng/Sai (mỗi câu tối đa 1.0 điểm = 4.0 điểm).
+   - **Thang điểm chấm câu Đúng/Sai chuẩn Bộ GD&ĐT:**
+     - Đúng 1 ý: **0.1 điểm**.
+     - Đúng 2 ý: **0.25 điểm**.
+     - Đúng 3 ý: **0.5 điểm**.
+     - Đúng 4 ý: **1.0 điểm**.
+   - **Quy tắc đặc thù Khối 11:** Trong ngân hàng câu hỏi gốc, Khối 11 chỉ có câu hỏi MCQ (cấp độ 1–4) và không có câu hỏi Đúng/Sai (DS). Để đảm bảo luôn tạo được đề chuẩn 28 câu cho học sinh Khối 11, hàm `App.startExam()` trong `js/app.js` tự động bổ sung 4 câu DS từ Khối 12.
+2. **📁 Trộn Đề Theo Chủ Đề (`by_topic`):**
+   - Lọc ngân hàng câu hỏi theo Chủ đề cụ thể trong khối lớp (`q.topic`).
+   - Tùy chỉnh số lượng câu (10, 15, 20, 25, 30, 40 câu) và thời lượng (15, 20, 30, 45, 50 phút).
+3. **📖 Trộn Đề Theo Bài Học - Kiểm Tra 15 Phút (`by_lesson`):**
+   - Lọc chính xác theo Chủ đề và Bài học cụ thể (`q.topic` & `q.lesson`).
+   - Tùy chỉnh số lượng câu (10, 15, 20, 25 câu) và thời lượng (10, 15, 20, 30 phút).
+4. **⚙️ Ma Trận Nhận Thức Tự Chọn (`custom`):**
+   - Lọc theo cấp độ nhận thức GDPT 2018: Mức 1 (Nhận biết), Mức 2 (Thông hiểu), Mức 3 (Vận dụng), Mức 4 (Vận dụng cao), DS hoặc TLN.
+   - Tùy chỉnh số câu (10–50 câu) và thời gian làm bài (15–90 phút).
+- **Cơ chế Xáo Trộn & Chống Nhìn Bài Toàn Diện:**
+  - **Đảo thứ tự câu hỏi (`shuffleQuestions`):** Xáo trộn ngẫu nhiên thứ tự các câu trong đề.
+  - **Đảo phương án trả lời (`shuffleOptions`):** Xáo trộn độc lập các phương án A, B, C, D của từng câu MCQ, tự động cập nhật lại vị trí đáp án đúng (`item.displayOptions`, `item.displayAnswer`).
+  - **Cấp Mã Đề Thi (`examCode`):** Tự động sinh mã đề ngẫu nhiên 3 chữ số (vd: 102, 204, 305) hiển thị trực quan trên thanh phòng thi, kết quả thi và lưu trữ trong bảng điểm.
 
 ### 4.2. Chế độ Luyện tập Thông minh (`js/practice.js`)
 - Hỗ trợ 2 chế độ hiển thị: **Thẻ đơn (Single Card)** và **Danh sách (List View)**.
@@ -138,9 +153,20 @@ Hệ thống tự động nhận diện nền tảng (`Proctor.detectPlatform()`
 - **Tự động lưu phiên thi (`Storage.saveActiveExamSession()`):**
   - Lưu trạng thái bài thi và số lần vi phạm mỗi 5 giây và sau mỗi thao tác chọn đáp án. Nếu trình duyệt bị tắt đột ngột hoặc tải lại trang, học sinh có thể khôi phục bài thi đang làm dở mà không thể xóa lịch sử vi phạm.
 
-### 4.4. Phòng thi Trực tuyến (`js/exam-rooms.js`)
-- Giáo viên có thể tạo và chỉnh sửa phòng thi với: Tên phòng, Khối, Thời lượng, Mật khẩu, Khung giờ mở/đóng, Cấu hình bật/tắt giám sát chống gian lận.
-- Nút "Copy thông báo lớp" tự động xuất đường link trực tiếp `${origin}?room=${roomId}` để gửi học sinh vào thẳng phòng thi mà không cần gõ mã thủ công (hỗ trợ lưu giữ mã phòng ngay cả khi học sinh phải đăng nhập qua Auth Gatekeeper trước).
+### 4.4. Quản Lý Phòng Thi & Giao Bài Theo Trường, Khối, Lớp (`js/exam-rooms.js`)
+- **Phân phối giao bài chuẩn theo đối tượng (`targetSchool`, `targetGrade`, `targetClass`):**
+  - **Trường học:** Chọn từ danh mục chuẩn hóa (`EMASI`, `Phổ thông Năng khiếu`, `TT GDNN GDTX Chu Văn An`), hoặc mở tự do (`all`), hoặc tự nhập tên trường (`__other__`).
+  - **Khối lớp:** Khối 10, Khối 11, Khối 12.
+  - **Lớp học:** Dropdown lớp học tự động đồng bộ theo Trường và Khối tương ứng (vd: EMASI có 10E, 10I1, 10I2...; PTNK có 12TOAN, 12LI...; Chu Văn An có 10TN, 10A1-10A12...), hỗ trợ tùy chọn "Tất cả các lớp" hoặc nhập lớp tự do.
+- **Cấu hình hình thức đề phòng thi:**
+  - Hỗ trợ cả 4 hình thức: Đề chuẩn Bộ GD 2025, Trộn theo Chủ đề, Trộn theo Bài học (15p), hoặc Ma trận tự chọn.
+  - Tùy chọn đảo câu hỏi, đảo phương án A,B,C,D, và tùy chọn cấp Mã đề thi riêng chống nhìn bài nhau trong phòng thi (`randomExamCode`).
+- **Kiểm soát bảo mật khi vào phòng thi (`Storage.validateRoomAccess`):**
+  - Bắt buộc kiểm tra: Mã phòng thi, Mật khẩu, Khung giờ mở/đóng.
+  - Kiểm tra điều kiện học sinh: So khớp Trường (`user.school`), Khối (`user.grade`), và Lớp (`user.className`) của tài khoản học sinh với cấu hình giao bài của phòng. Nếu không thuộc đối tượng được giao, hệ thống hiển thị thông báo sư phạm từ chối truy cập.
+- **Bộ lọc & Điều phối cho Giáo viên:**
+  - Thanh bộ lọc nhanh theo Khối, theo Trường và ô tìm kiếm tức thì theo tên/mã phòng.
+  - Nút **"Copy thông báo lớp"** tự động định dạng mẫu tin nhắn chuyên nghiệp (gồm Tên bài, Trường, Lớp, Hình thức đề, Thời lượng, Khung giờ, Mật khẩu, Link trực tiếp `${origin}?room=${roomId}`) để Thầy Cô gửi ngay vào Zalo/Facebook của lớp.
 
 ---
 

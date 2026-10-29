@@ -581,97 +581,254 @@
         </div>
       </div>
 
-      <!-- 2 Lựa chọn cấu trúc thi -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- BỘ CÔNG CỤ TRỘN ĐỀ THEO BÀI, THEO CHỦ ĐỀ, THEO KHỐI -->
+      <div class="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
         
-        <!-- Đề chuẩn Bộ GD&ĐT 2025 -->
-        <div class="bg-white dark:bg-slate-800 p-8 rounded-3xl border-2 border-blue-500 dark:border-blue-600 shadow-lg shadow-blue-500/10 flex flex-col justify-between relative overflow-hidden">
-          <div class="absolute top-4 right-4">
-            <span class="px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">
-              Khuyến nghị
-            </span>
-          </div>
-
+        <!-- Header & Segmented Tabs -->
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-700">
           <div>
-            <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-xl mb-4">
-              <i class="fa-solid fa-award"></i>
-            </div>
-            <h3 class="text-xl font-extrabold text-slate-800 dark:text-white mb-2">
-              Đề Chuẩn Tốt Nghiệp THPT 2025
+            <h3 class="text-base sm:text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <i class="fa-solid fa-wand-magic-sparkles text-blue-600"></i> Bộ Công Cụ Trộn Đề & Tạo Bài Kiểm Tra Chuẩn
             </h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-              Thiết kế bám sát 100% đề minh họa và quy chế thi tốt nghiệp THPT mới nhất của Bộ GD&ĐT (đúng 28 câu, không có câu trả lời ngắn):
-            </p>
-
-            <ul class="space-y-2.5 text-xs text-slate-600 dark:text-slate-300 mb-8">
-              <li class="flex items-center gap-2">
-                <i class="fa-solid fa-check text-emerald-500"></i>
-                <span><strong>Phần I:</strong> 24 câu trắc nghiệm nhiều lựa chọn (6.0 điểm)</span>
-              </li>
-              <li class="flex items-center gap-2">
-                <i class="fa-solid fa-check text-emerald-500"></i>
-                <span><strong>Phần II:</strong> 4 câu hỏi trắc nghiệm Đúng/Sai (4.0 điểm)</span>
-              </li>
-              <li class="flex items-center gap-2">
-                <i class="fa-solid fa-check text-emerald-500"></i>
-                <span><strong>Tổng số câu:</strong> Đúng 28 câu (thang điểm 10)</span>
-              </li>
-              <li class="flex items-center gap-2">
-                <i class="fa-solid fa-check text-emerald-500"></i>
-                <span><strong>Thời gian:</strong> 50 phút đếm ngược</span>
-              </li>
-              <li class="flex items-center gap-2">
-                <i class="fa-solid fa-check text-emerald-500"></i>
-                <span><strong>Chấm điểm:</strong> Chuẩn thang điểm phân nhánh của Bộ GD&ĐT</span>
-              </li>
-            </ul>
+            <p class="text-xs text-slate-400 mt-0.5">Lựa chọn cấu trúc đề thi: Chuẩn Bộ GD&ĐT 2025, Trộn theo Chủ đề, Trộn theo Bài học hoặc Ma trận nhận thức</p>
           </div>
 
-          <button id="btn-start-bgd-exam" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-sm transition shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
-            <i class="fa-solid fa-play"></i> Bắt đầu thi thử đề chuẩn
-          </button>
+          <!-- Mode Selector Tabs -->
+          <div class="flex items-center gap-1.5 p-1.5 bg-slate-100 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-700/60 self-start lg:self-auto overflow-x-auto max-w-full">
+            <button type="button" id="tab-exam-mode-bgd" data-exam-tab="bgd" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm transition whitespace-nowrap">
+              <i class="fa-solid fa-award mr-1"></i> Chuẩn Bộ GD 2025
+            </button>
+            <button type="button" id="tab-exam-mode-topic" data-exam-tab="topic" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 transition whitespace-nowrap">
+              <i class="fa-solid fa-folder-tree mr-1"></i> Theo Chủ Đề
+            </button>
+            <button type="button" id="tab-exam-mode-lesson" data-exam-tab="lesson" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 transition whitespace-nowrap">
+              <i class="fa-solid fa-book-bookmark mr-1"></i> Theo Bài Học (15p)
+            </button>
+            <button type="button" id="tab-exam-mode-matrix" data-exam-tab="matrix" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 transition whitespace-nowrap">
+              <i class="fa-solid fa-sliders mr-1"></i> Ma Trận Tự Do
+            </button>
+          </div>
         </div>
 
-        <!-- Đề thi tùy chỉnh / Kiểm tra định kỳ -->
-        <div class="bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
-          <div>
-            <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center text-xl mb-4">
-              <i class="fa-solid fa-sliders"></i>
+        <!-- 1. PANEL: ĐỀ CHUẨN BỘ GD&ĐT 2025 -->
+        <div id="panel-exam-bgd" class="space-y-6">
+          <div class="p-6 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-900/80 dark:to-indigo-950/40 border border-blue-200/70 dark:border-blue-900/40 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div class="max-w-xl space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-blue-600 text-white">Barem 2025</span>
+                <span class="text-xs text-blue-700 dark:text-blue-300 font-bold">Thời gian: 50 phút • Đúng 28 câu = 10.0 điểm</span>
+              </div>
+              <h4 class="text-lg font-black text-slate-800 dark:text-white">Cấu Trúc Đề Thi Tốt Nghiệp THPT 2025 Chuẩn</h4>
+              <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Được thiết kế bám sát 100% định dạng quy định của Bộ Giáo dục & Đào tạo. Tự động lấy 24 câu trắc nghiệm nhiều lựa chọn (Phần I: 6.0đ) và 4 câu trắc nghiệm Đúng/Sai đa ý (Phần II: 4.0đ).
+              </p>
             </div>
-            <h3 class="text-xl font-extrabold text-slate-800 dark:text-white mb-2">
-              Đề Tùy Biến / Kiểm Tra Nhanh
-            </h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-              Tự cấu hình số câu hỏi và thời gian để kiểm tra 15 phút, 1 tiết hoặc ôn luyện nhanh.
-            </p>
+            <button type="button" id="btn-start-bgd-exam" class="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 shrink-0">
+              <i class="fa-solid fa-play"></i> Bắt đầu thi thử đề chuẩn
+            </button>
+          </div>
 
-            <div class="space-y-4 mb-8">
-              <div>
-                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Số lượng câu hỏi</label>
-                <select id="exam-cfg-count" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
-                  <option value="10">10 câu (Kiểm tra nhanh 15 phút)</option>
-                  <option value="20">20 câu (Kiểm tra 30 phút)</option>
-                  <option value="30" selected>30 câu (Kiểm tra 45 phút)</option>
-                  <option value="40">40 câu (Đề tổng hợp toàn khóa)</option>
-                </select>
-              </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-700/60">
+              <span class="text-slate-400 block mb-1 font-bold">Phần I: Trắc nghiệm</span>
+              <strong class="text-base text-slate-800 dark:text-white block">24 câu (6.0 điểm)</strong>
+              <span class="text-[11px] text-slate-500">Mỗi câu đúng được 0.25 điểm</span>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-700/60">
+              <span class="text-slate-400 block mb-1 font-bold">Phần II: Đúng / Sai</span>
+              <strong class="text-base text-slate-800 dark:text-white block">4 câu (4.0 điểm)</strong>
+              <span class="text-[11px] text-slate-500">Thang điểm 0.1 - 0.25 - 0.5 - 1.0</span>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-700/60">
+              <span class="text-slate-400 block mb-1 font-bold">Tổng số câu hỏi</span>
+              <strong class="text-base text-blue-600 dark:text-blue-400 block">Đúng 28 câu</strong>
+              <span class="text-[11px] text-slate-500">Không có câu trả lời ngắn</span>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-700/60">
+              <span class="text-slate-400 block mb-1 font-bold">Mã đề thi</span>
+              <strong class="text-base text-amber-500 font-mono block" id="bgd-suggested-code">Mã đề 102</strong>
+              <span class="text-[11px] text-slate-500">Đảo câu & đảo đáp án tự động</span>
+            </div>
+          </div>
+        </div>
 
-              <div>
-                <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase">Thời gian làm bài</label>
-                <select id="exam-cfg-duration" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
-                  <option value="15">15 phút</option>
-                  <option value="30">30 phút</option>
-                  <option value="45" selected>45 phút (1 tiết tiêu chuẩn)</option>
-                  <option value="50">50 phút</option>
-                  <option value="60">60 phút</option>
-                </select>
-              </div>
+        <!-- 2. PANEL: TRỘN ĐỀ THEO CHỦ ĐỀ -->
+        <div id="panel-exam-topic" class="hidden space-y-5">
+          <div class="p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200/60 dark:border-indigo-900/40 text-xs text-indigo-900 dark:text-indigo-300 flex items-center gap-2.5">
+            <i class="fa-solid fa-circle-info text-indigo-600 text-sm shrink-0"></i>
+            <span>Chế độ trộn đề theo <b>Chủ đề</b> giúp học sinh rèn luyện trọng tâm một mảng kiến thức cụ thể trước các đợt kiểm tra chương hoặc ôn thi giữa kỳ.</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="md:col-span-2">
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Chọn Chủ Đề Cần Trộn Đề <span class="text-rose-500">*</span>
+              </label>
+              <select id="exam-topic-select" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="all">-- Tất cả các chủ đề trong khối --</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Số lượng câu hỏi
+              </label>
+              <select id="exam-topic-count" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
+                <option value="10">10 câu (Ôn tập nhanh)</option>
+                <option value="15">15 câu (15 phút)</option>
+                <option value="20" selected>20 câu (Tiêu chuẩn chủ đề)</option>
+                <option value="25">25 câu (30 phút)</option>
+                <option value="30">30 câu (1 tiết)</option>
+                <option value="40">40 câu (Tổng ôn chuyên sâu)</option>
+              </select>
             </div>
           </div>
 
-          <button id="btn-start-custom-exam" class="w-full py-3.5 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-bold rounded-2xl text-sm transition flex items-center justify-center gap-2">
-            <i class="fa-solid fa-play"></i> Bắt đầu làm bài
-          </button>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Thời gian làm bài
+              </label>
+              <select id="exam-topic-duration" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
+                <option value="15">15 phút</option>
+                <option value="20">20 phút</option>
+                <option value="30" selected>30 phút</option>
+                <option value="45">45 phút (1 tiết)</option>
+                <option value="50">50 phút</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Tiêu đề bài kiểm tra (Tùy chọn)
+              </label>
+              <input type="text" id="exam-topic-custom-title" placeholder="Ví dụ: Kiểm tra Chủ đề Mạng máy tính" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+
+          <div class="pt-2">
+            <button type="button" id="btn-start-topic-exam" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2">
+              <i class="fa-solid fa-shuffle"></i> Trộn Đề & Bắt Đầu Làm Bài Theo Chủ Đề
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. PANEL: TRỘN ĐỀ THEO BÀI HỌC (KIỂM TRA 15 PHÚT) -->
+        <div id="panel-exam-lesson" class="hidden space-y-5">
+          <div class="p-4 rounded-2xl bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200/60 dark:border-teal-900/40 text-xs text-teal-900 dark:text-teal-300 flex items-center gap-2.5">
+            <i class="fa-solid fa-clock text-teal-600 text-sm shrink-0"></i>
+            <span>Chế độ kiểm tra <b>Theo Bài Học</b>: Lý tưởng cho các bài kiểm tra 15 phút đầu giờ hoặc ôn lại bài giảng vừa học trên lớp.</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                1. Chọn Chủ Đề <span class="text-rose-500">*</span>
+              </label>
+              <select id="exam-lesson-topic-select" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500">
+                <option value="">-- Vui lòng chọn chủ đề --</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                2. Chọn Bài Học Cụ Thể <span class="text-rose-500">*</span>
+              </label>
+              <select id="exam-lesson-select" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500">
+                <option value="">-- Vui lòng chọn chủ đề trước --</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Số lượng câu hỏi (Khuyến nghị 10 - 15 câu)
+              </label>
+              <select id="exam-lesson-count" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
+                <option value="10" selected>10 câu (Kiểm tra 15 phút chuẩn)</option>
+                <option value="15">15 câu (Kiểm tra 20 phút)</option>
+                <option value="20">20 câu (Kiểm tra 30 phút)</option>
+                <option value="25">25 câu (Toàn bộ câu của bài)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Thời gian làm bài
+              </label>
+              <select id="exam-lesson-duration" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
+                <option value="10">10 phút</option>
+                <option value="15" selected>15 phút (Chuẩn 15p)</option>
+                <option value="20">20 phút</option>
+                <option value="30">30 phút</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="pt-2">
+            <button type="button" id="btn-start-lesson-exam" class="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-teal-500/25 flex items-center justify-center gap-2">
+              <i class="fa-solid fa-play"></i> Bắt Đầu Bài Kiểm Tra 15 Phút Theo Bài Học
+            </button>
+          </div>
+        </div>
+
+        <!-- 4. PANEL: MA TRẬN TỰ DO / THEO CẤP ĐỘ NHẬN THỨC -->
+        <div id="panel-exam-matrix" class="hidden space-y-5">
+          <div class="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 text-xs text-amber-900 dark:text-amber-300 flex items-center gap-2.5">
+            <i class="fa-solid fa-sliders text-amber-600 text-sm shrink-0"></i>
+            <span>Tùy chỉnh ma trận nhận thức GDPT 2018 (Nhận biết, Thông hiểu, Vận dụng, Vận dụng cao) và thời gian theo yêu cầu riêng.</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Lọc Cấp Độ Nhận Thức
+              </label>
+              <select id="exam-matrix-level" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
+                <option value="all">Tất cả mức độ (Tổng hợp)</option>
+                <option value="1">Mức 1: Nhận biết</option>
+                <option value="2">Mức 2: Thông hiểu</option>
+                <option value="3">Mức 3: Vận dụng</option>
+                <option value="4">Mức 4: Vận dụng cao</option>
+                <option value="DS">Dạng Đúng / Sai (DS)</option>
+                <option value="TLN">Dạng Trả lời ngắn (TLN)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Số Lượng Câu Hỏi
+              </label>
+              <select id="exam-matrix-count" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
+                <option value="10">10 câu (15 phút)</option>
+                <option value="20">20 câu (30 phút)</option>
+                <option value="30" selected>30 câu (45 phút - 1 tiết)</option>
+                <option value="40">40 câu (Toàn khóa)</option>
+                <option value="50">50 câu (Tổng ôn chuyên sâu)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Thời Gian Làm Bài
+              </label>
+              <select id="exam-matrix-duration" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
+                <option value="15">15 phút</option>
+                <option value="30">30 phút</option>
+                <option value="45" selected>45 phút (1 tiết)</option>
+                <option value="50">50 phút</option>
+                <option value="60">60 phút</option>
+                <option value="90">90 phút (Thi học kỳ)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="pt-2">
+            <button type="button" id="btn-start-matrix-exam" class="w-full py-3.5 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-bold rounded-2xl text-xs sm:text-sm transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-play"></i> Bắt Đầu Làm Bài Ma Trận Tùy Chỉnh
+            </button>
+          </div>
         </div>
 
       </div>
@@ -1279,30 +1436,127 @@
 
           <div>
             <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-              Khối lớp <span class="text-rose-500">*</span>
-            </label>
-            <select id="room-input-grade" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
-              <option value="12">Khối 12</option>
-              <option value="11">Khối 11</option>
-              <option value="10">Khối 10</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               Mật khẩu vào thi (Password)
             </label>
             <input type="text" id="room-input-pwd" placeholder="Mật khẩu vào phòng (vd: 1234)" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-mono font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            <span class="text-[10px] text-slate-400 mt-0.5 block">Học sinh phải nhập đúng mật khẩu này mới mở được đề</span>
+            <span class="text-[10px] text-slate-400 mt-0.5 block">Để trống nếu muốn mở tự do không cần mật khẩu</span>
+          </div>
+        </div>
+
+        <!-- PHÂN PHỐI GIAO BÀI THEO TRƯỜNG, KHỐI, LỚP -->
+        <div class="p-4 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200/70 dark:border-emerald-800/60 space-y-3">
+          <div class="flex items-center gap-2 pb-2 border-b border-emerald-100 dark:border-emerald-900/60">
+            <i class="fa-solid fa-users-rectangle text-emerald-600 text-sm"></i>
+            <span class="font-bold text-slate-800 dark:text-white">Phạm Vi Giao Bài & Đối Tượng Dự Thi</span>
           </div>
 
-          <div>
-            <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-              Thời gian làm bài (Phút) <span class="text-rose-500">*</span>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                1. Giao cho Trường Học
+              </label>
+              <select id="room-input-target-school" class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500">
+                <option value="all">Mọi trường học (Công khai)</option>
+                <option value="EMASI">Trường EMASI</option>
+                <option value="Phổ thông Năng khiếu">Phổ thông Năng khiếu</option>
+                <option value="TT GDNN GDTX Chu Văn An">TT GDNN GDTX Chu Văn An</option>
+                <option value="__other__">Trường khác (Tự nhập)...</option>
+              </select>
+              <input type="text" id="room-input-target-school-custom" placeholder="Nhập tên trường..." class="hidden mt-1.5 w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs" />
+            </div>
+
+            <div>
+              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                2. Khối Lớp <span class="text-rose-500">*</span>
+              </label>
+              <select id="room-input-grade" class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500">
+                <option value="12" selected>Khối 12</option>
+                <option value="11">Khối 11</option>
+                <option value="10">Khối 10</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                3. Lớp Học Áp Dụng
+              </label>
+              <select id="room-input-target-class" class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500">
+                <option value="all">Tất cả các lớp thuộc khối</option>
+              </select>
+              <input type="text" id="room-input-target-class-custom" placeholder="Nhập lớp (vd: 12A1)..." class="hidden mt-1.5 w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs" />
+            </div>
+          </div>
+        </div>
+
+        <!-- CẤU TRÚC ĐỀ THI GIAO BÀI -->
+        <div class="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+          <div class="flex items-center gap-2 pb-2 border-b border-slate-200/60 dark:border-slate-700">
+            <i class="fa-solid fa-file-signature text-blue-600 text-sm"></i>
+            <span class="font-bold text-slate-800 dark:text-white">Cấu Trúc & Phương Thức Trộn Đề</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Hình thức đề thi</label>
+              <select id="room-input-type" class="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white">
+                <option value="bgd_2025">🏛️ Đề chuẩn Bộ GD&ĐT 2025 (28 câu = 10đ)</option>
+                <option value="by_topic">📁 Trộn đề theo Chủ đề</option>
+                <option value="by_lesson">📖 Trộn đề theo Bài học (Kiểm tra 15p)</option>
+                <option value="custom">⚙️ Đề kiểm tra định kỳ tự chọn</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Thời gian làm bài (Phút) <span class="text-rose-500">*</span>
+              </label>
+              <input type="number" id="room-input-duration" value="50" min="5" max="180" class="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white" />
+            </div>
+          </div>
+
+          <!-- Chi tiết chọn chủ đề/bài học (khi chọn by_topic hoặc by_lesson) -->
+          <div id="room-topic-lesson-container" class="hidden grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-200/60 dark:border-slate-700">
+            <div id="room-topic-select-wrapper">
+              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Chủ đề</label>
+              <select id="room-input-topic" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white">
+                <option value="all">-- Tất cả chủ đề --</option>
+              </select>
+            </div>
+
+            <div id="room-lesson-select-wrapper" class="hidden">
+              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Bài học</label>
+              <select id="room-input-lesson" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white">
+                <option value="all">-- Tất cả bài --</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Số câu hỏi</label>
+              <select id="room-input-count" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
+                <option value="10">10 câu</option>
+                <option value="15">15 câu</option>
+                <option value="20">20 câu</option>
+                <option value="28" selected>28 câu (Chuẩn Bộ)</option>
+                <option value="30">30 câu</option>
+                <option value="40">40 câu</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Tùy chọn xáo trộn & chống liếc bài -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-[11px] text-slate-600 dark:text-slate-300">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="room-input-shuffle-q" checked class="w-4 h-4 rounded text-blue-600 cursor-pointer" />
+              <span>Đảo thứ tự câu hỏi</span>
             </label>
-            <input type="number" id="room-input-duration" value="45" min="5" max="180" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="room-input-shuffle-opt" checked class="w-4 h-4 rounded text-purple-600 cursor-pointer" />
+              <span>Đảo phương án A,B,C,D</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="room-input-random-code" checked class="w-4 h-4 rounded text-amber-600 cursor-pointer" />
+              <span>Cấp Mã đề riêng cho mỗi HS</span>
+            </label>
           </div>
         </div>
 
@@ -1320,14 +1574,6 @@
             </label>
             <input type="datetime-local" id="room-input-end" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
-        </div>
-
-        <div>
-          <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Cấu trúc đề thi</label>
-          <select id="room-input-type" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white">
-            <option value="bgd_2025">Đề chuẩn Bộ GD&ĐT 2025 (24 trắc nghiệm + 4 đúng/sai - 50 phút)</option>
-            <option value="custom">Đề kiểm tra định kỳ 30 câu (trộn theo khối)</option>
-          </select>
         </div>
 
         <!-- Cấu hình Chống Gian Lận (Proctoring) -->
@@ -1355,9 +1601,9 @@
             </div>
             <div class="space-y-1">
               <p class="font-bold text-slate-700 dark:text-slate-300">Tính năng bảo vệ tự động:</p>
-              <p>• Phát hiện chuyển tab / rời cửa sổ làm bài</p>
-              <p>• Chặn copy / chuột phải / phím tắt F12, DevTools</p>
-              <p>• Bắt buộc chế độ toàn màn hình</p>
+              <p>• Phát hiện chuyển tab, split-screen, rời ứng dụng</p>
+              <p>• Màn chắn làm mờ tức thì chống chụp màn hình</p>
+              <p>• Tự động lưu bài thi, ngăn reset số lần vi phạm</p>
             </div>
           </div>
         </div>

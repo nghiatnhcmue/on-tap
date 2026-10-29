@@ -64,6 +64,10 @@ export const Exam = {
     const shouldShuffleQuestions = (config.shuffleQuestions !== undefined) ? !!config.shuffleQuestions : (settings.shuffleQuestions ?? true);
     const shouldShuffleOptions = (config.shuffleOptions !== undefined) ? !!config.shuffleOptions : (settings.shuffleOptions ?? true);
 
+    // Cấp Mã đề thi ngẫu nhiên (3 chữ số) hoặc dùng mã cấu hình
+    const examCode = config.examCode || String(Math.floor(100 + Math.random() * 900));
+    this.examCode = examCode;
+
     const antiCheatCfg = config.antiCheat || config.room?.antiCheat || { enabled: false };
     this.isProctored = !!antiCheatCfg.enabled;
     this.maxViolations = antiCheatCfg.maxViolations || 3;
@@ -72,6 +76,7 @@ export const Exam = {
 
     this.examConfig = {
       ...config,
+      examCode,
       shuffleQuestions: shouldShuffleQuestions,
       shuffleOptions: shouldShuffleOptions,
       antiCheat: antiCheatCfg
@@ -122,15 +127,44 @@ export const Exam = {
 
       selectedQuestions = [...mcqSelected, ...dsSelected];
       this.totalSeconds = (config.duration || 50) * 60;
-    } else {
-      // Đề kiểm tra định kỳ hoặc tự chọn
+    } else if (config.type === 'by_topic') {
+      // Trộn đề theo Chủ đề cụ thể
       let pool = gradePool;
       if (config.topic && config.topic !== 'all') {
         pool = pool.filter(q => q.topic === config.topic);
       }
+      const count = Math.min(config.count || 20, pool.length);
+      selectedQuestions = this.sampleQuestions(pool, count, shouldShuffleQuestions);
+      this.totalSeconds = (config.duration || 30) * 60;
+    } else if (config.type === 'by_lesson') {
+      // Trộn đề theo Bài học cụ thể (Kiểm tra 15p)
+      let pool = gradePool;
+      if (config.topic && config.topic !== 'all') {
+        pool = pool.filter(q => q.topic === config.topic);
+      }
+      if (config.lesson && config.lesson !== 'all') {
+        pool = pool.filter(q => q.lesson === config.lesson);
+      }
+      const count = Math.min(config.count || 10, pool.length);
+      selectedQuestions = this.sampleQuestions(pool, count, shouldShuffleQuestions);
+      this.totalSeconds = (config.duration || 15) * 60;
+    } else {
+      // Đề kiểm tra định kỳ hoặc ma trận tự chọn (custom)
+      let pool = gradePool;
+      if (config.topic && config.topic !== 'all') {
+        pool = pool.filter(q => q.topic === config.topic);
+      }
+      if (config.level && config.level !== 'all') {
+        pool = pool.filter(q => q.level === config.level);
+      }
       const count = Math.min(config.count || 30, pool.length);
       selectedQuestions = this.sampleQuestions(pool, count, shouldShuffleQuestions);
       this.totalSeconds = (config.duration || 45) * 60;
+    }
+
+    if (selectedQuestions.length === 0) {
+      alert('Không tìm thấy câu hỏi phù hợp với tiêu chí trộn đề đã chọn! Vui lòng chọn lại chủ đề hoặc bài học khác.');
+      return false;
     }
 
     // Chuẩn bị dữ liệu câu hỏi & xử lý xáo trộn phương án
@@ -172,6 +206,7 @@ export const Exam = {
     if (!savedSession || !savedSession.examQuestions || savedSession.examQuestions.length === 0) return false;
     this.resetState();
     this.examConfig = savedSession.examConfig || { type: 'bgd_2025', title: 'Đề thi thử Tin học', grade: '12', duration: 50 };
+    this.examCode = savedSession.examCode || savedSession.examConfig?.examCode || '101';
     this.examQuestions = savedSession.examQuestions;
     this.userAnswers = savedSession.userAnswers || {};
     this.flaggedQuestions = new Set(savedSession.flaggedQuestions || []);
@@ -216,6 +251,7 @@ export const Exam = {
     if (this.examState !== 'taking') return;
     Storage.saveActiveExamSession({
       examConfig: this.examConfig,
+      examCode: this.examCode || '101',
       examQuestions: this.examQuestions,
       userAnswers: this.userAnswers,
       flaggedQuestions: [...this.flaggedQuestions],
@@ -296,6 +332,19 @@ export const Exam = {
                 Khối ${escapeHtml(this.examConfig.grade)} • Tổng số ${total} câu hỏi
               </p>
               <div class="flex items-center gap-1.5 flex-wrap mt-1">
+                <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 font-mono">
+                  <i class="fa-solid fa-barcode text-[9px]"></i> Mã đề: ${escapeHtml(this.examCode || '101')}
+                </span>
+                ${this.examConfig.topic && this.examConfig.topic !== 'all' ? `
+                  <span class="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                    <i class="fa-solid fa-folder text-[9px]"></i> ${escapeHtml(this.examConfig.topic)}
+                  </span>
+                ` : ''}
+                ${this.examConfig.lesson && this.examConfig.lesson !== 'all' ? `
+                  <span class="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300">
+                    <i class="fa-solid fa-book-bookmark text-[9px]"></i> ${escapeHtml(this.examConfig.lesson)}
+                  </span>
+                ` : ''}
                 <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${this.examConfig.shuffleQuestions ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}">
                   <i class="fa-solid fa-shuffle text-[9px]"></i> Đảo câu: ${this.examConfig.shuffleQuestions ? 'Bật' : 'Tắt'}
                 </span>
@@ -833,6 +882,9 @@ export const Exam = {
       title: this.examConfig.title,
       type: this.examConfig.type,
       grade: this.examConfig.grade,
+      examCode: this.examCode || '101',
+      topic: this.examConfig.topic || null,
+      lesson: this.examConfig.lesson || null,
       score: isDisqualified ? 0.0 : totalScore,
       rawScore: totalScore,
       part1Score: Math.round(part1Score * 100) / 100,
@@ -870,15 +922,22 @@ export const Exam = {
     this.resetState();
     this.examState = 'submitted';
     this.examConfig = {
-      type: savedItem.totalQuestions === 28 ? 'bgd_2025' : 'custom',
+      type: savedItem.totalQuestions === 28 ? 'bgd_2025' : (savedItem.type || 'custom'),
       title: savedItem.title || 'Đề thi thử Tin học',
       grade: savedItem.grade || '12',
       duration: 50,
-      count: savedItem.totalQuestions || 28
+      count: savedItem.totalQuestions || 28,
+      examCode: savedItem.examCode || '101',
+      topic: savedItem.topic || null,
+      lesson: savedItem.lesson || null
     };
+    this.examCode = savedItem.examCode || '101';
     this.examResult = {
       ...savedItem,
       type: savedItem.type || (savedItem.totalQuestions === 28 ? 'bgd_2025' : 'custom'),
+      examCode: savedItem.examCode || '101',
+      topic: savedItem.topic || null,
+      lesson: savedItem.lesson || null,
       details: savedItem.details || []
     };
     this.renderResultView();
@@ -913,12 +972,15 @@ export const Exam = {
             Xếp loại: ${rankBadge.text}
           </span>
 
-          <!-- Thẻ thông tin học sinh -->
-          <div class="mb-4 inline-flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs px-4 py-2 bg-slate-100 dark:bg-slate-700/60 rounded-2xl text-slate-700 dark:text-slate-200 font-medium">
+          <!-- Thẻ thông tin học sinh & Đề thi -->
+          <div class="mb-4 inline-flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-xs px-4 py-2 bg-slate-100 dark:bg-slate-700/60 rounded-2xl text-slate-700 dark:text-slate-200 font-medium">
             <span><i class="fa-solid fa-user-graduate text-blue-600 mr-1.5"></i>Thí sinh: <b>${escapeHtml(res.studentName)}</b></span>
             ${res.studentClass ? `<span>•</span><span>Lớp: <b>${escapeHtml(res.studentClass)}</b></span>` : ''}
             ${res.studentSchool ? `<span>•</span><span>Trường: <b>${escapeHtml(res.studentSchool)}</b></span>` : ''}
+            <span>•</span><span class="px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 font-mono font-bold"><i class="fa-solid fa-barcode text-[10px] mr-1"></i>Mã đề: ${escapeHtml(res.examCode || '101')}</span>
             ${res.roomId ? `<span>•</span><span class="px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-bold font-mono">Phòng: ${escapeHtml(res.roomId)}</span>` : ''}
+            ${res.topic ? `<span>•</span><span class="text-slate-500 dark:text-slate-400">Chủ đề: <b class="text-slate-700 dark:text-slate-200">${escapeHtml(res.topic)}</b></span>` : ''}
+            ${res.lesson ? `<span>•</span><span class="text-slate-500 dark:text-slate-400">Bài: <b class="text-slate-700 dark:text-slate-200">${escapeHtml(res.lesson)}</b></span>` : ''}
           </div>
 
           <!-- Thông báo kết quả giám sát chống gian lận -->
