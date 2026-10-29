@@ -28,6 +28,7 @@ export const InteractiveVideo = {
   sortedCheckpoints: [], // [89, 172, 206, ...]
   completedCheckpoints: new Set(),
   currentCheckpointSec: null,
+  savedPlaybackTime: 0,
   currentCheckpointQuestions: [],
   currentQuestionIdx: 0,
   countdownInterval: null,
@@ -606,6 +607,7 @@ export const InteractiveVideo = {
     this.checkpointsMap = checkpointsMap;
     this.completedCheckpoints = new Set();
     this.currentCheckpointSec = null;
+    this.savedPlaybackTime = 0;
     this.scoreEarned = 0;
     this.totalQuestionsInLesson = videoQuestions.length;
     this.correctCount = 0;
@@ -774,158 +776,119 @@ export const InteractiveVideo = {
           </div>
         </div>
 
-        <!-- Cinema Theater 2-Column Responsive Layout -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Cinema Theater Full-Width Layout (Sân Khấu Chiếu Toàn Màn Rộng) -->
+        <div class="space-y-5">
           
-          <!-- Cột 1: Sân Khấu Phát Video & Bộ Điều Khiển Tương Tác (70% Desktop) -->
-          <div class="lg:col-span-8 space-y-4">
+          <!-- Sân Khấu Phát Video Toàn Khung (100% Full-Width Cinema Stage) -->
+          <div id="interactive-player-stage" class="relative w-full aspect-video lg:max-h-[76vh] rounded-3xl overflow-hidden bg-slate-950 shadow-2xl border border-slate-800 flex flex-col justify-end group select-none mx-auto">
             
-            <!-- Video Viewport Stage -->
-            <div id="interactive-player-stage" class="relative w-full aspect-video rounded-3xl overflow-hidden bg-slate-950 shadow-2xl border border-slate-800 flex flex-col justify-end group select-none">
-              
-              <!-- Thẻ Video HTML5 -->
-              <video id="interactive-video-elem" class="absolute inset-0 w-full h-full object-contain cursor-pointer" playsinline preload="metadata" src="${escapeHtml(videoUrl)}">
-                Trình duyệt không hỗ trợ thẻ video HTML5.
-              </video>
+            <!-- Thẻ Video HTML5 -->
+            <video id="interactive-video-elem" class="absolute inset-0 w-full h-full object-contain cursor-pointer" playsinline preload="metadata" src="${escapeHtml(videoUrl)}">
+              Trình duyệt không hỗ trợ thẻ video HTML5.
+            </video>
 
-              <!-- Màn chắn Big Play/Pause Center Indicator -->
-              <div id="player-center-play-indicator" class="hidden absolute inset-0 bg-black/30 backdrop-blur-[2px] flex items-center justify-center pointer-events-none transition-all">
-                <div class="w-16 h-16 rounded-full bg-white/20 text-white backdrop-blur-md flex items-center justify-center text-3xl shadow-2xl scale-110">
-                  <i class="fa-solid fa-play ml-1"></i>
-                </div>
+            <!-- Màn chắn Big Play/Pause Center Indicator -->
+            <div id="player-center-play-indicator" class="hidden absolute inset-0 bg-black/30 backdrop-blur-[2px] flex items-center justify-center pointer-events-none transition-all">
+              <div class="w-20 h-20 rounded-full bg-white/20 text-white backdrop-blur-md flex items-center justify-center text-4xl shadow-2xl scale-110">
+                <i class="fa-solid fa-play ml-1"></i>
               </div>
-
-              <!-- Lớp Cảnh Báo Toast Góc Màn Hình (Chống tua qua mốc, cảnh báo tốc độ) -->
-              <div id="player-screen-toast" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-2xl bg-slate-900/90 text-white text-xs font-bold backdrop-blur-md border border-amber-500/40 shadow-xl flex items-center gap-2 animate-fadeIn pointer-events-none">
-                <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
-                <span id="player-screen-toast-msg">Thông báo</span>
-              </div>
-
-              <!-- Checkpoint Quiz Modal Overlay (Nằm ngay trong Viewport để hiển thị trọn vẹn cả khi Fullscreen!) -->
-              <div id="video-quiz-overlay" class="hidden absolute inset-0 bg-slate-950/85 backdrop-blur-xl z-40 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-                <div id="video-quiz-content" class="w-full max-w-2xl bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-6 animate-scaleUp">
-                  <!-- Nội dung câu hỏi trắc nghiệm tương tác -->
-                </div>
-              </div>
-
-              <!-- Disqualification Modal Overlay (Khóa khi vi phạm quá 3 lần) -->
-              <div id="player-disqualify-overlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-2xl z-50 flex items-center justify-center p-6 text-center">
-                <div class="max-w-md w-full bg-slate-900 rounded-3xl p-8 border-2 border-rose-500 shadow-2xl space-y-4 text-white">
-                  <div class="w-16 h-16 rounded-full bg-rose-600/30 text-rose-500 flex items-center justify-center mx-auto text-3xl">
-                    <i class="fa-solid fa-ban"></i>
-                  </div>
-                  <h3 class="text-xl font-black text-rose-400">Bài Học Bị Đình Chỉ!</h3>
-                  <p class="text-xs text-slate-300 leading-relaxed">
-                    Bạn đã vi phạm quy chế giám sát học tập quá 3 lần (chuyển tab/ứng dụng hoặc rời cửa sổ). Điểm số đến thời điểm hiện tại đã được lưu lại và gửi tới Giáo viên.
-                  </p>
-                  <button type="button" id="btn-disqualify-exit" class="w-full py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition uppercase tracking-wider">
-                    Quay Về Danh Sách Bài Giảng
-                  </button>
-                </div>
-              </div>
-
-              <!-- Custom Video Controls Bar -->
-              <div class="relative z-10 w-full p-3 sm:p-4 bg-gradient-to-t from-black/90 via-black/60 to-transparent space-y-2 opacity-95 group-hover:opacity-100 transition-opacity">
-                
-                <!-- Interactive Seekbar Track with Checkpoint Flag Pins -->
-                <div id="player-custom-timeline-track" class="video-timeline-track w-full">
-                  <!-- Thanh tiến trình đã phát -->
-                  <div id="player-timeline-progress-fill" class="video-timeline-progress" style="width: 0%"></div>
-
-                  <!-- Các cờ mốc dừng (🚩 Pins) được đặt tại đúng tọa độ % -->
-                  <div id="player-timeline-pins-container" class="absolute inset-0 pointer-events-none">
-                    <!-- Sinh tự động bằng JS -->
-                  </div>
-                </div>
-
-                <!-- Control Buttons Row -->
-                <div class="flex items-center justify-between gap-3 text-white text-xs pt-1">
-                  
-                  <!-- Nút Play/Pause, Rewind, Time Text -->
-                  <div class="flex items-center gap-3">
-                    <button type="button" id="btn-custom-play-pause" class="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-md flex items-center justify-center text-sm transition text-white">
-                      <i class="fa-solid fa-play"></i>
-                    </button>
-
-                    <button type="button" id="btn-custom-rewind-10" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-xs transition text-slate-300 hover:text-white" title="Tua lại 10 giây">
-                      <i class="fa-solid fa-rotate-left"></i>
-                    </button>
-
-                    <span id="player-custom-time-display" class="font-mono text-[11px] text-slate-300 font-bold">
-                      00:00 / 00:00
-                    </span>
-                  </div>
-
-                  <!-- Volume, Tốc độ, Nguồn video, Fullscreen -->
-                  <div class="flex items-center gap-2.5">
-                    
-                    <!-- Nguồn video badge -->
-                    <span class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold ${badgeClass}" id="player-video-source-badge">
-                      <i class="fa-solid fa-video"></i> ${escapeHtml(sourceBadge)}
-                    </span>
-
-                    <!-- Tốc độ phát (Giới hạn tối đa 1.25x chống gian lận) -->
-                    <button type="button" id="btn-custom-playback-rate" class="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 font-mono text-[11px] font-bold transition">
-                      1.0x
-                    </button>
-
-                    <!-- Âm lượng -->
-                    <div class="flex items-center gap-1.5">
-                      <button type="button" id="btn-custom-mute" class="text-slate-300 hover:text-white transition">
-                        <i class="fa-solid fa-volume-high"></i>
-                      </button>
-                      <input type="range" id="input-custom-volume" min="0" max="1" step="0.05" value="1" class="w-14 sm:w-16 accent-blue-500 h-1 bg-white/30 rounded-lg cursor-pointer" />
-                    </div>
-
-                    <!-- Toàn màn hình -->
-                    <button type="button" id="btn-custom-fullscreen" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition text-slate-300 hover:text-white" title="Toàn màn hình">
-                      <i class="fa-solid fa-expand"></i>
-                    </button>
-                  </div>
-
-                </div>
-              </div>
-
             </div>
 
-            <!-- Thanh công cụ nhanh bên dưới Player: Nạp video, link URL, giáo viên thiết lập -->
-            <div class="flex items-center justify-between gap-3 flex-wrap bg-white dark:bg-slate-800 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs">
-              <div class="flex items-center gap-2 flex-wrap">
-                <!-- Chọn video từ máy tính -->
-                <label class="cursor-pointer px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold transition flex items-center gap-1.5">
-                  <i class="fa-solid fa-folder-open text-amber-500"></i> Chọn video máy tính
-                  <input type="file" id="input-player-choose-file" accept="video/mp4,video/*" class="hidden" />
-                </label>
+            <!-- Lớp Cảnh Báo Toast Góc Màn Hình (Chống tua qua mốc, cảnh báo tốc độ) -->
+            <div id="player-screen-toast" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-2xl bg-slate-900/90 text-white text-xs font-bold backdrop-blur-md border border-amber-500/40 shadow-xl flex items-center gap-2 animate-fadeIn pointer-events-none">
+              <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
+              <span id="player-screen-toast-msg">Thông báo</span>
+            </div>
 
-                <!-- Đổi link URL -->
-                <button type="button" id="btn-player-custom-url" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition flex items-center gap-1.5">
-                  <i class="fa-solid fa-link text-blue-500"></i> Đổi link URL
+            <!-- Checkpoint Quiz Modal Overlay (Nằm ngay trong Viewport để hiển thị trọn vẹn cả khi Fullscreen!) -->
+            <div id="video-quiz-overlay" class="hidden absolute inset-0 bg-slate-950/85 backdrop-blur-xl z-40 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+              <div id="video-quiz-content" class="w-full max-w-2xl bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-6 animate-scaleUp">
+                <!-- Nội dung câu hỏi trắc nghiệm tương tác -->
+              </div>
+            </div>
+
+            <!-- Disqualification Modal Overlay (Khóa khi vi phạm quá 3 lần) -->
+            <div id="player-disqualify-overlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-2xl z-50 flex items-center justify-center p-6 text-center">
+              <div class="max-w-md w-full bg-slate-900 rounded-3xl p-8 border-2 border-rose-500 shadow-2xl space-y-4 text-white">
+                <div class="w-16 h-16 rounded-full bg-rose-600/30 text-rose-500 flex items-center justify-center mx-auto text-3xl">
+                  <i class="fa-solid fa-ban"></i>
+                </div>
+                <h3 class="text-xl font-black text-rose-400">Bài Học Bị Đình Chỉ!</h3>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                  Bạn đã vi phạm quy chế giám sát học tập quá 3 lần (chuyển tab/ứng dụng hoặc rời cửa sổ). Điểm số đến thời điểm hiện tại đã được lưu lại và gửi tới Giáo viên.
+                </p>
+                <button type="button" id="btn-disqualify-exit" class="w-full py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition uppercase tracking-wider">
+                  Quay Về Danh Sách Bài Giảng
                 </button>
+              </div>
+            </div>
 
-                <!-- Cài đặt câu hỏi cho Thầy Cô -->
-                ${isTeacher ? `
-                  <button type="button" id="btn-player-edit-questions" class="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-sliders"></i> Cài đặt câu hỏi
-                  </button>
-                ` : ''}
+            <!-- Custom Video Controls Bar -->
+            <div class="relative z-10 w-full p-3 sm:p-4 bg-gradient-to-t from-black/90 via-black/60 to-transparent space-y-2 opacity-95 group-hover:opacity-100 transition-opacity">
+              
+              <!-- Interactive Seekbar Track with Checkpoint Flag Pins -->
+              <div id="player-custom-timeline-track" class="video-timeline-track w-full">
+                <!-- Thanh tiến trình đã phát -->
+                <div id="player-timeline-progress-fill" class="video-timeline-progress" style="width: 0%"></div>
 
-                <!-- Admin Upload Archive -->
-                ${isAdmin && hasLocal ? `
-                  <button type="button" id="btn-player-admin-upload" class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 text-rose-300 font-bold transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-cloud-arrow-up"></i> Up Archive.org
-                  </button>
-                ` : ''}
+                <!-- Các cờ mốc dừng (🚩 Pins) được đặt tại đúng tọa độ % -->
+                <div id="player-timeline-pins-container" class="absolute inset-0 pointer-events-none">
+                  <!-- Sinh tự động bằng JS -->
+                </div>
               </div>
 
-              <div class="text-slate-400 text-[11px] font-mono">
-                Tệp: <span class="text-blue-600 font-bold">${escapeHtml(lesson.video)}</span>
+              <!-- Control Buttons Row -->
+              <div class="flex items-center justify-between gap-3 text-white text-xs pt-1">
+                
+                <!-- Nút Play/Pause, Rewind, Time Text -->
+                <div class="flex items-center gap-3">
+                  <button type="button" id="btn-custom-play-pause" class="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-md flex items-center justify-center text-sm transition text-white">
+                    <i class="fa-solid fa-play"></i>
+                  </button>
+
+                  <button type="button" id="btn-custom-rewind-10" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-xs transition text-slate-300 hover:text-white" title="Tua lại 10 giây">
+                    <i class="fa-solid fa-rotate-left"></i>
+                  </button>
+
+                  <span id="player-custom-time-display" class="font-mono text-[11px] text-slate-300 font-bold">
+                    00:00 / 00:00
+                  </span>
+                </div>
+
+                <!-- Volume, Tốc độ, Nguồn video, Fullscreen -->
+                <div class="flex items-center gap-2.5">
+                  
+                  <!-- Nguồn video badge -->
+                  <span class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold ${badgeClass}" id="player-video-source-badge">
+                    <i class="fa-solid fa-video"></i> ${escapeHtml(sourceBadge)}
+                  </span>
+
+                  <!-- Tốc độ phát (Giới hạn tối đa 1.25x chống gian lận) -->
+                  <button type="button" id="btn-custom-playback-rate" class="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 font-mono text-[11px] font-bold transition">
+                    1.0x
+                  </button>
+
+                  <!-- Âm lượng -->
+                  <div class="flex items-center gap-1.5">
+                    <button type="button" id="btn-custom-mute" class="text-slate-300 hover:text-white transition">
+                      <i class="fa-solid fa-volume-high"></i>
+                    </button>
+                    <input type="range" id="input-custom-volume" min="0" max="1" step="0.05" value="1" class="w-14 sm:w-16 accent-blue-500 h-1 bg-white/30 rounded-lg cursor-pointer" />
+                  </div>
+
+                  <!-- Toàn màn hình -->
+                  <button type="button" id="btn-custom-fullscreen" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition text-slate-300 hover:text-white" title="Toàn màn hình">
+                    <i class="fa-solid fa-expand"></i>
+                  </button>
+                </div>
+
               </div>
             </div>
 
           </div>
 
-          <!-- Cột 2: Bảng Lộ Trình Mốc Dừng & Sổ Tay Ghi Chú Cá Nhân (30% Desktop) -->
-          <div class="lg:col-span-4 space-y-4">
+          <!-- Bảng 3 Cột Tiện Ích Bên Dưới Video (Classroom Deck) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pt-1">
             
             <!-- Card 1: Lộ Trình Mốc Dừng (Checkpoints Roadmap) -->
             <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
@@ -937,14 +900,12 @@ export const InteractiveVideo = {
                   ${sortedCheckpoints.length} mốc kiến thức
                 </span>
               </div>
-
-              <!-- Danh sách các bước mốc dừng -->
-              <div id="player-roadmap-steps-container" class="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-                <!-- Được render tự động qua updateRoadmapUI() -->
+              <div id="player-roadmap-steps-container" class="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                <!-- Sinh tự động bằng updateRoadmapUI() -->
               </div>
             </div>
 
-            <!-- Card 2: Sổ Tay Ghi Chú Cá Nhân Trực Tiếp (Quick Notes) -->
+            <!-- Card 2: Sổ Tay Ghi Chú Cá Nhân (Quick Notes) -->
             <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
               <div class="flex items-center justify-between">
                 <h4 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
@@ -954,21 +915,43 @@ export const InteractiveVideo = {
                   <i class="fa-solid fa-check"></i> Đã lưu
                 </span>
               </div>
-
               <textarea id="player-student-notes" placeholder="Ghi chú lại những ý trọng tâm Thầy Cô giảng bài tại đây (tự động lưu vào máy)..." class="w-full h-24 p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 transition resize-none leading-relaxed">${escapeHtml(savedNotes)}</textarea>
             </div>
 
-            <!-- Card 3: Quy Chế Giám Sát Phòng Học -->
-            <div class="p-4 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/40 text-xs text-slate-700 dark:text-slate-300 space-y-1.5 leading-relaxed">
-              <div class="font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
-                <i class="fa-solid fa-shield-halved"></i> Quy Chế Học Tập Giám Sát:
+            <!-- Card 3: Công Cụ Video & Quy Chế Giám Sát -->
+            <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-3 flex flex-col justify-between">
+              <div class="space-y-2">
+                <h4 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                  <i class="fa-solid fa-shield-halved text-blue-500"></i> Quy Chế & Công Cụ
+                </h4>
+                <ul class="list-disc list-inside space-y-1 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                  <li>Video tự động dừng tại mốc kiến thức trọng tâm.</li>
+                  <li>Không tua qua câu hỏi chưa hoàn thành.</li>
+                  <li>Không chuyển tab / ứng dụng khác (tối đa 3 lần).</li>
+                  <li>Điểm số tự động truyền về Sổ điểm cá nhân.</li>
+                </ul>
               </div>
-              <ul class="list-disc list-inside space-y-1 text-[11px] text-slate-600 dark:text-slate-400">
-                <li>Video tự động dừng tại mốc kiến thức, học sinh trả lời để ghi điểm.</li>
-                <li>Không tua qua phần bài giảng có câu hỏi chưa hoàn thành.</li>
-                <li>Không chuyển tab hoặc vuốt thoát ứng dụng (tối đa 3 lần nhắc nhở).</li>
-                <li>Điểm số được bảo lưu tự động và truyền về Sổ điểm cá nhân.</li>
-              </ul>
+
+              <!-- Thanh công cụ -->
+              <div class="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100 dark:border-slate-700 text-xs">
+                <label class="cursor-pointer px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold transition flex items-center gap-1.5 text-[11px]">
+                  <i class="fa-solid fa-folder-open text-amber-500"></i> Chọn video máy
+                  <input type="file" id="input-player-choose-file" accept="video/mp4,video/*" class="hidden" />
+                </label>
+                <button type="button" id="btn-player-custom-url" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition flex items-center gap-1.5 text-[11px]">
+                  <i class="fa-solid fa-link text-blue-500"></i> Link URL
+                </button>
+                ${isTeacher ? `
+                  <button type="button" id="btn-player-edit-questions" class="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold transition flex items-center gap-1.5 text-[11px]">
+                    <i class="fa-solid fa-sliders"></i> Sửa mốc
+                  </button>
+                ` : ''}
+                ${isAdmin && hasLocal ? `
+                  <button type="button" id="btn-player-admin-upload" class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 text-rose-300 font-bold transition flex items-center gap-1.5 text-[11px]">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Up Archive
+                  </button>
+                ` : ''}
+              </div>
             </div>
 
           </div>
@@ -1106,9 +1089,8 @@ export const InteractiveVideo = {
       video.onseeking = () => {
         if (this.isDisqualified) return;
         const nextCp = this.getNextUncompletedCheckpoint();
-        if (nextCp !== null && video.currentTime > nextCp + 0.3) {
+        if (nextCp !== null && video.currentTime > nextCp + 0.8) {
           video.pause();
-          video.currentTime = nextCp;
           this.showToastNotification('⚠️ Không thể tua qua mốc câu hỏi chưa hoàn thành!', 'warning');
           this.triggerCheckpointQuiz(nextCp);
         }
@@ -1504,6 +1486,8 @@ export const InteractiveVideo = {
       this.videoElem.pause();
       this.videoElem = null;
     }
+    this.savedPlaybackTime = 0;
+    this.currentCheckpointSec = null;
     // Dừng hệ thống giám sát thi
     Proctor.stop();
   },
@@ -1519,12 +1503,31 @@ export const InteractiveVideo = {
     // Cập nhật giao diện
     this.updatePlayerTimeUI(curTime, duration);
 
+    // Chống lỗi trình duyệt tự động reset về 0 sau khi hoàn thành mốc (đặc biệt khi phát luồng media Archive)
+    if (this.savedPlaybackTime > 2 && curTime < 1.0 && this.completedCheckpoints.size > 0 && !video.seeking) {
+      console.log('InteractiveVideo: Tự động khôi phục vị trí phát tiếp sau mốc dừng:', this.savedPlaybackTime);
+      video.currentTime = this.savedPlaybackTime;
+      return;
+    }
+
+    // Ghi nhận mốc thời gian đang phát an toàn
+    if (curTime > (this.savedPlaybackTime || 0)) {
+      this.savedPlaybackTime = curTime;
+    }
+
     // Tìm mốc câu hỏi chưa hoàn thành tiếp theo
     const nextCp = this.getNextUncompletedCheckpoint();
     if (nextCp !== null && curTime >= nextCp) {
       // Dừng video ngay tức khắc
       video.pause();
-      video.currentTime = nextCp; // Cố định đúng giây mốc dừng
+
+      // CHÚ Ý QUAN TRỌNG: KHÔNG gán cưỡng bức video.currentTime = nextCp nếu vị trí đang sát mốc (độ lệch < 1.5s).
+      // Việc gán video.currentTime kích hoạt seek trên luồng không hỗ trợ byte-range,
+      // khiến trình duyệt hủy buffer và đặt lại video về 0:00!
+      if (Math.abs(curTime - nextCp) > 1.5) {
+        video.currentTime = nextCp;
+      }
+      this.savedPlaybackTime = Math.max(Number(nextCp), Number(curTime));
 
       // Nếu đang mở Fullscreen của riêng thẻ video, thoát ra để modal hiển thị trọn vẹn
       if (document.fullscreenElement === video) {
@@ -1837,7 +1840,8 @@ export const InteractiveVideo = {
   },
 
   finishCurrentCheckpoint() {
-    this.completedCheckpoints.add(this.currentCheckpointSec);
+    const cpSec = Number(this.currentCheckpointSec);
+    this.completedCheckpoints.add(cpSec);
 
     // Ẩn overlay
     const overlay = document.getElementById('video-quiz-overlay');
@@ -1854,14 +1858,28 @@ export const InteractiveVideo = {
     this.updateTimelinePins();
     this.updateRoadmapUI();
 
-    // Tiếp tục phát video
+    // Tiếp tục phát video tại vị trí kế tiếp mốc dừng (cộng thêm 0.4s để vượt qua điều kiện dừng)
     if (this.videoElem) {
+      const resumeTime = Math.max(cpSec + 0.4, (this.savedPlaybackTime || cpSec) + 0.2);
+      this.savedPlaybackTime = resumeTime;
+
+      // Nếu video bị trình duyệt reset về 0 (nhỏ hơn mốc vừa hoàn thành), chủ động đặt lại đúng vị trí
+      if (this.videoElem.currentTime < cpSec) {
+        try {
+          this.videoElem.currentTime = resumeTime;
+        } catch (e) {
+          console.warn('Lỗi gán resumeTime:', e);
+        }
+      }
+
       this.videoElem.play().then(() => {
         const btn = document.getElementById('btn-custom-play-pause');
         if (btn) btn.innerHTML = '<i class="fa-solid fa-pause"></i>';
         const indicator = document.getElementById('player-center-play-indicator');
         if (indicator) indicator.classList.add('hidden');
-      }).catch(() => {});
+      }).catch(err => {
+        console.warn('InteractiveVideo: Không thể tự động phát tiếp video:', err);
+      });
     }
   },
 

@@ -42,6 +42,8 @@ class App {
   async init() {
     window.App = this;
     window.AppInstance = this;
+    // Đảm bảo dừng giám sát Proctor khi tải trang/khởi động
+    Proctor.stop();
     this.initTheme();
     Auth.init();
     this.initAuthUI();
@@ -223,6 +225,19 @@ class App {
       const confirmLeave = confirm('Bạn đang trong quá trình làm bài thi thử. Nếu rời khỏi phòng thi lúc này, bài làm chưa nộp sẽ bị hủy.\nBạn có chắc chắn muốn thoát không?');
       if (!confirmLeave) return false;
       Exam.resetState();
+    }
+
+    // Tự động dọn dẹp phòng học video tương tác nếu rời tab
+    if (this.currentTab === 'interactive-video' && tab !== 'interactive-video') {
+      if (typeof InteractiveVideo !== 'undefined' && InteractiveVideo.activeLesson) {
+        InteractiveVideo.cleanupActivePlayer();
+        InteractiveVideo.activeLesson = null;
+      }
+    }
+
+    // Proctor CHỈ được hoạt động trong phòng thi (exam-room) hoặc video tương tác (interactive-video)
+    if (tab !== 'exam-room' && tab !== 'interactive-video') {
+      Proctor.stop();
     }
 
     // Kiểm tra đăng nhập bắt buộc khi truy cập các tính năng

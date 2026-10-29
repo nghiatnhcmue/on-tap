@@ -84,6 +84,14 @@ export const Proctor = {
     return this.platform;
   },
 
+  isProctoredSessionActive() {
+    // 1. Kiểm tra Bài thi trực tuyến: Exam đang taking
+    const isExamTaking = (typeof window !== 'undefined' && window.Exam && window.Exam.examState === 'taking');
+    // 2. Kiểm tra Video tương tác: InteractiveVideo đang có activeLesson
+    const isVideoPlaying = (typeof window !== 'undefined' && window.InteractiveVideo && !!window.InteractiveVideo.activeLesson);
+    return Boolean(isExamTaking || isVideoPlaying);
+  },
+
   init(config = {}, onViolation = null, onDisqualify = null) {
     this.detectPlatform();
     this.config = {
@@ -105,6 +113,12 @@ export const Proctor = {
 
   start() {
     if (!this.config.enabled) return;
+    // BẢO VỆ CHẶT CHẼ: Chỉ kích hoạt giám sát khi đang thực sự trong Bài thi hoặc Video tương tác!
+    if (!this.isProctoredSessionActive()) {
+      console.warn('Proctor: Không kích hoạt vì hiện không ở trong Bài thi hay Video tương tác!');
+      this.stop();
+      return;
+    }
     this.detectPlatform();
     this.active = true;
     this.lastViolationTime = Date.now(); // Tránh báo lỗi giả ngay giây đầu tiên khi vừa mở phòng thi
@@ -126,6 +140,10 @@ export const Proctor = {
   },
 
   setPrivacyShield(enabled) {
+    if (enabled && !this.isProctoredSessionActive()) {
+      document.body.classList.remove('proctor-privacy-shield');
+      return;
+    }
     document.body.classList.toggle('proctor-privacy-shield', !!enabled);
   },
 
@@ -266,7 +284,10 @@ export const Proctor = {
   bindEvents() {
     // 1. Phát hiện chuyển tab / ẩn trình duyệt / vuốt Home trên Android & iOS
     this._onVisibilityChange = () => {
-      if (!this.active) return;
+      if (!this.active || !this.isProctoredSessionActive()) {
+        if (this.active) this.stop();
+        return;
+      }
       if (document.hidden) {
         this.setPrivacyShield(true);
         if (this.config.preventTabSwitch) {
@@ -286,7 +307,10 @@ export const Proctor = {
 
     // 2. Phát hiện mất tiêu điểm cửa sổ (Click sang cửa sổ khác, kéo Control Center / Notification trên iOS/Android)
     this._onWindowBlur = () => {
-      if (!this.active) return;
+      if (!this.active || !this.isProctoredSessionActive()) {
+        if (this.active) this.stop();
+        return;
+      }
       // Bỏ qua nếu đang mở hộp thoại cảnh báo của chính hệ thống
       if (document.getElementById('proctor-warning-modal')) return;
       this.setPrivacyShield(true);
@@ -299,7 +323,10 @@ export const Proctor = {
     };
 
     this._onWindowFocus = () => {
-      if (!this.active) return;
+      if (!this.active || !this.isProctoredSessionActive()) {
+        if (this.active) this.stop();
+        return;
+      }
       if (!document.getElementById('proctor-warning-modal')) {
         this.setPrivacyShield(false);
       }
@@ -307,7 +334,10 @@ export const Proctor = {
 
     // 3. Phát hiện thoát Toàn màn hình (chỉ áp dụng cho thiết bị hỗ trợ Fullscreen API)
     this._onFullscreenChange = () => {
-      if (!this.active) return;
+      if (!this.active || !this.isProctoredSessionActive()) {
+        if (this.active) this.stop();
+        return;
+      }
       if (this.config.enforceFullscreen && this.platform.supportsFullscreen && !this.isInFullscreen()) {
         this.triggerViolation(`Thoát chế độ Toàn màn hình trong khi thi (${this.platform.os})`);
       }
@@ -315,10 +345,13 @@ export const Proctor = {
 
     // 4. Phát hiện Chia đôi màn hình (Split-Screen / Slide Over / Cửa sổ nổi) trên Android, iPadOS & Desktop
     this._onResize = () => {
-      if (!this.active || !this.config.detectSplitScreen) return;
+      if (!this.active || !this.config.detectSplitScreen || !this.isProctoredSessionActive()) {
+        if (this.active && !this.isProctoredSessionActive()) this.stop();
+        return;
+      }
       clearTimeout(this.resizeTimer);
       this.resizeTimer = setTimeout(() => {
-        if (!this.active || this.isVirtualKeyboardOpen()) return;
+        if (!this.active || !this.isProctoredSessionActive() || this.isVirtualKeyboardOpen()) return;
         const availW = window.screen?.availWidth || window.innerWidth;
         const availH = window.screen?.availHeight || window.innerHeight;
         const curW = window.innerWidth;
@@ -337,7 +370,10 @@ export const Proctor = {
 
     // 5. Chặn menu chuột phải & nhấn giữ (Long-press callout) trên iOS / Android / Desktop
     this._onContextMenu = (e) => {
-      if (!this.active) return;
+      if (!this.active || !this.isProctoredSessionActive()) {
+        if (this.active) this.stop();
+        return;
+      }
       if (this.config.disableCopyPaste) {
         e.preventDefault();
         return false;
@@ -346,7 +382,11 @@ export const Proctor = {
 
     // 6. Chặn bôi đen & kéo thả văn bản (trừ ô input trả lời ngắn)
     this._onSelectStart = (e) => {
-      if (!this.active || !this.config.disableCopyPaste) return;
+      if (!this.active || !this.isProctoredSessionActive()) {
+        if (this.active) this.stop();
+        return;
+      }
+      if (!this.config.disableCopyPaste) return;
       const tag = (e.target?.tagName || '').toLowerCase();
       if (tag !== 'input' && tag !== 'textarea') {
         e.preventDefault();
@@ -355,14 +395,21 @@ export const Proctor = {
     };
 
     this._onDragStart = (e) => {
-      if (!this.active || !this.config.disableCopyPaste) return;
+      if (!this.active || !this.isProctoredSessionActive()) {
+        if (this.active) this.stop();
+        return;
+      }
+      if (!this.config.disableCopyPaste) return;
       e.preventDefault();
       return false;
     };
 
     // 7. Phát hiện cử chỉ 3-4 ngón tay trên điện thoại/máy tính bảng (Chụp màn hình 3 ngón hoặc vuốt chuyển app)
     this._onTouchStart = (e) => {
-      if (!this.active) return;
+      if (!this.active || !this.isProctoredSessionActive()) {
+        if (this.active) this.stop();
+        return;
+      }
       if (e.touches && e.touches.length >= 3) {
         this.setPrivacyShield(true);
         this.triggerViolation(`Sử dụng cử chỉ đa điểm (${e.touches.length} ngón tay - chụp màn hình/chuyển ứng dụng)`);
@@ -371,7 +418,10 @@ export const Proctor = {
 
     // 8. Chặn Copy / Paste / Cut
     this._onCopy = (e) => {
-      if (!this.active) return;
+      if (!this.active || !this.isProctoredSessionActive()) {
+        if (this.active) this.stop();
+        return;
+      }
       if (this.config.disableCopyPaste) {
         e.preventDefault();
         this.triggerViolation('Cố ý sao chép (Copy) nội dung đề thi');
@@ -380,7 +430,10 @@ export const Proctor = {
     };
 
     this._onPaste = (e) => {
-      if (!this.active) return;
+      if (!this.active || !this.isProctoredSessionActive()) {
+        if (this.active) this.stop();
+        return;
+      }
       if (this.config.disableCopyPaste) {
         const tag = (e.target?.tagName || '').toLowerCase();
         if (tag !== 'input' && tag !== 'textarea') {
@@ -391,7 +444,10 @@ export const Proctor = {
     };
 
     this._onCut = (e) => {
-      if (!this.active) return;
+      if (!this.active || !this.isProctoredSessionActive()) {
+        if (this.active) this.stop();
+        return;
+      }
       if (this.config.disableCopyPaste) {
         e.preventDefault();
         return false;
@@ -400,7 +456,10 @@ export const Proctor = {
 
     // 9. Chặn phím tắt gian lận trên cả Windows/Linux (Ctrl, Alt, F12, PrintScreen) và macOS (Command ⌘, Option)
     this._onKeyDown = (e) => {
-      if (!this.active) return;
+      if (!this.active || !this.isProctoredSessionActive()) {
+        if (this.active) this.stop();
+        return;
+      }
       const key = e.key || '';
       const keyLower = key.toLowerCase();
       const cmdOrCtrl = e.ctrlKey || e.metaKey;
@@ -448,7 +507,10 @@ export const Proctor = {
     };
 
     this._onKeyUp = (e) => {
-      if (!this.active) return;
+      if (!this.active || !this.isProctoredSessionActive()) {
+        if (this.active) this.stop();
+        return;
+      }
       if (e.key === 'PrintScreen') {
         this.setPrivacyShield(true);
         try { navigator.clipboard?.writeText(''); } catch (err) {}
@@ -490,7 +552,10 @@ export const Proctor = {
   },
 
   triggerViolation(reason) {
-    if (!this.active) return;
+    if (!this.active || !this.isProctoredSessionActive()) {
+      if (this.active) this.stop();
+      return;
+    }
 
     // Cooldown debounce (1.8 giây) để tránh 1 thao tác chuyển tab/ứng dụng kích hoạt kép blur + visibilitychange
     const now = Date.now();
@@ -528,6 +593,11 @@ export const Proctor = {
   },
 
   showWarningModal(record, remaining) {
+    if (!this.isProctoredSessionActive()) {
+      this.stop();
+      return;
+    }
+
     const existing = document.getElementById('proctor-warning-modal');
     if (existing) existing.remove();
 
@@ -587,6 +657,11 @@ export const Proctor = {
   },
 
   showDisqualifyModal(record) {
+    if (!this.isProctoredSessionActive()) {
+      this.stop();
+      return;
+    }
+
     const existing = document.getElementById('proctor-warning-modal');
     if (existing) existing.remove();
 

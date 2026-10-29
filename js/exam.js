@@ -34,7 +34,7 @@ export const Exam = {
   resetState() {
     if (this.timerInterval) clearInterval(this.timerInterval);
     document.body.classList.remove('in-exam');
-    if (this.isProctored) Proctor.stop();
+    Proctor.stop();
     if (this._onExamKeyDown) {
       window.removeEventListener('keydown', this._onExamKeyDown);
       this._onExamKeyDown = null;
@@ -81,6 +81,8 @@ export const Exam = {
       shuffleOptions: shouldShuffleOptions,
       antiCheat: antiCheatCfg
     };
+
+    this.examState = 'taking';
 
     if (this.isProctored) {
       Proctor.init(antiCheatCfg,
@@ -362,6 +364,7 @@ export const Exam = {
     this.maxViolations = savedSession.maxViolations || 3;
     this.isDisqualified = false;
     this.disqualifiedReason = '';
+    this.examState = 'taking';
 
     if (this.isProctored) {
       const antiCheatCfg = {
