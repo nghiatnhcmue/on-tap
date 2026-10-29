@@ -206,7 +206,19 @@ Phục vụ nhu cầu theo dõi tiến độ, đánh giá năng lực học tậ
     2. **Chi Tiết Toàn Bộ Bài Thi (`Chi_Tiet_Bai_Thi_Tin_Hoc_*.csv`)**: Bảng điểm nhật ký từng lượt thi gồm ngày giờ, học sinh, trường, lớp, phòng thi, mã đề, điểm số, số câu đúng/tổng câu, thời gian làm bài, tỷ lệ đúng, trạng thái giám sát (Hợp lệ / Bị đình chỉ).
   - **Bảo đảm không lỗi font tiếng Việt trong Microsoft Excel:** Tất cả file xuất ra đều được thêm byte order mark UTF-8 (`\uFEFF`) ở đầu chuỗi, mở xem trực tiếp trên Excel của Windows và macOS trọn vẹn dấu tiếng Việt mà không cần thao tác import thủ công.
 
-### 4.6. Bài Giảng Video Tương Tác, Chọn/Tải Video Trực Tiếp & Trình Thiết Lập Câu Hỏi (`js/interactive-video.js`)
+### 4.6. Bài Giảng Video Tương Tác, Chọn/Tải Video Trực Tiếp, Chống Gian Lận & Trình Thiết Lập Câu Hỏi (`js/interactive-video.js`)
+- **Giao diện Rạp Chiếu & Lớp Học Tương Tác Hiện Đại (Cinema Classroom 2-Column View):**
+  - **Sân khấu Video chính (70% Desktop / 100% Mobile):** Aspect 16:9 sắc nét, thanh Seekbar tùy biến gắn cờ mốc dừng (🚩 Pins) trực quan tại đúng tọa độ phần trăm, đèn pulse xanh báo hiệu mốc kế tiếp, cờ xanh báo đã hoàn thành. Bộ điều khiển tùy chỉnh: Play/Pause, Tua lại 10s, Volume, Tốc độ phát (tối đa 1.25x), Toàn màn hình stage.
+  - **Bảng Lộ Trình Mốc Dừng (Checkpoints Roadmap) & Sổ Tay Ghi Chú:** Cột bên phải hiển thị danh sách từng mốc kiến thức, thời lượng và trạng thái; tích hợp ô Sổ tay ghi chú bài học tự động lưu (`localStorage`) thời gian thực cho học sinh.
+- **Cơ Chế Bắt Chặn Mốc Dừng Chuẩn Xác Tuyệt Đối (Không Bỏ Sót Frame):**
+  - Thuật toán `getNextUncompletedCheckpoint()` kết hợp điều kiện `curTime >= nextCp`: Tự động dừng video ngay tức khắc khi chạm hoặc vượt qua mốc dừng, ghim chính xác `video.currentTime = nextCp` và kích hoạt hộp thoại câu hỏi tương tác.
+  - Đồng hồ đếm ngược vòng tròn chuyển động SVG (`SVG Circular Timer`) và hỗ trợ phím tắt trả lời nhanh <kbd>A</kbd>, <kbd>B</kbd>, <kbd>C</kbd>, <kbd>D</kbd> hoặc <kbd>1</kbd>, <kbd>2</kbd>, <kbd>3</kbd>, <kbd>4</kbd>, <kbd>Enter</kbd>.
+- **Hệ Thống Giám Sát Chống Gian Lận Đa Nền Tảng (Proctor Anti-Cheat Engine):**
+  - Tích hợp động cơ `Proctor`: Giám sát chuyển tab, vuốt màn hình sang ứng dụng khác, chia đôi màn hình (Split-Screen), phím tắt F12, DevTools, chụp màn hình.
+  - Màn chắn làm mờ tức thì (`body.proctor-privacy-shield #view-interactive-video`).
+  - **Chống tua bài (Anti-Skip / Anti-Scrubbing Guard):** Bắt sự kiện `seeking` để ngăn chặn hoàn toàn việc học sinh tua qua các mốc câu hỏi chưa hoàn thành.
+  - **Giới hạn tốc độ phát (Anti-Speed Hack):** Giới hạn tối đa 1.25x trên sự kiện `ratechange`.
+  - Cảnh báo vi phạm tối đa 3 lần kèm chuông báo động Web Audio API trước khi tự động đình chỉ bài học và lưu biên bản giám sát.
 - **Tải / Chọn Video Trực Tiếp Trên Web (Local Video Streaming & Fallback):**
   - Học sinh và Giáo viên có thể nạp cả thư mục video hoặc chọn từng file video `.mp4` trực tiếp từ máy tính (`InteractiveVideo.localVideoMap`).
   - Video được stream tức thời qua Blob Object URL (`URL.createObjectURL(file)`), xem và làm câu hỏi dừng trơn tru mà không cần internet hay chờ video tải lên server.

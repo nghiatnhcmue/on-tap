@@ -1,8 +1,10 @@
 /**
  * tinhoc-hub: Interactive Video Module (js/interactive-video.js)
  * Học Tin học qua Video Bài Giảng Tương Tác Đa Nền Tảng:
- * - Tự động dừng tại các mốc thời gian trong ngân hàng đề.
- * - Hiển thị câu hỏi tương tác với đồng hồ đếm ngược (Countdown Timer).
+ * - Tự động dừng tại các mốc thời gian trong ngân hàng đề mà không bị bỏ sót frame.
+ * - Giao diện Rạp Chiếu & Lớp Học Tương Tác Hiện Đại (Cinema Classroom View): Timeline gắn cờ mốc dừng (🚩), bảng lộ trình bài học, sổ tay ghi chú trực tiếp.
+ * - Tích hợp Giám Sát Chống Gian Lận Đa Nền Tảng (Proctor Anti-Cheat Engine): Phát hiện chuyển tab/ứng dụng, chống tua bài (anti-skip/anti-scrubbing), giới hạn tốc độ phát, màn chắn bảo vệ chống chụp màn hình.
+ * - Hiển thị câu hỏi tương tác với đồng hồ đếm ngược hình tròn (SVG Circular Timer) & phím tắt A, B, C, D.
  * - Chấm điểm tức thì, truyền điểm về Sổ điểm Đám mây (Cloud Real-Time) cho Giáo viên.
  * - HỖ TRỢ CHỌN/TẢI VIDEO TRỰC TIẾP TRÊN WEB: Chọn thư mục/file MP4 từ máy tính phát tức thì mà không cần chờ tải lên mạng.
  * - HỖ TRỢ THIẾT LẬP CÂU HỎI & MỐC DỪNG (Question & Checkpoint Editor): Cho phép Giáo viên & Admin tạo, sửa, xóa mốc dừng và câu hỏi trực tiếp trên web, tự động đồng bộ đám mây realtime!
@@ -11,6 +13,7 @@
 import { Storage } from './storage.js';
 import { Auth } from './auth.js';
 import { escapeHtml } from './utils.js';
+import { Proctor } from './proctor.js';
 
 export const InteractiveVideo = {
   container: null,
@@ -22,17 +25,29 @@ export const InteractiveVideo = {
   activeLesson: null,
   activeQuestions: [],
   checkpointsMap: {}, // stop_sec -> [questionObj]
+  sortedCheckpoints: [], // [89, 172, 206, ...]
   completedCheckpoints: new Set(),
   currentCheckpointSec: null,
   currentCheckpointQuestions: [],
   currentQuestionIdx: 0,
   countdownInterval: null,
   countdownSeconds: 15,
+  totalCountdownSeconds: 15,
   scoreEarned: 0,
   totalQuestionsInLesson: 0,
   correctCount: 0,
   sessionDetails: [],
   videoElem: null,
+  playerStageElem: null,
+
+  // Giám sát chống gian lận
+  isProctored: true,
+  isDisqualified: false,
+  disqualifiedLogs: [],
+  violationCount: 0,
+  lastAllowedTime: 0,
+  keyboardListener: null,
+  notesSaveTimeout: null,
 
   // Bộ nhớ đệm tệp video cục bộ (Offline / Local File Streaming)
   localVideoMap: {}, // filename -> { file, url, name }
@@ -69,6 +84,7 @@ export const InteractiveVideo = {
       this.selectedTopic = 'all';
       this.searchQuery = '';
       this.activeLesson = null;
+      this.cleanupActivePlayer();
       this.render();
     }
   },
@@ -152,7 +168,7 @@ export const InteractiveVideo = {
   },
 
   parseStopSec(val) {
-    if (!val) return 0;
+    if (!val && val !== 0) return 0;
     val = String(val).trim();
     if (val.includes(':')) {
       const parts = val.split(':');
@@ -161,6 +177,16 @@ export const InteractiveVideo = {
       return m * 60 + s;
     }
     return Math.max(0, parseInt(val, 10) || 0);
+  },
+
+  // Lấy mốc câu hỏi chưa hoàn thành tiếp theo
+  getNextUncompletedCheckpoint() {
+    for (const sec of this.sortedCheckpoints) {
+      if (!this.completedCheckpoints.has(sec)) {
+        return sec;
+      }
+    }
+    return null;
   },
 
   render() {
@@ -202,13 +228,13 @@ export const InteractiveVideo = {
         <div class="bg-gradient-to-r from-rose-600 via-indigo-600 to-blue-600 text-white rounded-3xl p-6 sm:p-10 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div class="relative z-10 max-w-2xl">
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-xs font-bold uppercase tracking-wider mb-2">
-              <i class="fa-solid fa-play"></i> Bài Giảng Tương Tác Thông Minh
+              <i class="fa-solid fa-play"></i> Bài Giảng Tương Tác & Giám Sát Thi
             </div>
             <h2 class="text-2xl sm:text-3xl font-black tracking-tight">
               Video Bài Giảng Tương Tác - Khối ${this.currentGrade}
             </h2>
             <p class="text-xs sm:text-sm text-white/90 mt-1 leading-relaxed">
-              Vừa xem video bài giảng vừa trả lời các câu hỏi dừng. Hỗ trợ <b>phát video trực tiếp từ máy tính</b> hoặc qua đám mây Archive.org, tự động truyền điểm số về Sổ điểm thời gian thực!
+              Vừa xem bài giảng vừa trả lời các câu hỏi mốc dừng. Hệ thống trang bị <b>giám sát chống gian lận đa nền tảng</b>, hỗ trợ <b>phát video trực tiếp từ máy tính</b> hoặc qua đám mây Archive.org, tự động đồng bộ điểm về Sổ điểm thời gian thực!
             </p>
 
             <!-- Bộ công cụ tải/nạp video offline nhanh -->
@@ -278,7 +304,7 @@ export const InteractiveVideo = {
               <h4 class="text-sm font-bold text-slate-700 dark:text-slate-300">Không tìm thấy bài giảng nào</h4>
               <p class="text-xs text-slate-400 mt-1">Hãy thử tìm với từ khóa khác hoặc chuyển sang chủ đề khác.</p>
             </div>
-          ` : filtered.map((v, i) => {
+          ` : filtered.map((v) => {
             const prog = progressMap[v.video];
             const hasCompleted = prog && prog.completed;
             const highest = prog ? Number(prog.highestScore).toFixed(1) : null;
@@ -333,7 +359,7 @@ export const InteractiveVideo = {
 
                   <div class="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-xs">
                     <div class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-bold">
-                      <i class="fa-solid fa-stopwatch text-rose-500"></i>
+                      <i class="fa-solid fa-bullseye text-rose-500"></i>
                       <span>${v.checkpoints.length} điểm dừng</span>
                     </div>
 
@@ -350,8 +376,8 @@ export const InteractiveVideo = {
 
                   <!-- Hành động cho Học sinh & Giáo viên -->
                   <div class="space-y-2 pt-1">
-                    <button type="button" data-start-lesson="${escapeHtml(v.video)}" class="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-md shadow-blue-500/20 flex items-center justify-center gap-2">
-                      <i class="fa-solid fa-circle-play"></i> Bắt đầu học tương tác
+                    <button type="button" data-start-lesson="${escapeHtml(v.video)}" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold transition shadow-md shadow-blue-500/20 flex items-center justify-center gap-2">
+                      <i class="fa-solid fa-circle-play text-sm"></i> Bắt đầu học tương tác & giám sát
                     </button>
 
                     <div class="flex items-center gap-1.5">
@@ -566,11 +592,12 @@ export const InteractiveVideo = {
     // Nhóm câu hỏi theo từng mốc giây (stop_sec)
     const checkpointsMap = {};
     videoQuestions.forEach(q => {
-      const sec = Math.floor(Number(q.video_stop));
+      const sec = this.parseStopSec(q.video_stop);
       if (!checkpointsMap[sec]) checkpointsMap[sec] = [];
       checkpointsMap[sec].push(q);
     });
 
+    this.sortedCheckpoints = Object.keys(checkpointsMap).map(Number).sort((a, b) => a - b);
     this.activeLesson = lesson;
     this.activeQuestions = videoQuestions;
     this.checkpointsMap = checkpointsMap;
@@ -580,17 +607,105 @@ export const InteractiveVideo = {
     this.totalQuestionsInLesson = videoQuestions.length;
     this.correctCount = 0;
     this.sessionDetails = [];
+    this.isDisqualified = false;
+    this.disqualifiedLogs = [];
+    this.violationCount = 0;
+    this.lastAllowedTime = 0;
+
+    // Khởi động hệ thống Giám sát Chống Gian Lận (Proctor Engine)
+    this.startProctorMonitoring();
 
     this.renderPlayerView();
   },
 
   // ==========================================
-  // 3. GIAO DIỆN PHÁT VIDEO & TƯƠNG TÁC
+  // 3. TÍCH HỢP HỆ THỐNG GIÁM SÁT CHỐNG GIAN LẬN (PROCTOR)
+  // ==========================================
+  startProctorMonitoring() {
+    this.violationCount = 0;
+    this.isDisqualified = false;
+    this.disqualifiedLogs = [];
+
+    Proctor.init({
+      enabled: true,
+      maxViolations: 3,
+      enforceFullscreen: false, // Quản lý bởi custom fullscreen toggle của player
+      preventTabSwitch: true,
+      disableCopyPaste: true,
+      blockDevTools: true,
+      detectSplitScreen: true
+    },
+    (record, remaining, total) => {
+      // Khi phát hiện vi phạm
+      this.violationCount = total;
+      this.updateProctorStatusUI();
+      if (this.videoElem && !this.videoElem.paused) {
+        this.videoElem.pause();
+      }
+    },
+    (logs) => {
+      // Khi bị đình chỉ (quá 3 lần vi phạm)
+      if (this.videoElem) {
+        this.videoElem.pause();
+      }
+      this.handleProctorDisqualify(logs);
+    });
+
+    Proctor.start();
+  },
+
+  updateProctorStatusUI() {
+    const badgeEl = document.getElementById('player-proctor-badge');
+    const countEl = document.getElementById('proctor-violation-count');
+    if (countEl) {
+      countEl.textContent = `${this.violationCount}/3 vi phạm`;
+    }
+    if (badgeEl) {
+      if (this.violationCount > 0) {
+        badgeEl.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 text-white text-xs font-bold border border-rose-500 shadow-md animate-pulse';
+        badgeEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Cảnh Báo: <span>${this.violationCount}/3 vi phạm</span>`;
+      } else {
+        badgeEl.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-600';
+        badgeEl.innerHTML = `<i class="fa-solid fa-shield-halved text-blue-500"></i> Giám Sát: <span id="proctor-violation-count" class="text-blue-600 dark:text-blue-400">0/3 vi phạm</span>`;
+      }
+    }
+  },
+
+  handleProctorDisqualify(logs) {
+    this.isDisqualified = true;
+    this.disqualifiedLogs = logs || [];
+
+    const overlay = document.getElementById('player-disqualify-overlay');
+    if (overlay) {
+      overlay.classList.remove('hidden');
+    }
+
+    // Tự động lưu tiến trình hiện tại kèm trạng thái đình chỉ
+    const currentScore = Math.min(10.0, Math.round(this.scoreEarned * 10) / 10);
+    const examResult = {
+      title: `Video tương tác: ${this.activeLesson?.lesson || ''} (BỊ ĐÌNH CHỈ)`,
+      grade: String(this.currentGrade),
+      score: currentScore,
+      totalQuestions: this.totalQuestionsInLesson,
+      correctCount: this.correctCount,
+      timeSpentSeconds: Math.round(this.videoElem?.currentTime || 0),
+      examType: 'interactive_video_disqualified',
+      lesson: this.activeLesson?.lesson || '',
+      topic: this.activeLesson?.topic || '',
+      isDisqualified: true,
+      violationLogs: this.disqualifiedLogs
+    };
+
+    Storage.saveExamResult(examResult);
+  },
+
+  // ==========================================
+  // 4. GIAO DIỆN RẠP CHIẾU & LỚP HỌC TƯƠNG TÁC (CINEMA CLASSROOM VIEW)
   // ==========================================
   renderPlayerView() {
     const lesson = this.activeLesson;
     const videoUrl = this.getVideoUrl(lesson.video);
-    const sortedCheckpoints = Object.keys(this.checkpointsMap).map(Number).sort((a, b) => a - b);
+    const sortedCheckpoints = this.sortedCheckpoints;
     const isTeacher = Auth.isTeacher() || Auth.isAdmin();
     const isAdmin = Auth.isAdmin();
     const hasLocal = lesson.hasLocalVideo || !!this.localVideoMap[lesson.video];
@@ -598,142 +713,368 @@ export const InteractiveVideo = {
     let sourceBadge = 'Archive.org Cloud';
     let badgeClass = 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300';
     if (this.localVideoMap[lesson.video]) {
-      sourceBadge = `File máy tính: ${this.localVideoMap[lesson.video].name}`;
+      sourceBadge = `Tệp máy tính: ${this.localVideoMap[lesson.video].name}`;
       badgeClass = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300';
     } else if (Storage.getCustomVideoUrl(lesson.video)) {
       sourceBadge = 'Link URL riêng';
       badgeClass = 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300';
     }
 
+    const savedNotes = this.getStudentNotes(lesson.video);
+
     this.container.innerHTML = `
-      <div class="space-y-6 animate-fadeIn">
+      <div class="space-y-5 animate-fadeIn">
         
-        <!-- Top Action Bar -->
-        <div class="flex items-center justify-between gap-4 flex-wrap bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div class="flex items-center gap-2">
-            <button type="button" id="btn-back-to-lessons" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center gap-2">
-              <i class="fa-solid fa-arrow-left"></i> Quay lại
+        <!-- Top Navigation & Proctor Control Bar -->
+        <div class="flex items-center justify-between gap-3 flex-wrap bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
+          <div class="flex items-center gap-3">
+            <button type="button" id="btn-back-to-lessons" class="px-4 py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center gap-2">
+              <i class="fa-solid fa-arrow-left"></i> Thoát phòng học
             </button>
 
-            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold ${badgeClass}" id="player-video-source-badge">
-              <i class="fa-solid fa-video"></i> ${escapeHtml(sourceBadge)}
-            </span>
+            <div class="hidden sm:block">
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                  Khối ${lesson.grade}
+                </span>
+                <span class="text-xs font-black text-slate-800 dark:text-white truncate max-w-xs md:max-w-md">
+                  ${escapeHtml(lesson.lesson)}
+                </span>
+              </div>
+            </div>
           </div>
 
+          <!-- Proctor Shield, Score & Checkpoint Status -->
           <div class="flex items-center gap-2 flex-wrap">
-            <!-- Nút chọn video từ máy tính -->
-            <label class="cursor-pointer px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center gap-1.5">
-              <i class="fa-solid fa-folder-open text-amber-500"></i> Chọn video từ máy
-              <input type="file" id="input-player-choose-file" accept="video/mp4,video/*" class="hidden" />
-            </label>
+            <!-- Huy hiệu Proctor Chống Gian Lận -->
+            <div id="player-proctor-badge" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-600">
+              <i class="fa-solid fa-shield-halved text-blue-500"></i>
+              <span>Giám Sát: <strong id="proctor-violation-count" class="text-blue-600 dark:text-blue-400">0/3 vi phạm</strong></span>
+            </div>
 
-            <!-- Nút đổi link URL trực tiếp -->
-            <button type="button" id="btn-player-custom-url" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center gap-1.5" title="Nhập URL video riêng">
-              <i class="fa-solid fa-link text-blue-500"></i> Đổi link URL
+            <!-- Điểm số trực tiếp -->
+            <div class="px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-xs font-black border border-amber-200 dark:border-amber-800 flex items-center gap-1.5">
+              <i class="fa-solid fa-star text-amber-500"></i>
+              <span id="player-live-score">0.0 / 10.0 đ</span>
+            </div>
+
+            <!-- Tiến độ mốc dừng -->
+            <div class="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-xs font-bold border border-indigo-200 dark:border-indigo-800 flex items-center gap-1.5">
+              <i class="fa-solid fa-bullseye text-rose-500"></i>
+              <span id="player-checkpoints-status">0 / ${sortedCheckpoints.length} mốc</span>
+            </div>
+
+            <!-- Nút Toàn Màn Hình Rạp Chiếu -->
+            <button type="button" id="btn-toggle-cinema-fullscreen" class="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center gap-1.5" title="Chế độ toàn màn hình học tập">
+              <i class="fa-solid fa-expand text-blue-500"></i> Toàn màn hình
             </button>
-
-            <!-- Nút Cài đặt câu hỏi (Dành cho Giáo viên & Admin) -->
-            ${isTeacher ? `
-              <button type="button" id="btn-player-edit-questions" class="px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition flex items-center gap-1.5">
-                <i class="fa-solid fa-sliders"></i> Cài đặt câu hỏi
-              </button>
-            ` : ''}
-
-            <!-- Nút Tải lên Archive.org cho Admin nếu đã có file local -->
-            ${isAdmin && hasLocal ? `
-              <button type="button" id="btn-player-admin-upload" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300 text-xs font-bold transition flex items-center gap-1.5">
-                <i class="fa-solid fa-cloud-arrow-up"></i> Up Archive.org
-              </button>
-            ` : ''}
-
-            <!-- Mốc dừng & Điểm số trực tiếp -->
-            <div class="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-700">
-              <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 text-xs font-bold">
-                <i class="fa-solid fa-stopwatch text-xs"></i>
-                <span id="player-checkpoints-status">0 / ${sortedCheckpoints.length} điểm dừng</span>
-              </span>
-
-              <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 text-xs font-black">
-                <i class="fa-solid fa-award text-amber-500"></i>
-                <span id="player-live-score">0.0 / 10.0 đ</span>
-              </span>
-            </div>
           </div>
         </div>
 
-        <!-- Video Player Main Viewport -->
-        <div class="relative w-full aspect-video rounded-3xl overflow-hidden bg-black shadow-2xl border border-slate-800">
-          <video id="interactive-video-elem" class="w-full h-full object-contain" controls playsinline preload="metadata" src="${escapeHtml(videoUrl)}">
-            Trình duyệt của bạn không hỗ trợ thẻ video HTML5.
-          </video>
+        <!-- Cinema Theater 2-Column Responsive Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          <!-- Cột 1: Sân Khấu Phát Video & Bộ Điều Khiển Tương Tác (70% Desktop) -->
+          <div class="lg:col-span-8 space-y-4">
+            
+            <!-- Video Viewport Stage -->
+            <div id="interactive-player-stage" class="relative w-full aspect-video rounded-3xl overflow-hidden bg-slate-950 shadow-2xl border border-slate-800 flex flex-col justify-end group select-none">
+              
+              <!-- Thẻ Video HTML5 -->
+              <video id="interactive-video-elem" class="absolute inset-0 w-full h-full object-contain cursor-pointer" playsinline preload="metadata" src="${escapeHtml(videoUrl)}">
+                Trình duyệt không hỗ trợ thẻ video HTML5.
+              </video>
 
-          <!-- Checkpoint Question Modal Overlay -->
-          <div id="video-quiz-overlay" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-md z-30 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-            <div id="video-quiz-content" class="w-full max-w-2xl bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-6 animate-scaleUp">
-              <!-- Nội dung câu hỏi tương tác được sinh động tại đây -->
+              <!-- Màn chắn Big Play/Pause Center Indicator -->
+              <div id="player-center-play-indicator" class="hidden absolute inset-0 bg-black/30 backdrop-blur-[2px] flex items-center justify-center pointer-events-none transition-all">
+                <div class="w-16 h-16 rounded-full bg-white/20 text-white backdrop-blur-md flex items-center justify-center text-3xl shadow-2xl scale-110">
+                  <i class="fa-solid fa-play ml-1"></i>
+                </div>
+              </div>
+
+              <!-- Lớp Cảnh Báo Toast Góc Màn Hình (Chống tua qua mốc, cảnh báo tốc độ) -->
+              <div id="player-screen-toast" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-2xl bg-slate-900/90 text-white text-xs font-bold backdrop-blur-md border border-amber-500/40 shadow-xl flex items-center gap-2 animate-fadeIn pointer-events-none">
+                <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
+                <span id="player-screen-toast-msg">Thông báo</span>
+              </div>
+
+              <!-- Checkpoint Quiz Modal Overlay (Nằm ngay trong Viewport để hiển thị trọn vẹn cả khi Fullscreen!) -->
+              <div id="video-quiz-overlay" class="hidden absolute inset-0 bg-slate-950/85 backdrop-blur-xl z-40 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+                <div id="video-quiz-content" class="w-full max-w-2xl bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-6 animate-scaleUp">
+                  <!-- Nội dung câu hỏi trắc nghiệm tương tác -->
+                </div>
+              </div>
+
+              <!-- Disqualification Modal Overlay (Khóa khi vi phạm quá 3 lần) -->
+              <div id="player-disqualify-overlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-2xl z-50 flex items-center justify-center p-6 text-center">
+                <div class="max-w-md w-full bg-slate-900 rounded-3xl p-8 border-2 border-rose-500 shadow-2xl space-y-4 text-white">
+                  <div class="w-16 h-16 rounded-full bg-rose-600/30 text-rose-500 flex items-center justify-center mx-auto text-3xl">
+                    <i class="fa-solid fa-ban"></i>
+                  </div>
+                  <h3 class="text-xl font-black text-rose-400">Bài Học Bị Đình Chỉ!</h3>
+                  <p class="text-xs text-slate-300 leading-relaxed">
+                    Bạn đã vi phạm quy chế giám sát học tập quá 3 lần (chuyển tab/ứng dụng hoặc rời cửa sổ). Điểm số đến thời điểm hiện tại đã được lưu lại và gửi tới Giáo viên.
+                  </p>
+                  <button type="button" id="btn-disqualify-exit" class="w-full py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition uppercase tracking-wider">
+                    Quay Về Danh Sách Bài Giảng
+                  </button>
+                </div>
+              </div>
+
+              <!-- Custom Video Controls Bar -->
+              <div class="relative z-10 w-full p-3 sm:p-4 bg-gradient-to-t from-black/90 via-black/60 to-transparent space-y-2 opacity-95 group-hover:opacity-100 transition-opacity">
+                
+                <!-- Interactive Seekbar Track with Checkpoint Flag Pins -->
+                <div id="player-custom-timeline-track" class="video-timeline-track w-full">
+                  <!-- Thanh tiến trình đã phát -->
+                  <div id="player-timeline-progress-fill" class="video-timeline-progress" style="width: 0%"></div>
+
+                  <!-- Các cờ mốc dừng (🚩 Pins) được đặt tại đúng tọa độ % -->
+                  <div id="player-timeline-pins-container" class="absolute inset-0 pointer-events-none">
+                    <!-- Sinh tự động bằng JS -->
+                  </div>
+                </div>
+
+                <!-- Control Buttons Row -->
+                <div class="flex items-center justify-between gap-3 text-white text-xs pt-1">
+                  
+                  <!-- Nút Play/Pause, Rewind, Time Text -->
+                  <div class="flex items-center gap-3">
+                    <button type="button" id="btn-custom-play-pause" class="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-md flex items-center justify-center text-sm transition text-white">
+                      <i class="fa-solid fa-play"></i>
+                    </button>
+
+                    <button type="button" id="btn-custom-rewind-10" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-xs transition text-slate-300 hover:text-white" title="Tua lại 10 giây">
+                      <i class="fa-solid fa-rotate-left"></i>
+                    </button>
+
+                    <span id="player-custom-time-display" class="font-mono text-[11px] text-slate-300 font-bold">
+                      00:00 / 00:00
+                    </span>
+                  </div>
+
+                  <!-- Volume, Tốc độ, Nguồn video, Fullscreen -->
+                  <div class="flex items-center gap-2.5">
+                    
+                    <!-- Nguồn video badge -->
+                    <span class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold ${badgeClass}" id="player-video-source-badge">
+                      <i class="fa-solid fa-video"></i> ${escapeHtml(sourceBadge)}
+                    </span>
+
+                    <!-- Tốc độ phát (Giới hạn tối đa 1.25x chống gian lận) -->
+                    <button type="button" id="btn-custom-playback-rate" class="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 font-mono text-[11px] font-bold transition">
+                      1.0x
+                    </button>
+
+                    <!-- Âm lượng -->
+                    <div class="flex items-center gap-1.5">
+                      <button type="button" id="btn-custom-mute" class="text-slate-300 hover:text-white transition">
+                        <i class="fa-solid fa-volume-high"></i>
+                      </button>
+                      <input type="range" id="input-custom-volume" min="0" max="1" step="0.05" value="1" class="w-14 sm:w-16 accent-blue-500 h-1 bg-white/30 rounded-lg cursor-pointer" />
+                    </div>
+
+                    <!-- Toàn màn hình -->
+                    <button type="button" id="btn-custom-fullscreen" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition text-slate-300 hover:text-white" title="Toàn màn hình">
+                      <i class="fa-solid fa-expand"></i>
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+
             </div>
-          </div>
-        </div>
 
-        <!-- Checkpoints Timeline Visual Track -->
-        <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
-          <div class="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-white">
-            <span class="flex items-center gap-2">
-              <i class="fa-solid fa-timeline text-blue-600"></i> Các mốc câu hỏi dừng trong bài giảng (${sortedCheckpoints.length} mốc)
-            </span>
-            <span class="text-slate-400 font-mono text-[11px]" id="player-video-time-text">00:00 / 00:00</span>
-          </div>
+            <!-- Thanh công cụ nhanh bên dưới Player: Nạp video, link URL, giáo viên thiết lập -->
+            <div class="flex items-center justify-between gap-3 flex-wrap bg-white dark:bg-slate-800 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs">
+              <div class="flex items-center gap-2 flex-wrap">
+                <!-- Chọn video từ máy tính -->
+                <label class="cursor-pointer px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold transition flex items-center gap-1.5">
+                  <i class="fa-solid fa-folder-open text-amber-500"></i> Chọn video máy tính
+                  <input type="file" id="input-player-choose-file" accept="video/mp4,video/*" class="hidden" />
+                </label>
 
-          <!-- Mốc dừng trực quan -->
-          <div class="flex items-center gap-2 flex-wrap" id="player-timeline-chips-container">
-            ${sortedCheckpoints.map(sec => {
-              const timeText = this.formatTime(sec);
-              const qCount = this.checkpointsMap[sec]?.length || 0;
-              return `
-                <button type="button" data-jump-to-sec="${sec}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 dark:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600">
-                  <i class="fa-solid fa-flag text-[10px] text-rose-500"></i>
-                  <span>${timeText}</span>
-                  <span class="px-1.5 py-0.2 rounded text-[10px] bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300">
-                    ${qCount} câu
-                  </span>
+                <!-- Đổi link URL -->
+                <button type="button" id="btn-player-custom-url" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition flex items-center gap-1.5">
+                  <i class="fa-solid fa-link text-blue-500"></i> Đổi link URL
                 </button>
-              `;
-            }).join('')}
-          </div>
-        </div>
 
-        <!-- Lesson Meta Info Card -->
-        <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <span class="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block mb-1">
-              ${escapeHtml(lesson.topic)} • Khối ${lesson.grade}
-            </span>
-            <h3 class="text-lg font-black text-slate-800 dark:text-white">
-              ${escapeHtml(lesson.lesson)}
-            </h3>
-            <p class="text-xs text-slate-400 mt-1">
-              Tệp video: <code class="font-mono text-blue-500">${escapeHtml(lesson.video)}</code>
-            </p>
+                <!-- Cài đặt câu hỏi cho Thầy Cô -->
+                ${isTeacher ? `
+                  <button type="button" id="btn-player-edit-questions" class="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-sliders"></i> Cài đặt câu hỏi
+                  </button>
+                ` : ''}
+
+                <!-- Admin Upload Archive -->
+                ${isAdmin && hasLocal ? `
+                  <button type="button" id="btn-player-admin-upload" class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 text-rose-300 font-bold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Up Archive.org
+                  </button>
+                ` : ''}
+              </div>
+
+              <div class="text-slate-400 text-[11px] font-mono">
+                Tệp: <span class="text-blue-600 font-bold">${escapeHtml(lesson.video)}</span>
+              </div>
+            </div>
+
           </div>
 
-          <div class="flex items-center gap-2 shrink-0">
-            <a href="${escapeHtml(videoUrl)}" target="_blank" download="${escapeHtml(lesson.video)}" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center gap-1.5">
-              <i class="fa-solid fa-download"></i> Tải MP4
-            </a>
+          <!-- Cột 2: Bảng Lộ Trình Mốc Dừng & Sổ Tay Ghi Chú Cá Nhân (30% Desktop) -->
+          <div class="lg:col-span-4 space-y-4">
+            
+            <!-- Card 1: Lộ Trình Mốc Dừng (Checkpoints Roadmap) -->
+            <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
+              <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700">
+                <h4 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                  <i class="fa-solid fa-route text-blue-600"></i> Lộ Trình Điểm Dừng
+                </h4>
+                <span class="text-[11px] font-bold text-slate-400">
+                  ${sortedCheckpoints.length} mốc kiến thức
+                </span>
+              </div>
+
+              <!-- Danh sách các bước mốc dừng -->
+              <div id="player-roadmap-steps-container" class="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                <!-- Được render tự động qua updateRoadmapUI() -->
+              </div>
+            </div>
+
+            <!-- Card 2: Sổ Tay Ghi Chú Cá Nhân Trực Tiếp (Quick Notes) -->
+            <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
+              <div class="flex items-center justify-between">
+                <h4 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                  <i class="fa-solid fa-book-bookmark text-amber-500"></i> Sổ Tay Ghi Chú Bài Học
+                </h4>
+                <span id="notes-save-indicator" class="text-[10px] text-emerald-600 font-bold hidden">
+                  <i class="fa-solid fa-check"></i> Đã lưu
+                </span>
+              </div>
+
+              <textarea id="player-student-notes" placeholder="Ghi chú lại những ý trọng tâm Thầy Cô giảng bài tại đây (tự động lưu vào máy)..." class="w-full h-24 p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 transition resize-none leading-relaxed">${escapeHtml(savedNotes)}</textarea>
+            </div>
+
+            <!-- Card 3: Quy Chế Giám Sát Phòng Học -->
+            <div class="p-4 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/40 text-xs text-slate-700 dark:text-slate-300 space-y-1.5 leading-relaxed">
+              <div class="font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-shield-halved"></i> Quy Chế Học Tập Giám Sát:
+              </div>
+              <ul class="list-disc list-inside space-y-1 text-[11px] text-slate-600 dark:text-slate-400">
+                <li>Video tự động dừng tại mốc kiến thức, học sinh trả lời để ghi điểm.</li>
+                <li>Không tua qua phần bài giảng có câu hỏi chưa hoàn thành.</li>
+                <li>Không chuyển tab hoặc vuốt thoát ứng dụng (tối đa 3 lần nhắc nhở).</li>
+                <li>Điểm số được bảo lưu tự động và truyền về Sổ điểm cá nhân.</li>
+              </ul>
+            </div>
+
           </div>
+
         </div>
 
       </div>
     `;
 
     this.bindPlayerEvents();
+    this.updateRoadmapUI();
+    this.initNotesArea();
   },
 
+  // Cập nhật giao diện thanh Lộ Trình Mốc Dừng (Roadmap)
+  updateRoadmapUI() {
+    const container = document.getElementById('player-roadmap-steps-container');
+    if (!container) return;
+
+    const nextUncompleted = this.getNextUncompletedCheckpoint();
+
+    container.innerHTML = this.sortedCheckpoints.map((sec, idx) => {
+      const isCompleted = this.completedCheckpoints.has(sec);
+      const isCurrentTarget = sec === nextUncompleted;
+      const questionsCount = this.checkpointsMap[sec]?.length || 0;
+      const timeStr = this.formatTime(sec);
+
+      let statusBadge = '';
+      let cardBorder = 'border-slate-200 dark:border-slate-700';
+      let cardBg = 'bg-slate-50 dark:bg-slate-900/60';
+      let iconColor = 'text-slate-400';
+
+      if (isCompleted) {
+        statusBadge = '<span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Đã hoàn thành</span>';
+        cardBorder = 'border-emerald-300 dark:border-emerald-800';
+        cardBg = 'bg-emerald-50/40 dark:bg-emerald-950/20';
+        iconColor = 'text-emerald-500';
+      } else if (isCurrentTarget) {
+        statusBadge = '<span class="text-[10px] font-black text-blue-600 dark:text-blue-400 flex items-center gap-1 animate-pulse"><i class="fa-solid fa-spinner fa-spin"></i> Mục tiêu kế tiếp</span>';
+        cardBorder = 'border-blue-400 dark:border-blue-600 shadow-sm';
+        cardBg = 'bg-blue-50/40 dark:bg-blue-950/30';
+        iconColor = 'text-blue-500';
+      } else {
+        statusBadge = '<span class="text-[10px] font-medium text-slate-400">Chờ đến mốc</span>';
+      }
+
+      return `
+        <div class="p-3 rounded-2xl border ${cardBorder} ${cardBg} transition flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <span class="w-7 h-7 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center font-mono font-bold text-xs ${iconColor} shadow-sm shrink-0">
+              ${idx + 1}
+            </span>
+            <div>
+              <div class="text-xs font-black text-slate-800 dark:text-white flex items-center gap-1.5">
+                <span>Mốc ${timeStr}</span>
+                <span class="text-[10px] font-normal text-slate-400 font-mono">(${sec}s)</span>
+              </div>
+              <span class="text-[11px] text-slate-500 dark:text-slate-400">
+                ${questionsCount} câu hỏi tương tác
+              </span>
+            </div>
+          </div>
+          <div>
+            ${statusBadge}
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  // Cập nhật vị trí các cờ mốc dừng (Flag Pins) trên thanh Seekbar
+  updateTimelinePins() {
+    const pinsContainer = document.getElementById('player-timeline-pins-container');
+    if (!pinsContainer || !this.videoElem) return;
+
+    const duration = this.videoElem.duration || 1;
+    if (duration <= 1 || isNaN(duration)) return;
+
+    const nextUncompleted = this.getNextUncompletedCheckpoint();
+
+    pinsContainer.innerHTML = this.sortedCheckpoints.map(sec => {
+      const percent = Math.min(100, Math.max(0, (sec / duration) * 100));
+      const isCompleted = this.completedCheckpoints.has(sec);
+      const isTarget = sec === nextUncompleted;
+
+      let pinColor = 'bg-slate-400';
+      let extraClass = '';
+      if (isCompleted) {
+        pinColor = 'bg-emerald-500';
+      } else if (isTarget) {
+        pinColor = 'bg-blue-500 pin-next-target';
+      } else {
+        pinColor = 'bg-rose-500';
+      }
+
+      return `
+        <div class="video-checkpoint-pin ${pinColor} ${extraClass}" style="left: ${percent.toFixed(2)}%" title="Mốc dừng: ${this.formatTime(sec)}"></div>
+      `;
+    }).join('');
+  },
+
+  // ==========================================
+  // 5. GẮN SỰ KIỆN PLAYER & CHỐNG GIAN LẬN THỜI GIAN THỰC
+  // ==========================================
   bindPlayerEvents() {
     const btnBack = document.getElementById('btn-back-to-lessons');
     if (btnBack) {
       btnBack.onclick = () => {
-        if (confirm('Bạn có muốn dừng phiên học này và quay về danh sách bài giảng?')) {
+        if (confirm('Bạn có chắc muốn thoát phòng học video? Điểm số đến hiện tại sẽ được lưu trữ.')) {
           this.cleanupActivePlayer();
           this.activeLesson = null;
           this.render();
@@ -742,23 +1083,150 @@ export const InteractiveVideo = {
     }
 
     const video = document.getElementById('interactive-video-elem');
+    const stage = document.getElementById('interactive-player-stage');
     this.videoElem = video;
+    this.playerStageElem = stage;
 
     if (video) {
-      // Cập nhật mốc thời gian hiển thị & kiểm tra mốc dừng
+      // 1. Khi metadata tải xong: khởi tạo thời lượng và cờ pins
+      video.onloadedmetadata = () => {
+        this.updateTimelinePins();
+        this.updatePlayerTimeUI(video.currentTime, video.duration);
+      };
+
+      // 2. Cập nhật thời gian liên tục: BẮT CHẶN MỐC DỪNG KHÔNG BỎ SÓT FRAME NÀO
       video.ontimeupdate = () => {
         this.handleVideoTimeUpdate(video);
       };
 
-      // Khi video kết thúc
+      // 3. Chống tua qua mốc chưa hoàn thành (Anti-Skip / Anti-Scrubbing Guard)
+      video.onseeking = () => {
+        if (this.isDisqualified) return;
+        const nextCp = this.getNextUncompletedCheckpoint();
+        if (nextCp !== null && video.currentTime > nextCp + 0.3) {
+          video.pause();
+          video.currentTime = nextCp;
+          this.showToastNotification('⚠️ Không thể tua qua mốc câu hỏi chưa hoàn thành!', 'warning');
+          this.triggerCheckpointQuiz(nextCp);
+        }
+      };
+
+      // 4. Giới hạn tốc độ phát tối đa 1.25x (Anti-Speed Hack)
+      video.onratechange = () => {
+        if (video.playbackRate > 1.25) {
+          video.playbackRate = 1.0;
+          const rateBtn = document.getElementById('btn-custom-playback-rate');
+          if (rateBtn) rateBtn.textContent = '1.0x';
+          this.showToastNotification('⚠️ Tốc độ phát tối đa là 1.25x để đảm bảo hiệu quả tiếp thu kiến thức!', 'warning');
+        }
+      };
+
+      // 5. Khi video kết thúc
       video.onended = () => {
         this.handleVideoEnded();
       };
 
-      // Xử lý khi video bị lỗi tải (ví dụ chưa upload lên Archive.org và chưa chọn file local)
+      // 6. Xử lý khi video bị lỗi tải từ đám mây Archive.org
       video.onerror = () => {
         console.warn('InteractiveVideo: Video không phát được từ URL:', video.src);
         this.renderVideoErrorFallback();
+      };
+
+      // 7. Click lên video để Play/Pause
+      video.onclick = () => {
+        this.togglePlayPause();
+      };
+    }
+
+    // Nút Play/Pause tùy chỉnh
+    const btnPlayPause = document.getElementById('btn-custom-play-pause');
+    if (btnPlayPause) {
+      btnPlayPause.onclick = (e) => {
+        e.stopPropagation();
+        this.togglePlayPause();
+      };
+    }
+
+    // Nút Tua lại 10s
+    const btnRewind = document.getElementById('btn-custom-rewind-10');
+    if (btnRewind) {
+      btnRewind.onclick = (e) => {
+        e.stopPropagation();
+        if (this.videoElem) {
+          this.videoElem.currentTime = Math.max(0, this.videoElem.currentTime - 10);
+        }
+      };
+    }
+
+    // Tua bài trên thanh Seekbar tùy chỉnh (có kiểm tra chống tua qua mốc)
+    const timelineTrack = document.getElementById('player-custom-timeline-track');
+    if (timelineTrack) {
+      timelineTrack.onclick = (e) => {
+        if (!this.videoElem || !this.videoElem.duration) return;
+        const rect = timelineTrack.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const percent = Math.max(0, Math.min(1, clickX / rect.width));
+        const targetSec = percent * this.videoElem.duration;
+
+        const nextCp = this.getNextUncompletedCheckpoint();
+        if (nextCp !== null && targetSec > nextCp + 0.3) {
+          this.videoElem.currentTime = nextCp;
+          this.showToastNotification('⚠️ Bạn chỉ có thể tua lại phần đã học, không được tua qua câu hỏi chưa hoàn thành!', 'warning');
+          this.triggerCheckpointQuiz(nextCp);
+        } else {
+          this.videoElem.currentTime = targetSec;
+        }
+      };
+    }
+
+    // Điều chỉnh tốc độ phát
+    const btnRate = document.getElementById('btn-custom-playback-rate');
+    if (btnRate) {
+      btnRate.onclick = () => {
+        if (!this.videoElem) return;
+        const currentRate = this.videoElem.playbackRate;
+        let newRate = 1.0;
+        if (currentRate === 1.0) newRate = 1.25;
+        else if (currentRate === 1.25) newRate = 0.75;
+        else newRate = 1.0;
+
+        this.videoElem.playbackRate = newRate;
+        btnRate.textContent = `${newRate}x`;
+      };
+    }
+
+    // Âm lượng và Tắt tiếng
+    const btnMute = document.getElementById('btn-custom-mute');
+    const inputVolume = document.getElementById('input-custom-volume');
+    if (btnMute && inputVolume) {
+      btnMute.onclick = () => {
+        if (!this.videoElem) return;
+        this.videoElem.muted = !this.videoElem.muted;
+        btnMute.innerHTML = this.videoElem.muted 
+          ? '<i class="fa-solid fa-volume-xmark text-rose-400"></i>' 
+          : '<i class="fa-solid fa-volume-high"></i>';
+      };
+      inputVolume.oninput = (e) => {
+        if (!this.videoElem) return;
+        this.videoElem.volume = Number(e.target.value);
+        this.videoElem.muted = false;
+        btnMute.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
+      };
+    }
+
+    // Chế độ toàn màn hình sân khấu rạp chiếu (Fullscreen Stage)
+    const btnCinemaFs = document.getElementById('btn-toggle-cinema-fullscreen');
+    const btnCustomFs = document.getElementById('btn-custom-fullscreen');
+    if (btnCinemaFs) btnCinemaFs.onclick = () => this.togglePlayerFullscreen();
+    if (btnCustomFs) btnCustomFs.onclick = () => this.togglePlayerFullscreen();
+
+    // Nút thoát khi bị đình chỉ
+    const btnDisqualifyExit = document.getElementById('btn-disqualify-exit');
+    if (btnDisqualifyExit) {
+      btnDisqualifyExit.onclick = () => {
+        this.cleanupActivePlayer();
+        this.activeLesson = null;
+        this.render();
       };
     }
 
@@ -778,8 +1246,8 @@ export const InteractiveVideo = {
           this.removeVideoErrorFallback();
           const badge = document.getElementById('player-video-source-badge');
           if (badge) {
-            badge.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300';
-            badge.innerHTML = `<i class="fa-solid fa-hard-drive"></i> File máy tính: ${escapeHtml(file.name)}`;
+            badge.className = 'hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300';
+            badge.innerHTML = `<i class="fa-solid fa-hard-drive"></i> Tệp máy tính: ${escapeHtml(file.name)}`;
           }
         }
       };
@@ -819,17 +1287,106 @@ export const InteractiveVideo = {
         }
       };
     }
+  },
 
-    // Nút nhảy đến mốc thời gian
-    this.container.querySelectorAll('[data-jump-to-sec]').forEach(btn => {
-      btn.onclick = () => {
-        const sec = Number(btn.getAttribute('data-jump-to-sec'));
-        if (this.videoElem) {
-          this.videoElem.currentTime = Math.max(0, sec - 2);
-          this.videoElem.play().catch(() => {});
+  // Bật/tắt phát video
+  togglePlayPause() {
+    if (!this.videoElem || this.isDisqualified) return;
+    const btn = document.getElementById('btn-custom-play-pause');
+    const indicator = document.getElementById('player-center-play-indicator');
+
+    if (this.videoElem.paused) {
+      this.videoElem.play().then(() => {
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+        if (indicator) indicator.classList.add('hidden');
+      }).catch(() => {});
+    } else {
+      this.videoElem.pause();
+      if (btn) btn.innerHTML = '<i class="fa-solid fa-play"></i>';
+      if (indicator) indicator.classList.remove('hidden');
+    }
+  },
+
+  // Bật/tắt chế độ toàn màn hình cho toàn bộ Stage (để Modal câu hỏi nổi trên cùng trọn vẹn)
+  togglePlayerFullscreen() {
+    const stage = document.getElementById('interactive-player-stage');
+    if (!stage) return;
+
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      if (stage.requestFullscreen) {
+        stage.requestFullscreen().catch(() => {});
+      } else if (stage.webkitRequestFullscreen) {
+        stage.webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
+    }
+  },
+
+  // Cập nhật giao diện thời gian phát
+  updatePlayerTimeUI(curTime, duration) {
+    const timeText = document.getElementById('player-custom-time-display');
+    const progressFill = document.getElementById('player-timeline-progress-fill');
+
+    if (timeText) {
+      timeText.textContent = `${this.formatTime(curTime)} / ${this.formatTime(duration)}`;
+    }
+
+    if (progressFill && duration > 0) {
+      const pct = Math.min(100, (curTime / duration) * 100);
+      progressFill.style.width = `${pct.toFixed(2)}%`;
+    }
+  },
+
+  // Hiển thị thông báo Toast nhanh trên khung video
+  showToastNotification(msg, type = 'info') {
+    const toast = document.getElementById('player-screen-toast');
+    const msgEl = document.getElementById('player-screen-toast-msg');
+    if (!toast || !msgEl) return;
+
+    msgEl.textContent = msg;
+    toast.classList.remove('hidden');
+
+    if (this._toastTimer) clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => {
+      toast.classList.add('hidden');
+    }, 3200);
+  },
+
+  // Khởi tạo vùng ghi chú của học sinh
+  initNotesArea() {
+    const notesArea = document.getElementById('player-student-notes');
+    const indicator = document.getElementById('notes-save-indicator');
+    if (!notesArea || !this.activeLesson) return;
+
+    notesArea.oninput = () => {
+      if (this.notesSaveTimeout) clearTimeout(this.notesSaveTimeout);
+      this.notesSaveTimeout = setTimeout(() => {
+        this.saveStudentNotes(this.activeLesson.video, notesArea.value);
+        if (indicator) {
+          indicator.classList.remove('hidden');
+          setTimeout(() => indicator.classList.add('hidden'), 2000);
         }
-      };
-    });
+      }, 500);
+    };
+  },
+
+  saveStudentNotes(videoFile, text) {
+    try {
+      localStorage.setItem(`tinhoc_video_notes_${videoFile}`, text || '');
+    } catch (e) {}
+  },
+
+  getStudentNotes(videoFile) {
+    try {
+      return localStorage.getItem(`tinhoc_video_notes_${videoFile}`) || '';
+    } catch (e) {
+      return '';
+    }
   },
 
   // Hiển thị khung thông báo khi video chưa có trên Archive.org
@@ -842,7 +1399,7 @@ export const InteractiveVideo = {
     if (!fallback) {
       fallback = document.createElement('div');
       fallback.id = 'video-error-fallback';
-      fallback.className = 'absolute inset-0 bg-slate-950/90 backdrop-blur-md z-20 flex flex-col items-center justify-center p-6 text-center space-y-4 animate-fadeIn';
+      fallback.className = 'absolute inset-0 bg-slate-950/90 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 text-center space-y-4 animate-fadeIn';
       parent.appendChild(fallback);
     }
 
@@ -906,31 +1463,52 @@ export const InteractiveVideo = {
       clearInterval(this.countdownInterval);
       this.countdownInterval = null;
     }
+    if (this.keyboardListener) {
+      window.removeEventListener('keydown', this.keyboardListener);
+      this.keyboardListener = null;
+    }
     if (this.videoElem) {
       this.videoElem.pause();
       this.videoElem = null;
     }
+    // Dừng hệ thống giám sát thi
+    Proctor.stop();
   },
 
+  // ==========================================
+  // 6. XỬ LÝ MỐC DỪNG CHUẨN XÁC TUYỆT ĐỐI (KHÔNG BAO GIỜ BỎ SÓT)
+  // ==========================================
   handleVideoTimeUpdate(video) {
-    const curTime = Math.floor(video.currentTime);
-    const duration = Math.floor(video.duration || 0);
+    if (this.isDisqualified) return;
+    const curTime = video.currentTime;
+    const duration = video.duration || 0;
 
-    const timeText = document.getElementById('player-video-time-text');
-    if (timeText) {
-      timeText.textContent = `${this.formatTime(curTime)} / ${this.formatTime(duration)}`;
+    // Cập nhật giao diện
+    this.updatePlayerTimeUI(curTime, duration);
+
+    // Tìm mốc câu hỏi chưa hoàn thành tiếp theo
+    const nextCp = this.getNextUncompletedCheckpoint();
+    if (nextCp !== null && curTime >= nextCp) {
+      // Dừng video ngay tức khắc
+      video.pause();
+      video.currentTime = nextCp; // Cố định đúng giây mốc dừng
+
+      // Nếu đang mở Fullscreen của riêng thẻ video, thoát ra để modal hiển thị trọn vẹn
+      if (document.fullscreenElement === video) {
+        if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+      }
+
+      this.triggerCheckpointQuiz(nextCp);
+      return;
     }
 
-    // Kiểm tra xem giây hiện tại có trùng với mốc câu hỏi dừng chưa hoàn thành hay không
-    if (this.checkpointsMap[curTime] && !this.completedCheckpoints.has(curTime)) {
-      video.pause();
-      this.triggerCheckpointQuiz(curTime);
+    // Ghi nhận thời gian an toàn đã xem qua
+    if (nextCp === null || curTime < nextCp) {
+      this.lastAllowedTime = curTime;
     }
   },
 
-  // ==========================================
-  // 4. KÍCH HOẠT LỚP CÂU HỎI TƯƠNG TÁC TẠI MỐC DỪNG
-  // ==========================================
+  // Kích hoạt lớp câu hỏi tương tác tại mốc dừng
   triggerCheckpointQuiz(stopSec) {
     this.currentCheckpointSec = stopSec;
     this.currentCheckpointQuestions = this.checkpointsMap[stopSec] || [];
@@ -940,6 +1518,9 @@ export const InteractiveVideo = {
     if (overlay) {
       overlay.classList.remove('hidden');
     }
+
+    // Cập nhật Roadmap highlight
+    this.updateRoadmapUI();
 
     this.renderCurrentCheckpointQuestion();
   },
@@ -954,44 +1535,54 @@ export const InteractiveVideo = {
     const overlayContent = document.getElementById('video-quiz-content');
     if (!overlayContent) return;
 
-    // Reset countdown timer
+    // Thời gian đếm ngược
     const timeLimit = Math.max(10, Number(q.video_time) || 15);
     this.countdownSeconds = timeLimit;
+    this.totalCountdownSeconds = timeLimit;
 
     const timeFormatted = this.formatTime(this.currentCheckpointSec);
 
     overlayContent.innerHTML = `
       <div class="space-y-5 animate-fadeIn">
-        <!-- Header mốc dừng & Đồng hồ đếm ngược -->
+        
+        <!-- Header Mốc Dừng & Đồng Hồ Đếm Ngược Hình Tròn (SVG Circular Timer) -->
         <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
-          <div class="flex items-center gap-2">
-            <span class="w-8 h-8 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold text-sm">
+          <div class="flex items-center gap-3">
+            <span class="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold text-base shadow-inner shrink-0">
               <i class="fa-solid fa-bullseye"></i>
             </span>
             <div>
-              <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-white">
-                Mốc Tương Tác: ${timeFormatted}
+              <h4 class="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-white flex items-center gap-2">
+                <span>Mốc Dừng Kiến Thức: ${timeFormatted}</span>
+                <span class="px-2 py-0.5 rounded text-[10px] bg-rose-100 text-rose-700 dark:bg-rose-950/60 font-mono font-bold">
+                  ${this.currentCheckpointSec}s
+                </span>
               </h4>
-              <span class="text-[11px] text-slate-400">
-                Câu hỏi ${this.currentQuestionIdx + 1} / ${this.currentCheckpointQuestions.length}
+              <span class="text-[11px] text-slate-400 font-medium">
+                Câu hỏi ${this.currentQuestionIdx + 1} / ${this.currentCheckpointQuestions.length} tại mốc này
               </span>
             </div>
           </div>
 
-          <!-- Countdown timer ring -->
-          <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 font-mono text-xs font-black">
-            <i class="fa-solid fa-stopwatch animate-pulse"></i>
-            <span id="quiz-countdown-display">${this.countdownSeconds}s</span>
+          <!-- Circular SVG Countdown Timer -->
+          <div class="relative w-12 h-12 flex items-center justify-center shrink-0">
+            <svg class="w-12 h-12 timer-circle-svg" viewBox="0 0 48 48">
+              <circle cx="24" cy="24" r="20" stroke="currentColor" stroke-width="3.5" fill="none" class="text-slate-100 dark:text-slate-700" />
+              <circle id="quiz-timer-circle" cx="24" cy="24" r="20" stroke="currentColor" stroke-width="3.5" fill="none"
+                stroke-dasharray="125.6" stroke-dashoffset="0"
+                class="text-blue-600 dark:text-blue-400 timer-circle-path" />
+            </svg>
+            <span id="quiz-countdown-display" class="absolute font-mono font-black text-xs text-slate-800 dark:text-white">${this.countdownSeconds}s</span>
           </div>
         </div>
 
         <!-- Nội dung câu hỏi -->
         <div class="space-y-3">
           <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${q.level === 'DS' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}">
-              ${q.level === 'DS' ? 'Đúng / Sai' : `Mức ${q.level}`}
+            <span class="px-2.5 py-0.5 rounded-md text-[10px] font-black ${q.level === 'DS' ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'}">
+              ${q.level === 'DS' ? 'Đúng / Sai' : `Mức ${q.level} (GDPT 2018)`}
             </span>
-            <span class="text-[11px] text-slate-400">Trả lời nhanh để ghi điểm bài giảng</span>
+            <span class="text-[11px] text-slate-400">Dùng chuột hoặc phím tắt <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 font-mono font-bold text-[10px]">A</kbd> <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 font-mono font-bold text-[10px]">B</kbd> <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 font-mono font-bold text-[10px]">C</kbd> <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 font-mono font-bold text-[10px]">D</kbd></span>
           </div>
 
           <h3 class="text-sm sm:text-base font-black text-slate-800 dark:text-white leading-relaxed">
@@ -1005,10 +1596,10 @@ export const InteractiveVideo = {
             const letter = ['A', 'B', 'C', 'D'][i];
             return `
               <button type="button" data-quiz-choice="${letter}" class="w-full text-left p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition flex items-start gap-3 group">
-                <span class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-black text-xs flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition">
+                <span class="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-black text-xs flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition shadow-sm">
                   ${letter}
                 </span>
-                <span class="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200 flex-1 leading-normal">
+                <span class="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200 flex-1 leading-normal pt-0.5">
                   ${escapeHtml(opt)}
                 </span>
               </button>
@@ -1023,7 +1614,7 @@ export const InteractiveVideo = {
 
         <!-- Nút hành động tiếp tục -->
         <div id="quiz-action-area" class="hidden pt-2 flex justify-end">
-          <button type="button" id="btn-next-quiz-step" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-blue-500/20 flex items-center gap-2">
+          <button type="button" id="btn-next-quiz-step" class="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-blue-500/20 flex items-center gap-2">
             Tiếp tục bài giảng <i class="fa-solid fa-arrow-right"></i>
           </button>
         </div>
@@ -1032,24 +1623,38 @@ export const InteractiveVideo = {
 
     this.startCountdownTimer();
     this.bindQuizOptionEvents(q);
+    this.bindQuizKeyboardShortcuts(q);
   },
 
   startCountdownTimer() {
     if (this.countdownInterval) clearInterval(this.countdownInterval);
 
     const display = document.getElementById('quiz-countdown-display');
+    const circle = document.getElementById('quiz-timer-circle');
+
     this.countdownInterval = setInterval(() => {
       this.countdownSeconds--;
+
       if (display) {
         display.textContent = `${this.countdownSeconds}s`;
-        if (this.countdownSeconds <= 3) {
-          display.parentElement?.classList.add('bg-rose-100', 'text-rose-700', 'border-rose-300');
+      }
+
+      if (circle) {
+        const offset = 125.6 * (1 - this.countdownSeconds / this.totalCountdownSeconds);
+        circle.style.strokeDashoffset = offset;
+
+        if (this.countdownSeconds <= 4) {
+          circle.classList.remove('text-blue-600', 'text-amber-500');
+          circle.classList.add('text-rose-600');
+        } else if (this.countdownSeconds <= 8) {
+          circle.classList.remove('text-blue-600');
+          circle.classList.add('text-amber-500');
         }
       }
 
       if (this.countdownSeconds <= 0) {
         clearInterval(this.countdownInterval);
-        this.handleQuizAnswer(null); // Hết giờ: coi như chưa chọn
+        this.handleQuizAnswer(null); // Hết giờ: tính là chưa trả lời
       }
     }, 1000);
   },
@@ -1067,11 +1672,51 @@ export const InteractiveVideo = {
     });
   },
 
+  bindQuizKeyboardShortcuts(question) {
+    if (this.keyboardListener) {
+      window.removeEventListener('keydown', this.keyboardListener);
+    }
+
+    this.keyboardListener = (e) => {
+      const key = (e.key || '').toUpperCase();
+      const actionArea = document.getElementById('quiz-action-area');
+      const isActionVisible = actionArea && !actionArea.classList.contains('hidden');
+
+      if (isActionVisible && (key === 'ENTER' || key === ' ')) {
+        e.preventDefault();
+        document.getElementById('btn-next-quiz-step')?.click();
+        return;
+      }
+
+      if (['A', 'B', 'C', 'D'].includes(key) || ['1', '2', '3', '4'].includes(key)) {
+        let choice = key;
+        if (key === '1') choice = 'A';
+        if (key === '2') choice = 'B';
+        if (key === '3') choice = 'C';
+        if (key === '4') choice = 'D';
+
+        const btn = document.querySelector(`[data-quiz-choice="${choice}"]`);
+        if (btn && !btn.disabled) {
+          e.preventDefault();
+          if (this.countdownInterval) clearInterval(this.countdownInterval);
+          this.handleQuizAnswer(choice, question);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', this.keyboardListener);
+  },
+
   handleQuizAnswer(userChoice, question) {
     const q = question || this.currentCheckpointQuestions[this.currentQuestionIdx];
     if (!q) return;
 
-    // Vô hiệu hóa các nút lựa chọn
+    // Vô hiệu hóa phím tắt và các nút bấm
+    if (this.keyboardListener) {
+      window.removeEventListener('keydown', this.keyboardListener);
+      this.keyboardListener = null;
+    }
+
     const container = document.getElementById('quiz-options-container');
     if (container) {
       container.querySelectorAll('button').forEach(b => {
@@ -1167,25 +1812,35 @@ export const InteractiveVideo = {
       overlay.classList.add('hidden');
     }
 
-    // Cập nhật trạng thái mốc dừng
+    // Cập nhật trạng thái mốc dừng trên header & timeline pins
     const statusEl = document.getElementById('player-checkpoints-status');
-    const sortedCheckpoints = Object.keys(this.checkpointsMap).map(Number).sort((a, b) => a - b);
     if (statusEl) {
-      statusEl.textContent = `${this.completedCheckpoints.size} / ${sortedCheckpoints.length} điểm dừng`;
+      statusEl.textContent = `${this.completedCheckpoints.size} / ${this.sortedCheckpoints.length} mốc`;
     }
+
+    this.updateTimelinePins();
+    this.updateRoadmapUI();
 
     // Tiếp tục phát video
     if (this.videoElem) {
-      this.videoElem.play().catch(() => {});
+      this.videoElem.play().then(() => {
+        const btn = document.getElementById('btn-custom-play-pause');
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+        const indicator = document.getElementById('player-center-play-indicator');
+        if (indicator) indicator.classList.add('hidden');
+      }).catch(() => {});
     }
   },
 
   // ==========================================
-  // 5. KẾT THÚC BÀI GIẢNG VÀ TRUYỀN ĐIỂM THỜI GIAN THỰC LÊN CLOUD
+  // 7. KẾT THÚC BÀI GIẢNG VÀ TRUYỀN ĐIỂM THỜI GIAN THỰC LÊN CLOUD
   // ==========================================
   handleVideoEnded() {
     const finalScore = Math.min(10.0, Math.round(this.scoreEarned * 10) / 10);
     const lesson = this.activeLesson;
+
+    // Dừng hệ thống giám sát
+    Proctor.stop();
 
     // Lưu điểm vào Storage & tự động bắn lên Firebase Cloud Database
     const examResult = {

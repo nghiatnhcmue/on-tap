@@ -453,7 +453,8 @@ body.in-proctored-exam img {
 }
 
 /* Màn chắn làm mờ tức thì khi rời cửa sổ hoặc chụp màn hình (Anti-Screenshot Shield) */
-body.proctor-privacy-shield #view-exam-room {
+body.proctor-privacy-shield #view-exam-room,
+body.proctor-privacy-shield #view-interactive-video {
   filter: blur(22px) grayscale(80%) !important;
   pointer-events: none !important;
   transition: filter 0.05s ease-out !important;
@@ -522,3 +523,63 @@ body.proctor-privacy-shield #view-exam-room {
     margin-top: 4px;
   }
 }
+
+/* =========================================================
+   11. PHÒNG HỌC VIDEO TƯƠNG TÁC (INTERACTIVE CINEMA PLAYER)
+   ========================================================= */
+.video-timeline-track {
+  position: relative;
+  height: 8px;
+  border-radius: 9999px;
+  background-color: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: height 0.15s ease;
+}
+.video-timeline-track:hover {
+  height: 12px;
+}
+.video-timeline-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #3b82f6, #6366f1);
+  pointer-events: none;
+}
+.video-checkpoint-pin {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  border: 2px solid #ffffff;
+  z-index: 10;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+.video-checkpoint-pin:hover {
+  transform: translate(-50%, -50%) scale(1.4);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
+}
+.video-checkpoint-pin.pin-next-target {
+  animation: checkpoint-pulse 1.4s infinite ease-in-out;
+}
+@keyframes checkpoint-pulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.35);
+    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0);
+  }
+}
+.timer-circle-svg {
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+.timer-circle-path {
+  transition: stroke-dashoffset 1s linear, stroke 0.3s ease;
+}
+
