@@ -45,7 +45,7 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261029_31" />
+  <link rel="stylesheet" href="css/style.css?v=20261029_32" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -939,30 +939,96 @@
       <!-- BỘ CÔNG CỤ TRỘN ĐỀ THEO BÀI, THEO CHỦ ĐỀ, THEO KHỐI -->
       <div class="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
         
-        <!-- Header & Segmented Tabs -->
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-700">
-          <div>
-            <h3 class="text-base sm:text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-              <i class="fa-solid fa-wand-magic-sparkles text-blue-600"></i> Luyện Thi & Kiểm Tra Trực Tuyến
+        <!-- Header -->
+        <div class="pb-2 border-b border-slate-100 dark:border-slate-700/80">
+          <div class="flex items-center gap-2.5 mb-1">
+            <span class="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm shrink-0">
+              <i class="fa-solid fa-layer-group"></i>
+            </span>
+            <h3 class="text-base sm:text-lg font-black text-slate-800 dark:text-white">
+              Chọn Hình Thức Luyện Đề & Thi Thử
             </h3>
-            <p class="text-xs text-slate-400 mt-0.5">Lựa chọn cấu trúc đề: Cấu trúc Bộ GD 2025, theo Chủ đề, theo Bài học hoặc Ma trận đề</p>
           </div>
+          <p class="text-xs text-slate-400 pl-10.5">
+            Lựa chọn chế độ làm bài phù hợp với nhu cầu ôn luyện của bạn
+          </p>
+        </div>
 
-          <!-- Mode Selector Tabs -->
-          <div class="flex items-center gap-1.5 p-1.5 bg-slate-100 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-700/60 self-start lg:self-auto overflow-x-auto max-w-full">
-            <button type="button" id="tab-exam-mode-bgd" data-exam-tab="bgd" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm transition whitespace-nowrap">
-              <i class="fa-solid fa-award mr-1"></i> Chuẩn Bộ GD 2025
-            </button>
-            <button type="button" id="tab-exam-mode-topic" data-exam-tab="topic" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 transition whitespace-nowrap">
-              <i class="fa-solid fa-folder-tree mr-1"></i> Theo Chủ Đề
-            </button>
-            <button type="button" id="tab-exam-mode-lesson" data-exam-tab="lesson" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 transition whitespace-nowrap">
-              <i class="fa-solid fa-book-bookmark mr-1"></i> Theo Bài Học (15p)
-            </button>
-            <button type="button" id="tab-exam-mode-matrix" data-exam-tab="matrix" data-role-req="teacher" class="hidden px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 transition whitespace-nowrap">
-              <i class="fa-solid fa-sliders mr-1"></i> Ma Trận Đề (GV)
-            </button>
-          </div>
+        <!-- Mode Selector Cards Grid (Dễ nhìn, trực quan, không bị co cụm) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          
+          <!-- Card 1: Chuẩn Bộ GD 2025 -->
+          <button type="button" id="tab-exam-mode-bgd" data-exam-tab="bgd" class="exam-mode-card group relative p-4 rounded-2xl border-2 text-left transition-all duration-200 border-blue-600 bg-blue-50/60 dark:bg-blue-950/40 ring-2 ring-blue-500/20 shadow-sm cursor-pointer">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center text-base shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform shrink-0">
+                <i class="fa-solid fa-award"></i>
+              </div>
+              <span class="mode-badge px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-blue-600 text-white shadow-xs">
+                Cấu trúc mới
+              </span>
+            </div>
+            <h4 class="font-extrabold text-sm text-slate-800 dark:text-white group-hover:text-blue-600 transition-colors">
+              Chuẩn Bộ GD 2025
+            </h4>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+              28 câu = 10.0 điểm • 50 phút (24 trắc nghiệm + 4 đúng/sai)
+            </p>
+          </button>
+
+          <!-- Card 2: Theo Chủ Đề -->
+          <button type="button" id="tab-exam-mode-topic" data-exam-tab="topic" class="exam-mode-card group relative p-4 rounded-2xl border-2 text-left transition-all duration-200 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-sm cursor-pointer">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-base group-hover:scale-105 transition-transform shrink-0">
+                <i class="fa-solid fa-folder-tree"></i>
+              </div>
+              <span class="mode-badge px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                Chuyên sâu
+              </span>
+            </div>
+            <h4 class="font-extrabold text-sm text-slate-800 dark:text-white group-hover:text-indigo-600 transition-colors">
+              Luyện Theo Chủ Đề
+            </h4>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+              Ôn tập trọng tâm từng chủ đề • Tùy chỉnh số câu & thời gian
+            </p>
+          </button>
+
+          <!-- Card 3: Theo Bài Học -->
+          <button type="button" id="tab-exam-mode-lesson" data-exam-tab="lesson" class="exam-mode-card group relative p-4 rounded-2xl border-2 text-left transition-all duration-200 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-sm cursor-pointer">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center text-base group-hover:scale-105 transition-transform shrink-0">
+                <i class="fa-solid fa-book-bookmark"></i>
+              </div>
+              <span class="mode-badge px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                Kiểm tra 15p
+              </span>
+            </div>
+            <h4 class="font-extrabold text-sm text-slate-800 dark:text-white group-hover:text-teal-600 transition-colors">
+              Luyện Theo Bài Học
+            </h4>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+              Kiểm tra nhanh kiến thức từng bài • 10 - 25 câu ngắn gọn
+            </p>
+          </button>
+
+          <!-- Card 4 (Dành cho Giáo viên): Ma Trận Đề -->
+          <button type="button" id="tab-exam-mode-matrix" data-exam-tab="matrix" data-role-req="teacher" class="hidden exam-mode-card group relative p-4 rounded-2xl border-2 text-left transition-all duration-200 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-sm cursor-pointer">
+            <div class="flex items-center justify-between mb-3">
+              <div class="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center text-base group-hover:scale-105 transition-transform shrink-0">
+                <i class="fa-solid fa-sliders"></i>
+              </div>
+              <span class="mode-badge px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
+                Giáo viên
+              </span>
+            </div>
+            <h4 class="font-extrabold text-sm text-slate-800 dark:text-white group-hover:text-amber-600 transition-colors">
+              Ma Trận Tự Do (GV)
+            </h4>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+              Tự phối hợp ma trận cấp độ nhận thức (Nhận biết, Thông hiểu...)
+            </p>
+          </button>
+
         </div>
 
         <!-- 1. PANEL: ĐỀ CHUẨN BỘ GD&ĐT 2025 -->
@@ -2534,7 +2600,7 @@
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261029_31"></script>
+  <script type="module" src="js/app.js?v=20261029_32"></script>
 </body>
 </html>
 

@@ -765,15 +765,28 @@ class App {
         const targetMode = tab.getAttribute('data-exam-tab');
         modeTabs.forEach(t => {
           const isSelected = (t === tab);
-          t.classList.toggle('bg-white', isSelected);
-          t.classList.toggle('dark:bg-slate-800', isSelected);
-          t.classList.toggle('text-blue-600', isSelected);
-          t.classList.toggle('dark:text-blue-400', isSelected);
+          t.classList.toggle('border-blue-600', isSelected);
+          t.classList.toggle('bg-blue-50/60', isSelected);
+          t.classList.toggle('dark:bg-blue-950/40', isSelected);
+          t.classList.toggle('ring-2', isSelected);
+          t.classList.toggle('ring-blue-500/20', isSelected);
           t.classList.toggle('shadow-sm', isSelected);
-          t.classList.toggle('font-bold', isSelected);
-          t.classList.toggle('font-semibold', !isSelected);
-          t.classList.toggle('text-slate-600', !isSelected);
-          t.classList.toggle('dark:text-slate-300', !isSelected);
+
+          t.classList.toggle('border-slate-200', !isSelected);
+          t.classList.toggle('dark:border-slate-700', !isSelected);
+          t.classList.toggle('bg-white', !isSelected);
+          t.classList.toggle('dark:bg-slate-800/80', !isSelected);
+
+          // Cập nhật badge bên trong thẻ
+          const badge = t.querySelector('.mode-badge');
+          if (badge) {
+            badge.classList.toggle('bg-blue-600', isSelected);
+            badge.classList.toggle('text-white', isSelected);
+            badge.classList.toggle('bg-slate-100', !isSelected);
+            badge.classList.toggle('dark:bg-slate-700', !isSelected);
+            badge.classList.toggle('text-slate-600', !isSelected);
+            badge.classList.toggle('dark:text-slate-300', !isSelected);
+          }
         });
 
         Object.keys(panels).forEach(key => {
