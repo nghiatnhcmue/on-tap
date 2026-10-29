@@ -141,7 +141,7 @@ export const AdminManager = {
 
           <div class="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-xs font-bold text-amber-300">
             <i class="fa-solid fa-user-shield"></i>
-            <span>Đang đăng nhập: ${escapeHtml(Auth.getCurrentUser()?.fullName || 'Admin')}</span>
+            <span>Đang đăng nhập: ${escapeHtml(Auth.currentUser?.fullName || (typeof Auth.getCurrentUser === 'function' ? Auth.getCurrentUser()?.fullName : null) || 'Admin')}</span>
           </div>
         </div>
 

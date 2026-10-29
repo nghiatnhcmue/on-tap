@@ -94,6 +94,10 @@ export const Auth = {
     });
   },
 
+  getCurrentUser() {
+    return this.currentUser;
+  },
+
   isLoggedIn() {
     return !!(this.currentUser && (this.currentUser.email || this.currentUser.fullName || this.currentUser.uid));
   },
