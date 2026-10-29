@@ -31,19 +31,24 @@ export const Storage = {
   getVideoConfig() {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.VIDEO_CONFIG);
-      return data ? JSON.parse(data) : {
+      let parsed = data ? JSON.parse(data) : {
         archiveAccessKey: '',
         archiveSecretKey: '',
         archiveIdentifier: 'tinhoc-hub-thpt',
-        videoBaseUrl: 'https://archive.org/download/tinhoc-hub-thpt/',
+        videoBaseUrl: 'https://archive.org/cors/tinhoc-hub-thpt/',
         uploadedVideos: {}
       };
+      // Tự động chuyển đổi download/ sang cors/ để chống lỗi ERR_CONNECTION_RESET tại Việt Nam
+      if (parsed.videoBaseUrl && parsed.videoBaseUrl.includes('archive.org/download/')) {
+        parsed.videoBaseUrl = parsed.videoBaseUrl.replace('archive.org/download/', 'archive.org/cors/');
+      }
+      return parsed;
     } catch (e) {
       return {
         archiveAccessKey: '',
         archiveSecretKey: '',
         archiveIdentifier: 'tinhoc-hub-thpt',
-        videoBaseUrl: 'https://archive.org/download/tinhoc-hub-thpt/',
+        videoBaseUrl: 'https://archive.org/cors/tinhoc-hub-thpt/',
         uploadedVideos: {}
       };
     }
@@ -53,9 +58,12 @@ export const Storage = {
     try {
       const current = this.getVideoConfig();
       const updated = { ...current, ...config };
-      // Chuẩn hóa videoBaseUrl kết thúc bằng dấu gạch chéo
+      // Chuẩn hóa videoBaseUrl kết thúc bằng dấu gạch chéo & dùng cors/
       if (updated.videoBaseUrl) {
         updated.videoBaseUrl = updated.videoBaseUrl.trim();
+        if (updated.videoBaseUrl.includes('archive.org/download/')) {
+          updated.videoBaseUrl = updated.videoBaseUrl.replace('archive.org/download/', 'archive.org/cors/');
+        }
         if (!updated.videoBaseUrl.endsWith('/')) {
           updated.videoBaseUrl += '/';
         }
@@ -72,12 +80,17 @@ export const Storage = {
 
   getVideoBaseUrl() {
     const cfg = this.getVideoConfig();
+    let url = '';
     if (cfg && cfg.videoBaseUrl && cfg.videoBaseUrl.trim()) {
-      let url = cfg.videoBaseUrl.trim();
-      return url.endsWith('/') ? url : url + '/';
+      url = cfg.videoBaseUrl.trim();
+    } else {
+      const id = (cfg && cfg.archiveIdentifier) ? cfg.archiveIdentifier.trim() : 'tinhoc-hub-thpt';
+      url = `https://archive.org/cors/${id}/`;
     }
-    const id = (cfg && cfg.archiveIdentifier) ? cfg.archiveIdentifier.trim() : 'tinhoc-hub-thpt';
-    return `https://archive.org/download/${id}/`;
+    if (url.includes('archive.org/download/')) {
+      url = url.replace('archive.org/download/', 'archive.org/cors/');
+    }
+    return url.endsWith('/') ? url : url + '/';
   },
 
   // --- TIẾN TRÌNH HỌC TẬP VIDEO TƯƠNG TÁC ---

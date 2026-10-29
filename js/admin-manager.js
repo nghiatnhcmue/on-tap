@@ -400,10 +400,10 @@ export const AdminManager = {
 
               <div>
                 <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Direct Stream Base URL (Link phát video cho học sinh)
+                  Direct Stream Base URL (Link phát video cho học sinh - Direct CORS)
                 </label>
-                <input type="url" id="archive-cfg-base-url" value="${escapeHtml(Storage.getVideoBaseUrl())}" placeholder="https://archive.org/download/tinhoc-hub-thpt/" class="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500" />
-                <span class="text-[10px] text-slate-400">Học sinh bấm phát video sẽ gọi trực tiếp từ địa chỉ này. Tự động đồng bộ tới mọi máy qua Cloud.</span>
+                <input type="url" id="archive-cfg-base-url" value="${escapeHtml(Storage.getVideoBaseUrl())}" placeholder="https://archive.org/cors/tinhoc-hub-thpt/" class="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500" />
+                <span class="text-[10px] text-slate-400">Học sinh bấm phát video sẽ gọi trực tiếp từ địa chỉ này (dùng /cors/ để chống chặn đường truyền tại VN). Tự động đồng bộ tới mọi máy qua Cloud.</span>
               </div>
             </div>
 
@@ -811,8 +811,11 @@ export const AdminManager = {
         const accessKey = document.getElementById('archive-cfg-access-key')?.value.trim() || '';
         const secretKey = document.getElementById('archive-cfg-secret-key')?.value.trim() || '';
         const identifier = document.getElementById('archive-cfg-identifier')?.value.trim() || 'tinhoc-hub-thpt';
-        let baseUrl = document.getElementById('archive-cfg-base-url')?.value.trim() || `https://archive.org/download/${identifier}/`;
+        let baseUrl = document.getElementById('archive-cfg-base-url')?.value.trim() || `https://archive.org/cors/${identifier}/`;
 
+        if (baseUrl.includes('archive.org/download/')) {
+          baseUrl = baseUrl.replace('archive.org/download/', 'archive.org/cors/');
+        }
         if (!baseUrl.endsWith('/')) baseUrl += '/';
 
         Storage.saveVideoConfig({

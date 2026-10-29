@@ -150,8 +150,11 @@ export const InteractiveVideo = {
       return customUrl;
     }
 
-    // 3. Mặc định tải từ Archive.org
-    const baseUrl = Storage.getVideoBaseUrl();
+    // 3. Mặc định tải từ Archive.org (bắt buộc dùng /cors/ để không bị redirect 302 sang ia*.us.archive.org gây lỗi ERR_CONNECTION_RESET tại Việt Nam)
+    let baseUrl = Storage.getVideoBaseUrl();
+    if (baseUrl.includes('archive.org/download/')) {
+      baseUrl = baseUrl.replace('archive.org/download/', 'archive.org/cors/');
+    }
     return `${baseUrl}${videoFile}`;
   },
 
@@ -1129,6 +1132,20 @@ export const InteractiveVideo = {
       // 6. Xử lý khi video bị lỗi tải từ đám mây Archive.org
       video.onerror = () => {
         console.warn('InteractiveVideo: Video không phát được từ URL:', video.src);
+        // Tự động thử chuyển đổi sang giao thức /cors/ trực tiếp nếu đang bị vướng /download/ hoặc ia*.us.archive.org gây ERR_CONNECTION_RESET
+        if (video.src && (video.src.includes('archive.org/download/') || video.src.includes('.us.archive.org/'))) {
+          const fileName = this.activeLesson?.video;
+          if (fileName) {
+            const corsUrl = `https://archive.org/cors/tinhoc-hub-thpt/${fileName}`;
+            if (video.src !== corsUrl) {
+              console.log('InteractiveVideo: Tự động chuyển sang luồng Archive CORS trực tiếp chống chặn:', corsUrl);
+              video.src = corsUrl;
+              video.load();
+              video.play().catch(() => {});
+              return;
+            }
+          }
+        }
         this.renderVideoErrorFallback();
       };
 
@@ -1416,8 +1433,11 @@ export const InteractiveVideo = {
         </p>
       </div>
       <div class="flex items-center gap-3 flex-wrap justify-center pt-2">
-        <label class="cursor-pointer px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-lg shadow-blue-500/30 flex items-center gap-2">
-          <i class="fa-solid fa-folder-open"></i> Chọn tệp video MP4 từ máy tính để phát ngay
+        <button type="button" id="btn-fallback-retry-cors" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-lg shadow-emerald-600/30 flex items-center gap-2">
+          <i class="fa-solid fa-rotate"></i> Thử phát lại cổng CORS trực tiếp
+        </button>
+        <label class="cursor-pointer px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-lg shadow-blue-500/30 flex items-center gap-2">
+          <i class="fa-solid fa-folder-open"></i> Chọn tệp video MP4 từ máy tính
           <input type="file" id="input-fallback-choose-video" accept="video/mp4,video/*" class="hidden" />
         </label>
         <button type="button" id="btn-fallback-enter-url" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition border border-slate-700 flex items-center gap-2">
@@ -1425,6 +1445,19 @@ export const InteractiveVideo = {
         </button>
       </div>
     `;
+
+    const btnRetryCors = document.getElementById('btn-fallback-retry-cors');
+    if (btnRetryCors) {
+      btnRetryCors.onclick = () => {
+        if (this.activeLesson && this.videoElem) {
+          const corsUrl = `https://archive.org/cors/tinhoc-hub-thpt/${this.activeLesson.video}`;
+          this.videoElem.src = corsUrl;
+          this.videoElem.load();
+          this.videoElem.play().catch(() => {});
+          this.removeVideoErrorFallback();
+        }
+      };
+    }
 
     const inputFallback = document.getElementById('input-fallback-choose-video');
     if (inputFallback) {

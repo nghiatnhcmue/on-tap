@@ -482,7 +482,7 @@ export const CloudSync = {
       // Chỉ đẩy public info lên Cloud để học sinh tải được video
       const publicPayload = {
         archiveIdentifier: config.archiveIdentifier || 'tinhoc-hub-thpt',
-        videoBaseUrl: config.videoBaseUrl || `https://archive.org/download/${config.archiveIdentifier || 'tinhoc-hub-thpt'}/`,
+        videoBaseUrl: (config.videoBaseUrl || `https://archive.org/cors/${config.archiveIdentifier || 'tinhoc-hub-thpt'}/`).replace('archive.org/download/', 'archive.org/cors/'),
         uploadedVideos: config.uploadedVideos || {},
         updatedAt: new Date().toISOString()
       };
