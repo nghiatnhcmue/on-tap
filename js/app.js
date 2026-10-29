@@ -1394,6 +1394,16 @@ class App {
         tabRegBtn?.classList.add('bg-white', 'dark:bg-slate-800', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm');
         tabRegBtn?.classList.remove('text-slate-500', 'dark:text-slate-400');
         Auth.initGoogleIdentity();
+        Auth.setupSchoolClassSync({
+          schoolSelectId: 'reg-input-school',
+          customSchoolInputId: 'reg-input-school-custom',
+          gradeSelectId: 'reg-input-grade',
+          classSelectId: 'reg-input-class',
+          customClassInputId: 'reg-input-class-custom',
+          initialSchool: document.getElementById('reg-input-school')?.value || 'TT GDNN GDTX Chu Văn An',
+          initialGrade: document.getElementById('reg-input-grade')?.value || '12',
+          initialClass: document.getElementById('reg-input-class')?.value || '12A1'
+        });
       } else {
         panelRegister?.classList.add('hidden');
         panelLogin?.classList.remove('hidden');
@@ -1432,11 +1442,22 @@ class App {
         e.preventDefault();
         const fullName = document.getElementById('reg-input-fullname')?.value || '';
         const grade = document.getElementById('reg-input-grade')?.value || '12';
-        const className = document.getElementById('reg-input-class')?.value || '';
-        const school = document.getElementById('reg-input-school')?.value || '';
+        const schoolSelectVal = document.getElementById('reg-input-school')?.value || '';
+        const school = (schoolSelectVal === '__other__' ? document.getElementById('reg-input-school-custom')?.value?.trim() : schoolSelectVal) || '';
+        const classSelectVal = document.getElementById('reg-input-class')?.value || '';
+        const className = (classSelectVal === '__other__' ? document.getElementById('reg-input-class-custom')?.value?.trim() : classSelectVal) || '';
         const email = document.getElementById('reg-input-email')?.value || '';
         const role = document.getElementById('reg-input-role')?.value || 'student';
         const secretCode = document.getElementById('reg-input-secret')?.value || '';
+
+        if (!school) {
+          alert('Vui lòng chọn hoặc nhập tên Trường của bạn!');
+          return;
+        }
+        if (!className) {
+          alert('Vui lòng chọn hoặc nhập Lớp học của bạn!');
+          return;
+        }
 
         const res = Auth.registerUser({ fullName, grade, className, school, email, role, secretCode });
         if (!res.success) {
@@ -1569,19 +1590,21 @@ class App {
         e.preventDefault();
         const fullName = document.getElementById('profile-input-fullname')?.value || '';
         const grade = document.getElementById('profile-input-grade')?.value || '12';
-        const className = document.getElementById('profile-input-class')?.value || '';
-        const school = document.getElementById('profile-input-school')?.value || '';
+        const schoolSelectVal = document.getElementById('profile-input-school')?.value || '';
+        const school = (schoolSelectVal === '__other__' ? document.getElementById('profile-input-school-custom')?.value?.trim() : schoolSelectVal) || '';
+        const classSelectVal = document.getElementById('profile-input-class')?.value || '';
+        const className = (classSelectVal === '__other__' ? document.getElementById('profile-input-class-custom')?.value?.trim() : classSelectVal) || '';
 
         if (!fullName.trim()) {
           alert('Vui lòng nhập Họ và tên của bạn!');
           return;
         }
-        if (!className.trim()) {
-          alert('Vui lòng nhập Lớp của bạn (Ví dụ: 12A1)!');
+        if (!school) {
+          alert('Vui lòng chọn hoặc nhập tên Trường của bạn!');
           return;
         }
-        if (!school.trim()) {
-          alert('Vui lòng nhập tên Trường của bạn (Ví dụ: THPT Nguyễn Huệ)!');
+        if (!className) {
+          alert('Vui lòng chọn hoặc nhập Lớp của bạn!');
           return;
         }
 

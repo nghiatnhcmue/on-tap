@@ -11,6 +11,44 @@ const GOOGLE_CLIENT_ID_KEY = 'tinhoc_google_client_id';
 // Default Demo/Testing Google Client ID (User có thể thay bằng Client ID của mình)
 const DEFAULT_CLIENT_ID = '1082697841285-sample.apps.googleusercontent.com';
 
+// Danh mục chuẩn các trường và danh sách lớp theo khối
+export const SCHOOLS_DATA = {
+  'EMASI': {
+    name: 'EMASI',
+    aliases: ['EMASI', 'Trường EMASI', 'Song ngữ EMASI', 'Trường Song ngữ Quốc tế EMASI'],
+    classes: {
+      '10': ['10E', '10I1', '10I2'],
+      '11': ['11E'],
+      '12': ['12E']
+    }
+  },
+  'Phổ thông Năng khiếu': {
+    name: 'Phổ thông Năng khiếu',
+    aliases: ['PTNK', 'Phổ thông Năng khiếu', 'Phổ thông Năng Khiếu', 'Trường PTNK', 'THPT Năng Khiếu', 'Trường Phổ thông Năng khiếu'],
+    classes: {
+      '10': [],
+      '11': [],
+      '12': ['12TOAN', '12LI', '12HOA', '12SINH', '12VAN']
+    }
+  },
+  'TT GDNN GDTX Chu Văn An': {
+    name: 'TT GDNN GDTX Chu Văn An',
+    aliases: [
+      'TT GDNN GDTX Chu Văn An',
+      'TT GDNN - GDTX Chu Văn An',
+      'THPT Chu Văn An',
+      'Chu Văn An',
+      'CVA',
+      'TT GDTX Chu Văn An'
+    ],
+    classes: {
+      '10': ['10TN', '10A1', '10A2', '10A3', '10A4', '10A5', '10A6', '10A7', '10A8', '10A9', '10A10', '10A11', '10A12'],
+      '11': ['11A1', '11A2', '11A3', '11A4', '11A5'],
+      '12': ['12A1', '12A2', '12A3', '12A4', '12A5', '12A6', '12A7', '12A8', '12A9', '12A10']
+    }
+  }
+};
+
 export const Auth = {
   currentUser: null,
   clientId: '',
@@ -21,6 +59,16 @@ export const Auth = {
     this.clientId = savedId || (DEFAULT_CLIENT_ID !== '1082697841285-sample.apps.googleusercontent.com' ? DEFAULT_CLIENT_ID : '');
     this.loadUserFromStorage();
     this.initGoogleIdentity();
+    this.setupSchoolClassSync({
+      schoolSelectId: 'reg-input-school',
+      customSchoolInputId: 'reg-input-school-custom',
+      gradeSelectId: 'reg-input-grade',
+      classSelectId: 'reg-input-class',
+      customClassInputId: 'reg-input-class-custom',
+      initialSchool: 'TT GDNN GDTX Chu Văn An',
+      initialGrade: '12',
+      initialClass: '12A1'
+    });
   },
 
   loadUserFromStorage() {
@@ -281,7 +329,7 @@ export const Auth = {
     let defaultName = 'Học Sinh Mẫu';
     let defaultEmail = 'hocsinh.tinhoc@gmail.com';
     let defaultClass = '12A1';
-    let defaultSchool = 'THPT Chu Văn An';
+    let defaultSchool = 'TT GDNN GDTX Chu Văn An';
 
     if (role === 'teacher') {
       defaultName = 'Cô Hoàng Mai (GV Tin học)';
@@ -404,6 +452,7 @@ export const Auth = {
     };
 
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(this.currentUser));
+    Storage.saveAccountRecord(this.currentUser);
     this.notifyAuthChange();
     return true;
   },
@@ -430,6 +479,191 @@ export const Auth = {
     }
   },
 
+  normalizeSchoolName(schoolName) {
+    if (!schoolName) return '';
+    const clean = schoolName.trim().toLowerCase();
+    for (const [key, data] of Object.entries(SCHOOLS_DATA)) {
+      if (key.toLowerCase() === clean) return key;
+      if (data.aliases && data.aliases.some(a => a.toLowerCase() === clean || clean.includes(a.toLowerCase()))) {
+        return key;
+      }
+    }
+    return schoolName.trim();
+  },
+
+  setupSchoolClassSync({
+    schoolSelectId,
+    customSchoolInputId,
+    gradeSelectId,
+    classSelectId,
+    customClassInputId,
+    initialSchool = '',
+    initialGrade = '12',
+    initialClass = ''
+  }) {
+    const schoolSelect = document.getElementById(schoolSelectId);
+    const customSchoolInput = document.getElementById(customSchoolInputId);
+    const gradeSelect = document.getElementById(gradeSelectId);
+    const classSelect = document.getElementById(classSelectId);
+    const customClassInput = document.getElementById(customClassInputId);
+
+    if (!schoolSelect || !classSelect) return;
+
+    let isInternalUpdate = false;
+
+    const renderClassDropdown = (preferredClass = '') => {
+      const selectedSchool = schoolSelect.value;
+      const selectedGrade = gradeSelect ? gradeSelect.value : '12';
+
+      if (!selectedSchool) {
+        classSelect.innerHTML = `<option value="">-- Vui lòng chọn trường trước --</option>`;
+        if (customClassInput) customClassInput.classList.add('hidden');
+        return;
+      }
+
+      if (selectedSchool === '__other__') {
+        if (customSchoolInput) customSchoolInput.classList.remove('hidden');
+        classSelect.innerHTML = `
+          <option value="">-- Tự nhập tên lớp bên dưới --</option>
+          <option value="__other__" selected>Lớp khác (Tự nhập)...</option>
+        `;
+        if (customClassInput) {
+          customClassInput.classList.remove('hidden');
+          if (preferredClass && preferredClass !== '__other__') {
+            customClassInput.value = preferredClass;
+          }
+        }
+        return;
+      }
+
+      if (customSchoolInput) customSchoolInput.classList.add('hidden');
+
+      const schoolInfo = SCHOOLS_DATA[selectedSchool];
+      if (!schoolInfo) {
+        classSelect.innerHTML = `<option value="">-- Vui lòng chọn trường trước --</option>`;
+        return;
+      }
+
+      const gradeClasses = schoolInfo.classes[selectedGrade] || [];
+      const allSchoolClasses = Object.entries(schoolInfo.classes).flatMap(([g, cls]) => cls.map(c => ({ grade: g, name: c })));
+
+      let html = `<option value="">-- Chọn lớp học --</option>`;
+
+      if (gradeClasses.length > 0) {
+        html += `<optgroup label="Lớp thuộc Khối ${selectedGrade}">`;
+        gradeClasses.forEach(cls => {
+          html += `<option value="${cls}">${cls}</option>`;
+        });
+        html += `</optgroup>`;
+      }
+
+      const otherClasses = allSchoolClasses.filter(c => c.grade !== selectedGrade);
+      if (otherClasses.length > 0) {
+        html += `<optgroup label="Các lớp khối khác (${selectedSchool})">`;
+        otherClasses.forEach(c => {
+          html += `<option value="${c.name}">${c.name} (Khối ${c.grade})</option>`;
+        });
+        html += `</optgroup>`;
+      }
+
+      html += `<option value="__other__">Lớp khác (Tự nhập)...</option>`;
+      classSelect.innerHTML = html;
+
+      // Determine active target class
+      const target = preferredClass || classSelect.dataset.prevClass || '';
+      const hasTarget = allSchoolClasses.some(c => c.name === target);
+
+      if (hasTarget) {
+        classSelect.value = target;
+        if (customClassInput) customClassInput.classList.add('hidden');
+      } else if (target && target !== '__other__') {
+        classSelect.value = '__other__';
+        if (customClassInput) {
+          customClassInput.classList.remove('hidden');
+          customClassInput.value = target;
+        }
+      } else if (gradeClasses.length > 0) {
+        classSelect.value = gradeClasses[0];
+        if (customClassInput) customClassInput.classList.add('hidden');
+      } else if (allSchoolClasses.length > 0) {
+        classSelect.value = allSchoolClasses[0].name;
+        if (customClassInput) customClassInput.classList.add('hidden');
+      } else {
+        classSelect.value = '__other__';
+        if (customClassInput) customClassInput.classList.remove('hidden');
+      }
+    };
+
+    schoolSelect.onchange = () => {
+      if (schoolSelect.value === '__other__') {
+        if (customSchoolInput) {
+          customSchoolInput.classList.remove('hidden');
+          customSchoolInput.focus();
+        }
+        renderClassDropdown('__other__');
+      } else {
+        if (customSchoolInput) customSchoolInput.classList.add('hidden');
+        renderClassDropdown();
+      }
+    };
+
+    if (gradeSelect) {
+      gradeSelect.onchange = () => {
+        if (!isInternalUpdate && schoolSelect.value && schoolSelect.value !== '__other__') {
+          renderClassDropdown();
+        }
+      };
+    }
+
+    classSelect.onchange = () => {
+      const val = classSelect.value;
+      classSelect.dataset.prevClass = val;
+
+      if (val === '__other__') {
+        if (customClassInput) {
+          customClassInput.classList.remove('hidden');
+          customClassInput.focus();
+        }
+      } else {
+        if (customClassInput) customClassInput.classList.add('hidden');
+
+        // Detect grade from class (e.g. 10TN, 11A1, 12TOAN)
+        let detectedGrade = null;
+        if (/^10/.test(val)) detectedGrade = '10';
+        else if (/^11/.test(val)) detectedGrade = '11';
+        else if (/^12/.test(val)) detectedGrade = '12';
+
+        if (detectedGrade && gradeSelect && gradeSelect.value !== detectedGrade) {
+          isInternalUpdate = true;
+          gradeSelect.value = detectedGrade;
+          renderClassDropdown(val);
+          isInternalUpdate = false;
+        }
+      }
+    };
+
+    // Apply initial state
+    if (initialSchool) {
+      const stdSchool = this.normalizeSchoolName(initialSchool);
+      if (SCHOOLS_DATA[stdSchool]) {
+        schoolSelect.value = stdSchool;
+        if (customSchoolInput) customSchoolInput.classList.add('hidden');
+      } else {
+        schoolSelect.value = '__other__';
+        if (customSchoolInput) {
+          customSchoolInput.classList.remove('hidden');
+          customSchoolInput.value = initialSchool;
+        }
+      }
+    }
+
+    if (gradeSelect && initialGrade) {
+      gradeSelect.value = initialGrade;
+    }
+
+    renderClassDropdown(initialClass);
+  },
+
   // Modal bắt buộc học sinh điền đầy đủ: Họ và tên, Lớp, Trường
   openRequiredProfileModal() {
     const modal = document.getElementById('modal-required-profile');
@@ -437,16 +671,20 @@ export const Auth = {
 
     const emailEl = document.getElementById('profile-email-display');
     const nameInput = document.getElementById('profile-input-fullname');
-    const gradeSelect = document.getElementById('profile-input-grade');
-    const classInput = document.getElementById('profile-input-class');
-    const schoolInput = document.getElementById('profile-input-school');
 
     if (this.currentUser) {
       if (emailEl) emailEl.textContent = this.currentUser.email || '';
       if (nameInput) nameInput.value = this.currentUser.fullName || '';
-      if (gradeSelect) gradeSelect.value = this.currentUser.grade || '12';
-      if (classInput) classInput.value = this.currentUser.className || '';
-      if (schoolInput) schoolInput.value = this.currentUser.school || '';
+      this.setupSchoolClassSync({
+        schoolSelectId: 'profile-input-school',
+        customSchoolInputId: 'profile-input-school-custom',
+        gradeSelectId: 'profile-input-grade',
+        classSelectId: 'profile-input-class',
+        customClassInputId: 'profile-input-class-custom',
+        initialSchool: this.currentUser.school || '',
+        initialGrade: this.currentUser.grade || '12',
+        initialClass: this.currentUser.className || ''
+      });
     }
 
     modal.classList.remove('hidden');

@@ -83,9 +83,14 @@ Gồm 2 tab chuyển đổi:
   - Khung **"Tài khoản trên thiết bị này"** (`#saved-accounts-section`): Liệt kê tối đa 5 tài khoản gần nhất lưu trong `Storage.getAccountsList()`. Bấm 1 chạm để đăng nhập tức thì.
   - 3 nút Đăng nhập trải nghiệm nhanh: Học sinh (HS), Giáo viên (GV), Admin.
   - Nút cài đặt Google Client ID cho giáo viên/admin.
-- **Tab Đăng Ký Mới (`#auth-panel-register`)**:
+- **Tab Đăng Ký Mới (`#auth-panel-register`) & Cập nhật Hồ sơ (`#modal-required-profile`)**:
   - Hỗ trợ nút **"Đăng ký nhanh với Google"** (`#google-signup-btn-container`) tự động điền Email & Họ tên hoặc tạo tài khoản lập tức.
-  - Form nhập thông tin: Họ tên (\*), Khối lớp (\*), Lớp học (\*), Trường (\*), Email (tùy chọn), Vai trò (Học sinh / Giáo viên / Admin).
+  - Form nhập thông tin dạng danh sách chuẩn hóa (`SCHOOLS_DATA` trong `js/auth.js`):
+    - **EMASI**: Khối 10 (`10E`, `10I1`, `10I2`), Khối 11 (`11E`), Khối 12 (`12E`).
+    - **Phổ thông Năng khiếu**: Khối 12 (`12TOAN`, `12LI`, `12HOA`, `12SINH`, `12VAN`).
+    - **TT GDNN GDTX Chu Văn An**: Khối 10 (`10TN`, `10A1` đến `10A12`), Khối 11 (`11A1` đến `11A5`), Khối 12 (`12A1` đến `12A10`).
+    - Hỗ trợ tùy chọn **"Trường khác (Tự nhập)..."** và **"Lớp khác (Tự nhập)..."** mở ô nhập liệu linh hoạt khi cần.
+    - Cơ chế đồng bộ thông minh (`Auth.setupSchoolClassSync`): Chọn Lớp tự động nhận diện và chuyển Khối lớp tương ứng.
   - Nếu chọn vai trò Giáo viên hoặc Admin -> Hiển thị trường nhập mã kích hoạt bí mật (`GV2025` hoặc `ADMIN2025`).
   - Nút **"Đăng Ký & Vào Học Ngay"** xử lý bằng `Auth.registerUser()`.
 
