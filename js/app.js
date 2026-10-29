@@ -483,7 +483,7 @@ class App {
         </div>
       </div>
     `;
-  },
+  }
 
   bindActiveSessionBannerEvents(containerEl) {
     if (!containerEl) return;
@@ -513,7 +513,7 @@ class App {
         }
       };
     }
-  },
+  }
 
   // --- PRACTICE VIEW ---
   async initPracticeView() {
@@ -1277,7 +1277,6 @@ class App {
         </div>
       </div>
     `;
-    `;
 
     container.querySelectorAll('[data-review-history]').forEach(btn => {
       btn.addEventListener('click', async () => {
@@ -1465,7 +1464,11 @@ class App {
     // Mở modal đăng nhập
     document.querySelectorAll('[data-open-login-modal]').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.getElementById('modal-login')?.classList.remove('hidden');
+        const modal = document.getElementById('modal-login');
+        if (modal) {
+          modal.classList.remove('hidden');
+          modal.style.display = 'flex';
+        }
         this.renderSavedAccountsInLoginModal();
         Auth.initGoogleIdentity();
       });
@@ -1820,6 +1823,7 @@ class App {
       // Hiển thị modal đăng nhập và thanh nhắc nhở
       if (loginModal) {
         loginModal.classList.remove('hidden');
+        loginModal.style.display = 'flex';
         this.renderSavedAccountsInLoginModal();
         Auth.initGoogleIdentity();
       }
@@ -1834,7 +1838,10 @@ class App {
       }
       if (mainEl) mainEl.classList.add('pointer-events-none', 'select-none', 'filter', 'blur-sm');
       if (mobileBarEl) mobileBarEl.classList.add('hidden');
-      if (loginModal) loginModal.classList.add('hidden');
+      if (loginModal) {
+        loginModal.classList.add('hidden');
+        loginModal.style.display = 'none';
+      }
       if (gatekeeperOverlay) gatekeeperOverlay.classList.remove('hidden');
       Auth.openRequiredProfileModal();
     } else {
@@ -1847,7 +1854,10 @@ class App {
         });
       }
       if (mobileBarEl) mobileBarEl.classList.remove('hidden');
-      if (loginModal) loginModal.classList.add('hidden');
+      if (loginModal) {
+        loginModal.classList.add('hidden');
+        loginModal.style.display = 'none';
+      }
       if (closeBtn) closeBtn.classList.remove('hidden');
       if (gatekeeperOverlay) gatekeeperOverlay.classList.add('hidden');
       Auth.closeRequiredProfileModal();
