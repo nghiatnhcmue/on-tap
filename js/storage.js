@@ -254,13 +254,19 @@ export const Storage = {
       result.databaseURL = dbUrl;
     }
 
-    // Kiểm tra tính hợp lệ của Firebase Web API Key: Phải bắt đầu bằng 'AIza'
-    // Loại trừ trường hợp nhầm lẫn với Google OAuth Client ID (...apps.googleusercontent.com)
-    if (result.apiKey && (!result.apiKey.trim().startsWith('AIza') || result.apiKey.length < 25)) {
-      result.apiKey = '';
-      try {
-        localStorage.setItem('tinhoc_firebase_auth_config', JSON.stringify({ ...result, apiKey: '' }));
-      } catch (e) {}
+    // Kiểm tra và chuẩn hóa Firebase Web API Key: Bắt đầu bằng 'AIza'
+    if (result.apiKey) {
+      let cleanKey = String(result.apiKey).trim().replace(/['";,\s]/g, '');
+      const m = cleanKey.match(/AIza[A-Za-z0-9_-]{30,}/);
+      if (m) cleanKey = m[0];
+      if (!cleanKey.startsWith('AIza') || cleanKey.length < 25) {
+        result.apiKey = '';
+        try {
+          localStorage.setItem('tinhoc_firebase_auth_config', JSON.stringify({ ...result, apiKey: '' }));
+        } catch (e) {}
+      } else {
+        result.apiKey = cleanKey;
+      }
     }
 
     return result;
@@ -270,6 +276,12 @@ export const Storage = {
     try {
       const current = this.getFirebaseAuthConfig();
       const updated = { ...current, ...config };
+      if (updated.apiKey) {
+        let cleanKey = String(updated.apiKey).trim().replace(/['";,\s]/g, '');
+        const m = cleanKey.match(/AIza[A-Za-z0-9_-]{30,}/);
+        if (m) cleanKey = m[0];
+        updated.apiKey = cleanKey;
+      }
       localStorage.setItem('tinhoc_firebase_auth_config', JSON.stringify(updated));
 
       // Đồng thời cập nhật vào cloud config nếu có apiKey
