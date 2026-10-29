@@ -161,8 +161,12 @@ Hệ thống tự động nhận diện nền tảng (`Proctor.detectPlatform()`
   - **Trường học:** Chọn từ danh mục chuẩn hóa (`EMASI`, `Phổ thông Năng khiếu`, `TT GDNN GDTX Chu Văn An`), hoặc mở tự do (`all`), hoặc tự nhập tên trường (`__other__`).
   - **Khối lớp:** Khối 10, Khối 11, Khối 12.
   - **Lớp học:** Dropdown lớp học tự động đồng bộ theo Trường và Khối tương ứng (vd: EMASI có 10E, 10I1, 10I2...; PTNK có 12TOAN, 12LI...; Chu Văn An có 10TN, 10A1-10A12...), hỗ trợ tùy chọn "Tất cả các lớp" hoặc nhập lớp tự do.
-- **Cấu hình hình thức đề phòng thi:**
+- **Cấu hình hình thức đề phòng thi & Ma trận bài học tùy biến:**
   - Hỗ trợ cả 4 hình thức: Đề chuẩn Bộ GD 2025, Trộn theo Chủ đề, Trộn theo Bài học (15p), hoặc Ma trận tự chọn.
+  - **Phạm vi nội dung kiểm tra (`contentScope`):**
+    - `Toàn bộ khối lớp`: Trộn ngẫu nhiên từ toàn bộ ngân hàng câu hỏi của khối.
+    - `Chọn chủ đề / Nhiều bài học cụ thể & Tỉ lệ số câu`: Cho phép Giáo viên tích chọn nhiều Chủ đề và nhiều Bài học cụ thể cho một bài kiểm tra. Giáo viên có thể điều chỉnh số lượng câu hỏi hoặc tỉ lệ (%) cho từng bài học độc lập, có phím tắt "Chia đều số câu", thanh kiểm tra khớp tổng câu thời gian thực.
+    - Khi học sinh vào thi, hệ thống phân bổ câu hỏi chính xác theo ma trận bài học đã cấu hình (với Đề chuẩn Bộ GD 2025: phân bổ 24 câu MCQ theo tỉ lệ các bài và bổ sung đúng 4 câu Đúng/Sai).
   - Tùy chọn đảo câu hỏi, đảo phương án A,B,C,D, và tùy chọn cấp Mã đề thi riêng chống nhìn bài nhau trong phòng thi (`randomExamCode`).
 - **Kiểm soát bảo mật khi vào phòng thi (`Storage.validateRoomAccess`):**
   - Bắt buộc kiểm tra: Mã phòng thi, Mật khẩu, Khung giờ mở/đóng.

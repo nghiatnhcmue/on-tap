@@ -37,7 +37,7 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261029_06" />
+  <link rel="stylesheet" href="css/style.css?v=20261029_08" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -1629,7 +1629,7 @@
 
   <!-- ==================== MODAL: TẠO PHÒNG THI MỚI (GIAO ĐỀ THEO GIỜ & PASS) ==================== -->
   <div id="modal-create-exam-room" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[90dvh] overflow-y-auto space-y-5">
+    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[92dvh] overflow-y-auto space-y-5">
       <button id="btn-close-room-modal" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
@@ -1742,32 +1742,77 @@
             </div>
           </div>
 
-          <!-- Chi tiết chọn chủ đề/bài học (khi chọn by_topic hoặc by_lesson) -->
-          <div id="room-topic-lesson-container" class="hidden grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-200/60 dark:border-slate-700">
-            <div id="room-topic-select-wrapper">
-              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Chủ đề</label>
-              <select id="room-input-topic" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white">
-                <option value="all">-- Tất cả chủ đề --</option>
-              </select>
+          <!-- CHỌN NỘI DUNG BÀI HỌC & ĐIỀU CHỈNH TỈ LỆ -->
+          <div class="pt-3 border-t border-slate-200/80 dark:border-slate-700 space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <label class="block font-bold text-slate-700 dark:text-slate-300">
+                  Nội dung kiểm tra & Chọn bài học:
+                </label>
+                <span class="text-[11px] text-slate-400">Chọn các bài học cần kiểm tra và phân bổ tỉ lệ số câu</span>
+              </div>
+              
+              <div class="inline-flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl text-xs font-bold shrink-0">
+                <button type="button" id="btn-scope-all" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm transition">
+                  🌐 Toàn bộ khối
+                </button>
+                <button type="button" id="btn-scope-custom" class="px-3 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition">
+                  🎯 Chọn bài & Tỉ lệ
+                </button>
+              </div>
             </div>
 
-            <div id="room-lesson-select-wrapper" class="hidden">
-              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Bài học</label>
-              <select id="room-input-lesson" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white">
-                <option value="all">-- Tất cả bài --</option>
-              </select>
+            <!-- Thiết lập số lượng câu hỏi của đề thi -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Tổng số câu hỏi đề thi <span class="text-rose-500">*</span>
+                </label>
+                <div class="flex items-center gap-2">
+                  <input type="number" id="room-input-count" value="28" min="5" max="100" class="w-full px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500" />
+                  <span class="text-xs text-slate-400 font-bold shrink-0">câu</span>
+                </div>
+              </div>
+
+              <!-- Quick presets for question counts -->
+              <div>
+                <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Số câu mẫu nhanh</label>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <button type="button" data-preset-count="10" class="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 transition">10c (15p)</button>
+                  <button type="button" data-preset-count="20" class="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 transition">20c (30p)</button>
+                  <button type="button" data-preset-count="28" class="px-2.5 py-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 text-xs font-bold hover:bg-blue-200 transition">28c (Chuẩn Bộ)</button>
+                  <button type="button" data-preset-count="30" class="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 transition">30c (45p)</button>
+                  <button type="button" data-preset-count="40" class="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 transition">40c</button>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Số câu hỏi</label>
-              <select id="room-input-count" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
-                <option value="10">10 câu</option>
-                <option value="15">15 câu</option>
-                <option value="20">20 câu</option>
-                <option value="28" selected>28 câu (Chuẩn Bộ)</option>
-                <option value="30">30 câu</option>
-                <option value="40">40 câu</option>
-              </select>
+            <!-- Khung Ma Trận Chọn Bài Học & Điều Chỉnh Tỉ Lệ -->
+            <div id="room-lessons-matrix-panel" class="hidden space-y-3 p-3.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+              <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-700 text-xs">
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-slate-800 dark:text-white">Ma trận bài học:</span>
+                  <span id="room-matrix-selected-summary" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                    Đã chọn: 0 bài • 0/28 câu
+                  </span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" id="btn-matrix-select-all" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-200 transition">
+                    Chọn tất cả
+                  </button>
+                  <button type="button" id="btn-matrix-deselect-all" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-200 transition">
+                    Bỏ chọn
+                  </button>
+                  <button type="button" id="btn-matrix-distribute-even" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-bold transition shadow-sm flex items-center gap-1">
+                    <i class="fa-solid fa-bolt text-[10px]"></i> Chia đều số câu
+                  </button>
+                </div>
+              </div>
+
+              <!-- Danh sách Topics & Lessons có thể scroll -->
+              <div id="room-lessons-matrix-list" class="space-y-3 max-h-72 overflow-y-auto pr-1">
+                <!-- Nội dung được sinh động theo khối đã chọn -->
+              </div>
             </div>
           </div>
 
@@ -1996,7 +2041,7 @@
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261029_06"></script>
+  <script type="module" src="js/app.js?v=20261029_08"></script>
 </body>
 </html>
 

@@ -106,7 +106,152 @@ export const Exam = {
 
     let selectedQuestions = [];
 
-    if (config.type === 'bgd_2025') {
+    if (config.selectedLessons && Array.isArray(config.selectedLessons) && config.selectedLessons.length > 0) {
+      // 🎯 CHẾ ĐỘ MA TRẬN BÀI HỌC & TỈ LỆ ĐƯỢC THIẾT LẬP CỦA PHÒNG THI / GIÁO VIÊN
+      const selectedLessons = config.selectedLessons;
+      const targetTotal = config.count || (config.type === 'bgd_2025' ? 28 : 30);
+
+      if (config.type === 'bgd_2025') {
+        // Đề chuẩn Bộ GD&ĐT: Đúng 24 câu MCQ (6.0đ) + 4 câu Đúng/Sai (4.0đ) = 28 câu (10.0đ)
+        const totalMatrixCount = selectedLessons.reduce((sum, item) => sum + (item.count || 1), 0) || 1;
+
+        // Phân bổ 24 câu MCQ theo tỉ lệ các bài học đã chọn
+        let mcqAllocations = selectedLessons.map(item => ({
+          ...item,
+          allocatedMcq: Math.max(1, Math.round(((item.count || 1) / totalMatrixCount) * 24))
+        }));
+
+        let allocatedSum = mcqAllocations.reduce((sum, item) => sum + item.allocatedMcq, 0);
+        while (allocatedSum > 24) {
+          const maxItem = mcqAllocations.reduce((prev, cur) => cur.allocatedMcq > prev.allocatedMcq ? cur : prev);
+          if (maxItem.allocatedMcq > 1) {
+            maxItem.allocatedMcq--;
+            allocatedSum--;
+          } else break;
+        }
+        while (allocatedSum < 24) {
+          const minItem = mcqAllocations.reduce((prev, cur) => cur.allocatedMcq < prev.allocatedMcq ? cur : prev);
+          minItem.allocatedMcq++;
+          allocatedSum++;
+        }
+
+        let mcqSelected = [];
+        const usedIds = new Set();
+
+        mcqAllocations.forEach(item => {
+          const lessonMcqPool = gradePool.filter(q => 
+            q.topic === item.topic && 
+            q.lesson === item.lesson && 
+            ['1', '2', '3', '4'].includes(q.level) &&
+            !usedIds.has(q.id)
+          );
+          const sampled = this.sampleQuestions(lessonMcqPool, Math.min(item.allocatedMcq, lessonMcqPool.length), shouldShuffleQuestions);
+          sampled.forEach(q => {
+            usedIds.add(q.id);
+            mcqSelected.push(q);
+          });
+        });
+
+        // Bù nếu các bài học được chọn không đủ 24 câu MCQ (lấy từ các bài khác trong cùng các chủ đề đã chọn)
+        if (mcqSelected.length < 24) {
+          const fallbackMcqPool = gradePool.filter(q => 
+            selectedLessons.some(l => l.topic === q.topic) && 
+            ['1', '2', '3', '4'].includes(q.level) && 
+            !usedIds.has(q.id)
+          );
+          const needed = 24 - mcqSelected.length;
+          const extra = this.sampleQuestions(fallbackMcqPool, Math.min(needed, fallbackMcqPool.length), shouldShuffleQuestions);
+          extra.forEach(q => {
+            usedIds.add(q.id);
+            mcqSelected.push(q);
+          });
+        }
+
+        // Bù từ toàn khối nếu vẫn chưa đủ 24 câu
+        if (mcqSelected.length < 24) {
+          const allGradeMcq = gradePool.filter(q => ['1', '2', '3', '4'].includes(q.level) && !usedIds.has(q.id));
+          const needed = 24 - mcqSelected.length;
+          const extra = this.sampleQuestions(allGradeMcq, Math.min(needed, allGradeMcq.length), shouldShuffleQuestions);
+          extra.forEach(q => {
+            usedIds.add(q.id);
+            mcqSelected.push(q);
+          });
+        }
+
+        // Lấy 4 câu Đúng/Sai (ưu tiên từ các bài đã chọn)
+        let dsPool = gradePool.filter(q => 
+          selectedLessons.some(l => l.topic === q.topic && l.lesson === q.lesson) && 
+          q.level === 'DS' && 
+          !usedIds.has(q.id)
+        );
+        if (dsPool.length < 4) {
+          const allGradeDs = gradePool.filter(q => q.level === 'DS' && !usedIds.has(q.id));
+          dsPool = [...dsPool, ...allGradeDs.filter(q => !dsPool.some(d => d.id === q.id))];
+        }
+        if (dsPool.length < 4) {
+          const allDs = this.allQuestions.filter(q => q.level === 'DS' && !usedIds.has(q.id));
+          dsPool = [...dsPool, ...allDs.filter(q => !dsPool.some(d => d.id === q.id))];
+        }
+
+        const dsSelected = this.sampleQuestions(dsPool, Math.min(4, dsPool.length), shouldShuffleQuestions);
+        selectedQuestions = [...mcqSelected, ...dsSelected];
+        this.totalSeconds = (config.duration || 50) * 60;
+      } else {
+        // Dạng đề tùy chọn theo bài học & tỉ lệ phân bổ số câu
+        let chosenList = [];
+        const usedIds = new Set();
+
+        selectedLessons.forEach(item => {
+          let pool = gradePool.filter(q => 
+            q.topic === item.topic && 
+            q.lesson === item.lesson && 
+            !usedIds.has(q.id)
+          );
+          if (config.level && config.level !== 'all') {
+            const levelFiltered = pool.filter(q => q.level === config.level);
+            if (levelFiltered.length > 0) pool = levelFiltered;
+          }
+          const countToTake = item.count || 1;
+          const sampled = this.sampleQuestions(pool, Math.min(countToTake, pool.length), shouldShuffleQuestions);
+          sampled.forEach(q => {
+            usedIds.add(q.id);
+            chosenList.push(q);
+          });
+        });
+
+        // Bù nếu thiếu so với targetTotal
+        if (chosenList.length < targetTotal) {
+          const remainingPool = gradePool.filter(q => 
+            selectedLessons.some(l => l.topic === q.topic && l.lesson === q.lesson) && 
+            !usedIds.has(q.id)
+          );
+          const needed = targetTotal - chosenList.length;
+          const extra = this.sampleQuestions(remainingPool, Math.min(needed, remainingPool.length), shouldShuffleQuestions);
+          extra.forEach(q => {
+            usedIds.add(q.id);
+            chosenList.push(q);
+          });
+        }
+
+        // Bù từ toàn khối nếu vẫn thiếu
+        if (chosenList.length < targetTotal) {
+          const gradeRemaining = gradePool.filter(q => !usedIds.has(q.id));
+          const needed = targetTotal - chosenList.length;
+          const extra = this.sampleQuestions(gradeRemaining, Math.min(needed, gradeRemaining.length), shouldShuffleQuestions);
+          extra.forEach(q => {
+            usedIds.add(q.id);
+            chosenList.push(q);
+          });
+        }
+
+        if (shouldShuffleQuestions) {
+          chosenList = chosenList.sort(() => Math.random() - 0.5);
+        }
+
+        selectedQuestions = chosenList.slice(0, targetTotal);
+        this.totalSeconds = (config.duration || 45) * 60;
+      }
+    } else if (config.type === 'bgd_2025') {
       // Đề chuẩn Bộ GD&ĐT môn Tin học (Kỳ thi Tốt nghiệp THPT):
       // Gồm ĐÚNG 2 phần, tổng cộng 28 câu = 10 điểm (Thời gian: 50 phút)
       // - Phần I: 24 câu trắc nghiệm nhiều lựa chọn = 6.0 điểm (mỗi câu 0.25đ)
@@ -885,6 +1030,9 @@ export const Exam = {
       examCode: this.examCode || '101',
       topic: this.examConfig.topic || null,
       lesson: this.examConfig.lesson || null,
+      contentScope: this.examConfig.contentScope || null,
+      selectedLessons: this.examConfig.selectedLessons || null,
+      selectedTopics: this.examConfig.selectedTopics || null,
       score: isDisqualified ? 0.0 : totalScore,
       rawScore: totalScore,
       part1Score: Math.round(part1Score * 100) / 100,
