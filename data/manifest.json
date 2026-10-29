@@ -1,5 +1,5 @@
 {
-  "total_questions": 4098,
+  "total_questions": 4062,
   "grades": {
     "10": {
       "name": "Tin học Lớp 10",
@@ -1500,13 +1500,13 @@
     },
     "12": {
       "name": "Tin học Lớp 12",
-      "total": 1479,
+      "total": 1443,
       "levels": {
-        "1": 365,
-        "2": 364,
-        "3": 365,
-        "4": 365,
-        "DS": 20
+        "1": 360,
+        "2": 360,
+        "3": 352,
+        "4": 352,
+        "DS": 19
       },
       "topics": {
         "1. MÁY TÍNH VÀ XÃ HỘI TRI THỨC": {
@@ -1787,7 +1787,7 @@
         },
         "7. ỨNG DỤNG TIN HỌC": {
           "name": "7. ỨNG DỤNG TIN HỌC",
-          "total": 380,
+          "total": 344,
           "lessons": {
             "Bài 23. Chuẩn bị xây dựng trang web": {
               "name": "Bài 23. Chuẩn bị xây dựng trang web",
@@ -1821,12 +1821,12 @@
             },
             "Bài 25. Xây dựng phần thân và chân trang web": {
               "name": "Bài 25. Xây dựng phần thân và chân trang web",
-              "total": 44,
+              "total": 34,
               "levels": {
-                "1": 10,
+                "1": 5,
                 "2": 10,
-                "3": 10,
-                "4": 10,
+                "3": 8,
+                "4": 7,
                 "DS": 4
               }
             },
@@ -1842,13 +1842,13 @@
             },
             "Bài 26. Liên kết và thanh điều hướng": {
               "name": "Bài 26. Liên kết và thanh điều hướng",
-              "total": 44,
+              "total": 34,
               "levels": {
                 "1": 10,
                 "2": 10,
-                "3": 10,
-                "4": 10,
-                "DS": 4
+                "3": 5,
+                "4": 6,
+                "DS": 3
               }
             },
             "Bài 27: Biểu mẫu trên trang web.": {
@@ -1863,23 +1863,23 @@
             },
             "Bài 27. Biểu mẫu trên trang web": {
               "name": "Bài 27. Biểu mẫu trên trang web",
-              "total": 44,
+              "total": 35,
               "levels": {
                 "1": 10,
                 "2": 10,
-                "3": 10,
-                "4": 10,
+                "3": 6,
+                "4": 5,
                 "DS": 4
               }
             },
             "Bài 28. Thực hành tổng hợp": {
               "name": "Bài 28. Thực hành tổng hợp",
-              "total": 60,
+              "total": 53,
               "levels": {
                 "1": 14,
-                "2": 14,
-                "3": 14,
-                "4": 14,
+                "2": 10,
+                "3": 12,
+                "4": 13,
                 "DS": 4
               }
             },

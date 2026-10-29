@@ -24320,106 +24320,6 @@
     "video_time": 15
   },
   {
-    "id": "q_12_2917",
-    "stt": "1217",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 25. Xây dựng phần thân và chân trang web",
-    "level": "1",
-    "question": "Trong HTML, thẻ nào được sử dụng để tạo phần chân trang (footer) của một trang web?",
-    "options": [
-      "<head>",
-      "<body>",
-      "<footer>",
-      "<header>"
-    ],
-    "answer": "C",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_2918",
-    "stt": "1218",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 25. Xây dựng phần thân và chân trang web",
-    "level": "1",
-    "question": "Phần chân trang (footer) của một trang web thường chứa thông tin gì?",
-    "options": [
-      "Thông tin liên hệ và bản quyền",
-      "Nội dung chính của trang",
-      "Menu điều hướng",
-      "Logo thương hiệu"
-    ],
-    "answer": "A",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_2919",
-    "stt": "1219",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 25. Xây dựng phần thân và chân trang web",
-    "level": "1",
-    "question": "Trong HTML, thẻ nào được sử dụng để tạo phần thân (body) của một trang web?",
-    "options": [
-      "<head>",
-      "<body>",
-      "<footer>",
-      "<header>"
-    ],
-    "answer": "B",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_2920",
-    "stt": "1220",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 25. Xây dựng phần thân và chân trang web",
-    "level": "1",
-    "question": "Phần thân trang web thường chứa nội dung chính của trang. Phần này được đánh dấu bằng thẻ HTML nào?",
-    "options": [
-      "<head>",
-      "<body>",
-      "<footer>",
-      "<header>"
-    ],
-    "answer": "B",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_2921",
-    "stt": "1221",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 25. Xây dựng phần thân và chân trang web",
-    "level": "1",
-    "question": "Trong HTML, thẻ nào được sử dụng để tạo phần chân trang (footer) của một trang web?",
-    "options": [
-      "<head>",
-      "<body>",
-      "<footer>",
-      "<header>"
-    ],
-    "answer": "C",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
     "id": "q_12_2922",
     "stt": "1222",
     "grade": "12",
@@ -24740,26 +24640,6 @@
     "video_time": 15
   },
   {
-    "id": "q_12_2938",
-    "stt": "1238",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 25. Xây dựng phần thân và chân trang web",
-    "level": "3",
-    "question": "Để tạo một phần thân trang web với nội dung được hiển thị theo điều kiện, bạn cần sử dụng công nghệ nào sau đây?",
-    "options": [
-      "HTML tĩnh",
-      "JavaScript",
-      "CSS",
-      "PHP"
-    ],
-    "answer": "B",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
     "id": "q_12_2939",
     "stt": "1239",
     "grade": "12",
@@ -24774,26 +24654,6 @@
       "<p>"
     ],
     "answer": "C",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_2940",
-    "stt": "1240",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 25. Xây dựng phần thân và chân trang web",
-    "level": "3",
-    "question": "Để tạo một phần thân trang web với nội dung được hiển thị theo điều kiện, bạn cần sử dụng công nghệ nào sau đây?",
-    "options": [
-      "HTML tĩnh",
-      "JavaScript",
-      "CSS",
-      "PHP"
-    ],
-    "answer": "B",
     "video": "",
     "video_stop": null,
     "video_quiz": null,
@@ -24954,66 +24814,6 @@
       "<dl>"
     ],
     "answer": "B",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_2949",
-    "stt": "1249",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 25. Xây dựng phần thân và chân trang web",
-    "level": "4",
-    "question": "Trong quá trình xây dựng phần chân trang web, bạn cần sử dụng thẻ nào để tạo một khung hình ảnh có thể thay đổi kích thước?",
-    "options": [
-      "(Lỗi AI bỏ trống)",
-      "<figure>",
-      "<picture>",
-      "<iframe>"
-    ],
-    "answer": "C",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_2950",
-    "stt": "1250",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 25. Xây dựng phần thân và chân trang web",
-    "level": "4",
-    "question": "Khi xây dựng phần thân trang web, bạn cần sử dụng thẻ nào để tạo một đoạn văn bản có thể được định dạng phong phú?",
-    "options": [
-      "<div>",
-      "<p>",
-      "<span>",
-      "<article>"
-    ],
-    "answer": "D",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_2951",
-    "stt": "1251",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 25. Xây dựng phần thân và chân trang web",
-    "level": "4",
-    "question": "Trong quá trình xây dựng phần chân trang web, bạn cần sử dụng thẻ nào để tạo một khung hình ảnh có thể thay đổi kích thước?",
-    "options": [
-      "(Lỗi AI bỏ trống)",
-      "<figure>",
-      "<picture>",
-      "<iframe>"
-    ],
-    "answer": "C",
     "video": "",
     "video_stop": null,
     "video_quiz": null,
@@ -25920,106 +25720,6 @@
     "video_time": 15
   },
   {
-    "id": "q_12_3003",
-    "stt": "1303",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 26. Liên kết và thanh điều hướng",
-    "level": "3",
-    "question": "Trong HTML, thuộc tính nào được sử dụng để chỉ định hành vi khi nhấp vào liên kết?",
-    "options": [
-      "_blank",
-      "_self",
-      "_parent",
-      "target"
-    ],
-    "answer": "D",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3004",
-    "stt": "1304",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 26. Liên kết và thanh điều hướng",
-    "level": "3",
-    "question": "Để tạo một liên kết tới trang web khác trong HTML, bạn sử dụng thẻ nào?",
-    "options": [
-      "<a>",
-      "<link>",
-      "<href>",
-      "<url>"
-    ],
-    "answer": "A",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3005",
-    "stt": "1305",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 26. Liên kết và thanh điều hướng",
-    "level": "3",
-    "question": "Trong HTML, thuộc tính nào được sử dụng để chỉ định địa chỉ của trang web mà liên kết sẽ dẫn đến?",
-    "options": [
-      "href",
-      "src",
-      "target",
-      "link"
-    ],
-    "answer": "A",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3006",
-    "stt": "1306",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 26. Liên kết và thanh điều hướng",
-    "level": "3",
-    "question": "Để tạo một liên kết tới một phần cụ thể trên cùng một trang web, bạn sử dụng thuộc tính nào trong thẻ <a>?",
-    "options": [
-      "href",
-      "name",
-      "id",
-      "target"
-    ],
-    "answer": "A",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3007",
-    "stt": "1307",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 26. Liên kết và thanh điều hướng",
-    "level": "3",
-    "question": "Trong HTML, thuộc tính nào được sử dụng để chỉ định hành vi khi nhấp vào liên kết?",
-    "options": [
-      "_blank",
-      "_self",
-      "_parent",
-      "target"
-    ],
-    "answer": "D",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
     "id": "q_12_3008",
     "stt": "1308",
     "grade": "12",
@@ -26120,88 +25820,8 @@
     "video_time": 15
   },
   {
-    "id": "q_12_3013",
-    "stt": "1313",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 26. Liên kết và thanh điều hướng",
-    "level": "4",
-    "question": "Bạn đang thiết kế một trang web với thanh điều hướng cố định ở phía trên màn hình. Để đảm bảo rằng nội dung chính của trang không bị che khuất bởi thanh điều hướng, bạn cần thêm thuộc tính nào vào phần tử chứa nội dung chính?",
-    "options": [
-      "padding-top: 50px;",
-      "margin-top: -50px;",
-      "top-margin: 50px;",
-      "position: relative;"
-    ],
-    "answer": "A",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3014",
-    "stt": "1314",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 26. Liên kết và thanh điều hướng",
-    "level": "4",
-    "question": "Khi tạo liên kết giữa các trang web, bạn muốn mở liên kết trong một tab mới. Để thực hiện điều này, bạn cần thêm thuộc tính nào vào thẻ <a>?",
-    "options": [
-      "target='_blank'",
-      "href='newtab'",
-      "rel='noopener noreferrer'",
-      "class='external-link'"
-    ],
-    "answer": "A",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
     "id": "q_12_3015",
     "stt": "1315",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 26. Liên kết và thanh điều hướng",
-    "level": "4",
-    "question": "Bạn đang thiết kế một trang web với thanh điều hướng cố định ở phía trên màn hình. Để đảm bảo rằng nội dung chính của trang không bị dịch chuyển khi thanh điều hướng xuất hiện, bạn cần sử dụng thuộc tính CSS nào?",
-    "options": [
-      "position: fixed;",
-      "top-padding: 50px;",
-      "margin-top: -50px;",
-      "padding-top: 50px;"
-    ],
-    "answer": "D",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3016",
-    "stt": "1316",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 26. Liên kết và thanh điều hướng",
-    "level": "4",
-    "question": "Trong quá trình tạo liên kết giữa các trang web, bạn muốn sử dụng một biểu tượng đặc biệt thay vì văn bản. Để thực hiện điều này, bạn cần thêm thuộc tính nào vào thẻ <a>?",
-    "options": [
-      "icon='path/to/icon.png'",
-      "data-icon='path/to/icon.png'",
-      "src='path/to/icon.png'",
-      "class='icon-link'"
-    ],
-    "answer": "B",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3017",
-    "stt": "1317",
     "grade": "12",
     "topic": "7. ỨNG DỤNG TIN HỌC",
     "lesson": "Bài 26. Liên kết và thanh điều hướng",
@@ -26269,26 +25889,6 @@
     "question": "Khi xây dựng một hệ thống liên kết và thanh điều hướng cho trang web, các phát biểu sau đây là đúng hay sai:",
     "options": [
       "Thanh điều hướng giúp người dùng dễ dàng tìm kiếm thông tin trên website",
-      "Liên kết trong (internal link) chỉ có thể được tạo ra giữa các file HTML nằm trên cùng một máy chủ",
-      "Liên kết ngoài (external link) là liên kết đến một nguồn tài nguyên nằm bên ngoài trang web hiện tại",
-      "Thanh điều hướng không cần thiết phải xuất hiện trên tất cả các trang của website"
-    ],
-    "answer": "Đ,S,Đ,Đ",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3021",
-    "stt": "1321",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 26. Liên kết và thanh điều hướng",
-    "level": "DS",
-    "question": "Khi sử dụng liên kết và thanh điều hướng trong một dự án web, các phát biểu sau đây là đúng hay sai:",
-    "options": [
-      "Thanh điều hướng giúp người dùng dễ dàng truy cập vào các phần khác nhau của website",
       "Liên kết trong (internal link) chỉ có thể được tạo ra giữa các file HTML nằm trên cùng một máy chủ",
       "Liên kết ngoài (external link) là liên kết đến một nguồn tài nguyên nằm bên ngoài trang web hiện tại",
       "Thanh điều hướng không cần thiết phải xuất hiện trên tất cả các trang của website"
@@ -27140,86 +26740,6 @@
     "video_time": 15
   },
   {
-    "id": "q_12_3070",
-    "stt": "1370",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 27. Biểu mẫu trên trang web",
-    "level": "3",
-    "question": "Để tạo một trường nhập liệu cho phép người dùng chọn nhiều mục từ danh sách, bạn sẽ sử dụng thẻ HTML nào?",
-    "options": [
-      "<input type='checkbox'>",
-      "<select multiple>",
-      "<textarea>",
-      "<option>"
-    ],
-    "answer": "B",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3071",
-    "stt": "1371",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 27. Biểu mẫu trên trang web",
-    "level": "3",
-    "question": "Để tạo một trường nhập liệu cho phép người dùng chọn nhiều mục từ danh sách, bạn sẽ sử dụng thuộc tính nào trong thẻ <select>?",
-    "options": [
-      "type='checkbox'",
-      "multiple",
-      "size",
-      "value"
-    ],
-    "answer": "B",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3072",
-    "stt": "1372",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 27. Biểu mẫu trên trang web",
-    "level": "3",
-    "question": "Để tạo một trường nhập liệu cho phép người dùng chọn nhiều mục từ danh sách, bạn sẽ sử dụng thẻ HTML nào?",
-    "options": [
-      "<input type='checkbox'>",
-      "<select multiple>",
-      "<textarea>",
-      "<option>"
-    ],
-    "answer": "B",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3073",
-    "stt": "1373",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 27. Biểu mẫu trên trang web",
-    "level": "3",
-    "question": "Để tạo một trường nhập liệu cho phép người dùng chọn nhiều mục từ danh sách, bạn sẽ sử dụng thuộc tính nào trong thẻ <select>?",
-    "options": [
-      "type='checkbox'",
-      "multiple",
-      "size",
-      "value"
-    ],
-    "answer": "B",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
     "id": "q_12_3074",
     "stt": "1374",
     "grade": "12",
@@ -27314,106 +26834,6 @@
       "Gửi tất cả dữ liệu đến máy chủ mà không kiểm tra"
     ],
     "answer": "B",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3079",
-    "stt": "1379",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 27. Biểu mẫu trên trang web",
-    "level": "4",
-    "question": "Kỹ sư phần mềm cần sử dụng công nghệ nào để tạo ra một biểu mẫu tương tác và linh hoạt trên trang web?",
-    "options": [
-      "JavaScript",
-      "HTML5",
-      "CSS3",
-      "PHP"
-    ],
-    "answer": "A",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3080",
-    "stt": "1380",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 27. Biểu mẫu trên trang web",
-    "level": "4",
-    "question": "Để đảm bảo rằng dữ liệu được nhập vào biểu mẫu trên trang web là chính xác và đầy đủ, kỹ sư phần mềm cần thực hiện công việc nào?",
-    "options": [
-      "Thiết lập quy tắc kiểm tra dữ liệu trong HTML",
-      "Viết mã JavaScript để kiểm tra dữ liệu ngay tại trình duyệt của người dùng",
-      "Không cần thiết lập bất kỳ quy tắc kiểm tra nào",
-      "Gửi tất cả dữ liệu đến máy chủ mà không kiểm tra"
-    ],
-    "answer": "B",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3081",
-    "stt": "1381",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 27. Biểu mẫu trên trang web",
-    "level": "4",
-    "question": "Kỹ sư phần mềm cần sử dụng công nghệ nào để tạo ra một biểu mẫu tương tác và linh hoạt trên trang web?",
-    "options": [
-      "JavaScript",
-      "HTML5",
-      "CSS3",
-      "PHP"
-    ],
-    "answer": "A",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3082",
-    "stt": "1382",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 27. Biểu mẫu trên trang web",
-    "level": "4",
-    "question": "Để đảm bảo rằng dữ liệu được nhập vào biểu mẫu trên trang web là chính xác và đầy đủ, kỹ sư phần mềm cần thực hiện công việc nào?",
-    "options": [
-      "Thiết lập quy tắc kiểm tra dữ liệu trong HTML",
-      "Viết mã JavaScript để kiểm tra dữ liệu ngay tại trình duyệt của người dùng",
-      "Không cần thiết lập bất kỳ quy tắc kiểm tra nào",
-      "Gửi tất cả dữ liệu đến máy chủ mà không kiểm tra"
-    ],
-    "answer": "B",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3083",
-    "stt": "1383",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 27. Biểu mẫu trên trang web",
-    "level": "4",
-    "question": "Kỹ sư phần mềm cần sử dụng công nghệ nào để tạo ra một biểu mẫu tương tác và linh hoạt trên trang web?",
-    "options": [
-      "JavaScript",
-      "HTML5",
-      "CSS3",
-      "PHP"
-    ],
-    "answer": "A",
     "video": "",
     "video_stop": null,
     "video_quiz": null,
@@ -29020,86 +28440,6 @@
     "video_time": 15
   },
   {
-    "id": "q_12_3176",
-    "stt": "1476",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 28. Thực hành tổng hợp",
-    "level": "2",
-    "question": "Trong quá trình tạo một trang web, bạn muốn đặt tên cho file CSS là style.css. Trong HTML, thuộc tính nào được sử dụng để liên kết file CSS này với trang web?",
-    "options": [
-      "src",
-      "href",
-      "type",
-      "rel"
-    ],
-    "answer": "B",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3177",
-    "stt": "1477",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 28. Thực hành tổng hợp",
-    "level": "2",
-    "question": "Khi thực hiện bài tập về JavaScript, bạn cần tạo một hàm để hiển thị thông báo khi người dùng nhấp vào nút. Trong đoạn mã sau đây, phương thức nào được sử dụng để hiển thị thông báo?",
-    "options": [
-      "alert",
-      "confirm",
-      "prompt",
-      "console.log"
-    ],
-    "answer": "A",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3178",
-    "stt": "1478",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 28. Thực hành tổng hợp",
-    "level": "2",
-    "question": "Trong bài thực hành về HTML, bạn cần tạo một liên kết đến trang web khác. Trong đoạn mã sau đây, thuộc tính nào được sử dụng để chỉ định địa chỉ URL của trang web?",
-    "options": [
-      "src",
-      "href",
-      "type",
-      "rel"
-    ],
-    "answer": "B",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3179",
-    "stt": "1479",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 28. Thực hành tổng hợp",
-    "level": "2",
-    "question": "Khi thực hiện bài tập về CSS, bạn cần tạo một hiệu ứng hover cho một nút. Trong đoạn mã sau đây, thuộc tính nào được sử dụng để thay đổi màu chữ của nút khi chuột di chuyển qua?",
-    "options": [
-      "background-color",
-      "color",
-      "font-size",
-      "width"
-    ],
-    "answer": "B",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
     "id": "q_12_3180",
     "stt": "1480",
     "grade": "12",
@@ -29220,26 +28560,6 @@
     "video_time": 15
   },
   {
-    "id": "q_12_3186",
-    "stt": "1486",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 28. Thực hành tổng hợp",
-    "level": "3",
-    "question": "Khi bạn muốn tạo một liên kết đến một phần tử cụ thể trong cùng trang web, bạn cần sử dụng thuộc tính nào sau đây?",
-    "options": [
-      "href='#id'",
-      "src='link'",
-      "data-id='value'",
-      "class='name'"
-    ],
-    "answer": "A",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
     "id": "q_12_3187",
     "stt": "1487",
     "grade": "12",
@@ -29272,26 +28592,6 @@
       "#content { color: blue; }",
       "p.content { font-size: 16px; }",
       ".title .content { font-weight: bold; }"
-    ],
-    "answer": "A",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3189",
-    "stt": "1489",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 28. Thực hành tổng hợp",
-    "level": "3",
-    "question": "Để tạo một liên kết đến một trang web khác, bạn cần sử dụng thuộc tính nào sau đây?",
-    "options": [
-      "href='http://example.com'",
-      "src='http://example.com'",
-      "data-url='http://example.com'",
-      "class='link' href='http://example.com'"
     ],
     "answer": "A",
     "video": "",
@@ -29449,26 +28749,6 @@
     "question": "Khi thực hành với JavaScript, bạn gặp lỗi 'Uncaught TypeError: Cannot read properties of undefined (reading 'addEventListener')'. Lỗi này có thể do đâu?",
     "options": [
       "Viết sai tên thuộc tính addEventListener",
-      "Không khai báo biến trước khi sử dụng",
-      "Sử dụng phương thức không tồn tại trên đối tượng null hoặc undefined",
-      "Thiếu khai báo class trong CSS"
-    ],
-    "answer": "C",
-    "video": "",
-    "video_stop": null,
-    "video_quiz": null,
-    "video_time": 15
-  },
-  {
-    "id": "q_12_3198",
-    "stt": "1498",
-    "grade": "12",
-    "topic": "7. ỨNG DỤNG TIN HỌC",
-    "lesson": "Bài 28. Thực hành tổng hợp",
-    "level": "4",
-    "question": "Trong quá trình thực hành với JavaScript, bạn gặp lỗi 'Uncaught TypeError: Cannot set properties of null (setting 'innerHTML')'. Lỗi này có thể do đâu?",
-    "options": [
-      "Viết sai tên thuộc tính innerHTML",
       "Không khai báo biến trước khi sử dụng",
       "Sử dụng phương thức không tồn tại trên đối tượng null hoặc undefined",
       "Thiếu khai báo class trong CSS"

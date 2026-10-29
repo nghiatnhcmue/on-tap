@@ -3231,7 +3231,7 @@
       "Bằng giá trị 0.",
       "Bằng giá trị 1.",
       "Bằng giá trị 10.",
-      "Bằng giá trị 1."
+      "Bằng giá trị 11."
     ],
     "answer": "A",
     "video": "",
@@ -12708,9 +12708,9 @@
     "level": "2",
     "question": "Lệnh print(\"Python\") sẽ xuất ra màn hình nội dung gì?",
     "options": [
+      "Python",
       "print(\"Python\")",
-      "Python",
-      "Python",
+      "\"Python\"",
       "Lỗi cú pháp"
     ],
     "answer": "A",
@@ -13891,7 +13891,7 @@
       "Tuổi: 15",
       "Tuổi:15",
       "Tuổi15",
-      "Tuổi: 15"
+      "(\"Tuổi:\", 15)"
     ],
     "answer": "A",
     "video": "TIN10-BAI18.mp4",
@@ -14188,10 +14188,10 @@
     "level": "3",
     "question": "Giả sử có đoạn mã x = input(). Nếu người dùng gõ phím 5 và nhấn Enter, lệnh x * 2 kế tiếp sẽ tính ra kết quả là gì?",
     "options": [
-      "55'",
+      "'55'",
       "10",
-      "10'",
-      "Báo lỗi"
+      "'10'",
+      "Báo lỗi cú pháp"
     ],
     "answer": "A",
     "video": "TIN10-BAI18.mp4",
@@ -14751,7 +14751,7 @@
       "!=",
       "<>",
       "~=",
-      "#ERROR!"
+      "=="
     ],
     "answer": "A",
     "video": "TIN10-BAI19.mp4",
@@ -17211,7 +17211,7 @@
       "Không giới hạn số lượng kiểu dữ liệu.",
       "Chỉ được phép chứa hai kiểu dữ liệu.",
       "Chỉ được phép chứa một kiểu dữ liệu.",
-      "Hoàn toàn không chứa kiểu dữ liệu nào."
+      "=="
     ],
     "answer": "A",
     "video": "TIN10-BAI22.mp4",
@@ -17271,7 +17271,7 @@
       "Bắt đầu từ số 0.",
       "Bắt đầu từ số 1.",
       "Bắt đầu từ số N.",
-      "Bắt đầu từ số 1."
+      "Bắt đầu từ số -1."
     ],
     "answer": "A",
     "video": "TIN10-BAI22.mp4",
@@ -18169,7 +18169,7 @@
     "question": "Sau khi thực hiện lệnh A.clear(), hàm len(A) sẽ trả về giá trị bằng bao nhiêu?",
     "options": [
       "0",
-      "1",
+      "None",
       "1",
       "Một số ngẫu nhiên."
     ],
@@ -18810,7 +18810,7 @@
     "options": [
       "Bắt đầu từ 0.",
       "Bắt đầu từ 1.",
-      "Bắt đầu từ 1.",
+      "Bắt đầu từ -1.",
       "Bắt đầu từ 2."
     ],
     "answer": "A",
@@ -18848,10 +18848,10 @@
     "level": "2",
     "question": "Chỉ số dương của kí tự cuối cùng trong một xâu s luôn là bao nhiêu?",
     "options": [
-      "Là len(s) 1.",
+      "Là len(s) - 1.",
       "Là len(s).",
       "Là len(s) + 1.",
-      "Là len(s)."
+      "Là len(s) - 2."
     ],
     "answer": "A",
     "video": "TIN10-BAI24.mp4",
@@ -19509,8 +19509,8 @@
     "question": "Toán tử nào sau đây dùng để kiểm tra một xâu có nằm trong xâu khác hay không?",
     "options": [
       "in",
-      "#ERROR!",
-      "#ERROR!",
+      "not in",
+      "has",
       "out"
     ],
     "answer": "A",
@@ -19548,10 +19548,10 @@
     "level": "2",
     "question": "Kết quả của biểu thức \"A\" in \"abc\" là gì?",
     "options": [
-      "0",
-      "1",
-      "1",
-      "1"
+      "False",
+      "True",
+      "None",
+      "Lỗi cú pháp (SyntaxError)"
     ],
     "answer": "A",
     "video": "TIN10-BAI25.mp4",
@@ -19650,8 +19650,8 @@
     "options": [
       "0",
       "1",
-      "1",
-      "1"
+      "-1",
+      "True"
     ],
     "answer": "A",
     "video": "TIN10-BAI25.mp4",
@@ -19691,7 +19691,7 @@
       "4",
       "False",
       "1",
-      "1"
+      "-1"
     ],
     "answer": "A",
     "video": "TIN10-BAI25.mp4",
@@ -19829,8 +19829,8 @@
     "question": "Kết quả trả về của lệnh \"\".join([\"a\", \"b\", \"c\"]) là gì?",
     "options": [
       "abc",
-      "abc",
       "a b c",
+      "[\"a\", \"b\", \"c\"]",
       "a,b,c"
     ],
     "answer": "A",
@@ -19948,10 +19948,10 @@
     "level": "1",
     "question": "Cho xâu s = \"Python\", biểu thức s[0] trả về kí tự nào?",
     "options": [
-      "P'",
-      "p'",
-      "y'",
-      "n'"
+      "'P'",
+      "'p'",
+      "'y'",
+      "'n'"
     ],
     "answer": "A",
     "video": "TIN10-BAI25.mp4",
@@ -19986,11 +19986,11 @@
     "topic": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
     "lesson": "Bài 25: Một số lệnh làm việc với xâu kí tự",
     "level": "2",
-    "question": "Cho xâu s = \"python\", phép truy cập s[1] sẽ lấy ra kí tự nào?",
+    "question": "Cho xâu s = \"python\", phép truy cập s[-1] sẽ lấy ra kí tự nào?",
     "options": [
-      "n'",
-      "p'",
-      "o'",
+      "'n'",
+      "'p'",
+      "'o'",
       "Gây ra lỗi"
     ],
     "answer": "A",
@@ -25231,7 +25231,7 @@
       "A B",
       "AB",
       "A, B",
-      "AB"
+      "[\"A\", \"B\"]"
     ],
     "answer": "A",
     "video": "TIN10-BAI32.mp4",
@@ -25929,7 +25929,7 @@
     "question": "Biểu thức int('10') + 5 sẽ trả về kết quả nào?",
     "options": [
       "15",
-      "105'",
+      "'105'",
       "Báo lỗi không chạy được",
       "10"
     ],

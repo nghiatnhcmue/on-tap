@@ -34,6 +34,8 @@ def main():
         }
     }
 
+    seen_dedup = set()
+
     # Đọc các hàng
     for i, row in enumerate(ws.iter_rows(values_only=True)):
         if i == 0:
@@ -92,6 +94,60 @@ def main():
             if not opt_c:
                 opt_c = '0'
 
+        # Sửa các lỗi cụ thể trong dữ liệu gốc
+        if stt == 184 or (grade == '10' and 'Phép nhân cơ bản 1 * 0' in q_text):
+            opt_d = 'Bằng giá trị 11.'
+        elif stt == 777 or (grade == '10' and 'print("Python")' in q_text and 'xuất ra' in q_text):
+            opt_a = 'Python'
+            opt_b = 'print("Python")'
+            opt_c = '"Python"'
+            opt_d = 'Lỗi cú pháp'
+        elif stt == 856 or (grade == '10' and 'print("Tuổi:", 15)' in q_text):
+            opt_d = '("Tuổi:", 15)'
+        elif stt == 871 or (grade == '10' and 'x = input()' in q_text and 'x * 2' in q_text):
+            opt_a = "'55'"
+            opt_c = "'10'"
+            opt_d = 'Báo lỗi cú pháp'
+        elif stt == 904 or (grade == '10' and 'khác nhau' in q_text and 'Python' in q_text):
+            opt_d = '=='
+        elif stt == 1057 or (grade == '10' and 'chỉ số (index) của phần tử đầu tiên' in q_text):
+            opt_d = 'Bắt đầu từ số -1.'
+        elif stt == 1112 or (grade == '10' and 'A.clear()' in q_text):
+            opt_b = 'None'
+            opt_c = '1'
+        elif stt == 1156 or (grade == '10' and 'chỉ số (index) của kí tự đầu tiên' in q_text):
+            opt_c = 'Bắt đầu từ -1.'
+        elif stt == 1158 or (grade == '10' and 'Chỉ số dương của kí tự cuối cùng' in q_text):
+            opt_a = 'Là len(s) - 1.'
+            opt_d = 'Là len(s) - 2.'
+        elif stt == 1201 or (grade == '10' and 'xâu có nằm trong xâu khác' in q_text):
+            opt_b = 'not in'
+            opt_c = 'has'
+        elif stt == 1203 or (grade == '10' and '"A" in "abc"' in q_text):
+            opt_a = 'False'
+            opt_b = 'True'
+            opt_c = 'None'
+            opt_d = 'Lỗi cú pháp (SyntaxError)'
+        elif stt == 1208 or (grade == '10' and '"tin học".find("tin")' in q_text):
+            opt_c = '-1'
+            opt_d = 'True'
+        elif stt == 1210 or (grade == '10' and 's.find("a", 1)' in q_text):
+            opt_d = '-1'
+        elif stt == 1217 or (grade == '10' and '"".join(["a", "b", "c"])' in q_text):
+            opt_b = 'a b c'
+            opt_c = '["a", "b", "c"]'
+        elif stt == 1223 or (grade == '10' and 's = "Python", biểu thức s[0]' in q_text):
+            opt_a, opt_b, opt_c, opt_d = "'P'", "'p'", "'y'", "'n'"
+        elif stt == 1225 or (grade == '10' and 's = "python"' in q_text and 's[1]' in q_text):
+            q_text = 'Cho xâu s = "python", phép truy cập s[-1] sẽ lấy ra kí tự nào?'
+            opt_a, opt_b, opt_c, opt_d = "'n'", "'p'", "'o'", 'Gây ra lỗi'
+        elif stt == 1553 or (grade == '10' and '" ".join(["A", "B"])' in q_text):
+            opt_d = '["A", "B"]'
+        elif stt == 1598 or (grade == '10' and "int('10') + 5" in q_text):
+            opt_b = "'105'"
+        elif grade == '11' and "'Sữa'" in q_text and opt_d == '#ERROR!':
+            opt_d = "= '%Sữa%'"
+
         # Xác định đáp án đúng
         correct = ''
         if level in ['1', '2', '3', '4']:
@@ -105,6 +161,12 @@ def main():
             correct = norm_note
         elif level == 'TLN':
             correct = note.strip()
+
+        # Deduplication: Bỏ qua câu hỏi trùng lặp 100% nội dung và phương án
+        dedup_key = (grade, q_text.strip().lower(), tuple(str(o).strip().lower() for o in [opt_a, opt_b, opt_c, opt_d]))
+        if dedup_key in seen_dedup:
+            continue
+        seen_dedup.add(dedup_key)
 
         q_obj = {
             'id': f'q_{grade}_{i}',

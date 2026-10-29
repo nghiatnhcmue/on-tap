@@ -16711,7 +16711,7 @@
       "LIKE '%Sữa%'",
       "LIKE 'Sữa%'",
       "LIKE '%Sữa'",
-      "#ERROR!"
+      "= '%Sữa%'"
     ],
     "answer": "A",
     "video": "",
