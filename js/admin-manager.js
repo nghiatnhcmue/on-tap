@@ -284,7 +284,7 @@ export const AdminManager = {
                   </button>
                 </div>
                 <span class="text-[11px] text-slate-400 mt-1 block">
-                  Đường dẫn Realtime Database miễn phí 100% của Google (hoặc endpoint REST API).
+                  Đường dẫn Firebase Realtime Database dùng để đồng bộ dữ liệu thời gian thực.
                 </span>
               </div>
 

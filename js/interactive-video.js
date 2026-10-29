@@ -136,11 +136,11 @@ export const InteractiveVideo = {
   normalizeStreamingUrl(url) {
     if (!url) return '';
     url = url.trim();
-    // 1. Google Drive view/share link -> direct high-speed stream
+    // 1. Google Drive view/share link -> direct high-speed stream via lh3 CDN
     if (url.includes('drive.google.com')) {
       const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
       if (match && match[1]) {
-        return `https://drive.google.com/uc?export=download&id=${match[1]}`;
+        return `https://lh3.googleusercontent.com/d/${match[1]}`;
       }
     }
     // 2. Dropbox share link -> raw stream
@@ -260,7 +260,7 @@ export const InteractiveVideo = {
               Video Bài Giảng Tương Tác - Khối ${this.currentGrade}
             </h2>
             <p class="text-xs sm:text-sm text-white/90 mt-1 leading-relaxed">
-              Vừa xem bài giảng vừa trả lời các câu hỏi mốc dừng. Hệ thống trang bị <b>giám sát chống gian lận đa nền tảng</b>, hỗ trợ <b>phát video trực tiếp từ máy tính</b> hoặc qua đám mây Archive.org, tự động đồng bộ điểm về Sổ điểm thời gian thực!
+              Vừa theo dõi bài giảng vừa trả lời các câu hỏi mốc dừng, giúp ghi nhớ trọng tâm và rèn luyện tư duy thực hành hiệu quả.
             </p>
 
             <!-- Bộ công cụ tải/nạp video offline (Dành cho GV & Admin) -->
@@ -1479,26 +1479,29 @@ export const InteractiveVideo = {
 
     fallback.innerHTML = isTeacher ? `
       <div class="w-16 h-16 rounded-3xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-3xl shadow-inner">
-        <i class="fa-solid fa-cloud-arrow-up"></i>
+        <i class="fa-solid fa-video-slash"></i>
       </div>
       <div>
         <h4 class="text-base sm:text-lg font-black text-white">
-          Chưa tìm thấy video trên đám mây Archive.org
+          Chưa kết nối được video bài giảng
         </h4>
         <p class="text-xs text-slate-300 mt-1 max-w-md mx-auto leading-relaxed">
-          Tệp <code class="font-mono text-amber-300">${escapeHtml(this.activeLesson.video)}</code> đang chờ tải lên Archive.org. Thầy Cô có thể <b>chọn ngay file MP4 từ máy tính</b> để phát ngay lập tức và thử sức với các câu hỏi tương tác!
+          Tệp <code class="font-mono text-amber-300">${escapeHtml(this.activeLesson.video)}</code> chưa có sẵn trên đám mây hoặc mạng đang chặn Archive.org (ERR_CONNECTION_RESET). Thầy Cô có thể gắn link Google Drive hoặc chọn video từ máy để phát ngay!
         </p>
       </div>
-      <div class="flex items-center gap-3 flex-wrap justify-center pt-2">
-        <button type="button" id="btn-fallback-retry-cors" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-lg shadow-emerald-600/30 flex items-center gap-2">
-          <i class="fa-solid fa-rotate"></i> Thử phát lại cổng CORS trực tiếp
+      <div class="flex items-center gap-2.5 flex-wrap justify-center pt-2">
+        <button type="button" id="btn-fallback-enter-url" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-lg shadow-blue-500/25 flex items-center gap-2">
+          <i class="fa-brands fa-google-drive text-amber-300"></i> Gắn link Google Drive / URL khác
         </button>
-        <label class="cursor-pointer px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-lg shadow-blue-500/30 flex items-center gap-2">
-          <i class="fa-solid fa-folder-open"></i> Chọn tệp video MP4 từ máy tính
+        <label class="cursor-pointer px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition border border-slate-700 flex items-center gap-2">
+          <i class="fa-solid fa-folder-open text-blue-400"></i> Chọn video MP4 từ máy
           <input type="file" id="input-fallback-choose-video" accept="video/mp4,video/*" class="hidden" />
         </label>
-        <button type="button" id="btn-fallback-enter-url" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition border border-slate-700 flex items-center gap-2">
-          <i class="fa-solid fa-link"></i> Nhập link URL khác
+        <button type="button" id="btn-fallback-retry-cors" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition border border-slate-700 flex items-center gap-1.5">
+          <i class="fa-solid fa-rotate"></i> Thử lại
+        </button>
+        <button type="button" id="btn-fallback-back-list" class="px-3.5 py-2.5 rounded-xl bg-transparent hover:bg-slate-800 text-slate-400 text-xs font-semibold transition flex items-center gap-1.5">
+          <i class="fa-solid fa-arrow-left"></i> Danh sách bài
         </button>
       </div>
     ` : `
@@ -1507,14 +1510,14 @@ export const InteractiveVideo = {
       </div>
       <div>
         <h4 class="text-base sm:text-lg font-black text-white">
-          Đang kết nối lại video bài giảng
+          Đang cập nhật luồng phát bài giảng
         </h4>
         <p class="text-xs text-slate-300 mt-1 max-w-md mx-auto leading-relaxed">
-          Đường truyền máy chủ đám mây đang bận hoặc bài giảng đang cập nhật. Em vui lòng bấm tải lại hoặc quay về danh sách bài học.
+          Hệ thống đang đồng bộ video hoặc đường truyền máy chủ bận. Em vui lòng thử lại hoặc chọn bài học khác.
         </p>
       </div>
       <div class="flex items-center gap-3 flex-wrap justify-center pt-2">
-        <button type="button" id="btn-fallback-retry-cors" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-lg shadow-emerald-600/30 flex items-center gap-2">
+        <button type="button" id="btn-fallback-retry-cors" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-lg shadow-blue-500/25 flex items-center gap-2">
           <i class="fa-solid fa-rotate"></i> Thử tải lại bài giảng
         </button>
         <button type="button" id="btn-fallback-back-list" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition border border-slate-700 flex items-center gap-2">

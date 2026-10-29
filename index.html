@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content, maximum-scale=5.0" />
-  <title>TinHocHub - Ôn Tập & Thi Thử Tin Học THPT (GDPT 2018)</title>
-  <meta name="description" content="Nền tảng ôn tập chuyên đề và thi thử trực tuyến môn Tin học THPT với hơn 4.400 câu hỏi chuẩn Chương trình GDPT 2018 và cấu trúc đề thi tốt nghiệp 2025." />
+  <title>TinHocHub - Nền Tảng Học & Luyện Thi Tin Học THPT</title>
+  <meta name="description" content="Nền tảng học tập thông minh môn Tin học THPT với ngân hàng câu hỏi chọn lọc, bài giảng video tương tác và hệ thống thi trực tuyến hiện đại." />
   
   <!-- Favicon -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💻</text></svg>" />
@@ -45,7 +45,7 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261029_28" />
+  <link rel="stylesheet" href="css/style.css?v=20261029_30" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -233,7 +233,7 @@
             TinHoc<span class="text-blue-600 dark:text-blue-400">Hub</span>
           </span>
           <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mt-0.5">
-            Ôn Tập & Thi Thử THPT
+            Học tập & Luyện thi
           </span>
         </div>
       </a>
@@ -441,39 +441,71 @@
     <section id="view-home" class="space-y-10">
       
       <!-- Hero Banner -->
-      <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white p-8 sm:p-12 shadow-xl shadow-blue-500/20">
-        <div class="relative z-10 max-w-3xl">
-          <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-white/20 backdrop-blur-md mb-4 uppercase tracking-wider text-blue-100">
-            <i class="fa-solid fa-shield-halved"></i> Chuẩn Chương Trình GDPT 2018 & Đề Thi 2025
-          </span>
-          <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight mb-4">
-            Ôn Tập & Thi Thử Tin Học Toàn Diện
-          </h1>
-          <p class="text-base sm:text-lg text-blue-100 leading-relaxed mb-8">
-            Ngân hàng câu hỏi trắc nghiệm và đúng/sai đồ sộ với hơn <strong class="text-white" id="stat-total-q">4.000+</strong> câu hỏi bao quát trọn vẹn chương trình Tin học 10, 11 và 12. Miễn phí 100%, không quảng cáo, tối ưu cho Cloudflare.
-          </p>
+      <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-950 text-white p-8 sm:p-12 shadow-2xl border border-white/10">
+        <!-- Glow Orbs Nền -->
+        <div class="absolute -top-24 -left-24 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-24 -right-24 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
 
-          <div class="flex flex-wrap items-center gap-3 sm:gap-4">
-            <button data-tab-target="practice" class="px-5 sm:px-6 py-3.5 bg-white text-blue-600 font-bold rounded-2xl text-xs sm:text-sm hover:bg-blue-50 transition shadow-lg shadow-black/10 flex items-center gap-2">
-              <i class="fa-solid fa-book-open-reader"></i> Bắt đầu ôn tập ngay
-            </button>
-            <button data-tab-target="exam-setup" class="px-5 sm:px-6 py-3.5 bg-blue-700/80 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs sm:text-sm backdrop-blur-md transition border border-white/20 flex items-center gap-2">
-              <i class="fa-solid fa-pen-clip"></i> Thi thử đề chuẩn 2025
-            </button>
-            <button data-tab-target="exam-setup" class="px-5 sm:px-6 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-emerald-500/25 flex items-center gap-2">
-              <i class="fa-solid fa-door-open"></i> Vào phòng thi
-            </button>
-            <button data-tab-target="leaderboard" class="px-5 sm:px-6 py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-amber-500/25 flex items-center gap-2">
-              <i class="fa-solid fa-crown text-yellow-300"></i> Bảng Vinh Danh
-            </button>
-            <button data-tab-target="interactive-video" class="px-5 sm:px-6 py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-rose-600/25 flex items-center gap-2">
-              <i class="fa-solid fa-circle-play"></i> Video tương tác
-            </button>
+        <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+          <div class="max-w-2xl">
+            <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white/10 backdrop-blur-md mb-4 text-blue-200 border border-white/15 shadow-sm">
+              <i class="fa-solid fa-sparkles text-amber-300"></i> Nền tảng học thông minh môn Tin học THPT
+            </span>
+            <h1 class="text-3xl sm:text-5xl font-black tracking-tight leading-tight mb-4">
+              Làm Chủ Kiến Thức Tin Học Cùng TinHocHub
+            </h1>
+            <p class="text-sm sm:text-base text-slate-200 leading-relaxed mb-8 max-w-xl">
+              Rèn luyện tư duy với hơn <strong class="text-white font-bold" id="stat-total-q">4.000+</strong> câu hỏi chọn lọc, bài giảng video tương tác và hệ thống phòng thi trực tuyến hiện đại.
+            </p>
+
+            <div class="flex flex-wrap items-center gap-3 sm:gap-4">
+              <button data-tab-target="practice" class="px-6 py-3.5 bg-white text-slate-900 font-bold rounded-2xl text-xs sm:text-sm hover:bg-slate-100 transition shadow-lg shadow-black/20 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
+                <i class="fa-solid fa-book-open-reader text-blue-600"></i> Bắt đầu ôn tập
+              </button>
+              <button data-tab-target="exam-setup" class="px-6 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-blue-600/30 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
+                <i class="fa-solid fa-stopwatch text-amber-300"></i> Thi thử trực tuyến
+              </button>
+              <button data-tab-target="interactive-video" class="px-5 py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl text-xs sm:text-sm backdrop-blur-md transition border border-white/20 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
+                <i class="fa-solid fa-circle-play text-rose-400"></i> Video bài giảng
+              </button>
+              <button data-tab-target="leaderboard" class="px-5 py-3.5 bg-white/10 hover:bg-white/20 text-amber-300 hover:text-white font-bold rounded-2xl text-xs sm:text-sm backdrop-blur-md transition border border-white/20 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
+                <i class="fa-solid fa-crown text-yellow-300"></i> Bảng Vinh Danh
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div class="hidden lg:block absolute -right-10 -bottom-10 opacity-15 text-[280px] pointer-events-none">
-          <i class="fa-solid fa-code"></i>
+          <!-- Highlight Stats Card Preview (Desktop) -->
+          <div class="hidden lg:flex flex-col gap-3 min-w-[260px] p-5 rounded-3xl bg-white/5 backdrop-blur-md border border-white/10 shadow-2xl">
+            <div class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
+              <div class="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-300 flex items-center justify-center text-lg shrink-0">
+                <i class="fa-solid fa-layer-group"></i>
+              </div>
+              <div>
+                <span class="block text-base font-black text-white">4.000+ Câu hỏi</span>
+                <span class="block text-[11px] text-slate-300">Trắc nghiệm & Đúng / Sai</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
+              <div class="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-300 flex items-center justify-center text-lg shrink-0">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div>
+                <span class="block text-base font-black text-white">93 Video Bài Giảng</span>
+                <span class="block text-[11px] text-slate-300">Điểm dừng tương tác</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
+              <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center text-lg shrink-0">
+                <i class="fa-solid fa-graduation-cap"></i>
+              </div>
+              <div>
+                <span class="block text-base font-black text-white">Khối 10 • 11 • 12</span>
+                <span class="block text-[11px] text-slate-300">Theo chuẩn chương trình</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -576,20 +608,20 @@
       <div id="home-user-stats"></div>
 
       <!-- Interactive Video Banner -->
-      <div class="bg-gradient-to-r from-rose-600 via-indigo-600 to-blue-600 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+      <div class="bg-gradient-to-r from-rose-600 via-purple-600 to-indigo-700 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
         <div class="relative z-10 max-w-xl">
-          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-bold uppercase tracking-wider mb-2">
-            <i class="fa-solid fa-bolt"></i> Trải Nghiệm Học Tập Đột Phá
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-semibold tracking-wide mb-2">
+            <i class="fa-solid fa-circle-play text-rose-200"></i> Video bài giảng tương tác
           </div>
           <h3 class="text-xl sm:text-2xl font-black">
-            Bài Giảng Video Tương Tác 93 Bài Học THPT
+            93 Video Bài Giảng Trực Quan
           </h3>
           <p class="text-xs sm:text-sm text-white/90 mt-1 leading-relaxed">
-            Xem video bài giảng tự động dừng tại các mốc trọng tâm, trả lời câu hỏi trắc nghiệm có đồng hồ đếm ngược và truyền điểm về máy Thầy Cô tức thời!
+            Học tập chủ động kết hợp trả lời câu hỏi mốc dừng, giúp nắm chắc kiến thức và rèn luyện kỹ năng giải quyết vấn đề.
           </p>
         </div>
-        <button data-tab-target="interactive-video" class="relative z-10 px-6 py-3.5 bg-white hover:bg-slate-100 text-rose-600 rounded-2xl text-xs sm:text-sm font-black transition shadow-lg shadow-black/20 flex items-center gap-2 shrink-0">
-          <i class="fa-solid fa-circle-play text-base"></i> Học Video Tương Tác Ngay
+        <button data-tab-target="interactive-video" class="relative z-10 px-6 py-3.5 bg-white hover:bg-slate-100 text-rose-600 rounded-2xl text-xs sm:text-sm font-bold transition shadow-lg shadow-black/20 flex items-center gap-2 shrink-0 hover:scale-[1.02] active:scale-[0.98]">
+          <i class="fa-solid fa-play text-xs"></i> Khám phá bài giảng
         </button>
         <div class="absolute -right-8 -bottom-8 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
       </div>
@@ -599,9 +631,9 @@
         <div class="flex items-center justify-between mb-6">
           <div>
             <h2 class="text-xl font-extrabold text-slate-800 dark:text-white">
-              Phân Phối Chương Trình Theo Khối Lớp
+              Chương Trình Học Theo Khối Lớp
             </h2>
-            <p class="text-xs text-slate-400 mt-0.5">Lựa chọn khối lớp để bắt đầu luyện tập</p>
+            <p class="text-xs text-slate-400 mt-0.5">Lựa chọn khối lớp để bắt đầu học tập và làm bài tập</p>
           </div>
         </div>
 
@@ -674,9 +706,9 @@
       <div>
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-base font-bold text-slate-800 dark:text-white">
-            Các Chuyên Đề Của Khối Lớp Đang Chọn
+            Chuyên Đề Trọng Tâm
           </h3>
-          <span class="text-xs text-slate-400">Chọn chuyên đề để bắt đầu ôn</span>
+          <span class="text-xs text-slate-400">Chọn chủ đề để luyện tập theo bài học</span>
         </div>
         <div id="home-topics-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
       </div>
@@ -765,10 +797,10 @@
       
       <div class="text-center">
         <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-800 dark:text-white mb-2">
-          Hệ Thống Thi & Kiểm Tra Trực Tuyến
+          Phòng Thi & Luyện Đề Trực Tuyến
         </h2>
         <p class="text-sm text-slate-500 dark:text-slate-400">
-          Vào phòng thi do Thầy Cô giao hoặc tự do luyện tập kỹ năng dưới áp lực thời gian
+          Vào phòng thi do Thầy Cô giao hoặc tự do rèn luyện kỹ năng làm bài dưới áp lực thời gian
         </p>
       </div>
 
@@ -786,14 +818,14 @@
                 Dành cho học sinh làm bài theo lớp
               </span>
               <span class="px-2.5 py-1 bg-white/10 text-slate-200 text-[10px] font-bold rounded-lg flex items-center gap-1">
-                <i class="fa-solid fa-shield-halved text-emerald-400"></i> Giám sát chống gian lận
+                <i class="fa-solid fa-shield-halved text-emerald-400"></i> Giám sát thi an toàn
               </span>
             </div>
             <h3 class="text-xl sm:text-2xl font-black text-white leading-snug">
-              Vào Phòng Thi Được Giao
+              Vào Phòng Thi Của Lớp
             </h3>
             <p class="text-xs text-blue-200 mt-1 leading-relaxed">
-              Nhập mã phòng thi và mật khẩu do Giáo viên cấp để bắt đầu làm bài thi chính thức. Hệ thống sẽ tự động đối chiếu thời gian mở/đóng đề và kích hoạt cơ chế bảo vệ bài thi.
+              Nhập mã phòng thi và mật khẩu do Giáo viên cấp để bắt đầu làm bài kiểm tra. Hệ thống tự động đồng bộ thời gian và lưu kết quả vào sổ điểm lớp.
             </p>
 
             <!-- Nút tắt dành cho Giáo viên tạo phòng thi -->
@@ -911,9 +943,9 @@
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-700">
           <div>
             <h3 class="text-base sm:text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-              <i class="fa-solid fa-wand-magic-sparkles text-blue-600"></i> Bộ Công Cụ Trộn Đề & Tạo Bài Kiểm Tra Chuẩn
+              <i class="fa-solid fa-wand-magic-sparkles text-blue-600"></i> Luyện Thi & Kiểm Tra Trực Tuyến
             </h3>
-            <p class="text-xs text-slate-400 mt-0.5">Lựa chọn cấu trúc đề thi: Chuẩn Bộ GD&ĐT 2025, Trộn theo Chủ đề, Trộn theo Bài học hoặc Ma trận nhận thức</p>
+            <p class="text-xs text-slate-400 mt-0.5">Lựa chọn cấu trúc đề: Cấu trúc Bộ GD 2025, theo Chủ đề, theo Bài học hoặc Ma trận đề</p>
           </div>
 
           <!-- Mode Selector Tabs -->
@@ -928,7 +960,7 @@
               <i class="fa-solid fa-book-bookmark mr-1"></i> Theo Bài Học (15p)
             </button>
             <button type="button" id="tab-exam-mode-matrix" data-exam-tab="matrix" data-role-req="teacher" class="hidden px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 transition whitespace-nowrap">
-              <i class="fa-solid fa-sliders mr-1"></i> Ma Trận Tự Do (GV)
+              <i class="fa-solid fa-sliders mr-1"></i> Ma Trận Đề (GV)
             </button>
           </div>
         </div>
@@ -938,16 +970,16 @@
           <div class="p-6 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-900/80 dark:to-indigo-950/40 border border-blue-200/70 dark:border-blue-900/40 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div class="max-w-xl space-y-2">
               <div class="flex items-center gap-2">
-                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-blue-600 text-white">Barem 2025</span>
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-blue-600 text-white">Cấu trúc đề mới</span>
                 <span class="text-xs text-blue-700 dark:text-blue-300 font-bold">Thời gian: 50 phút • Đúng 28 câu = 10.0 điểm</span>
               </div>
-              <h4 class="text-lg font-black text-slate-800 dark:text-white">Cấu Trúc Đề Thi Tốt Nghiệp THPT 2025 Chuẩn</h4>
+              <h4 class="text-lg font-black text-slate-800 dark:text-white">Đề Thi Tốt Nghiệp THPT Cấu Trúc Mới</h4>
               <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Được thiết kế bám sát 100% định dạng quy định của Bộ Giáo dục & Đào tạo. Tự động lấy 24 câu trắc nghiệm nhiều lựa chọn (Phần I: 6.0đ) và 4 câu trắc nghiệm Đúng/Sai đa ý (Phần II: 4.0đ).
+                Thiết kế theo định dạng đề thi mới: 24 câu trắc nghiệm nhiều lựa chọn (Phần I: 6.0đ) và 4 câu trắc nghiệm Đúng/Sai đa ý (Phần II: 4.0đ).
               </p>
             </div>
             <button type="button" id="btn-start-bgd-exam" class="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 shrink-0">
-              <i class="fa-solid fa-play"></i> Bắt đầu thi thử đề chuẩn
+              <i class="fa-solid fa-play"></i> Bắt đầu làm bài thi
             </button>
           </div>
 
@@ -1183,10 +1215,10 @@
       <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-8 space-y-6">
         <div>
           <h2 class="text-xl font-extrabold text-slate-800 dark:text-white mb-1">
-            Xuất Đề Thi In Ấn & PDF Chuẩn A4
+            Xuất Đề Thi Ra Giấy & Tải PDF
           </h2>
           <p class="text-xs text-slate-400">
-            Dành cho quý thầy cô giáo in đề kiểm tra trên lớp hoặc học sinh in ra giấy làm bài.
+            Tạo đề thi định dạng trang in A4 kèm bảng đáp án và barem chấm điểm thuận tiện.
           </p>
         </div>
 
@@ -1350,10 +1382,10 @@
           <i class="fa-solid fa-shield-halved text-[9px]"></i> Yêu cầu xác thực tài khoản
         </div>
         <h3 class="text-xl sm:text-2xl font-black text-slate-800 dark:text-white mb-1">
-          TinHocHub - Ôn Tập & Thi Thử
+          TinHocHub - Chào Mừng Bạn
         </h3>
         <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-sm mx-auto">
-          Vui lòng đăng nhập hoặc đăng ký tài khoản để truy cập hệ thống ngân hàng 4.449 câu hỏi và bảng vinh danh.
+          Đăng nhập hoặc đăng ký tài khoản để bắt đầu học tập, làm bài kiểm tra và theo dõi tiến trình của bạn.
         </p>
       </div>
 
@@ -1371,7 +1403,7 @@
       <div id="auth-panel-login" class="space-y-4">
         <!-- Google Sign-In Container (Firebase Auth) -->
         <div class="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700/80 text-center">
-          <span class="text-xs font-bold text-slate-600 dark:text-slate-300 block mb-3">Đăng nhập bằng tài khoản Google (Firebase)</span>
+          <span class="text-xs font-bold text-slate-600 dark:text-slate-300 block mb-3">Đăng nhập nhanh với Google</span>
           <div id="google-signin-btn-container" class="flex justify-center min-h-[44px]">
             <button type="button" id="btn-firebase-google-signin" data-trigger-google-firebase="signin" class="w-full max-w-xs px-5 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
               <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
@@ -1380,10 +1412,10 @@
                 <path fill="#FBBC05" d="M5 14c-.25-.72-.39-1.49-.39-2.3s.14-1.58.39-2.3V6.26H1.01C.37 7.54 0 8.98 0 11.7s.37 4.16 1.01 5.44L5 14z"/>
                 <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.21 0 3.03 2.84 1.01 6.86L5 10c.98-2.95 3.74-5.25 7-5.25z"/>
               </svg>
-              <span>Đăng nhập với Google (Firebase)</span>
+              <span>Tiếp tục với Google</span>
             </button>
           </div>
-          <p class="text-[10px] text-slate-400 mt-2">Dùng tài khoản Gmail của bạn qua Firebase Authentication bảo mật cao</p>
+          <p class="text-[10px] text-slate-400 mt-2">Hỗ trợ đăng nhập một chạm thuận tiện và bảo mật</p>
         </div>
 
         <!-- Form Đăng nhập bảo mật bằng Email/Tài khoản + Mật khẩu -->
@@ -2452,7 +2484,7 @@
           </label>
           <input type="url" id="input-custom-video-url" placeholder="https://.../video.mp4" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white" required />
           <p class="text-[11px] text-slate-400 mt-1">
-            Hỗ trợ link trực tiếp từ Archive.org, Cloudflare R2, Google Drive (direct link) hoặc bất kỳ máy chủ nào.
+            Hỗ trợ link xem Google Drive (chọn Chia sẻ &gt; Bất kỳ ai có đường liên kết), máy chủ lưu trữ trực tiếp hoặc đám mây Archive.org.
           </p>
         </div>
 
@@ -2478,15 +2510,17 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
       <div class="flex items-center gap-2">
         <span class="w-6 h-6 rounded-lg bg-blue-600 text-white font-black flex items-center justify-center text-[10px]">TH</span>
-        <span><strong>TinHocHub</strong> - Ngân hàng ôn tập & thi thử Tin học 10, 11, 12</span>
+        <span><strong>TinHocHub</strong> - Nền tảng học tập & luyện thi Tin học THPT</span>
       </div>
 
       <div class="flex items-center gap-4 text-xs">
-        <span class="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
-          <i class="fa-solid fa-cloud"></i> Tối ưu Cloudflare Pages Free
+        <span class="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-semibold">
+          <i class="fa-solid fa-shield-halved"></i> Học tập an toàn & bảo mật
         </span>
         <span>•</span>
-        <span>Offline-Ready (PWA)</span>
+        <span class="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
+          <i class="fa-solid fa-arrows-rotate"></i> Đồng bộ thời gian thực
+        </span>
       </div>
     </div>
   </footer>
@@ -2500,7 +2534,7 @@
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261029_28"></script>
+  <script type="module" src="js/app.js?v=20261029_30"></script>
 </body>
 </html>
 

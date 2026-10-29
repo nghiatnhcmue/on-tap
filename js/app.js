@@ -461,7 +461,7 @@ class App {
                     Ngân Hàng Câu Hỏi Hay Sai (${wrongQuestions.length} câu)
                   </h4>
                   <p class="text-[11px] text-slate-400 mt-0.5">
-                    Hệ thống tự động gom các câu bạn làm sai khi ôn tập và thi thử để ôn lại đến khi thuần thục
+                    Tập trung rèn luyện các câu hỏi chưa làm đúng để củng cố kiến thức nhanh chóng
                   </p>
                 </div>
               </div>
@@ -480,7 +480,7 @@ class App {
                     Đã lưu ${bookmarks.length} câu hỏi • Kỷ lục: ${maxScore !== null ? maxScore + ' điểm' : 'Chưa thi'}
                   </h4>
                   <p class="text-[11px] text-slate-400 mt-0.5">
-                    Hỗ trợ chống gian lận đa nền tảng (Windows, macOS, Android, iOS) & tự động lưu nháp bài thi
+                    Lưu các câu hỏi trọng tâm để ôn lại bất cứ lúc nào và nắm chắc bài học
                   </p>
                 </div>
               </div>

@@ -459,9 +459,14 @@ export const CloudSync = {
 
       if (remoteConfig && (remoteConfig.videoBaseUrl || remoteConfig.archiveIdentifier)) {
         // Cập nhật cấu hình video từ Cloud xuống máy học sinh/giáo viên
+        let cleanBaseUrl = (remoteConfig.videoBaseUrl || localConfig.videoBaseUrl || '').trim();
+        if (cleanBaseUrl.includes('archive.org/download/')) {
+          cleanBaseUrl = cleanBaseUrl.replace('archive.org/download/', 'archive.org/cors/');
+        }
         const merged = {
           ...localConfig,
           ...remoteConfig,
+          videoBaseUrl: cleanBaseUrl,
           // Giữ lại private key nếu máy này là Admin
           archiveAccessKey: localConfig.archiveAccessKey || remoteConfig.archiveAccessKey || '',
           archiveSecretKey: localConfig.archiveSecretKey || remoteConfig.archiveSecretKey || ''
