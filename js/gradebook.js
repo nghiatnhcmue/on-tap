@@ -209,6 +209,28 @@ export const Gradebook = {
   // --- RENDER GIAO DIỆN CHÍNH SỔ ĐIỂM ---
   render() {
     if (!this.container) return;
+
+    // Kiểm tra quyền hạn: Chỉ Giáo viên (GV) & Quản trị viên (Admin)
+    if (!Auth.isTeacher()) {
+      this.container.innerHTML = `
+        <div class="text-center py-20 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 p-8 shadow-sm max-w-xl mx-auto">
+          <div class="w-16 h-16 rounded-3xl bg-indigo-100 dark:bg-indigo-950/40 text-indigo-600 flex items-center justify-center text-3xl mx-auto mb-4">
+            <i class="fa-solid fa-graduation-cap"></i>
+          </div>
+          <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-2">
+            Sổ Điểm Lớp Học & Báo Cáo Phân Tích (Dành Cho Giáo Viên & Admin)
+          </h3>
+          <p class="text-xs text-slate-500 max-w-md mx-auto mb-6 leading-relaxed">
+            Học sinh có thể xem lại toàn bộ lịch sử bài thi và học bạ điện tử cá nhân của mình tại mục <b>Lịch sử thi</b>.
+          </p>
+          <button onclick="window.AppInstance.switchTab('history')" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-500/20">
+            <i class="fa-regular fa-clock mr-1.5"></i> Xem Lịch Sử Thi Của Tôi
+          </button>
+        </div>
+      `;
+      return;
+    }
+
     const history = Storage.getExamHistory();
 
     if (history.length === 0) {

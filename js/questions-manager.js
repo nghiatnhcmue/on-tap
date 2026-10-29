@@ -27,6 +27,22 @@ export const QuestionsManager = {
     this.render();
   },
 
+  async findAndEditQuestion(qId) {
+    if (!this.loadGradeDataCallback) return false;
+    for (const g of ['12', '11', '10']) {
+      const questions = await this.loadGradeDataCallback(g);
+      const found = questions.find(q => String(q.id) === String(qId));
+      if (found) {
+        this.currentGrade = g;
+        this.searchKeyword = String(found.id);
+        await this.render();
+        this.openEditModal(found);
+        return true;
+      }
+    }
+    return false;
+  },
+
   async render() {
     if (!this.container) return;
 

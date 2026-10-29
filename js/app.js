@@ -764,11 +764,16 @@ class App {
       tab.onclick = () => {
         const targetMode = tab.getAttribute('data-exam-tab');
         modeTabs.forEach(t => {
-          if (t === tab) {
-            t.className = 'px-3.5 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm transition whitespace-nowrap';
-          } else {
-            t.className = 'px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 transition whitespace-nowrap';
-          }
+          const isSelected = (t === tab);
+          t.classList.toggle('bg-white', isSelected);
+          t.classList.toggle('dark:bg-slate-800', isSelected);
+          t.classList.toggle('text-blue-600', isSelected);
+          t.classList.toggle('dark:text-blue-400', isSelected);
+          t.classList.toggle('shadow-sm', isSelected);
+          t.classList.toggle('font-bold', isSelected);
+          t.classList.toggle('font-semibold', !isSelected);
+          t.classList.toggle('text-slate-600', !isSelected);
+          t.classList.toggle('dark:text-slate-300', !isSelected);
         });
 
         Object.keys(panels).forEach(key => {
@@ -2099,6 +2104,7 @@ class App {
   updateRolePermissionsUI(user) {
     const isTeacher = Auth.isTeacher();
     const isAdmin = Auth.isAdmin();
+    const isStudent = Auth.isStudent();
 
     // Ẩn/hiển thị các tab & nút theo quyền yêu cầu
     document.querySelectorAll('[data-role-req="teacher"]').forEach(el => {
@@ -2108,6 +2114,16 @@ class App {
     document.querySelectorAll('[data-role-req="admin"]').forEach(el => {
       el.classList.toggle('hidden', !isAdmin);
     });
+
+    document.querySelectorAll('[data-role-req="student"]').forEach(el => {
+      el.classList.toggle('hidden', !isStudent);
+    });
+
+    // Cập nhật nhãn vai trò tại Hub Giáo viên trên Home (nếu có)
+    const hubRoleLabel = document.getElementById('home-teacher-role-label');
+    if (hubRoleLabel) {
+      hubRoleLabel.textContent = Auth.getRoleLabel();
+    }
   }
 
   // --- GLOBAL EVENTS ---

@@ -150,16 +150,13 @@ export const Auth = {
   },
 
   switchRoleDemo(role) {
-    if (!this.currentUser) {
-      this.loginWithGoogleDemo({
-        fullName: role === 'admin' ? 'Thầy Nghĩa (Admin)' : (role === 'teacher' ? 'Cô Mai (Giáo viên)' : 'Nguyễn Văn An (Học sinh)'),
-        email: role === 'admin' ? 'admin.tinhoc@gmail.com' : (role === 'teacher' ? 'giaovien.tinhoc@gmail.com' : 'hocsinh.tinhoc@gmail.com'),
-        role
-      });
-      return;
-    }
-    this.currentUser.role = role;
-    this.saveUser(this.currentUser);
+    this.loginWithGoogleDemo({
+      role,
+      fullName: role === 'admin' ? 'Thầy Nghĩa (Quản trị viên)' : (role === 'teacher' ? 'Cô Hoàng Mai (GV Tin học)' : 'Nguyễn Văn An (Học sinh)'),
+      email: role === 'admin' ? 'admin.tinhoc@gmail.com' : (role === 'teacher' ? 'giaovien.mai@gmail.com' : 'hocsinh.tinhoc@gmail.com'),
+      className: role === 'admin' ? 'Quản trị hệ thống' : (role === 'teacher' ? 'Tổ Tin học' : '12A1'),
+      school: role === 'admin' ? 'Trường ĐH Sư Phạm TP.HCM' : (role === 'teacher' ? 'THPT Thực Hành HCMUE' : 'TT GDNN GDTX Chu Văn An')
+    });
   },
 
   isProfileComplete() {

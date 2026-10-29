@@ -45,7 +45,7 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261029_27" />
+  <link rel="stylesheet" href="css/style.css?v=20261029_28" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -328,7 +328,7 @@
             <button data-tab-target="leaderboard" class="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
               <i class="fa-solid fa-crown text-amber-500 w-4"></i> Bảng vinh danh học sinh giỏi
             </button>
-            <button id="btn-open-upgrade-role" class="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
+            <button id="btn-open-upgrade-role" data-role-req="student" class="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
               <i class="fa-solid fa-key text-amber-500 w-4"></i> Nhập mã kích hoạt GV / Admin
             </button>
             <button data-tab-target="exam-rooms" data-role-req="teacher" class="hidden w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
@@ -339,6 +339,12 @@
             </button>
             <button data-tab-target="gradebook" data-role-req="teacher" class="hidden w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
               <i class="fa-solid fa-graduation-cap text-indigo-600 w-4"></i> Bảng điểm & Quản lý lớp
+            </button>
+            <button data-tab-target="print" data-role-req="teacher" class="hidden w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
+              <i class="fa-solid fa-print text-amber-500 w-4"></i> In đề thi A4 & Barem chấm
+            </button>
+            <button data-tab-target="search" data-role-req="teacher" class="hidden w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
+              <i class="fa-solid fa-magnifying-glass text-blue-500 w-4"></i> Tra cứu ngân hàng đề thi
             </button>
             <button data-tab-target="admin-system" data-role-req="admin" class="hidden w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
               <i class="fa-solid fa-shield-halved text-rose-600 w-4"></i> Trung tâm Quản trị hệ thống
@@ -468,6 +474,101 @@
 
         <div class="hidden lg:block absolute -right-10 -bottom-10 opacity-15 text-[280px] pointer-events-none">
           <i class="fa-solid fa-code"></i>
+        </div>
+      </div>
+
+      <!-- Bảng Điều Khiển Nghiệp Vụ Giáo Viên & Quản Trị (Chỉ hiển thị cho GV & Admin) -->
+      <div id="home-teacher-hub" data-role-req="teacher" class="hidden bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-purple-700/50 space-y-5 animate-fadeIn">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+          <div>
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-xs font-bold uppercase tracking-wider mb-2 border border-purple-500/30">
+              <i class="fa-solid fa-chalkboard-user"></i> Dành Cho Quý Thầy / Cô & Ban Quản Trị
+            </div>
+            <h3 class="text-xl sm:text-2xl font-black text-white">
+              Trung Tâm Điều Phối & Quản Trị Dạy Học
+            </h3>
+            <p class="text-xs text-purple-200 mt-1">
+              Truy cập nhanh các công cụ tạo phòng thi, sổ điểm lớp, ngân hàng 4.098 câu hỏi và quản lý hệ thống.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-3.5 py-1.5 rounded-xl bg-white/10 backdrop-blur-md text-xs font-bold text-white border border-white/20 flex items-center gap-2 shadow-inner">
+              <i class="fa-solid fa-user-shield text-amber-400"></i>
+              <span id="home-teacher-role-label">Giáo viên (GV)</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Card 1: Giao đề & Phòng thi -->
+          <button type="button" data-tab-target="exam-rooms" class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 transition text-left group flex flex-col justify-between space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-lg group-hover:scale-110 transition shadow-inner">
+                <i class="fa-solid fa-door-open"></i>
+              </div>
+              <i class="fa-solid fa-arrow-right text-xs text-slate-400 group-hover:text-white group-hover:translate-x-1 transition"></i>
+            </div>
+            <div>
+              <h4 class="text-sm font-bold text-white group-hover:text-emerald-300 transition">Quản Lý Phòng Thi & Giao Đề</h4>
+              <p class="text-[11px] text-slate-300 mt-1">Cấp mã phòng thi, mật khẩu, hẹn giờ mở/đóng đề và giao bài theo lớp.</p>
+            </div>
+          </button>
+
+          <!-- Card 2: Sổ điểm & Báo cáo -->
+          <button type="button" data-tab-target="gradebook" class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 transition text-left group flex flex-col justify-between space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-lg group-hover:scale-110 transition shadow-inner">
+                <i class="fa-solid fa-graduation-cap"></i>
+              </div>
+              <i class="fa-solid fa-arrow-right text-xs text-slate-400 group-hover:text-white group-hover:translate-x-1 transition"></i>
+            </div>
+            <div>
+              <h4 class="text-sm font-bold text-white group-hover:text-indigo-300 transition">Sổ Điểm Điện Tử & Quản Lý Lớp</h4>
+              <p class="text-[11px] text-slate-300 mt-1">Phổ điểm lớp, phân tích tiến độ học sinh, xuất file Excel UTF-8 BOM.</p>
+            </div>
+          </button>
+
+          <!-- Card 3: Ngân hàng 4.098 câu hỏi -->
+          <button type="button" data-tab-target="questions-manage" class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 transition text-left group flex flex-col justify-between space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center text-lg group-hover:scale-110 transition shadow-inner">
+                <i class="fa-solid fa-database"></i>
+              </div>
+              <i class="fa-solid fa-arrow-right text-xs text-slate-400 group-hover:text-white group-hover:translate-x-1 transition"></i>
+            </div>
+            <div>
+              <h4 class="text-sm font-bold text-white group-hover:text-purple-300 transition">Ngân Hàng 4.098 Câu Hỏi</h4>
+              <p class="text-[11px] text-slate-300 mt-1">Soạn câu hỏi mới, chỉnh sửa nội dung/đáp án, Import/Export JSON.</p>
+            </div>
+          </button>
+
+          <!-- Card 4: In đề chuẩn A4 -->
+          <button type="button" data-tab-target="print" class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 transition text-left group flex flex-col justify-between space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center text-lg group-hover:scale-110 transition shadow-inner">
+                <i class="fa-solid fa-print"></i>
+              </div>
+              <i class="fa-solid fa-arrow-right text-xs text-slate-400 group-hover:text-white group-hover:translate-x-1 transition"></i>
+            </div>
+            <div>
+              <h4 class="text-sm font-bold text-white group-hover:text-amber-300 transition">In Đề Thi & Barem Chấm A4</h4>
+              <p class="text-[11px] text-slate-300 mt-1">Xuất đề thi in ấn vật lý kèm Bảng đáp án A-B-C-D và hướng dẫn chấm điểm.</p>
+            </div>
+          </button>
+
+          <!-- Card 5 (Chỉ Admin): Quản trị hệ thống -->
+          <button type="button" data-tab-target="admin-system" data-role-req="admin" class="hidden sm:col-span-2 lg:col-span-4 p-4 rounded-2xl bg-rose-950/40 hover:bg-rose-900/50 backdrop-blur-md border border-rose-500/30 transition text-left group flex items-center justify-between">
+            <div class="flex items-center gap-3.5">
+              <div class="w-10 h-10 rounded-xl bg-rose-500/30 text-rose-300 flex items-center justify-center text-lg shrink-0 shadow-inner">
+                <i class="fa-solid fa-shield-halved"></i>
+              </div>
+              <div>
+                <h4 class="text-sm font-bold text-white group-hover:text-rose-300 transition">Trung Tâm Quản Trị Hệ Thống (Admin Only)</h4>
+                <p class="text-[11px] text-rose-200/80 mt-0.5">Đổi mã bảo mật GV/Admin, phân quyền tài khoản, cấu hình Firebase Cloud Sync, công cụ tải video Archive.org.</p>
+              </div>
+            </div>
+            <i class="fa-solid fa-arrow-right text-xs text-rose-300 group-hover:translate-x-1 transition shrink-0 ml-4"></i>
+          </button>
         </div>
       </div>
 
@@ -694,6 +795,14 @@
             <p class="text-xs text-blue-200 mt-1 leading-relaxed">
               Nhập mã phòng thi và mật khẩu do Giáo viên cấp để bắt đầu làm bài thi chính thức. Hệ thống sẽ tự động đối chiếu thời gian mở/đóng đề và kích hoạt cơ chế bảo vệ bài thi.
             </p>
+
+            <!-- Nút tắt dành cho Giáo viên tạo phòng thi -->
+            <div data-role-req="teacher" class="hidden pt-3 border-t border-white/10 mt-3 flex items-center justify-between gap-3 flex-wrap">
+              <span class="text-[11px] text-amber-300 font-semibold"><i class="fa-solid fa-chalkboard-user mr-1"></i>Dành cho Thầy/Cô:</span>
+              <button type="button" data-tab-target="exam-rooms" class="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-black transition flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-plus-circle"></i> Quản Lý & Giao Đề Cho Lớp
+              </button>
+            </div>
           </div>
 
           <!-- Form nhập mã & mật khẩu -->
@@ -2391,7 +2500,7 @@
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261029_27"></script>
+  <script type="module" src="js/app.js?v=20261029_28"></script>
 </body>
 </html>
 

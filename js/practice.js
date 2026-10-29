@@ -4,6 +4,7 @@
  */
 
 import { Storage } from './storage.js';
+import { Auth } from './auth.js';
 import { escapeHtml } from './utils.js';
 
 export const Practice = {
@@ -478,16 +479,24 @@ export const Practice = {
 
   renderPersonalNoteBox(q) {
     const note = Storage.getQuestionNote(q.id);
+    const isTeacher = Auth.isTeacher();
     return `
       <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/60 flex flex-col gap-2">
-        <div class="flex items-center justify-between text-xs">
+        <div class="flex items-center justify-between text-xs flex-wrap gap-2">
           <span class="text-slate-400 font-medium flex items-center gap-1.5">
             <i class="fa-regular fa-note-sticky text-amber-500"></i>
             ${note ? `<span class="text-slate-700 dark:text-slate-200 font-semibold">Ghi chú của tôi:</span> <span class="italic text-amber-700 dark:text-amber-300">${escapeHtml(note)}</span>` : 'Chưa có ghi chú cá nhân cho câu này'}
           </span>
-          <button type="button" data-edit-note="${escapeHtml(q.id)}" class="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline shrink-0 ml-2">
-            <i class="fa-solid fa-pen-clip mr-1"></i>${note ? 'Sửa ghi chú' : 'Thêm ghi chú'}
-          </button>
+          <div class="flex items-center gap-2">
+            <button type="button" data-edit-note="${escapeHtml(q.id)}" class="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline shrink-0">
+              <i class="fa-solid fa-pen-clip mr-1"></i>${note ? 'Sửa ghi chú' : 'Thêm ghi chú'}
+            </button>
+            ${isTeacher ? `
+              <button type="button" data-teacher-open-edit-q="${escapeHtml(q.id)}" class="text-[11px] font-bold text-purple-600 dark:text-purple-400 hover:underline shrink-0 ml-2" title="Chỉnh sửa câu hỏi này trong ngân hàng đề">
+                <i class="fa-solid fa-pen-to-square mr-1"></i>Sửa trong Ngân hàng đề
+              </button>
+            ` : ''}
+          </div>
         </div>
       </div>
     `;
@@ -503,6 +512,20 @@ export const Practice = {
         if (updated !== null) {
           Storage.saveQuestionNote(qId, updated);
           this.render();
+        }
+      };
+    });
+
+    this.container.querySelectorAll('[data-teacher-open-edit-q]').forEach(btn => {
+      btn.onclick = async () => {
+        const qId = btn.getAttribute('data-teacher-open-edit-q');
+        if (window.AppInstance) {
+          await window.AppInstance.switchTab('questions-manage');
+          setTimeout(() => {
+            if (window.QuestionsManager && typeof window.QuestionsManager.findAndEditQuestion === 'function') {
+              window.QuestionsManager.findAndEditQuestion(qId);
+            }
+          }, 200);
         }
       };
     });

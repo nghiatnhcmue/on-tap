@@ -27,6 +27,28 @@ export const ExamRooms = {
 
   render() {
     if (!this.container) return;
+
+    // Kiểm tra quyền hạn: Chỉ Giáo viên (GV) & Quản trị viên (Admin)
+    if (!Auth.isTeacher()) {
+      this.container.innerHTML = `
+        <div class="text-center py-20 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 p-8 shadow-sm max-w-xl mx-auto">
+          <div class="w-16 h-16 rounded-3xl bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center text-3xl mx-auto mb-4">
+            <i class="fa-solid fa-chalkboard-user"></i>
+          </div>
+          <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-2">
+            Quản Lý Phòng Thi & Giao Đề (Dành Cho Giáo Viên & Admin)
+          </h3>
+          <p class="text-xs text-slate-500 max-w-md mx-auto mb-6 leading-relaxed">
+            Học sinh vui lòng vào mục <b>Thi thử</b> để nhập Mã phòng thi và Mật khẩu làm bài do Thầy Cô cung cấp.
+          </p>
+          <button onclick="window.AppInstance.switchTab('exam-setup')" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-emerald-500/20">
+            <i class="fa-solid fa-stopwatch mr-1.5"></i> Đến trang Thi thử & Nhập mã phòng
+          </button>
+        </div>
+      `;
+      return;
+    }
+
     const allRooms = Storage.getExamRooms();
     const now = new Date();
 
