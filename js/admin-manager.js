@@ -1164,21 +1164,30 @@ export const AdminManager = {
     const manifestVideos = this.getManifestVideos();
     const manifestMap = new Map();
     manifestVideos.forEach(v => {
-      manifestMap.set(v.video.toLowerCase(), v);
+      const vLower = v.video.toLowerCase();
+      manifestMap.set(vLower, vLower);
+      // Hỗ trợ Bai01.mp4 <-> K12Bai01.mp4
+      if (vLower.startsWith('k12bai')) {
+        manifestMap.set(vLower.replace('k12bai', 'bai'), vLower);
+      }
+      // Hỗ trợ TIN10-BAI01.mp4 <-> TIN10-BAI1.mp4
+      manifestMap.set(vLower.replace(/bai(\d+)/, (m, d) => `bai${d.padStart(2, '0')}`), vLower);
+      manifestMap.set(vLower.replace(/bai0+(\d+)/, 'bai$1'), vLower);
     });
 
     let matched = 0;
     Array.from(fileList).forEach(file => {
       if (file.name.toLowerCase().endsWith('.mp4')) {
         const fNameLower = file.name.toLowerCase();
-        if (manifestMap.has(fNameLower)) {
-          this.selectedLocalFiles.set(fNameLower, file);
+        const targetVideoName = manifestMap.get(fNameLower);
+        if (targetVideoName) {
+          this.selectedLocalFiles.set(targetVideoName, file);
           matched++;
         }
       }
     });
 
-    alert(`📁 Đã duyệt ${fileList.length} tệp tin.\n✅ Đã ghép khớp thành công: ${matched} video bài giảng chuẩn!`);
+    alert(`📁 Đã duyệt ${fileList.length} tệp tin.\n✅ Đã ghép khớp thành công: ${matched} / ${manifestVideos.length} video bài giảng chuẩn!`);
     this.render();
   },
 
