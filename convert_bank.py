@@ -56,6 +56,10 @@ def main():
         grade = str(row[11]).strip() if row[11] else '10'
         video = str(row[13]).strip() if row[13] else ''
 
+        # CHỈ GIỮ LẠI DẠNG TRẮC NGHIỆM (1, 2, 3, 4) VÀ ĐÚNG/SAI (DS) - LOẠI BỎ TRẢ LỜI NGẮN (TLN)
+        if level not in ['1', '2', '3', '4', 'DS']:
+            continue
+
         # Xử lý các trường hợp đặc biệt phát hiện trong dữ liệu gốc
         if i + 1 == 1230 and not opt_a:
             opt_a = '"" (Hai dấu ngoặc kép liền nhau)'

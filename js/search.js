@@ -103,7 +103,6 @@ export const Search = {
                 <option value="3" ${this.currentLevel === '3' ? 'selected' : ''}>Vận dụng</option>
                 <option value="4" ${this.currentLevel === '4' ? 'selected' : ''}>Vận dụng cao</option>
                 <option value="DS" ${this.currentLevel === 'DS' ? 'selected' : ''}>Đúng / Sai</option>
-                <option value="TLN" ${this.currentLevel === 'TLN' ? 'selected' : ''}>Trả lời ngắn</option>
               </select>
             </div>
 

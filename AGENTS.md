@@ -11,7 +11,7 @@ Tài liệu này được biên soạn nhằm giúp các Agent AI kế nhiệm n
 - **Mô hình kiến trúc:** Ứng dụng web tĩnh (Static Web App / SPA) thuần JavaScript ES Modules.
 - **Không sử dụng:** Backend máy chủ riêng, Node.js runtime khi chạy, bundler (Webpack/Vite), framework (React/Vue).
 - **Lưu trữ dữ liệu:** Phía client thông qua trình duyệt (`localStorage`), được đóng gói thống nhất qua module `js/storage.js`.
-- **Dữ liệu ngân hàng câu hỏi:** 4.449 câu hỏi tĩnh lưu tại thư mục `data/` (`grade_10.json`, `grade_11.json`, `grade_12.json`, `manifest.json`), được trích xuất từ file Excel gốc `Ngan Hang de.xlsx`.
+- **Dữ liệu ngân hàng câu hỏi:** 4.098 câu hỏi chuẩn trắc nghiệm 4 lựa chọn (MCQ) và Đúng/Sai (DS) lưu tại thư mục `data/` (`grade_10.json`, `grade_11.json`, `grade_12.json`, `manifest.json`), được trích xuất và chuẩn hóa từ file Excel gốc `Ngan Hang de.xlsx`.
 - **Triển khai & Hosting:** Cloudflare Pages / Workers kết nối tự động với GitHub Repository:
   - GitHub Repo: `https://github.com/nghiatnhcmue/on-tap.git` (nhánh `main`).
   - **Production URL DUY NHẤT:** `https://on-tap.nghiaedu.workers.dev/` (Tập trung toàn bộ vào domain này).
@@ -37,14 +37,14 @@ D:\app-on-tap/
 │   ├── gradebook.js        # Sổ điểm & Phân tích Tiến trình: theo học sinh, theo lớp, học bạ điện tử, xuất Excel BOM
 │   ├── questions-manager.js# Quản lý Ngân hàng đề cho Giáo viên: Thêm, Sửa, Xóa câu hỏi, Xuất/Nhập JSON
 │   ├── admin-manager.js    # Bảng điều khiển Quản trị viên (Admin): đổi mã bảo mật, phân vai, dọn dẹp hệ thống
-│   ├── search.js           # Tìm kiếm tức thì 4.449 câu hỏi theo từ khóa, khối, chủ đề, cấp độ
+│   ├── search.js           # Tìm kiếm tức thì 4.098 câu hỏi theo từ khóa, khối, chủ đề, cấp độ
 │   ├── print.js            # Xuất đề thi in ấn chuẩn A4 kèm bảng đáp án và hướng dẫn chấm
 │   └── utils.js            # Tiện ích chung, trọng tâm là hàm chống XSS escapeHtml()
 ├── data/
-│   ├── manifest.json       # Thống kê metadata (tổng 4.449 câu, số câu theo từng khối và chủ đề)
-│   ├── grade_10.json       # 1.700 câu hỏi Khối 10 (gồm 1, 2, 3, 4, DS, TLN)
-│   ├── grade_11.json       # 1.240 câu hỏi Khối 11 (gồm 1, 2, 3, 4 MCQ)
-│   └── grade_12.json       # 1.509 câu hỏi Khối 12 (gồm 1, 2, 3, 4, DS, TLN)
+│   ├── manifest.json       # Thống kê metadata (tổng 4.098 câu MCQ và Đúng/Sai theo từng khối và chủ đề)
+│   ├── grade_10.json       # 1.379 câu hỏi Khối 10 (gồm MCQ 1, 2, 3, 4 và Đúng/Sai DS)
+│   ├── grade_11.json       # 1.240 câu hỏi Khối 11 (gồm MCQ 1, 2, 3, 4)
+│   └── grade_12.json       # 1.479 câu hỏi Khối 12 (gồm MCQ 1, 2, 3, 4 và Đúng/Sai DS)
 ├── convert_bank.py         # Script Python chuyển đổi Excel sang JSON đồng bộ chuẩn schema
 ├── Ngan Hang de.xlsx       # File Excel ngân hàng câu hỏi gốc
 ├── _headers                # Header tối ưu cache và bảo mật cho Cloudflare Workers / Pages

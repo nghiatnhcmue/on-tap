@@ -37,7 +37,7 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261029_08" />
+  <link rel="stylesheet" href="css/style.css?v=20261029_09" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -421,7 +421,7 @@
             Ôn Tập & Thi Thử Tin Học Toàn Diện
           </h1>
           <p class="text-base sm:text-lg text-blue-100 leading-relaxed mb-8">
-            Ngân hàng câu hỏi trắc nghiệm, đúng/sai và trả lời ngắn đồ sộ với hơn <strong class="text-white" id="stat-total-q">4.400+</strong> câu hỏi bao quát trọn vẹn chương trình Tin học 10, 11 và 12. Miễn phí 100%, không quảng cáo, tối ưu cho Cloudflare.
+            Ngân hàng câu hỏi trắc nghiệm và đúng/sai đồ sộ với hơn <strong class="text-white" id="stat-total-q">4.000+</strong> câu hỏi bao quát trọn vẹn chương trình Tin học 10, 11 và 12. Miễn phí 100%, không quảng cáo, tối ưu cho Cloudflare.
           </p>
 
           <div class="flex flex-wrap items-center gap-3 sm:gap-4">
@@ -584,7 +584,6 @@
               <option value="3">Mức 3: Vận dụng</option>
               <option value="4">Mức 4: Vận dụng cao</option>
               <option value="DS">Dạng câu hỏi Đúng / Sai</option>
-              <option value="TLN">Dạng Trả lời ngắn</option>
             </select>
           </div>
 
@@ -697,8 +696,8 @@
         </select>
       </div>
 
-      <!-- Cấu hình Trộn đề: Đảo câu hỏi & Đảo phương án -->
-      <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+      <!-- Cấu hình Trộn đề: Đảo câu hỏi & Đảo phương án (Ẩn ở giao diện học sinh - Mặc định luôn bật) -->
+      <div id="exam-shuffle-config-panel" data-role-req="teacher" class="hidden bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
         <div class="flex items-center gap-2.5 pb-2 border-b border-slate-100 dark:border-slate-700">
           <div class="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-sm">
             <i class="fa-solid fa-shuffle"></i>
@@ -812,7 +811,7 @@
             <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-700/60">
               <span class="text-slate-400 block mb-1 font-bold">Tổng số câu hỏi</span>
               <strong class="text-base text-blue-600 dark:text-blue-400 block">Đúng 28 câu</strong>
-              <span class="text-[11px] text-slate-500">Không có câu trả lời ngắn</span>
+              <span class="text-[11px] text-slate-500">Chuẩn cấu trúc 10.0 điểm</span>
             </div>
             <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-700/60">
               <span class="text-slate-400 block mb-1 font-bold">Mã đề thi</span>
@@ -962,7 +961,6 @@
                 <option value="3">Mức 3: Vận dụng</option>
                 <option value="4">Mức 4: Vận dụng cao</option>
                 <option value="DS">Dạng Đúng / Sai (DS)</option>
-                <option value="TLN">Dạng Trả lời ngắn (TLN)</option>
               </select>
             </div>
 
@@ -2041,7 +2039,7 @@
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261029_08"></script>
+  <script type="module" src="js/app.js?v=20261029_09"></script>
 </body>
 </html>
 

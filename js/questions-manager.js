@@ -159,7 +159,6 @@ export const QuestionsManager = {
                 <option value="3" ${this.currentLevel === '3' ? 'selected' : ''}>Mức 3 (Vận dụng)</option>
                 <option value="4" ${this.currentLevel === '4' ? 'selected' : ''}>Mức 4 (Vận dụng cao)</option>
                 <option value="DS" ${this.currentLevel === 'DS' ? 'selected' : ''}>Phần II: Đúng / Sai</option>
-                <option value="TLN" ${this.currentLevel === 'TLN' ? 'selected' : ''}>Phần III: Trả lời ngắn</option>
               </select>
             </div>
 
@@ -259,7 +258,6 @@ export const QuestionsManager = {
                   <option value="3">3 - Vận dụng (MCQ)</option>
                   <option value="4">4 - Vận dụng cao (MCQ)</option>
                   <option value="DS">DS - Đúng / Sai (4 ý)</option>
-                  <option value="TLN">TLN - Trả lời ngắn</option>
                 </select>
               </div>
 

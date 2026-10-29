@@ -651,10 +651,19 @@ class App {
     if (shuffleOptCheckbox) shuffleOptCheckbox.checked = settings.shuffleOptions ?? true;
     if (antiCheatCheckbox) antiCheatCheckbox.checked = settings.proctorPracticeExam ?? true;
 
+    // Ẩn bảng cấu hình đảo đề & giám sát đối với Học sinh (mặc định luôn bật cả 3 tính năng)
+    const shuffleConfigPanel = document.getElementById('exam-shuffle-config-panel');
+    if (shuffleConfigPanel) {
+      const isTeacherOrAdmin = Auth.isTeacher() || Auth.isAdmin();
+      shuffleConfigPanel.classList.toggle('hidden', !isTeacherOrAdmin);
+    }
+
     const getExamShuffleConfig = () => {
-      const shuffleQuestions = shuffleQCheckbox ? shuffleQCheckbox.checked : true;
-      const shuffleOptions = shuffleOptCheckbox ? shuffleOptCheckbox.checked : true;
-      const proctorPracticeExam = antiCheatCheckbox ? antiCheatCheckbox.checked : true;
+      // Học sinh mặc định luôn bật cả 3 tính năng: Đảo câu hỏi, Đảo phương án, Giám sát chống gian lận
+      const isTeacherOrAdmin = Auth.isTeacher() || Auth.isAdmin();
+      const shuffleQuestions = (shuffleQCheckbox && isTeacherOrAdmin) ? shuffleQCheckbox.checked : true;
+      const shuffleOptions = (shuffleOptCheckbox && isTeacherOrAdmin) ? shuffleOptCheckbox.checked : true;
+      const proctorPracticeExam = (antiCheatCheckbox && isTeacherOrAdmin) ? antiCheatCheckbox.checked : true;
       Storage.saveSettings({ shuffleQuestions, shuffleOptions, proctorPracticeExam });
       return {
         shuffleQuestions,
@@ -913,8 +922,7 @@ class App {
           '2': 'Mức 2: Thông hiểu',
           '3': 'Mức 3: Vận dụng',
           '4': 'Mức 4: Vận dụng cao',
-          'DS': 'Dạng Đúng / Sai',
-          'TLN': 'Dạng Trả lời ngắn'
+          'DS': 'Dạng Đúng / Sai'
         };
         const levelSuffix = levelNames[level] ? ` (${levelNames[level]})` : '';
         const title = `Kiểm tra Tin học ${duration} phút - Khối ${grade}${levelSuffix}`;
