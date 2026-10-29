@@ -132,6 +132,28 @@ export const InteractiveVideo = {
     return Array.from(set);
   },
 
+  // Chuẩn hóa và tối ưu hóa URL phát video (hỗ trợ chuyển đổi link Google Drive, Dropbox, Archive.org trực tiếp)
+  normalizeStreamingUrl(url) {
+    if (!url) return '';
+    url = url.trim();
+    // 1. Google Drive view/share link -> direct high-speed stream
+    if (url.includes('drive.google.com')) {
+      const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+        return `https://drive.google.com/uc?export=download&id=${match[1]}`;
+      }
+    }
+    // 2. Dropbox share link -> raw stream
+    if (url.includes('dropbox.com')) {
+      return url.replace('?dl=0', '?raw=1').replace('&dl=0', '&raw=1');
+    }
+    // 3. Archive.org download redirect fix
+    if (url.includes('archive.org/download/')) {
+      return url.replace('archive.org/download/', 'archive.org/cors/');
+    }
+    return url;
+  },
+
   // Xác định đường dẫn phát video (Ưu tiên: 1. File local đã nạp -> 2. Custom URL -> 3. Archive.org S3 Base URL)
   getVideoUrl(videoFile) {
     if (!videoFile) return '';
@@ -148,7 +170,7 @@ export const InteractiveVideo = {
     // 2. Đường link URL trực tiếp do người dùng/giáo viên cài đặt
     const customUrl = Storage.getCustomVideoUrl(videoFile);
     if (customUrl) {
-      return customUrl;
+      return this.normalizeStreamingUrl(customUrl);
     }
 
     // 3. Mặc định tải từ Archive.org (bắt buộc dùng /cors/ để không bị redirect 302 sang ia*.us.archive.org gây lỗi ERR_CONNECTION_RESET tại Việt Nam)
@@ -782,10 +804,18 @@ export const InteractiveVideo = {
           <!-- Sân Khấu Phát Video Toàn Khung (100% Full-Width Cinema Stage) -->
           <div id="interactive-player-stage" class="relative w-full aspect-video lg:max-h-[76vh] rounded-3xl overflow-hidden bg-slate-950 shadow-2xl border border-slate-800 flex flex-col justify-end group select-none mx-auto">
             
-            <!-- Thẻ Video HTML5 -->
-            <video id="interactive-video-elem" class="absolute inset-0 w-full h-full object-contain cursor-pointer" playsinline preload="metadata" src="${escapeHtml(videoUrl)}">
+            <!-- Thẻ Video HTML5 (Bật preload="auto" để nạp trước luồng dữ liệu mượt mà) -->
+            <video id="interactive-video-elem" class="absolute inset-0 w-full h-full object-contain cursor-pointer" playsinline preload="auto" src="${escapeHtml(videoUrl)}">
               Trình duyệt không hỗ trợ thẻ video HTML5.
             </video>
+
+            <!-- Màn chắn Loading / Buffering Spinner (Báo hiệu đệm dữ liệu video trực quan) -->
+            <div id="player-buffering-indicator" class="hidden absolute inset-0 bg-black/40 backdrop-blur-[2px] flex flex-col items-center justify-center gap-3 pointer-events-none transition-all z-20">
+              <div class="w-12 h-12 rounded-full border-4 border-white/20 border-t-blue-500 animate-spin shadow-xl"></div>
+              <span class="px-3 py-1.5 rounded-full bg-slate-900/80 text-white text-xs font-medium backdrop-blur-md border border-white/10 shadow-lg flex items-center gap-2">
+                <i class="fa-solid fa-cloud-arrow-down text-blue-400"></i> Đang tải luồng video...
+              </span>
+            </div>
 
             <!-- Màn chắn Big Play/Pause Center Indicator -->
             <div id="player-center-play-indicator" class="hidden absolute inset-0 bg-black/30 backdrop-blur-[2px] flex items-center justify-center pointer-events-none transition-all">
@@ -828,6 +858,9 @@ export const InteractiveVideo = {
               
               <!-- Interactive Seekbar Track with Checkpoint Flag Pins -->
               <div id="player-custom-timeline-track" class="video-timeline-track w-full">
+                <!-- Thanh đệm dữ liệu tải trước (Buffer Bar) -->
+                <div id="player-timeline-buffer-fill" class="absolute top-0 bottom-0 left-0 bg-white/20 rounded-full transition-all duration-300" style="width: 0%"></div>
+
                 <!-- Thanh tiến trình đã phát -->
                 <div id="player-timeline-progress-fill" class="video-timeline-progress" style="width: 0%"></div>
 
@@ -1074,6 +1107,29 @@ export const InteractiveVideo = {
     this.playerStageElem = stage;
 
     if (video) {
+      // 0. Quản lý trạng thái đang đệm / tải video (Buffer Spinner & Indicator)
+      const bufferIndicator = document.getElementById('player-buffering-indicator');
+      const showBuffering = () => {
+        if (bufferIndicator && !video.paused) bufferIndicator.classList.remove('hidden');
+      };
+      const hideBuffering = () => {
+        if (bufferIndicator) bufferIndicator.classList.add('hidden');
+      };
+
+      video.onwaiting = showBuffering;
+      video.onstalled = showBuffering;
+      video.onloadstart = () => {
+        if (bufferIndicator) bufferIndicator.classList.remove('hidden');
+      };
+      video.oncanplay = hideBuffering;
+      video.onplaying = hideBuffering;
+      video.onpause = hideBuffering;
+      video.onseeking = showBuffering;
+      video.onseeked = hideBuffering;
+      video.onprogress = () => {
+        this.updatePlayerTimeUI(video.currentTime, video.duration);
+      };
+
       // 1. Khi metadata tải xong: khởi tạo thời lượng và cờ pins
       video.onloadedmetadata = () => {
         this.updateTimelinePins();
@@ -1326,10 +1382,11 @@ export const InteractiveVideo = {
     }
   },
 
-  // Cập nhật giao diện thời gian phát
+  // Cập nhật giao diện thời gian phát và thanh đệm tải trước (Buffer Bar)
   updatePlayerTimeUI(curTime, duration) {
     const timeText = document.getElementById('player-custom-time-display');
     const progressFill = document.getElementById('player-timeline-progress-fill');
+    const bufferFill = document.getElementById('player-timeline-buffer-fill');
 
     if (timeText) {
       timeText.textContent = `${this.formatTime(curTime)} / ${this.formatTime(duration)}`;
@@ -1338,6 +1395,18 @@ export const InteractiveVideo = {
     if (progressFill && duration > 0) {
       const pct = Math.min(100, (curTime / duration) * 100);
       progressFill.style.width = `${pct.toFixed(2)}%`;
+    }
+
+    if (bufferFill && duration > 0 && this.videoElem && this.videoElem.buffered.length > 0) {
+      try {
+        let maxBuffered = 0;
+        for (let i = 0; i < this.videoElem.buffered.length; i++) {
+          const end = this.videoElem.buffered.end(i);
+          if (end > maxBuffered) maxBuffered = end;
+        }
+        const bufPct = Math.min(100, (maxBuffered / duration) * 100);
+        bufferFill.style.width = `${bufPct.toFixed(2)}%`;
+      } catch (e) {}
     }
   },
 
