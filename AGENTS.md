@@ -12,10 +12,9 @@ Tài liệu này được biên soạn nhằm giúp các Agent AI kế nhiệm n
 - **Không sử dụng:** Backend máy chủ riêng, Node.js runtime khi chạy, bundler (Webpack/Vite), framework (React/Vue).
 - **Lưu trữ dữ liệu:** Phía client thông qua trình duyệt (`localStorage`), được đóng gói thống nhất qua module `js/storage.js`.
 - **Dữ liệu ngân hàng câu hỏi:** 4.449 câu hỏi tĩnh lưu tại thư mục `data/` (`grade_10.json`, `grade_11.json`, `grade_12.json`, `manifest.json`), được trích xuất từ file Excel gốc `Ngan Hang de.xlsx`.
-- **Triển khai & Hosting:** Cloudflare Pages kết nối tự động với GitHub Repository:
+- **Triển khai & Hosting:** Cloudflare Pages / Workers kết nối tự động với GitHub Repository:
   - GitHub Repo: `https://github.com/nghiatnhcmue/on-tap.git` (nhánh `main`).
-  - Production URL 1: `https://on-tap.nghiaedu.workers.dev/`
-  - Production URL 2: `https://tinhoc-thpt.pages.dev/`
+  - **Production URL DUY NHẤT:** `https://on-tap.nghiaedu.workers.dev/` (Tập trung toàn bộ vào domain này).
 
 ---
 

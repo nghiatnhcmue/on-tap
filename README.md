@@ -4,7 +4,6 @@
 
 🔗 **Website chính thức:**
 👉 **[https://on-tap.nghiaedu.workers.dev/](https://on-tap.nghiaedu.workers.dev/)**
-*(Hoặc tên miền dự phòng: [https://tinhoc-thpt.pages.dev/](https://tinhoc-thpt.pages.dev/))*
 
 ---
 
