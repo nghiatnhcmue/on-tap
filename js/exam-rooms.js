@@ -193,6 +193,7 @@ export const ExamRooms = {
 
         const start = room.startTime ? new Date(room.startTime).toLocaleString('vi-VN') : 'Mở tự do';
         const end = room.endTime ? new Date(room.endTime).toLocaleString('vi-VN') : 'Không giới hạn';
+        const directUrl = `${window.location.origin}${window.location.pathname}?room=${room.id}`;
         const msg = `📢 THÔNG BÁO KIỂM TRA MÔN TIN HỌC THPT
 📝 Bài thi: ${room.title} (Khối ${room.grade})
 ⏱ Thời gian làm bài: ${room.duration} phút
@@ -201,8 +202,8 @@ export const ExamRooms = {
 🔑 MÃ PHÒNG THI: ${room.id}
 🔒 MẬT KHẨU: ${room.password || 'Không có'}
 🛡 Giám sát chống gian lận: ${room.antiCheat?.enabled ? 'Có (Cấm chuyển tab/thoát toàn màn hình)' : 'Không'}
-👉 Học sinh truy cập vào thi tại: https://on-tap.nghiaedu.workers.dev/
-(Chọn mục Thi Thử -> Nhập Mã phòng & Mật khẩu)`;
+👉 Link vào thi trực tiếp: ${directUrl}
+(Hoặc vào https://on-tap.nghiaedu.workers.dev/ -> Chọn Thi Thử -> Nhập Mã & Mật khẩu)`;
 
         navigator.clipboard.writeText(msg).then(() => {
           alert('Đã sao chép toàn bộ thông tin phòng thi vào bộ nhớ tạm!\nThầy Cô có thể dán (Paste) ngay vào nhóm Zalo hoặc Facebook của lớp.');

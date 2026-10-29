@@ -757,11 +757,6 @@
       <div id="exam-rooms-list-area"></div>
     </section>
 
-    <!-- VIEW: QUẢN LÝ PHÒNG THI & GIAO ĐỀ THI (EXAM ROOMS) -->
-    <section id="view-exam-rooms" class="hidden max-w-6xl mx-auto">
-      <div id="exam-rooms-area"></div>
-    </section>
-
     <!-- VIEW: QUẢN LÝ BẢNG ĐIỂM & HỌC SINH (GRADEBOOK) -->
     <section id="view-gradebook" class="hidden max-w-6xl mx-auto">
       <div id="gradebook-list-area"></div>
@@ -864,6 +859,12 @@
       <p class="text-[11px] text-slate-400 text-center mt-4">
         Khi đăng nhập, hệ thống sẽ yêu cầu bạn xác nhận <b>Họ và tên</b>, <b>Lớp</b> và <b>Trường</b> để lưu bảng điểm.
       </p>
+
+      <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 text-center">
+        <button id="btn-open-google-config" class="text-[11px] text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1.5 font-semibold">
+          <i class="fa-solid fa-gear text-[10px]"></i> Cài đặt Google Client ID (GV / Admin)
+        </button>
+      </div>
     </div>
   </div>
 
@@ -906,12 +907,6 @@
           Xác Nhận & Kích Hoạt
         </button>
       </form>
-    </div>
-  </div>
-
-      <p class="text-[11px] text-slate-400 text-center mt-4">
-        Khi đăng nhập, hệ thống sẽ yêu cầu bạn xác nhận <b>Họ và tên</b>, <b>Lớp</b> và <b>Trường</b> để lưu bảng điểm.
-      </p>
     </div>
   </div>
 
@@ -1194,8 +1189,6 @@
       </button>
     </div>
   </div>
-
-  </main>
 
   <!-- ==================== FOOTER ==================== -->
   <footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-8 no-print transition-colors">

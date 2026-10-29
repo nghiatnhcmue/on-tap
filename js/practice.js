@@ -14,6 +14,8 @@ export const Practice = {
   viewMode: 'single', // 'single' | 'list'
   sessionStats: { answered: 0, correct: 0, wrong: 0 },
   userAnswers: {}, // key: question.id -> answer state
+  tempTfChoices: {},
+  tempTlnInputs: {},
   shuffleQuestions: false,
   shuffleOptions: true,
 
@@ -23,6 +25,8 @@ export const Practice = {
     this.manifest = manifest;
     this.sessionStats = { answered: 0, correct: 0, wrong: 0 };
     this.userAnswers = {};
+    this.tempTfChoices = {};
+    this.tempTlnInputs = {};
     this.currentIndex = 0;
     const settings = Storage.getSettings();
     this.shuffleQuestions = false;
@@ -35,6 +39,8 @@ export const Practice = {
     this.applyShuffle();
     this.currentIndex = 0;
     this.userAnswers = {};
+    this.tempTfChoices = {};
+    this.tempTlnInputs = {};
     this.render();
   },
 
@@ -66,6 +72,8 @@ export const Practice = {
     this.applyShuffle();
     this.currentIndex = 0;
     this.userAnswers = {};
+    this.tempTfChoices = {};
+    this.tempTlnInputs = {};
     this.render();
   },
 
@@ -302,7 +310,7 @@ export const Practice = {
           ${q.options.map((opt, idx) => {
             const letter = letters[idx];
             const correctVal = correctParts[idx] || 'Đ';
-            const userChoice = userAns ? userAns.choices[idx] : null;
+            const userChoice = userAns ? userAns.choices[idx] : (this.tempTfChoices?.[q.id]?.[idx] || null);
 
             return `
               <div class="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -312,10 +320,10 @@ export const Practice = {
                 </div>
                 
                 <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                  <button data-tf-idx="${idx}" data-val="Đ" ${isAnswered ? 'disabled' : ''} class="tf-btn px-4 py-1.5 rounded-lg text-xs font-bold transition border ${userChoice === 'Đ' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:border-blue-400'}">
+                  <button data-tf-qid="${q.id}" data-tf-idx="${idx}" data-val="Đ" ${isAnswered ? 'disabled' : ''} class="tf-btn px-4 py-1.5 rounded-lg text-xs font-bold transition border ${userChoice === 'Đ' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:border-blue-400'}">
                     Đúng
                   </button>
-                  <button data-tf-idx="${idx}" data-val="S" ${isAnswered ? 'disabled' : ''} class="tf-btn px-4 py-1.5 rounded-lg text-xs font-bold transition border ${userChoice === 'S' ? 'bg-rose-600 text-white border-rose-600' : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:border-rose-400'}">
+                  <button data-tf-qid="${q.id}" data-tf-idx="${idx}" data-val="S" ${isAnswered ? 'disabled' : ''} class="tf-btn px-4 py-1.5 rounded-lg text-xs font-bold transition border ${userChoice === 'S' ? 'bg-rose-600 text-white border-rose-600' : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:border-rose-400'}">
                     Sai
                   </button>
 
@@ -330,20 +338,9 @@ export const Practice = {
           }).join('')}
         </div>
 
-                  ${isAnswered ? `
-                    <span class="ml-2 text-xs font-bold ${userChoice === correctVal ? 'text-emerald-500' : 'text-rose-500'}">
-                      (Đ/A: ${correctVal})
-                    </span>
-                  ` : ''}
-                </div>
-              </div>
-            `;
-          }).join('')}
-        </div>
-
         ${!isAnswered ? `
           <div class="pt-2 flex justify-end">
-            <button id="btn-check-tf" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 transition">
+            <button data-check-tf="${q.id}" class="btn-check-tf px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 transition">
               <i class="fa-solid fa-check-double mr-1.5"></i>Kiểm tra đáp án
             </button>
           </div>
@@ -367,10 +364,10 @@ export const Practice = {
         </p>
 
         <div class="flex items-center gap-3">
-          <input type="text" id="tln-input" ${isAnswered ? 'disabled' : ''} value="${userAns ? userAns.input : ''}" placeholder="Nhập câu trả lời của bạn..." class="flex-1 px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <input type="text" data-tln-input="${q.id}" ${isAnswered ? 'disabled' : ''} value="${escapeHtml(userAns ? userAns.input : (this.tempTlnInputs?.[q.id] || ''))}" placeholder="Nhập câu trả lời của bạn..." class="flex-1 px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
           
           ${!isAnswered ? `
-            <button id="btn-check-tln" class="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-500/20 transition">
+            <button data-check-tln="${q.id}" class="btn-check-tln px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-500/20 transition">
               Kiểm tra
             </button>
           ` : ''}
@@ -382,7 +379,7 @@ export const Practice = {
               <i class="${userAns.isCorrect ? 'fa-solid fa-circle-check text-emerald-500' : 'fa-solid fa-circle-xmark text-rose-500'}"></i>
               ${userAns.isCorrect ? 'Chính xác tuyệt đối!' : `Chưa chính xác!`}
             </div>
-            <div>Đáp án chuẩn là: <span class="font-bold font-mono px-2 py-0.5 bg-black/10 rounded">${q.answer}</span></div>
+            <div>Đáp án chuẩn là: <span class="font-bold font-mono px-2 py-0.5 bg-black/10 rounded">${escapeHtml(q.answer)}</span></div>
           </div>
         ` : ''}
       </div>
@@ -488,6 +485,57 @@ export const Practice = {
     return `<span class="px-2.5 py-0.5 rounded-lg text-xs font-semibold ${item.cls}">${item.label}</span>`;
   },
 
+  handleCheckTf(qId) {
+    const q = this.filteredQuestions.find(item => item.id === qId);
+    if (!q || this.userAnswers[qId]) return;
+
+    const choices = this.tempTfChoices[qId] || ['', '', '', ''];
+    const correctParts = (q.answer || 'Đ,Đ,Đ,Đ').split(',');
+    let correctSubCount = 0;
+    for (let i = 0; i < 4; i++) {
+      if (choices[i] && choices[i] === correctParts[i]) {
+        correctSubCount++;
+      }
+    }
+    // Thang điểm Bộ GD: 1 ý = 0.1, 2 ý = 0.25, 3 ý = 0.5, 4 ý = 1.0
+    const pointMap = [0, 0.1, 0.25, 0.5, 1.0];
+    const points = pointMap[correctSubCount];
+
+    this.userAnswers[qId] = {
+      choices: [...choices],
+      correctSubCount,
+      points,
+      isCorrect: correctSubCount === 4
+    };
+
+    this.sessionStats.answered++;
+    if (correctSubCount >= 3) this.sessionStats.correct++;
+    else this.sessionStats.wrong++;
+    Storage.recordPracticeResult(correctSubCount === 4);
+
+    this.render();
+  },
+
+  handleCheckTln(qId) {
+    const q = this.filteredQuestions.find(item => item.id === qId);
+    if (!q || this.userAnswers[qId]) return;
+
+    const inputEl = this.container.querySelector(`[data-tln-input="${qId}"]`);
+    const val = inputEl ? inputEl.value.trim() : (this.tempTlnInputs?.[qId]?.trim() || '');
+    if (!val) return;
+    const normUser = val.toLowerCase().replace(/\s+/g, '');
+    const normAns = (q.answer || '').toLowerCase().replace(/\s+/g, '');
+    const isCorrect = (normUser === normAns);
+
+    this.userAnswers[qId] = { input: val, isCorrect };
+    this.sessionStats.answered++;
+    if (isCorrect) this.sessionStats.correct++;
+    else this.sessionStats.wrong++;
+    Storage.recordPracticeResult(isCorrect);
+
+    this.render();
+  },
+
   bindEventsSingle(q) {
     // Bookmark
     const bmBtn = this.container.querySelector('#btn-toggle-bookmark');
@@ -510,6 +558,30 @@ export const Practice = {
     if (prevBtn) prevBtn.addEventListener('click', () => { if (this.currentIndex > 0) { this.currentIndex--; this.render(); } });
     if (nextBtn) nextBtn.addEventListener('click', () => { if (this.currentIndex < this.filteredQuestions.length - 1) { this.currentIndex++; this.render(); } });
 
+    // Phím tắt mũi tên Trái / Phải để chuyển câu
+    if (!this._onPracticeKeyDown) {
+      this._onPracticeKeyDown = (e) => {
+        if (this.viewMode !== 'single') return;
+        const tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        if (tag === 'input' || tag === 'textarea') return;
+
+        if (e.key === 'ArrowLeft') {
+          if (this.currentIndex > 0) {
+            e.preventDefault();
+            this.currentIndex--;
+            this.render();
+          }
+        } else if (e.key === 'ArrowRight') {
+          if (this.currentIndex < this.filteredQuestions.length - 1) {
+            e.preventDefault();
+            this.currentIndex++;
+            this.render();
+          }
+        }
+      };
+      window.addEventListener('keydown', this._onPracticeKeyDown);
+    }
+
     // MCQ answer choice
     const mcqBtns = this.container.querySelectorAll('.mcq-option-btn');
     mcqBtns.forEach(btn => {
@@ -529,76 +601,45 @@ export const Practice = {
     });
 
     // True / False mode
-    const tempTfChoices = ['', '', '', ''];
-    const tfBtns = this.container.querySelectorAll('.tf-btn');
-    tfBtns.forEach(btn => {
+    this.container.querySelectorAll('[data-tf-qid]').forEach(btn => {
       btn.addEventListener('click', () => {
+        const qid = btn.getAttribute('data-tf-qid');
         const idx = parseInt(btn.getAttribute('data-tf-idx'), 10);
         const val = btn.getAttribute('data-val');
-        tempTfChoices[idx] = val;
+        if (!this.tempTfChoices[qid]) this.tempTfChoices[qid] = ['', '', '', ''];
+        this.tempTfChoices[qid][idx] = val;
 
-        // update active classes
-        this.container.querySelectorAll(`[data-tf-idx="${idx}"]`).forEach(b => {
+        this.container.querySelectorAll(`[data-tf-qid="${qid}"][data-tf-idx="${idx}"]`).forEach(b => {
           b.classList.remove('bg-blue-600', 'bg-rose-600', 'text-white');
-          b.classList.add('bg-white', 'text-slate-700');
+          b.classList.add('bg-white', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-300');
         });
+        btn.classList.remove('bg-white', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-300');
         btn.classList.add(val === 'Đ' ? 'bg-blue-600' : 'bg-rose-600', 'text-white');
       });
     });
 
-    const checkTfBtn = this.container.querySelector('#btn-check-tf');
+    const checkTfBtn = this.container.querySelector(`[data-check-tf="${q.id}"]`);
     if (checkTfBtn) {
       checkTfBtn.addEventListener('click', () => {
-        const correctParts = (q.answer || 'Đ,Đ,Đ,Đ').split(',');
-        let correctSubCount = 0;
-        for (let i = 0; i < 4; i++) {
-          if (tempTfChoices[i] && tempTfChoices[i] === correctParts[i]) {
-            correctSubCount++;
-          }
-        }
-        // Thang điểm Bộ GD: 1 ý = 0.1, 2 ý = 0.25, 3 ý = 0.5, 4 ý = 1.0
-        const pointMap = [0, 0.1, 0.25, 0.5, 1.0];
-        const points = pointMap[correctSubCount];
-
-        this.userAnswers[q.id] = {
-          choices: [...tempTfChoices],
-          correctSubCount,
-          points,
-          isCorrect: correctSubCount === 4
-        };
-
-        this.sessionStats.answered++;
-        if (correctSubCount >= 3) this.sessionStats.correct++;
-        else this.sessionStats.wrong++;
-        Storage.recordPracticeResult(correctSubCount === 4);
-
-        this.render();
+        this.handleCheckTf(q.id);
       });
     }
 
     // Short answer check
-    const checkTlnBtn = this.container.querySelector('#btn-check-tln');
-    const tlnInput = this.container.querySelector('#tln-input');
-    if (checkTlnBtn && tlnInput) {
-      const doCheck = () => {
-        const val = tlnInput.value.trim();
-        if (!val) return;
-        const normUser = val.toLowerCase().replace(/\s+/g, '');
-        const normAns = (q.answer || '').toLowerCase().replace(/\s+/g, '');
-        const isCorrect = (normUser === normAns);
-
-        this.userAnswers[q.id] = { input: val, isCorrect };
-        this.sessionStats.answered++;
-        if (isCorrect) this.sessionStats.correct++;
-        else this.sessionStats.wrong++;
-        Storage.recordPracticeResult(isCorrect);
-
-        this.render();
-      };
-
-      checkTlnBtn.addEventListener('click', doCheck);
+    const checkTlnBtn = this.container.querySelector(`[data-check-tln="${q.id}"]`);
+    const tlnInput = this.container.querySelector(`[data-tln-input="${q.id}"]`);
+    if (tlnInput) {
+      tlnInput.addEventListener('input', (e) => {
+        if (!this.tempTlnInputs) this.tempTlnInputs = {};
+        this.tempTlnInputs[q.id] = e.target.value;
+      });
       tlnInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') doCheck();
+        if (e.key === 'Enter') this.handleCheckTln(q.id);
+      });
+    }
+    if (checkTlnBtn) {
+      checkTlnBtn.addEventListener('click', () => {
+        this.handleCheckTln(q.id);
       });
     }
   },
@@ -654,6 +695,53 @@ export const Practice = {
         Storage.recordPracticeResult(isCorrect);
 
         this.render();
+      });
+    });
+
+    // True / False mode in list
+    this.container.querySelectorAll('[data-tf-qid]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const qid = btn.getAttribute('data-tf-qid');
+        const idx = parseInt(btn.getAttribute('data-tf-idx'), 10);
+        const val = btn.getAttribute('data-val');
+        if (!this.tempTfChoices[qid]) this.tempTfChoices[qid] = ['', '', '', ''];
+        this.tempTfChoices[qid][idx] = val;
+
+        const card = btn.closest(`[id="q-card-${qid}"]`);
+        if (card) {
+          card.querySelectorAll(`[data-tf-qid="${qid}"][data-tf-idx="${idx}"]`).forEach(b => {
+            b.classList.remove('bg-blue-600', 'bg-rose-600', 'text-white');
+            b.classList.add('bg-white', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-300');
+          });
+          btn.classList.remove('bg-white', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-300');
+          btn.classList.add(val === 'Đ' ? 'bg-blue-600' : 'bg-rose-600', 'text-white');
+        }
+      });
+    });
+
+    this.container.querySelectorAll('[data-check-tf]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const qid = btn.getAttribute('data-check-tf');
+        this.handleCheckTf(qid);
+      });
+    });
+
+    // Short answer check in list
+    this.container.querySelectorAll('[data-tln-input]').forEach(input => {
+      const qid = input.getAttribute('data-tln-input');
+      input.addEventListener('input', (e) => {
+        if (!this.tempTlnInputs) this.tempTlnInputs = {};
+        this.tempTlnInputs[qid] = e.target.value;
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') this.handleCheckTln(qid);
+      });
+    });
+
+    this.container.querySelectorAll('[data-check-tln]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const qid = btn.getAttribute('data-check-tln');
+        this.handleCheckTln(qid);
       });
     });
   }

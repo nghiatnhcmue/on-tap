@@ -35,6 +35,10 @@ export const Exam = {
     if (this.timerInterval) clearInterval(this.timerInterval);
     document.body.classList.remove('in-exam');
     if (this.isProctored) Proctor.stop();
+    if (this._onExamKeyDown) {
+      window.removeEventListener('keydown', this._onExamKeyDown);
+      this._onExamKeyDown = null;
+    }
     this.examQuestions = [];
     this.userAnswers = {};
     this.flaggedQuestions = new Set();
@@ -220,10 +224,10 @@ export const Exam = {
             </span>
             <div>
               <h2 class="text-sm font-bold text-slate-800 dark:text-white leading-tight">
-                ${this.examConfig.title || 'Đề thi thử Tin học THPT'}
+                ${escapeHtml(this.examConfig.title || 'Đề thi thử Tin học THPT')}
               </h2>
               <p class="text-xs text-slate-500 dark:text-slate-400">
-                Khối ${this.examConfig.grade} • Tổng số ${total} câu hỏi
+                Khối ${escapeHtml(this.examConfig.grade)} • Tổng số ${total} câu hỏi
               </p>
               <div class="flex items-center gap-1.5 flex-wrap mt-1">
                 <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${this.examConfig.shuffleQuestions ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}">
@@ -611,6 +615,30 @@ export const Exam = {
         }
       });
     }
+
+    // Phím tắt điều hướng câu hỏi (Mũi tên Trái / Phải)
+    if (!this._onExamKeyDown) {
+      this._onExamKeyDown = (e) => {
+        if (this.examState !== 'taking') return;
+        const tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        if (tag === 'input' || tag === 'textarea') return;
+
+        if (e.key === 'ArrowLeft') {
+          if (this.currentIndex > 0) {
+            e.preventDefault();
+            this.currentIndex--;
+            this.renderExamInterface();
+          }
+        } else if (e.key === 'ArrowRight') {
+          if (this.currentIndex < this.examQuestions.length - 1) {
+            e.preventDefault();
+            this.currentIndex++;
+            this.renderExamInterface();
+          }
+        }
+      };
+      window.addEventListener('keydown', this._onExamKeyDown);
+    }
   },
 
   terminateExamDueToCheating(logs) {
@@ -624,6 +652,10 @@ export const Exam = {
     if (this.timerInterval) clearInterval(this.timerInterval);
     document.body.classList.remove('in-exam');
     this.examState = 'submitted';
+    if (this._onExamKeyDown) {
+      window.removeEventListener('keydown', this._onExamKeyDown);
+      this._onExamKeyDown = null;
+    }
 
     if (this.isProctored) {
       Proctor.stop();
@@ -785,10 +817,10 @@ export const Exam = {
 
           <!-- Thẻ thông tin học sinh -->
           <div class="mb-4 inline-flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs px-4 py-2 bg-slate-100 dark:bg-slate-700/60 rounded-2xl text-slate-700 dark:text-slate-200 font-medium">
-            <span><i class="fa-solid fa-user-graduate text-blue-600 mr-1.5"></i>Thí sinh: <b>${res.studentName}</b></span>
-            ${res.studentClass ? `<span>•</span><span>Lớp: <b>${res.studentClass}</b></span>` : ''}
-            ${res.studentSchool ? `<span>•</span><span>Trường: <b>${res.studentSchool}</b></span>` : ''}
-            ${res.roomId ? `<span>•</span><span class="px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-bold font-mono">Phòng: ${res.roomId}</span>` : ''}
+            <span><i class="fa-solid fa-user-graduate text-blue-600 mr-1.5"></i>Thí sinh: <b>${escapeHtml(res.studentName)}</b></span>
+            ${res.studentClass ? `<span>•</span><span>Lớp: <b>${escapeHtml(res.studentClass)}</b></span>` : ''}
+            ${res.studentSchool ? `<span>•</span><span>Trường: <b>${escapeHtml(res.studentSchool)}</b></span>` : ''}
+            ${res.roomId ? `<span>•</span><span class="px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-bold font-mono">Phòng: ${escapeHtml(res.roomId)}</span>` : ''}
           </div>
 
           <!-- Thông báo kết quả giám sát chống gian lận -->
@@ -830,7 +862,7 @@ export const Exam = {
             Kết Quả Bài Thi Thử
           </h2>
           <p class="text-sm text-slate-500 dark:text-slate-400 mb-8">
-            ${res.title} • Khối ${res.grade}
+            ${escapeHtml(res.title)} • Khối ${escapeHtml(res.grade)}
           </p>
 
           <!-- Điểm số lớn -->
@@ -990,7 +1022,7 @@ export const Exam = {
                   <div class="p-2.5 rounded-lg border ${match ? 'border-emerald-300 bg-emerald-50/40' : 'border-rose-300 bg-rose-50/40'} flex items-center justify-between">
                     <div><b>${subL})</b> ${escapeHtml(opt)}</div>
                     <div class="shrink-0 ml-2">
-                      Bạn chọn: <b>${userVal || 'Bỏ qua'}</b> | Đ/A: <b class="text-blue-600">${correctVal}</b>
+                      Bạn chọn: <b>${escapeHtml(userVal || 'Bỏ qua')}</b> | Đ/A: <b class="text-blue-600">${escapeHtml(correctVal)}</b>
                     </div>
                   </div>
                 `;

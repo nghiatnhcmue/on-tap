@@ -16,10 +16,12 @@ import { AdminManager } from './admin-manager.js';
 import { ExamRooms } from './exam-rooms.js';
 import { Proctor } from './proctor.js';
 
-window.Storage = Storage;
-window.Exam = Exam;
-window.Proctor = Proctor;
-window.ExamRooms = ExamRooms;
+if (typeof window !== 'undefined') {
+  window.Storage = Storage;
+  window.Exam = Exam;
+  window.Proctor = Proctor;
+  window.ExamRooms = ExamRooms;
+}
 
 class App {
   constructor() {
@@ -536,7 +538,21 @@ class App {
     }
 
     await this.loadGradeData(config.grade);
-    const questions = this.gradeCache[config.grade] || [];
+    let questions = [...(this.gradeCache[config.grade] || [])];
+
+    // Đối với đề chuẩn Bộ GD&ĐT (BGD 2025): Cần 24 câu MCQ + 4 câu Đúng/Sai.
+    // Nếu khối đang chọn thiếu câu Đúng/Sai (ví dụ K11), tự động bổ sung câu Đúng/Sai từ K12/K10.
+    if (config.type === 'bgd_2025') {
+      const dsCount = questions.filter(q => q.level === 'DS').length;
+      if (dsCount < 4) {
+        await this.loadGradeData('12');
+        const ds12 = (this.gradeCache['12'] || []).filter(q => q.level === 'DS');
+        if (ds12.length > 0) {
+          questions = [...questions, ...ds12];
+        }
+      }
+    }
+
     this.switchTab('exam-room');
     const roomEl = document.getElementById('view-exam-room');
     Exam.init(roomEl, questions, this.manifest);
@@ -696,9 +712,9 @@ class App {
           return `
             <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <span class="text-xs text-slate-400 block mb-1">${date} • Khối ${item.grade}</span>
+                <span class="text-xs text-slate-400 block mb-1">${date} • Khối ${escapeHtml(item.grade)}</span>
                 <h4 class="text-sm font-bold text-slate-800 dark:text-white">
-                  ${item.title}
+                  ${escapeHtml(item.title)}
                 </h4>
                 <div class="flex items-center gap-3 text-xs text-slate-500 mt-2 flex-wrap">
                   ${item.roomId ? `<span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">Phòng: ${escapeHtml(item.roomId)}</span>` : ''}
@@ -1320,16 +1336,6 @@ class App {
     window.addEventListener('nav-to-tab', (e) => {
       if (e.detail) this.switchTab(e.detail);
     });
-
-    // Nút xác nhận vào phòng thi từ card view-exam-setup
-    const btnEnterRoom = document.getElementById('btn-enter-room-exam');
-    if (btnEnterRoom) {
-      btnEnterRoom.addEventListener('click', () => {
-        const roomId = document.getElementById('input-enter-room-id')?.value.trim();
-        const pwd = document.getElementById('input-enter-room-pwd')?.value.trim();
-        ExamRooms.processJoinRoom(roomId, pwd);
-      });
-    }
 
     // Mobile menu toggle
     const mobileMenuBtn = document.getElementById('btn-mobile-menu');
