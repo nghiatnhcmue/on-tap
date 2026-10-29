@@ -40,16 +40,21 @@ class App {
     await this.switchGrade(this.currentGrade);
     this.renderHome();
 
+    // Bắt buộc đăng ký / đăng nhập trước khi vào trang
+    this.enforceAuthentication();
+
     // Tự động nhận diện mã phòng thi qua URL param (?room=XYZ hoặc ?phong=XYZ)
     const urlParams = new URLSearchParams(window.location.search);
     const roomParam = urlParams.get('room') || urlParams.get('phong');
     if (roomParam) {
       setTimeout(() => {
-        this.switchTab('exam-setup');
-        const input = document.getElementById('input-enter-room-id');
-        if (input) {
-          input.value = roomParam.toUpperCase();
-          document.getElementById('input-enter-room-pwd')?.focus();
+        if (Auth.isLoggedIn() && Auth.isProfileComplete()) {
+          this.switchTab('exam-setup');
+          const input = document.getElementById('input-enter-room-id');
+          if (input) {
+            input.value = roomParam.toUpperCase();
+            document.getElementById('input-enter-room-pwd')?.focus();
+          }
         }
       }, 400);
     }
@@ -1150,37 +1155,136 @@ class App {
       }
 
       this.updateRolePermissionsUI(user);
+      this.enforceAuthentication();
     });
 
     // Mở modal đăng nhập
     document.querySelectorAll('[data-open-login-modal]').forEach(btn => {
       btn.addEventListener('click', () => {
         document.getElementById('modal-login')?.classList.remove('hidden');
+        this.renderSavedAccountsInLoginModal();
         Auth.initGoogleIdentity();
       });
     });
 
-    // Đóng các modal
+    // Chuyển tab giữa Đăng Nhập & Đăng Ký trong modal
+    const tabLoginBtn = document.getElementById('tab-btn-auth-login');
+    const tabRegBtn = document.getElementById('tab-btn-auth-register');
+    const panelLogin = document.getElementById('auth-panel-login');
+    const panelRegister = document.getElementById('auth-panel-register');
+    const btnSwitchToReg = document.getElementById('btn-switch-to-register');
+    const btnSwitchToLogin = document.getElementById('btn-switch-to-login');
+
+    const switchAuthTab = (tab) => {
+      if (tab === 'register') {
+        panelLogin?.classList.add('hidden');
+        panelRegister?.classList.remove('hidden');
+        tabLoginBtn?.classList.remove('bg-white', 'dark:bg-slate-800', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm');
+        tabLoginBtn?.classList.add('text-slate-500', 'dark:text-slate-400');
+        tabRegBtn?.classList.add('bg-white', 'dark:bg-slate-800', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm');
+        tabRegBtn?.classList.remove('text-slate-500', 'dark:text-slate-400');
+      } else {
+        panelRegister?.classList.add('hidden');
+        panelLogin?.classList.remove('hidden');
+        tabRegBtn?.classList.remove('bg-white', 'dark:bg-slate-800', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm');
+        tabRegBtn?.classList.add('text-slate-500', 'dark:text-slate-400');
+        tabLoginBtn?.classList.add('bg-white', 'dark:bg-slate-800', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm');
+        tabLoginBtn?.classList.remove('text-slate-500', 'dark:text-slate-400');
+        this.renderSavedAccountsInLoginModal();
+        Auth.initGoogleIdentity();
+      }
+    };
+
+    tabLoginBtn?.addEventListener('click', () => switchAuthTab('login'));
+    tabRegBtn?.addEventListener('click', () => switchAuthTab('register'));
+    btnSwitchToReg?.addEventListener('click', () => switchAuthTab('register'));
+    btnSwitchToLogin?.addEventListener('click', () => switchAuthTab('login'));
+
+    // Chuyển quyền trong form Đăng Ký
+    const regRoleSelect = document.getElementById('reg-input-role');
+    const regSecretWrapper = document.getElementById('reg-secret-code-wrapper');
+    if (regRoleSelect && regSecretWrapper) {
+      regRoleSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        if (val === 'teacher' || val === 'admin') {
+          regSecretWrapper.classList.remove('hidden');
+        } else {
+          regSecretWrapper.classList.add('hidden');
+        }
+      });
+    }
+
+    // Submit Form Đăng Ký Tài Khoản
+    const formRegister = document.getElementById('form-register-account');
+    if (formRegister) {
+      formRegister.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fullName = document.getElementById('reg-input-fullname')?.value || '';
+        const grade = document.getElementById('reg-input-grade')?.value || '12';
+        const className = document.getElementById('reg-input-class')?.value || '';
+        const school = document.getElementById('reg-input-school')?.value || '';
+        const email = document.getElementById('reg-input-email')?.value || '';
+        const role = document.getElementById('reg-input-role')?.value || 'student';
+        const secretCode = document.getElementById('reg-input-secret')?.value || '';
+
+        const res = Auth.registerUser({ fullName, grade, className, school, email, role, secretCode });
+        if (!res.success) {
+          alert(res.message);
+          return;
+        }
+
+        alert(`🎉 Chúc mừng bạn ${res.user.fullName} đã đăng ký tài khoản thành công!`);
+        if (grade !== this.currentGrade) {
+          await this.switchGrade(grade);
+        }
+        this.enforceAuthentication();
+      });
+    }
+
+    // Đóng các modal (ngăn không cho đóng nếu chưa xác thực)
     document.querySelectorAll('[data-close-modal]').forEach(btn => {
       btn.addEventListener('click', () => {
         const modalId = btn.getAttribute('data-close-modal');
+        if (modalId === 'modal-login' && !Auth.isLoggedIn()) {
+          alert('Hệ thống yêu cầu Đăng ký hoặc Đăng nhập để truy cập trang web!');
+          return;
+        }
+        if (modalId === 'modal-required-profile' && !Auth.isProfileComplete()) {
+          alert('Bạn bắt buộc phải điền đầy đủ Họ và tên, Lớp, Trường để tiếp tục!');
+          return;
+        }
         document.getElementById(modalId)?.classList.add('hidden');
       });
     });
 
+    // Ngăn chặn tắt modal khi click ra backdrop nếu chưa đăng nhập
+    const modalLoginEl = document.getElementById('modal-login');
+    if (modalLoginEl) {
+      modalLoginEl.addEventListener('click', (e) => {
+        if (e.target === modalLoginEl && !Auth.isLoggedIn()) {
+          e.stopPropagation();
+        }
+      });
+    }
+    const modalProfileEl = document.getElementById('modal-required-profile');
+    if (modalProfileEl) {
+      modalProfileEl.addEventListener('click', (e) => {
+        if (e.target === modalProfileEl && !Auth.isProfileComplete()) {
+          e.stopPropagation();
+        }
+      });
+    }
+
     // 3 Nút đăng nhập trải nghiệm theo vai trò (HS, GV, Admin)
     document.getElementById('btn-demo-login-student')?.addEventListener('click', () => {
-      document.getElementById('modal-login')?.classList.add('hidden');
       Auth.loginWithGoogleDemo({ role: 'student' });
     });
 
     document.getElementById('btn-demo-login-teacher')?.addEventListener('click', () => {
-      document.getElementById('modal-login')?.classList.add('hidden');
       Auth.loginWithGoogleDemo({ role: 'teacher' });
     });
 
     document.getElementById('btn-demo-login-admin')?.addEventListener('click', () => {
-      document.getElementById('modal-login')?.classList.add('hidden');
       Auth.loginWithGoogleDemo({ role: 'admin' });
     });
 
@@ -1273,6 +1377,7 @@ class App {
         Auth.updateProfile({ fullName, grade, className, school });
         Auth.closeRequiredProfileModal();
         alert('Cập nhật thông tin học sinh thành công! Chúc bạn ôn tập tốt.');
+        this.enforceAuthentication();
       });
     }
 
@@ -1296,6 +1401,99 @@ class App {
         alert('Đã lưu Google Client ID thành công!');
       });
     }
+  }
+
+  // --- BẮT BUỘC ĐĂNG KÝ / ĐĂNG NHẬP TRƯỚC KHI VÀO TRANG ---
+  enforceAuthentication() {
+    const mainEl = document.getElementById('app-main');
+    const headerEl = document.getElementById('app-header');
+    const mobileBarEl = document.getElementById('mobile-bottom-nav');
+    const loginModal = document.getElementById('modal-login');
+    const closeBtn = document.getElementById('btn-close-login-modal');
+
+    if (!Auth.isLoggedIn()) {
+      // Chưa đăng nhập -> Khóa toàn bộ tương tác giao diện và hiển thị Auth Gatekeeper
+      if (mainEl) mainEl.classList.add('pointer-events-none', 'select-none', 'filter', 'blur-sm');
+      if (headerEl) headerEl.classList.add('pointer-events-none');
+      if (mobileBarEl) mobileBarEl.classList.add('hidden');
+      if (closeBtn) closeBtn.classList.add('hidden');
+
+      if (loginModal) {
+        loginModal.classList.remove('hidden');
+        this.renderSavedAccountsInLoginModal();
+        Auth.initGoogleIdentity();
+      }
+    } else if (!Auth.isProfileComplete()) {
+      // Đã đăng nhập nhưng chưa hoàn tất Họ tên, Lớp, Trường
+      if (mainEl) mainEl.classList.add('pointer-events-none', 'select-none', 'filter', 'blur-sm');
+      if (headerEl) headerEl.classList.add('pointer-events-none');
+      if (mobileBarEl) mobileBarEl.classList.add('hidden');
+      if (loginModal) loginModal.classList.add('hidden');
+      Auth.openRequiredProfileModal();
+    } else {
+      // Đã đăng nhập và hoàn tất hồ sơ -> Mở khóa toàn bộ hệ thống
+      if (mainEl) mainEl.classList.remove('pointer-events-none', 'select-none', 'filter', 'blur-sm');
+      if (headerEl) headerEl.classList.remove('pointer-events-none');
+      if (mobileBarEl) mobileBarEl.classList.remove('hidden');
+      if (loginModal) loginModal.classList.add('hidden');
+      if (closeBtn) closeBtn.classList.remove('hidden');
+      Auth.closeRequiredProfileModal();
+    }
+  }
+
+  renderSavedAccountsInLoginModal() {
+    const section = document.getElementById('saved-accounts-section');
+    const listEl = document.getElementById('saved-accounts-list');
+    if (!section || !listEl) return;
+
+    const accounts = Storage.getAccountsList();
+    if (accounts.length === 0) {
+      section.classList.add('hidden');
+      return;
+    }
+
+    section.classList.remove('hidden');
+    listEl.innerHTML = accounts.slice(0, 5).map(acc => {
+      const avatar = acc.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(acc.fullName || 'HS')}&background=${acc.role === 'admin' ? 'ef4444' : (acc.role === 'teacher' ? '8b5cf6' : '3b82f6')}&color=fff`;
+      let roleLabel = 'Học sinh';
+      let roleBg = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
+      if (acc.role === 'admin') {
+        roleLabel = 'Admin';
+        roleBg = 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300';
+      } else if (acc.role === 'teacher') {
+        roleLabel = 'Giáo viên';
+        roleBg = 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300';
+      }
+
+      const idAttr = acc.uid ? `data-login-uid="${escapeHtml(acc.uid)}"` : `data-login-email="${escapeHtml(acc.email)}"`;
+
+      return `
+        <button type="button" ${idAttr} class="w-full p-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 bg-white dark:bg-slate-800 text-left flex items-center justify-between gap-3 transition shadow-sm hover:scale-[1.01]">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <img src="${avatar}" alt="avatar" class="w-8 h-8 rounded-xl object-cover shrink-0" />
+            <div class="min-w-0">
+              <span class="block text-xs font-bold text-slate-800 dark:text-white truncate">${escapeHtml(acc.fullName)}</span>
+              <span class="block text-[10px] text-slate-400 truncate">${escapeHtml(acc.className ? `Lớp ${acc.className}` : '')} ${escapeHtml(acc.school ? `• ${acc.school}` : '')}</span>
+            </div>
+          </div>
+          <div class="shrink-0 flex items-center gap-1.5">
+            <span class="text-[9px] font-bold px-2 py-0.5 rounded ${roleBg}">${roleLabel}</span>
+            <i class="fa-solid fa-chevron-right text-[10px] text-slate-400"></i>
+          </div>
+        </button>
+      `;
+    }).join('');
+
+    listEl.querySelectorAll('[data-login-uid], [data-login-email]').forEach(btn => {
+      btn.onclick = () => {
+        const uid = btn.getAttribute('data-login-uid');
+        const email = btn.getAttribute('data-login-email');
+        const res = Auth.loginWithSavedAccount(uid || email);
+        if (res.success) {
+          this.enforceAuthentication();
+        }
+      };
+    });
   }
 
   updateRolePermissionsUI(user) {

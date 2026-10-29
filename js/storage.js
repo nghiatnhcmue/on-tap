@@ -57,23 +57,27 @@ export const Storage = {
   },
 
   saveAccountRecord(user) {
-    if (!user || !user.email) return;
+    if (!user) return;
+    const identifier = (user.email && user.email.trim()) ? user.email.trim().toLowerCase() : (user.uid || '');
+    if (!identifier) return;
     try {
       let list = this.getAccountsList();
-      const idx = list.findIndex(u => u.email.toLowerCase() === user.email.toLowerCase());
+      const idx = list.findIndex(u => (u.email && u.email.toLowerCase() === identifier) || (u.uid && u.uid === identifier));
       const record = {
-        uid: user.uid,
-        email: user.email,
+        uid: user.uid || 'user_' + Date.now(),
+        email: user.email || '',
         fullName: user.fullName || 'Người dùng',
+        grade: user.grade || '12',
         className: user.className || '',
         school: user.school || '',
+        avatar: user.avatar || '',
         role: user.role || 'student',
         lastActive: new Date().toISOString()
       };
       if (idx >= 0) {
         list[idx] = { ...list[idx], ...record };
       } else {
-        list.push(record);
+        list.unshift(record);
       }
       localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(list));
     } catch (e) {

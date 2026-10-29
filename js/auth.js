@@ -249,6 +249,77 @@ export const Auth = {
     }
   },
 
+  registerUser({ fullName, grade, className, school, email, role = 'student', secretCode = '' }) {
+    const cleanName = (fullName || '').trim();
+    const cleanClass = (className || '').trim();
+    const cleanSchool = (school || '').trim();
+    const cleanGrade = grade || '12';
+    const cleanEmail = (email || '').trim();
+
+    if (!cleanName) {
+      return { success: false, message: 'Vui lòng nhập Họ và tên của bạn!' };
+    }
+    if (!cleanClass) {
+      return { success: false, message: 'Vui lòng nhập Lớp của bạn!' };
+    }
+    if (!cleanSchool) {
+      return { success: false, message: 'Vui lòng nhập Trường của bạn!' };
+    }
+
+    let finalRole = 'student';
+    const adminConfig = Storage.getAdminConfig();
+
+    if (role === 'admin' || (cleanEmail && adminConfig.adminEmail && cleanEmail.toLowerCase() === adminConfig.adminEmail.toLowerCase())) {
+      if (secretCode === adminConfig.adminSecretCode || (cleanEmail && adminConfig.adminEmail && cleanEmail.toLowerCase() === adminConfig.adminEmail.toLowerCase())) {
+        finalRole = 'admin';
+      } else {
+        return { success: false, message: 'Mã xác thực Quản trị viên (Admin) không đúng! (Mặc định: ADMIN2025)' };
+      }
+    } else if (role === 'teacher') {
+      if (secretCode === adminConfig.teacherSecretCode) {
+        finalRole = 'teacher';
+      } else {
+        return { success: false, message: 'Mã kích hoạt quyền Giáo viên (GV) không đúng! (Mặc định: GV2025)' };
+      }
+    }
+
+    const newUser = {
+      uid: 'user_' + Date.now(),
+      email: cleanEmail || `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'hs'}_${Date.now().toString().slice(-4)}@tinhoc.local`,
+      fullName: cleanName,
+      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=${finalRole === 'admin' ? 'ef4444' : (finalRole === 'teacher' ? '8b5cf6' : '3b82f6')}&color=fff`,
+      grade: cleanGrade,
+      className: cleanClass,
+      school: cleanSchool,
+      role: finalRole,
+      createdAt: new Date().toISOString()
+    };
+
+    this.saveUser(newUser);
+    return { success: true, user: newUser, message: 'Đăng ký tài khoản thành công!' };
+  },
+
+  loginWithSavedAccount(uidOrEmail) {
+    const list = Storage.getAccountsList();
+    const target = list.find(u => (u.uid && u.uid === uidOrEmail) || (u.email && u.email.toLowerCase() === uidOrEmail.toLowerCase()));
+    if (!target) {
+      return { success: false, message: 'Không tìm thấy tài khoản!' };
+    }
+    const user = {
+      uid: target.uid || 'user_' + Date.now(),
+      email: target.email || '',
+      fullName: target.fullName,
+      avatar: target.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(target.fullName)}&background=${target.role === 'admin' ? 'ef4444' : (target.role === 'teacher' ? '8b5cf6' : '3b82f6')}&color=fff`,
+      grade: target.grade || '12',
+      className: target.className,
+      school: target.school,
+      role: target.role || 'student',
+      createdAt: target.createdAt || new Date().toISOString()
+    };
+    this.saveUser(user);
+    return { success: true, user };
+  },
+
   saveUser(user) {
     this.currentUser = user;
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));

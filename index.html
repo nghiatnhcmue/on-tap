@@ -42,7 +42,7 @@
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
 
   <!-- ==================== HEADER & NAVBAR ==================== -->
-  <header class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 no-print transition-colors">
+  <header id="app-header" class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 no-print transition-colors">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
       
       <!-- Brand Logo -->
@@ -236,7 +236,7 @@
   </header>
 
   <!-- ==================== MAIN CONTENT CONTAINER ==================== -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 no-print">
+  <main id="app-main" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 no-print transition-all duration-300">
 
     <!-- VIEW: TRANG CHỦ (HOME) -->
     <section id="view-home" class="space-y-10">
@@ -810,61 +810,169 @@
     </div>
   </nav>
 
-  <!-- ==================== MODAL: ĐĂNG NHẬP GOOGLE & CHỌN VAI TRÒ ==================== -->
-  <div id="modal-login" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[90dvh] overflow-y-auto">
-      <button data-close-modal="modal-login" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+  <!-- ==================== MODAL: ĐĂNG KÝ / ĐĂNG NHẬP BẮT BUỘC ==================== -->
+  <div id="modal-login" class="hidden fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative my-auto max-h-[92dvh] overflow-y-auto">
+      
+      <!-- Nút Đóng modal (chỉ hiển thị khi ĐÃ đăng nhập) -->
+      <button id="btn-close-login-modal" data-close-modal="modal-login" class="hidden absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
+      <!-- Header thương hiệu TinHocHub -->
       <div class="text-center mb-6">
-        <div class="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-3 text-2xl shadow-inner">
+        <div class="w-16 h-16 rounded-3xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center mx-auto mb-3 text-3xl shadow-lg shadow-blue-500/25">
           <i class="fa-solid fa-graduation-cap"></i>
         </div>
-        <h3 class="text-lg sm:text-xl font-extrabold text-slate-800 dark:text-white mb-1">
-          Đăng Nhập Tài Khoản
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[10px] font-black uppercase tracking-wider mb-2">
+          <i class="fa-solid fa-shield-halved text-[9px]"></i> Yêu cầu xác thực tài khoản
+        </div>
+        <h3 class="text-xl sm:text-2xl font-black text-slate-800 dark:text-white mb-1">
+          TinHocHub - Ôn Tập & Thi Thử
         </h3>
-        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-          Đăng nhập bằng tài khoản Google để lưu kết quả thi thử, điểm số và xếp hạng vinh danh.
+        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-sm mx-auto">
+          Vui lòng đăng nhập hoặc đăng ký tài khoản để truy cập hệ thống ngân hàng 4.449 câu hỏi và bảng vinh danh.
         </p>
       </div>
 
-      <!-- Container chính của Google Identity Services button -->
-      <div id="google-signin-btn-container" class="flex justify-center mb-4 min-h-[44px]"></div>
-
-      <div class="flex items-center gap-3 my-4">
-        <div class="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">HOẶC ĐĂNG NHẬP TRẢI NGHIỆM</span>
-        <div class="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
-      </div>
-
-      <!-- 3 Nút đăng nhập theo đúng 3 vai trò (HS, GV, Admin) -->
-      <div class="space-y-2.5">
-        <button id="btn-demo-login-student" class="w-full py-2.5 px-4 rounded-2xl border border-blue-200 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/30 hover:bg-blue-100 text-xs font-bold text-blue-700 dark:text-blue-300 flex items-center justify-between transition">
-          <span class="flex items-center gap-2"><i class="fa-solid fa-user-graduate"></i> Đăng nhập: <strong>Học sinh (HS)</strong></span>
-          <span class="text-[10px] px-2 py-0.5 rounded bg-blue-200/60 dark:bg-blue-800/60">Chỉ làm bài & vinh danh</span>
+      <!-- Segmented Control chuyển đổi giữa Đăng Nhập & Đăng Ký -->
+      <div class="flex items-center p-1 bg-slate-100 dark:bg-slate-900 rounded-2xl mb-5">
+        <button type="button" id="tab-btn-auth-login" class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-right-to-bracket text-xs"></i> Đăng Nhập
         </button>
-
-        <button id="btn-demo-login-teacher" class="w-full py-2.5 px-4 rounded-2xl border border-purple-200 dark:border-purple-900 bg-purple-50/60 dark:bg-purple-950/30 hover:bg-purple-100 text-xs font-bold text-purple-700 dark:text-purple-300 flex items-center justify-between transition">
-          <span class="flex items-center gap-2"><i class="fa-solid fa-chalkboard-user"></i> Đăng nhập: <strong>Giáo viên (GV)</strong></span>
-          <span class="text-[10px] px-2 py-0.5 rounded bg-purple-200/60 dark:bg-purple-800/60">Thêm, sửa, xóa câu hỏi</span>
-        </button>
-
-        <button id="btn-demo-login-admin" class="w-full py-2.5 px-4 rounded-2xl border border-rose-200 dark:border-rose-900 bg-rose-50/60 dark:bg-rose-950/30 hover:bg-rose-100 text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center justify-between transition">
-          <span class="flex items-center gap-2"><i class="fa-solid fa-shield-halved"></i> Đăng nhập: <strong>Quản trị viên (Admin)</strong></span>
-          <span class="text-[10px] px-2 py-0.5 rounded bg-rose-200/60 dark:bg-rose-800/60">Toàn quyền hệ thống</span>
+        <button type="button" id="tab-btn-auth-register" class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-user-plus text-xs"></i> Đăng Ký Mới
         </button>
       </div>
 
-      <p class="text-[11px] text-slate-400 text-center mt-4">
-        Khi đăng nhập, hệ thống sẽ yêu cầu bạn xác nhận <b>Họ và tên</b>, <b>Lớp</b> và <b>Trường</b> để lưu bảng điểm.
-      </p>
+      <!-- PANEL 1: ĐĂNG NHẬP -->
+      <div id="auth-panel-login" class="space-y-4">
+        <!-- Google Sign-In Container -->
+        <div class="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700/80 text-center">
+          <span class="text-xs font-bold text-slate-600 dark:text-slate-300 block mb-3">Đăng nhập bằng tài khoản Google</span>
+          <div id="google-signin-btn-container" class="flex justify-center min-h-[44px]"></div>
+          <p class="text-[10px] text-slate-400 mt-2">Dùng tài khoản Gmail của bạn để tự động lưu kết quả thi</p>
+        </div>
 
-      <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 text-center">
-        <button id="btn-open-google-config" class="text-[11px] text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1.5 font-semibold">
-          <i class="fa-solid fa-gear text-[10px]"></i> Cài đặt Google Client ID (GV / Admin)
-        </button>
+        <!-- Danh sách tài khoản đã lưu trên máy này (nếu có) -->
+        <div id="saved-accounts-section" class="hidden">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tài khoản trên thiết bị này</span>
+            <span class="text-[10px] text-blue-600 dark:text-blue-400 font-medium">Bấm để đăng nhập</span>
+          </div>
+          <div id="saved-accounts-list" class="space-y-2 max-h-40 overflow-y-auto"></div>
+        </div>
+
+        <!-- Phân cách -->
+        <div class="flex items-center gap-3 my-2">
+          <div class="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">HOẶC TRẢI NGHIỆM NHANH</span>
+          <div class="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+        </div>
+
+        <!-- 3 Nút đăng nhập trải nghiệm nhanh -->
+        <div class="space-y-2">
+          <button id="btn-demo-login-student" type="button" class="w-full py-2.5 px-4 rounded-2xl border border-blue-200 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-xs font-bold text-blue-700 dark:text-blue-300 flex items-center justify-between transition">
+            <span class="flex items-center gap-2"><i class="fa-solid fa-user-graduate"></i> Đăng nhập: <strong>Học sinh (HS)</strong></span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-blue-200/60 dark:bg-blue-800/60">Làm bài & vinh danh</span>
+          </button>
+
+          <button id="btn-demo-login-teacher" type="button" class="w-full py-2.5 px-4 rounded-2xl border border-purple-200 dark:border-purple-900 bg-purple-50/60 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-xs font-bold text-purple-700 dark:text-purple-300 flex items-center justify-between transition">
+            <span class="flex items-center gap-2"><i class="fa-solid fa-chalkboard-user"></i> Đăng nhập: <strong>Giáo viên (GV)</strong></span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-purple-200/60 dark:bg-purple-800/60">Quản lý câu hỏi & phòng thi</span>
+          </button>
+
+          <button id="btn-demo-login-admin" type="button" class="w-full py-2.5 px-4 rounded-2xl border border-rose-200 dark:border-rose-900 bg-rose-50/60 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center justify-between transition">
+            <span class="flex items-center gap-2"><i class="fa-solid fa-shield-halved"></i> Đăng nhập: <strong>Quản trị viên (Admin)</strong></span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-rose-200/60 dark:bg-rose-800/60">Toàn quyền hệ thống</span>
+          </button>
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between text-[11px]">
+          <button id="btn-switch-to-register" type="button" class="text-blue-600 dark:text-blue-400 hover:underline font-bold">
+            Chưa có tài khoản? Đăng ký ngay
+          </button>
+          <button id="btn-open-google-config" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 inline-flex items-center gap-1">
+            <i class="fa-solid fa-gear text-[10px]"></i> Cài đặt Google Client ID
+          </button>
+        </div>
       </div>
+
+      <!-- PANEL 2: ĐĂNG KÝ TÀI KHOẢN -->
+      <div id="auth-panel-register" class="hidden space-y-4">
+        <form id="form-register-account" class="space-y-3.5">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Họ và Tên <span class="text-rose-500">*</span>
+            </label>
+            <input type="text" id="reg-input-fullname" required placeholder="Ví dụ: Nguyễn Văn An" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Khối Lớp <span class="text-rose-500">*</span>
+              </label>
+              <select id="reg-input-grade" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
+                <option value="12" selected>Khối 12</option>
+                <option value="11">Khối 11</option>
+                <option value="10">Khối 10</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Lớp Học <span class="text-rose-500">*</span>
+              </label>
+              <input type="text" id="reg-input-class" required placeholder="Ví dụ: 12A1" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Trường THPT <span class="text-rose-500">*</span>
+            </label>
+            <input type="text" id="reg-input-school" required placeholder="Ví dụ: THPT Chu Văn An" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Email (Tùy chọn)
+            </label>
+            <input type="email" id="reg-input-email" placeholder="hocsinh@gmail.com (không bắt buộc)" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Vai Trò Tham Gia
+            </label>
+            <select id="reg-input-role" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
+              <option value="student" selected>Học sinh (Ôn tập, thi thử, xem bảng điểm)</option>
+              <option value="teacher">Giáo viên (Quản lý ngân hàng câu hỏi & phòng thi)</option>
+              <option value="admin">Quản trị viên (Toàn quyền hệ thống)</option>
+            </select>
+          </div>
+
+          <!-- Ô nhập mã xác thực bí mật nếu chọn Giáo viên hoặc Admin -->
+          <div id="reg-secret-code-wrapper" class="hidden p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 rounded-xl space-y-1.5">
+            <label class="block text-[11px] font-bold text-amber-900 dark:text-amber-200">
+              Mã xác thực quyền Giáo viên / Quản trị viên <span class="text-rose-500">*</span>
+            </label>
+            <input type="password" id="reg-input-secret" placeholder="Mặc định: GV2025 hoặc ADMIN2025" class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 rounded-lg text-xs font-mono font-bold text-slate-800 dark:text-white" />
+            <p class="text-[10px] text-amber-700 dark:text-amber-400">Giáo viên nhập GV2025, Admin nhập ADMIN2025</p>
+          </div>
+
+          <button type="submit" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl text-xs font-black shadow-lg shadow-blue-500/25 transition flex items-center justify-center gap-2 mt-2">
+            <i class="fa-solid fa-arrow-right-to-bracket"></i> Đăng Ký & Vào Học Ngay
+          </button>
+        </form>
+
+        <div class="pt-3 border-t border-slate-100 dark:border-slate-700 text-center text-[11px]">
+          <button id="btn-switch-to-login" type="button" class="text-blue-600 dark:text-blue-400 hover:underline font-bold">
+            Đã có tài khoản? Quay lại Đăng nhập
+          </button>
+        </div>
+      </div>
+
     </div>
   </div>
 
