@@ -85,19 +85,24 @@ export const Storage = {
     }
   },
 
-  updateAccountRole(email, newRole) {
+  updateAccountRole(emailOrUid, newRole) {
+    if (!emailOrUid) return false;
     try {
+      const target = String(emailOrUid).trim().toLowerCase();
       let list = this.getAccountsList();
-      const user = list.find(u => u.email.toLowerCase() === email.toLowerCase());
+      const user = list.find(u =>
+        (u.email && u.email.toLowerCase() === target) ||
+        (u.uid && u.uid.toLowerCase() === target)
+      );
       if (user) {
         user.role = newRole;
         localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(list));
       }
-      // Cập nhật session hiện tại nếu trùng email
+      // Cập nhật session hiện tại nếu trùng email hoặc uid
       const currentUserStr = localStorage.getItem('tinhoc_user');
       if (currentUserStr) {
         const cur = JSON.parse(currentUserStr);
-        if (cur.email.toLowerCase() === email.toLowerCase()) {
+        if ((cur.email && cur.email.toLowerCase() === target) || (cur.uid && cur.uid.toLowerCase() === target)) {
           cur.role = newRole;
           localStorage.setItem('tinhoc_user', JSON.stringify(cur));
         }
@@ -670,13 +675,18 @@ export const Storage = {
   // --- SAO LƯU & PHỤC HỒI DỮ LIỆU ---
   exportBackup() {
     return JSON.stringify({
-      version: '1.0',
+      version: '1.1',
       exportedAt: new Date().toISOString(),
       bookmarks: this.getBookmarks(),
       history: this.getExamHistory(),
       settings: this.getSettings(),
       stats: this.getPracticeStats(),
-      examRooms: this.getExamRooms()
+      examRooms: this.getExamRooms(),
+      accounts: this.getAccountsList(),
+      adminConfig: this.getAdminConfig(),
+      customQuestions: this.getCustomQuestions(),
+      modifiedQuestions: this.getModifiedQuestions(),
+      deletedQuestions: this.getDeletedQuestionIds()
     }, null, 2);
   },
 
@@ -688,6 +698,11 @@ export const Storage = {
       if (data.settings) localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(data.settings));
       if (data.stats) localStorage.setItem(STORAGE_KEYS.PRACTICE_STATS, JSON.stringify(data.stats));
       if (data.examRooms) localStorage.setItem(STORAGE_KEYS.EXAM_ROOMS, JSON.stringify(data.examRooms));
+      if (data.accounts) localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(data.accounts));
+      if (data.adminConfig) localStorage.setItem(STORAGE_KEYS.ADMIN_CONFIG, JSON.stringify(data.adminConfig));
+      if (data.customQuestions) localStorage.setItem(STORAGE_KEYS.CUSTOM_QUESTIONS, JSON.stringify(data.customQuestions));
+      if (data.modifiedQuestions) localStorage.setItem(STORAGE_KEYS.MODIFIED_QUESTIONS, JSON.stringify(data.modifiedQuestions));
+      if (data.deletedQuestions) localStorage.setItem(STORAGE_KEYS.DELETED_QUESTIONS, JSON.stringify(data.deletedQuestions));
       return true;
     } catch (e) {
       console.error('Invalid backup data', e);

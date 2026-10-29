@@ -86,9 +86,9 @@ export const ExamRooms = {
                         <span class="text-[10px] text-slate-400 block uppercase font-bold">Mã phòng</span>
                         <div class="flex items-center gap-1.5 mt-0.5">
                           <code class="px-2.5 py-1 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-mono font-black text-sm rounded-xl border border-blue-200 dark:border-blue-800">
-                            ${room.id}
+                            ${escapeHtml(room.id)}
                           </code>
-                          <button data-copy-room="${room.id}" class="p-1.5 text-slate-400 hover:text-blue-600 transition" title="Sao chép mã">
+                          <button data-copy-room="${escapeHtml(room.id)}" class="p-1.5 text-slate-400 hover:text-blue-600 transition" title="Sao chép mã">
                             <i class="fa-regular fa-copy text-xs"></i>
                           </button>
                         </div>
@@ -100,9 +100,9 @@ export const ExamRooms = {
                       <div class="flex items-center justify-between text-slate-600 dark:text-slate-300">
                         <span class="text-slate-400"><i class="fa-solid fa-key mr-1.5 text-amber-500"></i>Mật khẩu vào thi:</span>
                         <span class="font-mono font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
-                          <span class="room-pwd-masked" id="pwd-${room.id}">••••••</span>
-                          <span class="room-pwd-plain hidden text-emerald-600 font-bold" id="pwd-plain-${room.id}">${room.password || '(Không có)'}</span>
-                          <button type="button" data-toggle-pwd="${room.id}" class="text-slate-400 hover:text-slate-600 text-[11px]">
+                          <span class="room-pwd-masked" id="pwd-${escapeHtml(room.id)}">••••••</span>
+                          <span class="room-pwd-plain hidden text-emerald-600 font-bold" id="pwd-plain-${escapeHtml(room.id)}">${escapeHtml(room.password || '(Không có)')}</span>
+                          <button type="button" data-toggle-pwd="${escapeHtml(room.id)}" class="text-slate-400 hover:text-slate-600 text-[11px]">
                             <i class="fa-regular fa-eye"></i>
                           </button>
                         </span>
@@ -129,15 +129,18 @@ export const ExamRooms = {
 
                   <!-- Actions -->
                   <div class="pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between gap-2">
-                    <button data-share-room="${room.id}" class="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-blue-600 dark:text-blue-300 text-xs font-bold rounded-xl transition flex items-center gap-1.5">
+                    <button data-share-room="${escapeHtml(room.id)}" class="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-blue-600 dark:text-blue-300 text-xs font-bold rounded-xl transition flex items-center gap-1.5">
                       <i class="fa-solid fa-share-nodes text-[11px]"></i> Copy thông báo lớp
                     </button>
 
                     <div class="flex items-center gap-1.5">
-                      <button data-view-results="${room.id}" class="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition flex items-center gap-1">
+                      <button data-edit-room="${escapeHtml(room.id)}" class="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 text-amber-600 dark:text-amber-300 text-xs font-bold rounded-xl transition flex items-center gap-1" title="Chỉnh sửa phòng thi">
+                        <i class="fa-solid fa-pen text-[11px]"></i> Sửa
+                      </button>
+                      <button data-view-results="${escapeHtml(room.id)}" class="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition flex items-center gap-1">
                         <i class="fa-solid fa-chart-simple text-[11px]"></i> Điểm số
                       </button>
-                      <button data-delete-room="${room.id}" class="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition" title="Xóa phòng thi này">
+                      <button data-delete-room="${escapeHtml(room.id)}" class="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition" title="Xóa phòng thi này">
                         <i class="fa-regular fa-trash-can text-xs"></i>
                       </button>
                     </div>
@@ -211,6 +214,15 @@ export const ExamRooms = {
       };
     });
 
+    // Sửa phòng
+    this.container.querySelectorAll('[data-edit-room]').forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.getAttribute('data-edit-room');
+        const room = Storage.getExamRoom(id);
+        if (room) this.openCreateModal(room);
+      };
+    });
+
     // Xem kết quả của phòng
     this.container.querySelectorAll('[data-view-results]').forEach(btn => {
       btn.onclick = () => {
@@ -231,11 +243,10 @@ export const ExamRooms = {
     });
   },
 
-  openCreateModal() {
+  openCreateModal(existingRoom = null) {
     const modal = document.getElementById('modal-create-exam-room');
     if (!modal) return;
 
-    // Reset form với giá trị gợi ý
     const titleInput = document.getElementById('room-input-title');
     const idInput = document.getElementById('room-input-id');
     const gradeSelect = document.getElementById('room-input-grade');
@@ -245,23 +256,39 @@ export const ExamRooms = {
     const endInput = document.getElementById('room-input-end');
     const antiCheatToggle = document.getElementById('room-input-anticheat');
     const maxViolationsInput = document.getElementById('room-input-max-violations');
+    const examTypeSelect = document.getElementById('room-input-type');
 
-    if (titleInput) titleInput.value = 'Kiểm tra 1 tiết Tin học ' + (gradeSelect ? gradeSelect.value : '12');
-    if (idInput) idInput.value = 'TIN' + (gradeSelect ? gradeSelect.value : '12') + '-' + Math.floor(1000 + Math.random() * 9000);
-    if (durationInput) durationInput.value = '45';
-    if (pwdInput) pwdInput.value = String(Math.floor(1000 + Math.random() * 9000));
-    
-    // Gợi ý giờ: Từ hiện tại đến 7 ngày sau (định dạng YYYY-MM-DDTHH:mm)
-    const now = new Date();
-    const nextWeek = new Date(Date.now() + 7 * 86400000);
     const toInputVal = (d) => {
       const pad = (n) => String(n).padStart(2, '0');
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     };
-    if (startInput) startInput.value = toInputVal(now);
-    if (endInput) endInput.value = toInputVal(nextWeek);
-    if (antiCheatToggle) antiCheatToggle.checked = true;
-    if (maxViolationsInput) maxViolationsInput.value = '3';
+
+    if (existingRoom) {
+      if (titleInput) titleInput.value = existingRoom.title || '';
+      if (idInput) idInput.value = existingRoom.id || '';
+      if (gradeSelect) gradeSelect.value = existingRoom.grade || '12';
+      if (durationInput) durationInput.value = String(existingRoom.duration || 45);
+      if (pwdInput) pwdInput.value = existingRoom.password || '';
+      if (startInput) startInput.value = existingRoom.startTime ? toInputVal(new Date(existingRoom.startTime)) : '';
+      if (endInput) endInput.value = existingRoom.endTime ? toInputVal(new Date(existingRoom.endTime)) : '';
+      if (antiCheatToggle) antiCheatToggle.checked = existingRoom.antiCheat?.enabled ?? true;
+      if (maxViolationsInput) maxViolationsInput.value = String(existingRoom.antiCheat?.maxViolations || 3);
+      if (examTypeSelect) examTypeSelect.value = existingRoom.type || 'bgd_2025';
+    } else {
+      // Reset form với giá trị gợi ý
+      if (titleInput) titleInput.value = 'Kiểm tra 1 tiết Tin học ' + (gradeSelect ? gradeSelect.value : '12');
+      if (idInput) idInput.value = 'TIN' + (gradeSelect ? gradeSelect.value : '12') + '-' + Math.floor(1000 + Math.random() * 9000);
+      if (durationInput) durationInput.value = '45';
+      if (pwdInput) pwdInput.value = String(Math.floor(1000 + Math.random() * 9000));
+      
+      // Gợi ý giờ: Từ hiện tại đến 7 ngày sau (định dạng YYYY-MM-DDTHH:mm)
+      const now = new Date();
+      const nextWeek = new Date(Date.now() + 7 * 86400000);
+      if (startInput) startInput.value = toInputVal(now);
+      if (endInput) endInput.value = toInputVal(nextWeek);
+      if (antiCheatToggle) antiCheatToggle.checked = true;
+      if (maxViolationsInput) maxViolationsInput.value = '3';
+    }
 
     modal.classList.remove('hidden');
   },

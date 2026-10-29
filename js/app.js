@@ -29,6 +29,7 @@ class App {
     this.currentGrade = '12';
     this.gradeCache = {};
     this.currentTab = 'home';
+    this.pendingRoomParam = null;
   }
 
   async init() {
@@ -40,24 +41,15 @@ class App {
     await this.switchGrade(this.currentGrade);
     this.renderHome();
 
-    // Bắt buộc đăng ký / đăng nhập trước khi vào trang
-    this.enforceAuthentication();
-
     // Tự động nhận diện mã phòng thi qua URL param (?room=XYZ hoặc ?phong=XYZ)
     const urlParams = new URLSearchParams(window.location.search);
     const roomParam = urlParams.get('room') || urlParams.get('phong');
     if (roomParam) {
-      setTimeout(() => {
-        if (Auth.isLoggedIn() && Auth.isProfileComplete()) {
-          this.switchTab('exam-setup');
-          const input = document.getElementById('input-enter-room-id');
-          if (input) {
-            input.value = roomParam.toUpperCase();
-            document.getElementById('input-enter-room-pwd')?.focus();
-          }
-        }
-      }, 400);
+      this.pendingRoomParam = roomParam.trim().toUpperCase();
     }
+
+    // Bắt buộc đăng ký / đăng nhập trước khi vào trang (đồng thời xử lý pendingRoomParam nếu đã đăng nhập)
+    this.enforceAuthentication();
 
     // Lắng nghe sự kiện lọc bảng điểm theo phòng thi
     window.addEventListener('filter-gradebook-by-room', async (e) => {
@@ -170,14 +162,21 @@ class App {
 
   // --- ROUTING / TABS ---
   async switchTab(tab) {
+    // Cảnh báo nếu thí sinh đang làm bài thi mà bấm chuyển sang tab khác
+    if (this.currentTab === 'exam-room' && tab !== 'exam-room' && Exam.examState === 'taking') {
+      const confirmLeave = confirm('Bạn đang trong quá trình làm bài thi thử. Nếu rời khỏi phòng thi lúc này, bài làm chưa nộp sẽ bị hủy.\nBạn có chắc chắn muốn thoát không?');
+      if (!confirmLeave) return false;
+      Exam.resetState();
+    }
+
     // Kiểm tra quyền truy cập theo vai trò (RBAC)
     if (tab === 'admin-system' && !Auth.isAdmin()) {
       alert('Chức năng Quản Trị Hệ Thống chỉ dành riêng cho Quản trị viên (Admin)!');
-      return;
+      return false;
     }
     if ((tab === 'questions-manage' || tab === 'gradebook' || tab === 'exam-rooms') && !Auth.isTeacher()) {
       alert('Chức năng này dành cho Giáo viên (GV) & Quản trị viên (Admin)!\nHọc sinh vui lòng tham gia thi thử và xem bảng vinh danh.');
-      return;
+      return false;
     }
 
     this.currentTab = tab;
@@ -344,16 +343,14 @@ class App {
         `).join('');
 
         topicGrid.querySelectorAll('[data-practice-topic]').forEach(btn => {
-          btn.addEventListener('click', () => {
+          btn.addEventListener('click', async () => {
             const topic = btn.getAttribute('data-practice-topic');
-            this.switchTab('practice');
-            setTimeout(() => {
-              const topicSelect = document.getElementById('practice-topic-select');
-              if (topicSelect) {
-                topicSelect.value = topic;
-                topicSelect.dispatchEvent(new Event('change'));
-              }
-            }, 100);
+            await this.switchTab('practice');
+            const topicSelect = document.getElementById('practice-topic-select');
+            if (topicSelect) {
+              topicSelect.value = topic;
+              topicSelect.dispatchEvent(new Event('change'));
+            }
           });
         });
       }
@@ -395,7 +392,7 @@ class App {
 
     if (topicSelect) {
       topicSelect.innerHTML = `<option value="all">Tất cả chủ đề (${gradeData.total} câu)</option>` +
-        topics.map(t => `<option value="${t}">${t} (${gradeData.topics[t].total} câu)</option>`).join('');
+        topics.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)} (${gradeData.topics[t].total} câu)</option>`).join('');
     }
 
     const updateLessons = () => {
@@ -408,7 +405,7 @@ class App {
           lessonSelect.disabled = false;
           const lessons = Object.keys(gradeData.topics[selTopic]?.lessons || {});
           lessonSelect.innerHTML = `<option value="all">Tất cả bài trong chủ đề này</option>` +
-            lessons.map(l => `<option value="${l}">${l}</option>`).join('');
+            lessons.map(l => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join('');
         }
       }
     };
@@ -624,12 +621,12 @@ class App {
                   ${idx + 1}
                 </span>
                 <span class="text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium">
-                  Khối ${q.grade}
+                  Khối ${escapeHtml(q.grade)}
                 </span>
-                <span class="text-xs text-slate-400">${q.lesson}</span>
+                <span class="text-xs text-slate-400">${escapeHtml(q.lesson || '')}</span>
               </div>
 
-              <button data-remove-bm="${q.id}" class="text-xs text-rose-500 hover:text-rose-700 font-bold p-1">
+              <button data-remove-bm="${escapeHtml(q.id)}" class="text-xs text-rose-500 hover:text-rose-700 font-bold p-1">
                 <i class="fa-solid fa-trash-can mr-1"></i>Xóa
               </button>
             </div>
@@ -644,15 +641,28 @@ class App {
                   const letter = ['A', 'B', 'C', 'D'][oIdx];
                   const isCorrect = (letter === q.answer);
                   return `
-                    <div class="p-2 rounded-lg border ${isCorrect ? 'border-emerald-400 bg-emerald-50 text-emerald-900 font-bold' : 'border-slate-200 text-slate-600'}">
+                    <div class="p-2 rounded-lg border ${isCorrect ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-200 font-bold' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}">
                       ${letter}. ${escapeHtml(opt)}
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            ` : (q.level === 'DS' && q.options ? `
+              <div class="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+                ${q.options.map((opt, oIdx) => {
+                  const subL = ['a', 'b', 'c', 'd'][oIdx];
+                  const ansVal = (q.answer && q.answer.split(',')[oIdx]) || '';
+                  return `
+                    <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-750 flex items-center justify-between">
+                      <span><strong>${subL})</strong> ${escapeHtml(opt)}</span>
+                      <span class="px-2 py-0.5 rounded font-bold text-[11px] ${ansVal === 'Đ' ? 'bg-blue-100 text-blue-700' : 'bg-rose-100 text-rose-700'}">${ansVal === 'Đ' ? 'Đúng' : 'Sai'}</span>
                     </div>
                   `;
                 }).join('')}
               </div>
             ` : `
               <div class="text-xs text-emerald-600 font-bold">Đáp án: ${escapeHtml(q.answer)}</div>
-            `}
+            `)}
           </div>
         `).join('')}
       </div>
@@ -670,8 +680,8 @@ class App {
     // Practice bookmarks
     const practiceBmBtn = container.querySelector('#btn-practice-bookmarks');
     if (practiceBmBtn) {
-      practiceBmBtn.addEventListener('click', () => {
-        this.switchTab('practice');
+      practiceBmBtn.addEventListener('click', async () => {
+        await this.switchTab('practice');
         const practiceArea = document.getElementById('practice-question-area');
         Practice.init(practiceArea, bookmarks, this.manifest);
         Practice.setQuestions(bookmarks);
@@ -738,6 +748,11 @@ class App {
               </div>
 
               <div class="flex items-center gap-4 self-end sm:self-center">
+                ${item.details && item.details.length > 0 ? `
+                  <button data-review-history="${escapeHtml(item.id)}" class="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-eye"></i> Xem chi tiết
+                  </button>
+                ` : ''}
                 <div class="text-right">
                   <span class="text-2xl font-black text-blue-600 dark:text-blue-400">${item.score}</span>
                   <span class="text-xs text-slate-400 block font-bold">Điểm</span>
@@ -748,6 +763,26 @@ class App {
         }).join('')}
       </div>
     `;
+
+    container.querySelectorAll('[data-review-history]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-review-history');
+        const target = history.find(h => h.id === id);
+        if (!target) return;
+        const grade = target.grade || this.currentGrade;
+        await this.loadGradeData(grade);
+        let questions = [...(this.gradeCache[grade] || [])];
+        if (grade === '11') {
+          await this.loadGradeData('12');
+          const ds12 = (this.gradeCache['12'] || []).filter(q => q.level === 'DS');
+          questions = [...questions, ...ds12];
+        }
+        await this.switchTab('exam-room');
+        const roomEl = document.getElementById('view-exam-room');
+        Exam.init(roomEl, questions, this.manifest);
+        Exam.viewSavedResult(target);
+      });
+    });
 
     const clearBtn = container.querySelector('#btn-clear-history');
     if (clearBtn) {
@@ -852,19 +887,19 @@ class App {
           <div>
             <select id="gb-filter-class" class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold">
               <option value="all">Tất cả các lớp</option>
-              ${classes.map(c => `<option value="${c}">Lớp ${c}</option>`).join('')}
+              ${classes.map(c => `<option value="${escapeHtml(c)}">Lớp ${escapeHtml(c)}</option>`).join('')}
             </select>
           </div>
           <div>
             <select id="gb-filter-school" class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold">
               <option value="all">Tất cả các trường</option>
-              ${schools.map(s => `<option value="${s}">${s}</option>`).join('')}
+              ${schools.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
             </select>
           </div>
           <div>
             <select id="gb-filter-room" class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold font-mono">
               <option value="all">Tất cả phòng & tự do</option>
-              ${roomsList.map(r => `<option value="${r}">Phòng: ${r}</option>`).join('')}
+              ${roomsList.map(r => `<option value="${escapeHtml(r)}">Phòng: ${escapeHtml(r)}</option>`).join('')}
             </select>
           </div>
         </div>
@@ -1438,6 +1473,20 @@ class App {
       if (loginModal) loginModal.classList.add('hidden');
       if (closeBtn) closeBtn.classList.remove('hidden');
       Auth.closeRequiredProfileModal();
+
+      // Nếu học sinh truy cập qua link phòng thi trực tiếp (?room=XYZ), tự động mở màn hình vào phòng thi
+      if (this.pendingRoomParam) {
+        const roomCode = this.pendingRoomParam;
+        this.pendingRoomParam = null;
+        this.switchTab('exam-setup');
+        setTimeout(() => {
+          const input = document.getElementById('input-enter-room-id');
+          if (input) {
+            input.value = roomCode;
+            document.getElementById('input-enter-room-pwd')?.focus();
+          }
+        }, 150);
+      }
     }
   }
 

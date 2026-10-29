@@ -786,6 +786,25 @@ export const Exam = {
     this.renderResultView();
   },
 
+  viewSavedResult(savedItem) {
+    if (!savedItem) return;
+    this.resetState();
+    this.examState = 'submitted';
+    this.examConfig = {
+      type: savedItem.totalQuestions === 28 ? 'bgd_2025' : 'custom',
+      title: savedItem.title || 'Đề thi thử Tin học',
+      grade: savedItem.grade || '12',
+      duration: 50,
+      count: savedItem.totalQuestions || 28
+    };
+    this.examResult = {
+      ...savedItem,
+      type: savedItem.type || (savedItem.totalQuestions === 28 ? 'bgd_2025' : 'custom'),
+      details: savedItem.details || []
+    };
+    this.renderResultView();
+  },
+
   // --- HIỂN THỊ KẾT QUẢ & PHÂN TÍCH ĐỀ THI ---
   renderResultView() {
     const res = this.examResult;
@@ -980,7 +999,7 @@ export const Exam = {
             <span class="text-xs font-bold px-2.5 py-1 rounded-lg ${item.isCorrect ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300'}">
               Câu ${q.examIndex || idx + 1}: ${item.isCorrect ? 'Đúng (+ ' + item.score + 'đ)' : 'Sai (' + item.score + 'đ)'}
             </span>
-            <span class="text-xs text-slate-400">${q.lesson}</span>
+            <span class="text-xs text-slate-400">${escapeHtml(q.lesson || '')}</span>
           </div>
 
           <h4 class="text-sm sm:text-base font-bold text-slate-800 dark:text-white mb-4">

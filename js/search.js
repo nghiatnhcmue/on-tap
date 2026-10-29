@@ -60,6 +60,11 @@ export const Search = {
   render() {
     if (!this.container) return;
 
+    const activeEl = document.activeElement;
+    const isSearchFocused = activeEl && activeEl.id === 'search-input';
+    const selStart = isSearchFocused ? activeEl.selectionStart : null;
+    const selEnd = isSearchFocused ? activeEl.selectionEnd : null;
+
     const total = this.filteredQuestions.length;
     const pageCount = Math.ceil(total / this.pageSize);
     const start = this.currentPage * this.pageSize;
@@ -72,7 +77,7 @@ export const Search = {
         <div class="max-w-3xl mx-auto space-y-4">
           <div class="relative">
             <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input type="text" id="search-input" value="${this.currentQuery}" placeholder="Tìm kiếm từ khóa (ví dụ: Python, HTML, nhị phân, thuật toán, biến...)" class="w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner" />
+            <input type="text" id="search-input" value="${escapeHtml(this.currentQuery)}" placeholder="Tìm kiếm từ khóa (ví dụ: Python, HTML, nhị phân, thuật toán, biến...)" class="w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-medium text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner" />
             ${this.currentQuery ? `
               <button id="btn-clear-search" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 <i class="fa-solid fa-xmark"></i>
@@ -130,12 +135,12 @@ export const Search = {
                       ${globalIdx}
                     </span>
                     <span class="text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium">
-                      Khối ${q.grade}
+                      Khối ${escapeHtml(q.grade)}
                     </span>
-                    <span class="text-xs text-slate-400 hidden sm:inline-block">${q.lesson}</span>
+                    <span class="text-xs text-slate-400 hidden sm:inline-block">${escapeHtml(q.lesson || '')}</span>
                   </div>
 
-                  <button data-search-bm="${q.id}" class="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 transition">
+                  <button data-search-bm="${escapeHtml(q.id)}" class="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 transition">
                     <i class="${isBookmarked ? 'fa-solid text-amber-500' : 'fa-regular'} fa-bookmark"></i>
                   </button>
                 </div>
@@ -160,14 +165,14 @@ export const Search = {
                   </div>
                 ` : (q.level === 'DS' ? `
                   <div class="text-xs space-y-1 bg-slate-50 dark:bg-slate-750 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <span class="font-bold text-purple-600 dark:text-purple-400 block mb-1">Đáp án Đúng/Sai: ${q.answer}</span>
+                    <span class="font-bold text-purple-600 dark:text-purple-400 block mb-1">Đáp án Đúng/Sai: ${escapeHtml(q.answer)}</span>
                     ${q.options.map((opt, oIdx) => `
                       <div><b>${['a', 'b', 'c', 'd'][oIdx]})</b> ${this.highlightKeyword(opt, this.currentQuery)}</div>
                     `).join('')}
                   </div>
                 ` : `
                   <div class="text-xs p-3 rounded-xl bg-slate-50 dark:bg-slate-750 border border-slate-200 dark:border-slate-700">
-                    <span class="text-slate-500">Đáp án chuẩn:</span> <b class="text-emerald-600 font-mono">${q.answer}</b>
+                    <span class="text-slate-500">Đáp án chuẩn:</span> <b class="text-emerald-600 font-mono">${escapeHtml(q.answer)}</b>
                   </div>
                 `)}
               </div>
@@ -191,6 +196,16 @@ export const Search = {
         ` : ''}
       `}
     `;
+
+    if (isSearchFocused) {
+      const newSearchInput = this.container.querySelector('#search-input');
+      if (newSearchInput) {
+        newSearchInput.focus();
+        if (selStart !== null && selEnd !== null) {
+          try { newSearchInput.setSelectionRange(selStart, selEnd); } catch (e) {}
+        }
+      }
+    }
 
     this.bindEvents();
   },

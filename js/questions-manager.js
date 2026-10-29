@@ -95,6 +95,11 @@ export const QuestionsManager = {
       ? Object.keys(this.manifest.grades[this.currentGrade].topics || {})
       : [];
 
+    const activeEl = document.activeElement;
+    const isKwFocused = activeEl && activeEl.id === 'qm-filter-keyword';
+    const selStart = isKwFocused ? activeEl.selectionStart : null;
+    const selEnd = isKwFocused ? activeEl.selectionEnd : null;
+
     this.container.innerHTML = `
       <div class="space-y-6 animate-fadeIn">
         
@@ -123,6 +128,10 @@ export const QuestionsManager = {
             <button id="btn-qm-export-custom" class="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition" title="Xuất dữ liệu ra file JSON">
               <i class="fa-solid fa-file-arrow-down mr-1"></i> Xuất JSON
             </button>
+            <button id="btn-qm-import-custom" class="px-3.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-bold transition" title="Nhập câu hỏi từ file JSON">
+              <i class="fa-solid fa-file-arrow-up mr-1"></i> Nhập JSON
+            </button>
+            <input type="file" id="input-qm-import-json" accept=".json,application/json" class="hidden" />
           </div>
         </div>
 
@@ -159,7 +168,7 @@ export const QuestionsManager = {
               <label class="block text-[11px] font-bold text-slate-500 mb-1 uppercase">Chủ đề</label>
               <select id="qm-filter-topic" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
                 <option value="all">Tất cả chủ đề</option>
-                ${topicsList.map(t => `<option value="${t}" ${this.currentTopic === t ? 'selected' : ''}>${t}</option>`).join('')}
+                ${topicsList.map(t => `<option value="${escapeHtml(t)}" ${this.currentTopic === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}
               </select>
             </div>
 
@@ -292,6 +301,16 @@ export const QuestionsManager = {
         </div>
       </div>
     `;
+
+    if (isKwFocused) {
+      const newKwInput = this.container.querySelector('#qm-filter-keyword');
+      if (newKwInput) {
+        newKwInput.focus();
+        if (selStart !== null && selEnd !== null) {
+          try { newKwInput.setSelectionRange(selStart, selEnd); } catch (e) {}
+        }
+      }
+    }
 
     this.bindEvents(questions);
   },
@@ -577,6 +596,49 @@ export const QuestionsManager = {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     });
+
+    // Nút Nhập JSON
+    const importBtn = this.container.querySelector('#btn-qm-import-custom');
+    const importFileInput = this.container.querySelector('#input-qm-import-json');
+    if (importBtn && importFileInput) {
+      importBtn.addEventListener('click', () => importFileInput.click());
+      importFileInput.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const parsed = JSON.parse(ev.target.result);
+            const list = Array.isArray(parsed) ? parsed : (parsed.questions || []);
+            if (!Array.isArray(list) || list.length === 0) {
+              alert('Tệp JSON không hợp lệ hoặc không chứa danh sách câu hỏi!');
+              return;
+            }
+            let added = 0;
+            list.forEach(q => {
+              if (q && q.question) {
+                Storage.saveQuestion({
+                  grade: String(q.grade || this.currentGrade),
+                  level: String(q.level || '1'),
+                  topic: q.topic || 'Chủ đề nhập từ JSON',
+                  lesson: q.lesson || 'Bài học nhập từ JSON',
+                  question: q.question,
+                  options: Array.isArray(q.options) ? q.options : [],
+                  answer: String(q.answer || 'A'),
+                  note: q.note || ''
+                });
+                added++;
+              }
+            });
+            alert(`Đã nhập thành công ${added} câu hỏi vào ngân hàng đề!`);
+            this.render();
+          } catch (err) {
+            alert('Không thể đọc tệp JSON! Vui lòng kiểm tra định dạng tệp.');
+          }
+        };
+        reader.readAsText(file);
+      });
+    }
 
     // Đóng Modal
     this.container.querySelector('#btn-qm-close-modal')?.addEventListener('click', () => this.closeEditModal());

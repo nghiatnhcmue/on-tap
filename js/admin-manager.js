@@ -155,11 +155,11 @@ export const AdminManager = {
                       <td class="py-3 px-3 font-bold text-slate-800 dark:text-white">
                         ${escapeHtml(user.fullName)}
                       </td>
-                      <td class="py-3 px-3 text-slate-500 font-mono">${escapeHtml(user.email)}</td>
+                      <td class="py-3 px-3 text-slate-500 font-mono">${user.email ? escapeHtml(user.email) : '<span class="italic text-slate-400">Đăng ký trực tiếp</span>'}</td>
                       <td class="py-3 px-3 text-slate-500">${escapeHtml(user.className || '-')} • ${escapeHtml(user.school || '-')}</td>
                       <td class="py-3 px-3">${badge}</td>
                       <td class="py-3 px-3 text-right">
-                        <select data-user-role-select="${escapeHtml(user.email)}" class="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-800 dark:text-white">
+                        <select data-user-role-select="${escapeHtml(user.email || user.uid)}" class="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-800 dark:text-white">
                           <option value="student" ${user.role === 'student' ? 'selected' : ''}>Học sinh</option>
                           <option value="teacher" ${user.role === 'teacher' ? 'selected' : ''}>Giáo viên</option>
                           <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
@@ -236,12 +236,19 @@ export const AdminManager = {
             </p>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2">
             <button id="btn-admin-export-backup" class="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 text-left transition group">
               <i class="fa-solid fa-download text-blue-600 text-lg mb-2 block"></i>
               <h4 class="text-xs font-bold text-slate-800 dark:text-white">Xuất File Sao Lưu (Backup)</h4>
               <p class="text-[11px] text-slate-400 mt-1">Tải về toàn bộ bảng điểm, câu hỏi tùy chỉnh và thiết lập.</p>
             </button>
+
+            <button id="btn-admin-import-backup" class="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-left transition group">
+              <i class="fa-solid fa-upload text-emerald-600 text-lg mb-2 block"></i>
+              <h4 class="text-xs font-bold text-slate-800 dark:text-white">Phục Hồi Sao Lưu (Restore)</h4>
+              <p class="text-[11px] text-slate-400 mt-1">Khôi phục dữ liệu hệ thống từ tệp JSON sao lưu.</p>
+            </button>
+            <input type="file" id="input-admin-import-backup" accept=".json,application/json" class="hidden" />
 
             <button id="btn-admin-clear-history" class="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-amber-500 text-left transition group">
               <i class="fa-solid fa-trash-can text-amber-600 text-lg mb-2 block"></i>
@@ -318,6 +325,28 @@ export const AdminManager = {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     });
+
+    // Nhập / Phục hồi backup
+    const importBtn = this.container.querySelector('#btn-admin-import-backup');
+    const importFileInput = this.container.querySelector('#input-admin-import-backup');
+    if (importBtn && importFileInput) {
+      importBtn.addEventListener('click', () => importFileInput.click());
+      importFileInput.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const ok = Storage.importBackup(ev.target.result);
+          if (ok) {
+            alert('Đã phục hồi toàn bộ dữ liệu sao lưu thành công!');
+            this.render();
+          } else {
+            alert('Tệp sao lưu không hợp lệ! Vui lòng chọn đúng tệp JSON sao lưu của TinHocHub.');
+          }
+        };
+        reader.readAsText(file);
+      });
+    }
 
     // Xóa lịch sử thi
     this.container.querySelector('#btn-admin-clear-history')?.addEventListener('click', () => {

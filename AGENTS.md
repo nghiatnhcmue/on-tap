@@ -47,10 +47,12 @@ D:\app-on-tap/
 │   └── grade_12.json       # 1.509 câu hỏi Khối 12 (gồm 1, 2, 3, 4, DS, TLN)
 ├── convert_bank.py         # Script Python chuyển đổi Excel sang JSON đồng bộ chuẩn schema
 ├── Ngan Hang de.xlsx       # File Excel ngân hàng câu hỏi gốc
-├── _headers                # Header tối ưu cache và bảo mật cho Cloudflare Pages
-├── _redirects              # Cấu hình rewrite SPA routing cho Cloudflare (/* /index.html 200)
+├── _headers                # Header tối ưu cache và bảo mật cho Cloudflare Workers / Pages
 └── AGENTS.md               # Tài liệu này (Hướng dẫn dành riêng cho AI Agent)
 ```
+
+> **Lưu ý quan trọng về Cloudflare Workers Static Assets (`on-tap.nghiaedu.workers.dev`):**
+> Hệ thống tự động build qua GitHub App `Workers Builds: on-tap`. **Tuyệt đối KHÔNG tạo file `_redirects` có mã trạng thái `200` (như `/* /index.html 200`)**, vì Cloudflare Workers Static Assets sẽ báo lỗi cấu hình proxy và làm hỏng bản build. Do ứng dụng điều hướng hoàn toàn tại `/` và dùng query string `?room=XYZ`, không cần file `_redirects`.
 
 ---
 
