@@ -35,6 +35,7 @@ D:\app-on-tap/
 │   ├── proctor.js          # Hệ thống Giám sát Chống gian lận: fullscreen, tab blur, chống copy/devtools
 │   ├── exam-rooms.js       # Quản lý Phòng thi & Giao đề: tạo phòng, cấp mật khẩu, link trực tiếp ?room=XYZ
 │   ├── leaderboard.js      # Bảng Vinh Danh Học Sinh: Podium Top 1-2-3, xếp hạng theo ngày/tuần/tháng/năm
+│   ├── gradebook.js        # Sổ điểm & Phân tích Tiến trình: theo học sinh, theo lớp, học bạ điện tử, xuất Excel BOM
 │   ├── questions-manager.js# Quản lý Ngân hàng đề cho Giáo viên: Thêm, Sửa, Xóa câu hỏi, Xuất/Nhập JSON
 │   ├── admin-manager.js    # Bảng điều khiển Quản trị viên (Admin): đổi mã bảo mật, phân vai, dọn dẹp hệ thống
 │   ├── search.js           # Tìm kiếm tức thì 4.449 câu hỏi theo từ khóa, khối, chủ đề, cấp độ
@@ -167,6 +168,34 @@ Hệ thống tự động nhận diện nền tảng (`Proctor.detectPlatform()`
 - **Bộ lọc & Điều phối cho Giáo viên:**
   - Thanh bộ lọc nhanh theo Khối, theo Trường và ô tìm kiếm tức thì theo tên/mã phòng.
   - Nút **"Copy thông báo lớp"** tự động định dạng mẫu tin nhắn chuyên nghiệp (gồm Tên bài, Trường, Lớp, Hình thức đề, Thời lượng, Khung giờ, Mật khẩu, Link trực tiếp `${origin}?room=${roomId}`) để Thầy Cô gửi ngay vào Zalo/Facebook của lớp.
+
+### 4.5. Sổ Điểm Điện Tử & Theo Dõi Tiến Trình Học Sinh Toàn Diện (`js/gradebook.js`)
+Phục vụ nhu cầu theo dõi tiến độ, đánh giá năng lực học tập và xuất báo cáo kết quả thi của Giáo viên và Học sinh:
+- **Theo dõi tiến trình từng Học sinh (`getStudentsProgress`):**
+  - Tự động nhóm lịch sử làm bài theo tài khoản học sinh (`studentEmail` hoặc `Họ tên + Lớp`).
+  - Tính toán các chỉ số cá nhân cốt lõi: Số đề đã thi, Điểm cao nhất (`maxScore`), Điểm trung bình (`avgScore`), Điểm bài gần nhất (`latestScore`), Độ chênh lệch so với bài trước (`scoreDiff = latestScore - previousScore`).
+  - **Thuật toán đánh giá xu hướng tiến độ (Trend Badges):**
+    - 🚀 **Đang tiến bộ:** `scoreDiff >= 0.5` hoặc tăng mạnh so với điểm TB (`latestScore >= avgScore + 0.3`).
+    - 🏆 **Xuất sắc:** Duy trì phong độ đỉnh cao (`avgScore >= 8.5` và `latestScore >= 8.0`).
+    - ⚡ **Khá & Ổn định:** Kết quả duy trì chắc chắn ở mức khá (`avgScore >= 6.5`).
+    - ⚠️ **Cần cố gắng:** Điểm dưới chuẩn (`latestScore < 5.0` hoặc `avgScore < 5.0` hoặc sụt giảm `scoreDiff <= -1.0`).
+    - 🔄 **Mới bắt đầu:** Hoàn thành bài thi đầu tiên.
+- **Học bạ Điện tử Cá nhân (Modal `#modal-student-progress` & View Lịch sử):**
+  - Hiển thị hồ sơ học sinh (Avatar, Họ tên, Email, Trường, Lớp).
+  - 4 thẻ KPI động (Kỷ lục cao nhất, Điểm TB, Điểm gần nhất, Tổng lượt thi).
+  - Lời nhận xét sư phạm tự động dựa trên độ tăng trưởng điểm số.
+  - Biểu đồ cột trực quan (`sp-modal-bars-container`) theo dõi tiến trình điểm qua từng đợt thi theo dòng thời gian.
+  - Bảng danh sách chi tiết từng bài thi kèm mã đề, thời gian làm bài và kiểm toán giám sát.
+- **Phân tích Tiến trình Theo Lớp (`getClassAnalytics`):**
+  - Bộ lọc đa chiều: Theo Trường (`EMASI`, `Phổ thông Năng khiếu`, `Chu Văn An`...), Theo Khối (10, 11, 12), và Theo Lớp (`10E`, `12TOAN`, `10A1`...).
+  - Thống kê toàn diện: Sĩ số tham gia, Tổng lượt nộp bài, Điểm trung bình lớp, Điểm kỷ lục lớp, Tỷ lệ đạt chuẩn (>= 5.0đ), Tỷ lệ học sinh đang tiến bộ vs cần nỗ lực.
+  - Biểu đồ phổ điểm trực quan (Xuất sắc 9-10đ, Giỏi 8-8.9đ, Khá 6.5-7.9đ, Trung bình 5-6.4đ, Cần cố gắng <5đ).
+  - Bảng xếp hạng học sinh trong lớp theo điểm TB hoặc điểm cao nhất.
+- **Xuất Báo Cáo Excel Chuẩn Quốc Tế (UTF-8 with BOM):**
+  - Hỗ trợ xuất 2 loại file báo cáo:
+    1. **Báo Cáo Tiến Trình Học Sinh (`Bao_Cao_Tien_Trinh_Hoc_Sinh_*.csv`)**: Thống kê danh sách học sinh, trường, lớp, email, số đề thi, max, TB, bài gần nhất, xu hướng tiến độ, lời nhận xét.
+    2. **Chi Tiết Toàn Bộ Bài Thi (`Chi_Tiet_Bai_Thi_Tin_Hoc_*.csv`)**: Bảng điểm nhật ký từng lượt thi gồm ngày giờ, học sinh, trường, lớp, phòng thi, mã đề, điểm số, số câu đúng/tổng câu, thời gian làm bài, tỷ lệ đúng, trạng thái giám sát (Hợp lệ / Bị đình chỉ).
+  - **Bảo đảm không lỗi font tiếng Việt trong Microsoft Excel:** Tất cả file xuất ra đều được thêm byte order mark UTF-8 (`\uFEFF`) ở đầu chuỗi, mở xem trực tiếp trên Excel của Windows và macOS trọn vẹn dấu tiếng Việt mà không cần thao tác import thủ công.
 
 ---
 

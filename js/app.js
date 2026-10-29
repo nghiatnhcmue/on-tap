@@ -15,12 +15,14 @@ import { QuestionsManager } from './questions-manager.js';
 import { AdminManager } from './admin-manager.js';
 import { ExamRooms } from './exam-rooms.js';
 import { Proctor } from './proctor.js';
+import { Gradebook } from './gradebook.js';
 
 if (typeof window !== 'undefined') {
   window.Storage = Storage;
   window.Exam = Exam;
   window.Proctor = Proctor;
   window.ExamRooms = ExamRooms;
+  window.Gradebook = Gradebook;
 }
 
 class App {
@@ -33,6 +35,7 @@ class App {
   }
 
   async init() {
+    window.App = this;
     this.initTheme();
     Auth.init();
     this.initAuthUI();
@@ -279,6 +282,26 @@ class App {
       ? Math.max(...validHistory.map(h => Number(h.score) || 0)).toFixed(2)
       : null;
 
+    let homeTrendBadge = '';
+    if (validHistory.length >= 2) {
+      const latestScore = Number(validHistory[0].score) || 0;
+      const prevScore = Number(validHistory[1].score) || 0;
+      const scoreDiff = Math.round((latestScore - prevScore) * 100) / 100;
+      if (scoreDiff >= 0.5) {
+        homeTrendBadge = `<div class="mt-1"><span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">Đang tiến bộ 🚀 (+${scoreDiff > 0 ? scoreDiff : 0.5}đ)</span></div>`;
+      } else if (Number(avgScore) >= 8.5 && latestScore >= 8.0) {
+        homeTrendBadge = `<div class="mt-1"><span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300">Xuất sắc 🏆</span></div>`;
+      } else if (latestScore < 5.0 || Number(avgScore) < 5.0 || scoreDiff <= -1.0) {
+        homeTrendBadge = `<div class="mt-1"><span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300">Cần cố gắng ⚠️</span></div>`;
+      } else if (Number(avgScore) >= 6.5) {
+        homeTrendBadge = `<div class="mt-1"><span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300">Khá & Ổn định ⚡</span></div>`;
+      } else {
+        homeTrendBadge = `<div class="mt-1"><span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">Trung bình 📊</span></div>`;
+      }
+    } else if (validHistory.length === 1) {
+      homeTrendBadge = `<div class="mt-1"><span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">Mới bắt đầu 🔄</span></div>`;
+    }
+
     const homeStatsContainer = document.getElementById('home-user-stats');
     if (homeStatsContainer) {
       homeStatsContainer.innerHTML = `
@@ -316,6 +339,7 @@ class App {
               <div>
                 <span class="text-xs text-slate-400 block font-medium">Đề đã thi / Điểm TB</span>
                 <span class="text-xl font-black text-purple-600 dark:text-purple-400">${history.length} đề ${avgScore !== null ? `<span class="text-xs font-bold text-slate-400">(${avgScore}đ)</span>` : ''}</span>
+                ${homeTrendBadge}
               </div>
             </div>
 
@@ -1068,60 +1092,191 @@ class App {
       return;
     }
 
+    const validHistory = history.filter(h => !h.isDisqualified);
+    const validScores = validHistory.map(h => Number(h.score) || 0);
+    const maxScore = validScores.length > 0 ? Math.max(...validScores).toFixed(1) : '0.0';
+    const avgScore = validScores.length > 0 ? (validScores.reduce((a, b) => a + b, 0) / validScores.length).toFixed(2) : '0.00';
+    const latestScore = validScores[0] ?? 0;
+    const prevScore = validScores.length > 1 ? validScores[1] : null;
+    const scoreDiff = prevScore !== null ? Math.round((latestScore - prevScore) * 100) / 100 : 0;
+
+    let trendBadge = 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300 border-slate-300';
+    let trendLabel = 'Mới bắt đầu 🔄';
+    let trendMsg = 'Bạn đã hoàn thành bài thi đầu tiên. Hãy làm thêm các đề thi để hệ thống đo lường tiến trình nhé!';
+
+    if (validHistory.length >= 2) {
+      if (scoreDiff >= 0.5 || (latestScore >= Number(avgScore) + 0.3 && latestScore >= 6.0)) {
+        trendBadge = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300';
+        trendLabel = `Đang tiến bộ rất tốt 🚀 (+${scoreDiff > 0 ? scoreDiff : 0.5}đ)`;
+        trendMsg = 'Xuất sắc! Điểm số bài thi gần nhất của bạn đã có bước nhảy vọt so với bài trước. Hãy tiếp tục giữ vững đà tiến bộ này!';
+      } else if (Number(avgScore) >= 8.5 && latestScore >= 8.0) {
+        trendBadge = 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 border-indigo-300';
+        trendLabel = 'Phong độ Xuất sắc 🏆';
+        trendMsg = 'Tuyệt vời! Bạn đang duy trì kết quả trên 8.5 điểm một cách liên tục và chắc chắn.';
+      } else if (latestScore < 5.0 || Number(avgScore) < 5.0 || scoreDiff <= -1.0) {
+        trendBadge = 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border-rose-300';
+        trendLabel = `Cần nỗ lực cố gắng thêm ⚠️ ${scoreDiff < 0 ? `(${scoreDiff}đ)` : ''}`;
+        trendMsg = 'Kết quả bài thi gần đây đang ở mức cần cố gắng. Hãy vào mục "Luyện Câu Hay Sai" và làm các đề 15 phút theo bài học để củng cố lại lý thuyết nhé!';
+      } else if (Number(avgScore) >= 6.5) {
+        trendBadge = 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border-blue-300';
+        trendLabel = 'Khá & Ổn định ⚡';
+        trendMsg = 'Bạn đang giữ phong độ khá ổn định. Cố gắng thêm một chút ở phần Đúng/Sai để nâng điểm lên mốc 8.5+!';
+      } else {
+        trendBadge = 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-300';
+        trendLabel = 'Trung bình 📊';
+        trendMsg = 'Cần luyện tập đều đặn mỗi ngày để bứt phá lên nhóm khá giỏi.';
+      }
+    } else {
+      if (latestScore >= 8.5) {
+        trendBadge = 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 border-indigo-300';
+        trendLabel = 'Khởi đầu Xuất sắc 🏆';
+      } else if (latestScore < 5.0) {
+        trendBadge = 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border-rose-300';
+        trendLabel = 'Cần cố gắng ⚠️';
+      }
+    }
+
+    // Lấy tối đa 8 bài gần nhất để vẽ mini chart
+    const recentScores = [...validHistory].slice(0, 8).reverse();
+
     container.innerHTML = `
-      <div class="flex items-center justify-between mb-6">
-        <h3 class="text-base font-bold text-slate-800 dark:text-white">
-          Lịch sử thi thử (${history.length} bài thi)
-        </h3>
-        <button id="btn-clear-history" class="text-xs text-rose-500 hover:text-rose-700 font-bold">
-          <i class="fa-solid fa-trash-can mr-1"></i>Xóa lịch sử
-        </button>
-      </div>
-
-      <div class="space-y-4">
-        ${history.map(item => {
-          const date = new Date(item.date).toLocaleString('vi-VN');
-          const mins = Math.floor(item.timeSpentSeconds / 60);
-          const secs = item.timeSpentSeconds % 60;
-
-          return `
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <span class="text-xs text-slate-400 block mb-1">${date} • Khối ${escapeHtml(item.grade)}</span>
-                <h4 class="text-sm font-bold text-slate-800 dark:text-white">
-                  ${escapeHtml(item.title)}
-                </h4>
-                <div class="flex items-center gap-3 text-xs text-slate-500 mt-2 flex-wrap">
-                  ${item.roomId ? `<span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">Phòng: ${escapeHtml(item.roomId)}</span>` : ''}
-                  <span><i class="fa-regular fa-clock mr-1"></i>${mins}p ${secs}s</span>
-                  <span><i class="fa-solid fa-check mr-1 text-emerald-500"></i>${item.correctCount}/${item.totalQuestions} câu đúng</span>
-                  ${item.isDisqualified ? `
-                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
-                      <i class="fa-solid fa-ban mr-1"></i>Đình chỉ (${item.violationCount || 0} lần vi phạm)
-                    </span>
-                  ` : (item.violationCount > 0 ? `
-                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
-                      <i class="fa-solid fa-triangle-exclamation mr-1"></i>${item.violationCount} lần cảnh báo
-                    </span>
-                  ` : '')}
-                </div>
+      <div class="space-y-6">
+        <!-- Bảng Tổng Hợp Tiến Trình Cá Nhân Của Bạn -->
+        <div class="bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-indigo-800/60 space-y-6 relative overflow-hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+            <div>
+              <div class="flex items-center gap-2 flex-wrap mb-1">
+                <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-white/20 text-white">
+                  Học bạ cá nhân
+                </span>
+                <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-black border ${trendBadge}">
+                  ${trendLabel}
+                </span>
               </div>
+              <h3 class="text-xl font-black text-white">
+                Tiến Trình & Năng Lực Học Tập Của Bạn
+              </h3>
+              <p class="text-xs text-blue-200 mt-1">
+                ${escapeHtml(trendMsg)}
+              </p>
+            </div>
 
-              <div class="flex items-center gap-4 self-end sm:self-center">
-                ${item.details && item.details.length > 0 ? `
-                  <button data-review-history="${escapeHtml(item.id)}" class="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-eye"></i> Xem chi tiết
-                  </button>
-                ` : ''}
-                <div class="text-right">
-                  <span class="text-2xl font-black text-blue-600 dark:text-blue-400">${item.score}</span>
-                  <span class="text-xs text-slate-400 block font-bold">Điểm</span>
-                </div>
+            <button id="btn-clear-history" class="text-xs text-rose-300 hover:text-white font-bold px-3 py-1.5 bg-rose-950/50 hover:bg-rose-900/60 border border-rose-700/60 rounded-xl transition self-start sm:self-auto shrink-0 flex items-center gap-1.5">
+              <i class="fa-solid fa-trash-can text-[11px]"></i> Xóa lịch sử
+            </button>
+          </div>
+
+          <!-- 4 KPI cá nhân -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div class="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-center">
+              <span class="text-blue-200 block text-[11px] font-bold mb-1">Điểm Cao Nhất (Max)</span>
+              <span class="text-2xl font-black text-amber-400 font-mono">${maxScore} đ</span>
+              <span class="text-[10px] text-blue-300 block mt-0.5">Kỷ lục của bạn</span>
+            </div>
+            <div class="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-center">
+              <span class="text-blue-200 block text-[11px] font-bold mb-1">Điểm Trung Bình</span>
+              <span class="text-2xl font-black text-emerald-400 font-mono">${avgScore} đ</span>
+              <span class="text-[10px] text-blue-300 block mt-0.5">Qua ${history.length} bài thi</span>
+            </div>
+            <div class="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-center">
+              <span class="text-blue-200 block text-[11px] font-bold mb-1">Bài Thi Gần Nhất</span>
+              <span class="text-2xl font-black text-white font-mono">${latestScore} đ</span>
+              <span class="text-[10px] ${scoreDiff > 0 ? 'text-emerald-400 font-bold' : (scoreDiff < 0 ? 'text-rose-400 font-bold' : 'text-blue-300')} block mt-0.5">
+                ${scoreDiff > 0 ? `Tăng +${scoreDiff}đ` : (scoreDiff < 0 ? `Giảm ${scoreDiff}đ` : 'Không đổi')}
+              </span>
+            </div>
+            <div class="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-center">
+              <span class="text-blue-200 block text-[11px] font-bold mb-1">Tổng Số Đề Đã Thi</span>
+              <span class="text-2xl font-black text-indigo-300 font-mono">${history.length} đề</span>
+              <span class="text-[10px] text-blue-300 block mt-0.5">Đã lưu kết quả</span>
+            </div>
+          </div>
+
+          <!-- Mini Biểu Đồ Cột Tiến Trình Các Bài Thi Gần Nhất -->
+          ${recentScores.length > 1 ? `
+            <div class="pt-2">
+              <span class="text-[11px] font-bold text-blue-200 block mb-2 flex items-center gap-1.5">
+                <i class="fa-solid fa-chart-column text-emerald-400"></i> Xu hướng điểm qua các bài thi gần đây:
+              </span>
+              <div class="flex items-end gap-2.5 h-24 bg-black/25 p-3 rounded-2xl border border-white/10 overflow-x-auto">
+                ${recentScores.map((h, i) => {
+                  const s = Number(h.score) || 0;
+                  const pct = Math.max(15, Math.round((s / 10) * 100));
+                  let c = 'bg-blue-500';
+                  if (s >= 8.5) c = 'bg-emerald-400';
+                  else if (s < 5.0) c = 'bg-rose-400';
+                  else if (s >= 6.5) c = 'bg-teal-400';
+                  return `
+                    <div class="flex-1 flex flex-col items-center justify-end h-full min-w-[28px] group relative">
+                      <span class="text-[9px] font-bold text-blue-200 font-mono mb-0.5">${s}</span>
+                      <div style="height: ${pct}%" class="w-full rounded-t-md ${c} shadow-sm group-hover:brightness-125 transition"></div>
+                      <span class="text-[8px] text-blue-300 mt-1 font-mono">#${i+1}</span>
+                      <div class="hidden group-hover:block absolute -top-8 bg-slate-900 text-white text-[10px] py-0.5 px-2 rounded whitespace-nowrap z-30 shadow-md">
+                        ${escapeHtml(h.title)}: ${s}đ
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
               </div>
             </div>
-          `;
-        }).join('')}
+          ` : ''}
+        </div>
+
+        <!-- Danh Sách Toàn Bộ Lịch Sử Thi Thử -->
+        <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+          <h3 class="text-sm font-bold text-slate-800 dark:text-white flex items-center justify-between">
+            <span>Chi Tiết Từng Lần Thi Thử (${history.length} bài)</span>
+            <span class="text-xs text-slate-400 font-normal">Bấm "Xem chi tiết" để đối chiếu đáp án</span>
+          </h3>
+
+          <div class="space-y-3">
+            ${history.map(item => {
+              const date = new Date(item.date).toLocaleString('vi-VN');
+              const mins = Math.floor(item.timeSpentSeconds / 60);
+              const secs = item.timeSpentSeconds % 60;
+
+              return `
+                <div class="bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-blue-400 dark:hover:border-blue-500 transition">
+                  <div>
+                    <span class="text-xs text-slate-400 block mb-1">${date} • Khối ${escapeHtml(item.grade)}</span>
+                    <h4 class="text-sm font-bold text-slate-800 dark:text-white">
+                      ${escapeHtml(item.title)}
+                    </h4>
+                    <div class="flex items-center gap-2.5 text-xs text-slate-500 mt-2 flex-wrap">
+                      ${item.examCode ? `<span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Mã đề: ${escapeHtml(item.examCode)}</span>` : ''}
+                      ${item.roomId ? `<span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">Phòng: ${escapeHtml(item.roomId)}</span>` : ''}
+                      <span><i class="fa-regular fa-clock mr-1"></i>${mins}p ${secs}s</span>
+                      <span><i class="fa-solid fa-check mr-1 text-emerald-500"></i>${item.correctCount}/${item.totalQuestions} câu đúng</span>
+                      ${item.isDisqualified ? `
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                          <i class="fa-solid fa-ban mr-1"></i>Đình chỉ (${item.violationCount || 0} lần vi phạm)
+                        </span>
+                      ` : (item.violationCount > 0 ? `
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+                          <i class="fa-solid fa-triangle-exclamation mr-1"></i>${item.violationCount} lần cảnh báo
+                        </span>
+                      ` : '')}
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-4 self-end sm:self-center">
+                    ${item.details && item.details.length > 0 ? `
+                      <button data-review-history="${escapeHtml(item.id)}" class="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-eye"></i> Xem bài làm
+                      </button>
+                    ` : ''}
+                    <div class="text-right shrink-0">
+                      <span class="text-2xl font-black ${item.score >= 8 ? 'text-emerald-600 dark:text-emerald-400' : (item.score < 5 ? 'text-rose-600 dark:text-rose-400' : 'text-blue-600 dark:text-blue-400')} font-mono">${item.score}</span>
+                      <span class="text-[10px] text-slate-400 block font-bold uppercase">Điểm số</span>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
       </div>
+    `;
     `;
 
     container.querySelectorAll('[data-review-history]').forEach(btn => {
@@ -1193,257 +1348,11 @@ class App {
     }
   }
 
-  // --- QUẢN LÝ BẢNG ĐIỂM HỌC SINH (GRADEBOOK) ---
+  // --- QUẢN LÝ BẢNG ĐIỂM HỌC SINH & TIẾN TRÌNH (GRADEBOOK) ---
   renderGradebook() {
-    const history = Storage.getExamHistory();
     const container = document.getElementById('gradebook-list-area');
     if (!container) return;
-
-    if (history.length === 0) {
-      container.innerHTML = `
-        <div class="text-center py-16 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 p-8">
-          <i class="fa-solid fa-clipboard-list text-4xl text-slate-300 dark:text-slate-600 mb-3"></i>
-          <h3 class="text-base font-bold text-slate-700 dark:text-slate-300">Chưa có kết quả thi nào trong hệ thống</h3>
-          <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-            Khi học sinh hoàn thành các bài thi thử, điểm số cùng Họ tên, Lớp và Trường sẽ tự động được tổng hợp tại đây.
-          </p>
-        </div>
-      `;
-      return;
-    }
-
-    // Lấy danh sách lớp, trường và phòng thi duy nhất để làm bộ lọc
-    const classes = [...new Set(history.map(item => item.studentClass).filter(Boolean))];
-    const schools = [...new Set(history.map(item => item.studentSchool).filter(Boolean))];
-    const roomsList = [...new Set(history.map(item => item.roomId).filter(Boolean))];
-
-    container.innerHTML = `
-      <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-6">
-        
-        <!-- Header & Action -->
-        <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-700">
-          <div>
-            <h3 class="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-              <i class="fa-solid fa-graduation-cap text-blue-600"></i>
-              Bảng Điểm & Quản Lý Kết Quả Học Sinh
-            </h3>
-            <p class="text-xs text-slate-400">
-              Tổng số ${history.length} bài thi đã hoàn thành
-            </p>
-          </div>
-
-          <div class="flex items-center gap-3">
-            <button id="btn-export-gradebook-csv" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
-              <i class="fa-solid fa-file-excel"></i> Xuất file Excel (CSV)
-            </button>
-          </div>
-        </div>
-
-        <!-- Bộ lọc lớp & trường & tìm kiếm & phòng thi -->
-        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
-          <div>
-            <input type="text" id="gb-filter-search" placeholder="Tìm theo tên học sinh..." class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-medium focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <div>
-            <select id="gb-filter-class" class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold">
-              <option value="all">Tất cả các lớp</option>
-              ${classes.map(c => `<option value="${escapeHtml(c)}">Lớp ${escapeHtml(c)}</option>`).join('')}
-            </select>
-          </div>
-          <div>
-            <select id="gb-filter-school" class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold">
-              <option value="all">Tất cả các trường</option>
-              ${schools.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
-            </select>
-          </div>
-          <div>
-            <select id="gb-filter-room" class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold font-mono">
-              <option value="all">Tất cả phòng & tự do</option>
-              ${roomsList.map(r => `<option value="${escapeHtml(r)}">Phòng: ${escapeHtml(r)}</option>`).join('')}
-            </select>
-          </div>
-        </div>
-
-        <!-- Bảng danh sách kết quả -->
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs" id="gradebook-table">
-            <thead>
-              <tr class="border-b border-slate-200 dark:border-slate-700 text-slate-400 font-bold uppercase tracking-wider">
-                <th class="py-3 px-3">STT</th>
-                <th class="py-3 px-3">Họ và Tên</th>
-                <th class="py-3 px-3">Lớp</th>
-                <th class="py-3 px-3">Trường</th>
-                <th class="py-3 px-3">Phòng thi</th>
-                <th class="py-3 px-3">Bài thi</th>
-                <th class="py-3 px-3 text-center">Điểm</th>
-                <th class="py-3 px-3 text-center">Giám sát vi phạm</th>
-                <th class="py-3 px-3">Thời gian</th>
-                <th class="py-3 px-3">Ngày thi</th>
-              </tr>
-            </thead>
-            <tbody id="gradebook-table-body" class="divide-y divide-slate-100 dark:divide-slate-700/60 font-medium">
-              ${this.renderGradebookRows(history)}
-            </tbody>
-          </table>
-        </div>
-
-      </div>
-    `;
-
-    // Bind filters
-    const searchInput = container.querySelector('#gb-filter-search');
-    const classSelect = container.querySelector('#gb-filter-class');
-    const schoolSelect = container.querySelector('#gb-filter-school');
-    const roomSelect = container.querySelector('#gb-filter-room');
-
-    const bindAuditButtons = () => {
-      container.querySelectorAll('[data-view-audit]').forEach(btn => {
-        btn.onclick = () => {
-          const id = btn.getAttribute('data-view-audit');
-          const target = history.find(h => h.id === id);
-          if (target) this.openViolationAuditModal(target);
-        };
-      });
-    };
-
-    const applyTableFilter = () => {
-      const q = searchInput.value.toLowerCase().trim();
-      const c = classSelect.value;
-      const s = schoolSelect.value;
-      const r = roomSelect.value;
-
-      const filtered = history.filter(item => {
-        if (q) {
-          const matchName = (item.studentName || '').toLowerCase().includes(q);
-          const matchRoom = (item.roomId || '').toLowerCase().includes(q);
-          const matchTitle = (item.title || '').toLowerCase().includes(q);
-          if (!matchName && !matchRoom && !matchTitle) return false;
-        }
-        if (c !== 'all' && item.studentClass !== c) return false;
-        if (s !== 'all' && item.studentSchool !== s) return false;
-        if (r !== 'all' && item.roomId !== r) return false;
-        return true;
-      });
-
-      const tbody = container.querySelector('#gradebook-table-body');
-      if (tbody) {
-        tbody.innerHTML = this.renderGradebookRows(filtered);
-        bindAuditButtons();
-      }
-    };
-
-    if (searchInput) searchInput.oninput = applyTableFilter;
-    if (classSelect) classSelect.onchange = applyTableFilter;
-    if (schoolSelect) schoolSelect.onchange = applyTableFilter;
-    if (roomSelect) roomSelect.onchange = applyTableFilter;
-
-    bindAuditButtons();
-
-    // Export CSV
-    const exportBtn = container.querySelector('#btn-export-gradebook-csv');
-    if (exportBtn) {
-      exportBtn.onclick = () => this.exportGradebookToCSV(history);
-    }
-  }
-
-  renderGradebookRows(list) {
-    if (list.length === 0) {
-      return `<tr><td colspan="10" class="text-center py-8 text-slate-400">Không tìm thấy kết quả phù hợp.</td></tr>`;
-    }
-
-    return list.map((item, idx) => {
-      const date = new Date(item.date).toLocaleString('vi-VN');
-      const mins = Math.floor(item.timeSpentSeconds / 60);
-      const secs = item.timeSpentSeconds % 60;
-
-      let scoreColor = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300';
-      if (item.score < 5.0) scoreColor = 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300';
-      else if (item.score < 6.5) scoreColor = 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300';
-      else if (item.score < 8.0) scoreColor = 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300';
-
-      const proctorBadge = item.isDisqualified ? `
-        <button type="button" data-view-audit="${item.id}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 hover:scale-105 transition" title="Bấm để xem chi tiết mốc thời gian vi phạm">
-          <i class="fa-solid fa-ban text-[9px]"></i> Đình chỉ (${item.violationCount || 0}) <i class="fa-solid fa-magnifying-glass text-[8px] ml-0.5"></i>
-        </button>
-      ` : (item.violationCount > 0 ? `
-        <button type="button" data-view-audit="${item.id}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 hover:scale-105 transition" title="Bấm để xem mốc thời gian cảnh báo">
-          <i class="fa-solid fa-triangle-exclamation text-[9px]"></i> Cảnh báo (${item.violationCount}) <i class="fa-solid fa-magnifying-glass text-[8px] ml-0.5"></i>
-        </button>
-      ` : (item.isProctored ? `
-        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-          <i class="fa-solid fa-check text-[9px]"></i> 0 vi phạm
-        </span>
-      ` : `<span class="text-slate-400 font-mono text-[11px]">Tự do</span>`));
-
-      return `
-        <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition">
-          <td class="py-3 px-3 text-slate-400">${idx + 1}</td>
-          <td class="py-3 px-3 font-bold text-slate-800 dark:text-white">
-            ${escapeHtml(item.studentName || 'Thí sinh tự do')}
-          </td>
-          <td class="py-3 px-3">
-            <span class="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold">
-              ${escapeHtml(item.studentClass || 'Tự do')}
-            </span>
-          </td>
-          <td class="py-3 px-3 text-slate-600 dark:text-slate-300">${escapeHtml(item.studentSchool || '-')}</td>
-          <td class="py-3 px-3">
-            ${item.roomId ? `
-              <span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                ${escapeHtml(item.roomId)}
-              </span>
-            ` : `<span class="text-slate-400 italic">Tự do</span>`}
-          </td>
-          <td class="py-3 px-3 max-w-[180px] truncate text-slate-700 dark:text-slate-300" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</td>
-          <td class="py-3 px-3 text-center">
-            <span class="px-2.5 py-1 rounded-lg font-black ${scoreColor}">
-              ${item.score}
-            </span>
-          </td>
-          <td class="py-3 px-3">${proctorBadge}</td>
-          <td class="py-3 px-3 text-slate-400 font-mono">${mins}p ${secs}s</td>
-          <td class="py-3 px-3 text-slate-400">${date}</td>
-        </tr>
-      `;
-    }).join('');
-  }
-
-  exportGradebookToCSV(history) {
-    const headers = ['STT', 'Họ và tên', 'Lớp', 'Trường', 'Email', 'Mã phòng thi', 'Tên đề thi', 'Khối', 'Điểm số (Thang 10)', 'Số câu đúng', 'Tổng số câu', 'Thời gian làm bài', 'Giám sát chống gian lận', 'Số lần vi phạm', 'Trạng thái', 'Thời điểm nộp'];
-    const rows = history.map((item, idx) => {
-      const mins = Math.floor(item.timeSpentSeconds / 60);
-      const secs = item.timeSpentSeconds % 60;
-      const statusText = item.isDisqualified ? 'Bị đình chỉ thi' : (item.violationCount > 0 ? `Cảnh báo (${item.violationCount} lần)` : 'Hợp lệ');
-      return [
-        idx + 1,
-        `"${(item.studentName || '').replace(/"/g, '""')}"`,
-        `"${(item.studentClass || '').replace(/"/g, '""')}"`,
-        `"${(item.studentSchool || '').replace(/"/g, '""')}"`,
-        `"${(item.studentEmail || '').replace(/"/g, '""')}"`,
-        `"${(item.roomId || 'Tự do').replace(/"/g, '""')}"`,
-        `"${(item.title || '').replace(/"/g, '""')}"`,
-        item.grade || '12',
-        item.score,
-        item.correctCount,
-        item.totalQuestions,
-        `"${mins}p ${secs}s"`,
-        item.isProctored ? 'Bật' : 'Tắt',
-        item.violationCount || 0,
-        `"${statusText}"`,
-        `"${new Date(item.date).toLocaleString('vi-VN')}"`
-      ];
-    });
-
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Bang_Diem_Tin_Hoc_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    Gradebook.init(container);
   }
 
   // --- MODAL XEM BIÊN BẢN VI PHẠM (AUDIT LOGS) ---
