@@ -411,6 +411,9 @@ export const AdminManager = {
               <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-blue-500/20 flex items-center gap-2">
                 <i class="fa-solid fa-floppy-disk"></i> Lưu Cấu Hình S3 & Base URL
               </button>
+              <button type="button" id="btn-test-archive-s3" class="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-amber-500/20 flex items-center gap-2">
+                <i class="fa-solid fa-key"></i> Kiểm Tra Khóa S3
+              </button>
               <button type="button" id="btn-archive-check-remote" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-emerald-500/20 flex items-center gap-2">
                 <i class="fa-solid fa-magnifying-glass"></i> Quét File Đã Có Trên Archive.org
               </button>
@@ -837,6 +840,71 @@ export const AdminManager = {
       };
     }
 
+    // Kiểm tra tính hợp lệ của Khóa S3 API Archive.org
+    const btnTestS3 = document.getElementById('btn-test-archive-s3');
+    if (btnTestS3) {
+      btnTestS3.onclick = async () => {
+        const accessKey = document.getElementById('archive-cfg-access-key')?.value.trim() || '';
+        const secretKey = document.getElementById('archive-cfg-secret-key')?.value.trim() || '';
+        const identifier = document.getElementById('archive-cfg-identifier')?.value.trim() || 'tinhoc-hub-thpt';
+
+        if (!accessKey || !secretKey) {
+          alert('Vui lòng nhập cả Archive.org S3 Access Key và Secret Key trước khi kiểm tra!');
+          document.getElementById('archive-cfg-access-key')?.focus();
+          return;
+        }
+
+        btnTestS3.disabled = true;
+        btnTestS3.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Đang test...';
+
+        try {
+          const testUrl = `https://s3.us.archive.org/${encodeURIComponent(identifier)}/_test_s3_connection.txt`;
+          const res = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('PUT', testUrl, true);
+            xhr.setRequestHeader('Authorization', `LOW ${accessKey}:${secretKey}`);
+            xhr.setRequestHeader('x-amz-auto-make-bucket', '1');
+            xhr.setRequestHeader('x-archive-meta-mediatype', 'texts');
+            xhr.setRequestHeader('x-archive-meta-title', 'uri(TinHocHub%20S3%20Connection%20Test)');
+            xhr.setRequestHeader('x-archive-ignore-preexisting-bucket', '1');
+            xhr.setRequestHeader('Content-Type', 'text/plain');
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve({ ok: true, status: xhr.status });
+              } else {
+                let detail = xhr.statusText;
+                try {
+                  const xml = new DOMParser().parseFromString(xhr.responseText, 'text/xml');
+                  const msg = xml.querySelector('Message')?.textContent;
+                  const code = xml.querySelector('Code')?.textContent;
+                  if (code || msg) detail = `${code || ''}: ${msg || ''}`.trim();
+                } catch (e) {}
+                resolve({ ok: false, status: xhr.status, detail });
+              }
+            };
+            xhr.onerror = () => reject(new Error('Lỗi kết nối mạng đến s3.us.archive.org'));
+            xhr.send('TinHocHub connection OK');
+          });
+
+          if (res.ok) {
+            Storage.saveVideoConfig({
+              archiveAccessKey: accessKey,
+              archiveSecretKey: secretKey,
+              archiveIdentifier: identifier
+            });
+            alert(`🎉 CHÚC MỪNG!\nKhóa S3 Archive.org hoàn toàn HỢP LỆ (Mã ${res.status} OK)!\nBucket: [${identifier}]\nĐã tự động lưu cấu hình. Bạn có thể bấm "Bắt Đầu Tải Lên Tất Cả" ngay.`);
+          } else {
+            alert(`❌ KHÓA S3 CHƯA HỢP LỆ!\nMã HTTP: ${res.status}\nChi tiết: ${res.detail}\n\n👉 Vui lòng đăng nhập https://archive.org/account/s3.php để lấy đúng S3 Access Key và Secret Key.`);
+          }
+        } catch (err) {
+          alert(`⚠️ Lỗi kiểm tra kết nối S3: ${err.message}`);
+        } finally {
+          btnTestS3.disabled = false;
+          btnTestS3.innerHTML = '<i class="fa-solid fa-key mr-1"></i> Kiểm Tra Khóa S3';
+        }
+      };
+    }
+
     // Quét file đã có trên Archive.org qua REST API Metadata
     const btnCheckRemote = document.getElementById('btn-archive-check-remote');
     if (btnCheckRemote) {
@@ -1115,9 +1183,21 @@ export const AdminManager = {
   },
 
   async startBatchUpload() {
-    const config = Storage.getVideoConfig();
+    let config = Storage.getVideoConfig();
+    const inputAccess = document.getElementById('archive-cfg-access-key')?.value.trim();
+    const inputSecret = document.getElementById('archive-cfg-secret-key')?.value.trim();
+    const inputId = document.getElementById('archive-cfg-identifier')?.value.trim();
+
+    if (inputAccess && inputSecret && (!config.archiveAccessKey || !config.archiveSecretKey)) {
+      config = Storage.saveVideoConfig({
+        archiveAccessKey: inputAccess,
+        archiveSecretKey: inputSecret,
+        archiveIdentifier: inputId || 'tinhoc-hub-thpt'
+      });
+    }
+
     if (!config.archiveAccessKey || !config.archiveSecretKey) {
-      alert('Vui lòng nhập Archive.org S3 Access Key và Secret Key trước khi tải lên!');
+      alert('Vui lòng nhập Archive.org S3 Access Key và Secret Key trước khi tải lên!\n(Đăng nhập https://archive.org/account/s3.php để lấy khóa miễn phí).');
       document.getElementById('archive-cfg-access-key')?.focus();
       return;
     }
@@ -1160,6 +1240,7 @@ export const AdminManager = {
 
     if (this.uploadQueue.length === 0) {
       this.isUploading = false;
+      this.currentUploadingName = null;
       alert('🎉 Chúc mừng! Đã tải lên hoàn tất toàn bộ danh sách video bài giảng lên Archive.org!');
       this.render();
       return;
@@ -1169,7 +1250,9 @@ export const AdminManager = {
     this.currentUploadingName = item.videoName;
     this.uploadProgressStats.currentIdx++;
 
-    this.updateGlobalProgress(0, item.videoName);
+    const fileSize = item.file ? item.file.size : 0;
+    this.updateGlobalProgress(0, item.videoName, '0', 0, fileSize);
+    this.updateRowStatus(item.videoName, 'uploading');
 
     try {
       await this.performS3Upload(item.videoName, item.file, item.lesson);
@@ -1178,13 +1261,25 @@ export const AdminManager = {
       if (!cfg.uploadedVideos) cfg.uploadedVideos = {};
       cfg.uploadedVideos[item.videoName] = {
         uploadedAt: new Date().toISOString(),
-        size: item.file.size
+        size: fileSize
       };
       Storage.saveVideoConfig(cfg);
       this.remoteArchiveFiles.add(item.videoName.toLowerCase());
+      this.updateRowStatus(item.videoName, 'success');
     } catch (err) {
       console.error(`Lỗi tải lên ${item.videoName}:`, err);
-      // Tiếp tục các video tiếp theo
+      this.updateRowStatus(item.videoName, 'error', err.message);
+
+      // Nếu lỗi từ chối xác thực khóa S3 (401 hoặc 403 Forbidden / InvalidAccessKeyId)
+      const errStr = (err.message || '').toLowerCase();
+      if (errStr.includes('403') || errStr.includes('401') || errStr.includes('invalidaccesskey') || errStr.includes('accessdenied')) {
+        this.isUploading = false;
+        this.currentUploadingName = null;
+        this.uploadQueue = [];
+        this.render();
+        alert(`❌ LỖI XÁC THỰC S3 ARCHIVE.ORG!\n\nChi tiết: ${err.message}\n\nNguyên nhân: Khóa S3 Access Key hoặc Secret Key của bạn chưa hợp lệ hoặc bị Archive.org từ chối.\n👉 Hãy đăng nhập https://archive.org/account/s3.php để copy đúng Access Key và Secret Key, dán vào ô cấu hình rồi bấm "Kiểm Tra Khóa S3" trước khi tải lại.`);
+        return;
+      }
     }
 
     if (this.isUploading && !this.isPaused) {
@@ -1196,13 +1291,16 @@ export const AdminManager = {
   async uploadSingleFile(videoName, file) {
     const config = Storage.getVideoConfig();
     if (!config.archiveAccessKey || !config.archiveSecretKey) {
-      alert('Vui lòng nhập Archive.org S3 Access Key và Secret Key trước khi tải lên!');
+      alert('Vui lòng nhập Archive.org S3 Access Key và Secret Key trước khi tải lên!\n(Đăng nhập https://archive.org/account/s3.php để lấy khóa).');
       return;
     }
 
     this.isUploading = true;
     this.currentUploadingName = videoName;
-    this.render();
+    this.updateRowStatus(videoName, 'uploading');
+
+    const globalProg = document.getElementById('archive-global-progress-bar');
+    if (globalProg) globalProg.classList.remove('hidden');
 
     try {
       await this.performS3Upload(videoName, file);
@@ -1214,8 +1312,10 @@ export const AdminManager = {
       };
       Storage.saveVideoConfig(cfg);
       this.remoteArchiveFiles.add(videoName.toLowerCase());
-      alert(`✅ Tải lên video ${videoName} thành công!`);
+      this.updateRowStatus(videoName, 'success');
+      alert(`✅ Tải lên video ${videoName} thành công lên Archive.org!`);
     } catch (err) {
+      this.updateRowStatus(videoName, 'error', err.message);
       alert(`❌ Lỗi tải lên: ${err.message}`);
     } finally {
       this.isUploading = false;
@@ -1235,14 +1335,22 @@ export const AdminManager = {
 
       const startTime = Date.now();
 
-      xhr.open('PUT', targetUrl, true);
-      xhr.setRequestHeader('Authorization', `LOW ${config.archiveAccessKey}:${config.archiveSecretKey}`);
-      xhr.setRequestHeader('x-amz-auto-make-bucket', '1');
-      xhr.setRequestHeader('x-archive-meta-mediatype', 'movies');
-      xhr.setRequestHeader('x-archive-meta-collection', 'opensource_movies');
-      xhr.setRequestHeader('x-archive-meta-title', `Bài giảng Tin học THPT - ${lessonName || videoName}`);
-      xhr.setRequestHeader('x-archive-ignore-preexisting-bucket', '1');
-      xhr.setRequestHeader('Content-Type', 'video/mp4');
+      // Tiêu đề metadata trên Archive.org phải mã hóa dạng uri(...) để tuân thủ chuẩn ISO-8859-1 của HTTP Header
+      const rawTitle = `Bài giảng Tin học THPT - ${lessonName || videoName}`;
+      const safeTitle = `uri(${encodeURIComponent(rawTitle)})`;
+
+      try {
+        xhr.open('PUT', targetUrl, true);
+        xhr.setRequestHeader('Authorization', `LOW ${config.archiveAccessKey}:${config.archiveSecretKey}`);
+        xhr.setRequestHeader('x-amz-auto-make-bucket', '1');
+        xhr.setRequestHeader('x-archive-meta-mediatype', 'movies');
+        xhr.setRequestHeader('x-archive-meta-collection', 'opensource_movies');
+        xhr.setRequestHeader('x-archive-meta-title', safeTitle);
+        xhr.setRequestHeader('x-archive-ignore-preexisting-bucket', '1');
+        xhr.setRequestHeader('Content-Type', 'video/mp4');
+      } catch (headerErr) {
+        return reject(new Error(`Lỗi tạo Header HTTP: ${headerErr.message}`));
+      }
 
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
@@ -1259,13 +1367,23 @@ export const AdminManager = {
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve(true);
         } else {
-          reject(new Error(`Archive.org trả về mã lỗi HTTP ${xhr.status}: ${xhr.statusText}`));
+          let detail = xhr.statusText || '';
+          try {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xhr.responseText, 'text/xml');
+            const code = xmlDoc.querySelector('Code')?.textContent;
+            const msg = xmlDoc.querySelector('Message')?.textContent;
+            if (code || msg) {
+              detail = `${code || ''}: ${msg || ''}`.trim();
+            }
+          } catch(e) {}
+          reject(new Error(`Archive.org phản hồi HTTP ${xhr.status} (${detail || 'Không thành công'})`));
         }
       };
 
       xhr.onerror = () => {
         this.currentXhr = null;
-        reject(new Error('Lỗi kết nối mạng khi tải lên Archive.org!'));
+        reject(new Error('Lỗi kết nối mạng đến s3.us.archive.org. Kiểm tra đường truyền Internet!'));
       };
 
       xhr.onabort = () => {
@@ -1275,6 +1393,20 @@ export const AdminManager = {
 
       xhr.send(file);
     });
+  },
+
+  updateRowStatus(videoName, status, errorMsg = '') {
+    const vLower = (videoName || '').toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const cell = document.getElementById(`status-cell-${vLower}`);
+    if (cell) {
+      if (status === 'success') {
+        cell.innerHTML = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">🟢 Đã tải lên Archive</span>';
+      } else if (status === 'error') {
+        cell.innerHTML = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300" title="${escapeHtml(errorMsg)}">🔴 Lỗi: ${escapeHtml(errorMsg.slice(0, 35))}</span>`;
+      } else if (status === 'uploading') {
+        cell.innerHTML = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 animate-pulse">🔵 Đang tải lên...</span>';
+      }
+    }
   },
 
   updateGlobalProgress(percent, videoName, speedMb = '0', loaded = 0, total = 0) {

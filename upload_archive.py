@@ -13,6 +13,7 @@ import time
 import argparse
 import urllib.request
 import urllib.error
+import urllib.parse
 from pathlib import Path
 
 MANIFEST_PATH = Path(__file__).parent / 'data' / 'manifest.json'
@@ -91,7 +92,7 @@ def upload_file_to_archive(file_path, target_filename, identifier, access_key, s
         'x-amz-auto-make-bucket': '1',
         'x-archive-meta-mediatype': 'movies',
         'x-archive-meta-collection': 'opensource_movies',
-        'x-archive-meta-title': f'Bài giảng Tin học THPT - {lesson_name or target_filename}',
+        'x-archive-meta-title': f"uri({urllib.parse.quote(f'Bài giảng Tin học THPT - {lesson_name or target_filename}')})",
         'x-archive-ignore-preexisting-bucket': '1',
         'Content-Type': 'video/mp4',
         'Content-Length': str(file_size)
