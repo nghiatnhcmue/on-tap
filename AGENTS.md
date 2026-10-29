@@ -65,14 +65,16 @@ Dự án áp dụng chính sách **bắt buộc đăng ký / đăng nhập trư�
 1. Khi khởi động (`App.init()`) hoặc khi trạng thái user thay đổi (`Auth.onAuthChange`):
    - Nếu `!Auth.isLoggedIn()`:
      - Thẻ `#app-main` nhận class `pointer-events-none select-none filter blur-sm`.
-     - Thẻ `#app-header` nhận class `pointer-events-none`.
+     - Thẻ `#app-header` **luôn mở tương tác (`remove pointer-events-none`)** để nút `#auth-btn-login` luôn bấm được mọi lúc.
+     - Thanh điều hướng tab `#desktop-nav button` bị vô hiệu hóa (`pointer-events-none opacity-40`).
      - Thanh điều hướng di động `#mobile-bottom-nav` bị ẩn (`hidden`).
      - Hộp thoại `#modal-login` mở ra và **nút đóng (X) bị ẩn**, sự kiện click backdrop bị chặn không cho đóng.
+     - Hiển thị thanh cố định `#auth-gatekeeper-overlay` nhắc nhở đăng nhập ngay trên giao diện với nút bấm 1 chạm.
    - Nếu `Auth.isLoggedIn()` nhưng `!Auth.isProfileComplete()`:
      - Giao diện chính vẫn bị khóa làm mờ.
-     - Tự động mở `#modal-required-profile` yêu cầu học sinh bổ sung: **Họ và tên, Lớp, Trường**.
+     - Tự động mở `#modal-required-profile` yêu cầu học sinh bổ sung: **Họ và tên, Lớp, Trường** (kèm nút "Đổi tài khoản khác / Đăng xuất" `#btn-cancel-profile-logout` để không bao giờ bị kẹt).
    - Nếu `Auth.isLoggedIn()` và `Auth.isProfileComplete()`:
-     - Mở khóa toàn bộ giao diện, xóa hiệu ứng mờ, khôi phục tương tác bình thường.
+     - Mở khóa toàn bộ giao diện, xóa hiệu ứng mờ, ẩn banner nhắc nhở, khôi phục tương tác bình thường.
 2. Khi người dùng bấm **Đăng xuất** (`Auth.logout()`):
    - Xóa `tinhoc_user` khỏi `localStorage`.
    - Gọi `notifyAuthChange()` -> Kích hoạt `enforceAuthentication()` lập tức khóa lại trang.
@@ -80,7 +82,8 @@ Dự án áp dụng chính sách **bắt buộc đăng ký / đăng nhập trư�
 ### 3.2. Cấu trúc Modal Auth Portal (`#modal-login`)
 Gồm 2 tab chuyển đổi:
 - **Tab Đăng Nhập (`#auth-panel-login`)**:
-  - Tích hợp Google Identity Services (nút đăng nhập Google chính thức + nút Google Nhanh `#modal-google-quick-prompt` hoạt động ngay cả khi chưa cấu hình Google Cloud Client ID).
+  - Tích hợp Google Identity Services (nút đăng nhập Google chính thức + nút Google Nhanh `#modal-google-quick-prompt` hoạt động ngay cả khi chưa cấu hình Google Cloud Client ID; nút được render sẵn trong DOM tránh trường hợp container bị rỗng).
+  - Form **"Đăng nhập bằng Email hoặc Họ và tên"** (`#form-login-direct`): Hỗ trợ đăng nhập tức thì cho người dùng đã có tài khoản hoặc nhập nhanh tên/email.
   - Khung **"Tài khoản trên thiết bị này"** (`#saved-accounts-section`): Liệt kê tối đa 5 tài khoản gần nhất lưu trong `Storage.getAccountsList()`. Bấm 1 chạm để đăng nhập tức thì.
   - 3 nút Đăng nhập trải nghiệm nhanh: Học sinh (HS), Giáo viên (GV), Admin.
   - Nút cài đặt Google Client ID cho giáo viên/admin.

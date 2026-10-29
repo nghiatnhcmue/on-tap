@@ -1757,6 +1757,36 @@ class App {
         modalGoogleConfig?.classList.remove('hidden');
       });
     }
+
+    // Form đăng nhập nhanh bằng Email hoặc Họ tên trực tiếp
+    const formLoginDirect = document.getElementById('form-login-direct');
+    if (formLoginDirect) {
+      formLoginDirect.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const identity = document.getElementById('login-input-identity')?.value?.trim();
+        if (!identity) {
+          alert('Vui lòng nhập Email hoặc Họ và tên của bạn!');
+          return;
+        }
+        const res = Auth.loginWithDirectIdentity(identity);
+        if (res.success) {
+          alert(`Xin chào ${res.user.fullName}! Đăng nhập thành công.`);
+          this.enforceAuthentication();
+        } else {
+          alert(res.message || 'Không thể đăng nhập. Vui lòng kiểm tra lại thông tin!');
+        }
+      });
+    }
+
+    // Nút hủy/đổi tài khoản khác trên modal hoàn tất hồ sơ
+    const btnCancelProfile = document.getElementById('btn-cancel-profile-logout');
+    if (btnCancelProfile) {
+      btnCancelProfile.addEventListener('click', () => {
+        Auth.closeRequiredProfileModal();
+        Auth.logout();
+        this.enforceAuthentication();
+      });
+    }
   }
 
   // --- BẮT BUỘC ĐĂNG KÝ / ĐĂNG NHẬP TRƯỚC KHI VÀO TRANG ---
@@ -1766,33 +1796,60 @@ class App {
     const mobileBarEl = document.getElementById('mobile-bottom-nav');
     const loginModal = document.getElementById('modal-login');
     const closeBtn = document.getElementById('btn-close-login-modal');
+    const gatekeeperOverlay = document.getElementById('auth-gatekeeper-overlay');
+    const desktopNav = document.getElementById('desktop-nav');
+    const authBtnLogin = document.getElementById('auth-btn-login');
 
     if (!Auth.isLoggedIn()) {
-      // Chưa đăng nhập -> Khóa toàn bộ tương tác giao diện và hiển thị Auth Gatekeeper
-      if (mainEl) mainEl.classList.add('pointer-events-none', 'select-none', 'filter', 'blur-sm');
-      if (headerEl) headerEl.classList.add('pointer-events-none');
+      // Chưa đăng nhập -> KHÔNG khóa header để nút Đăng nhập trên navbar luôn bấm được!
+      if (headerEl) headerEl.classList.remove('pointer-events-none');
+      if (authBtnLogin) authBtnLogin.classList.remove('hidden');
+
+      // Vô hiệu hóa thanh điều hướng tab trang
+      if (desktopNav) {
+        desktopNav.querySelectorAll('button').forEach(b => {
+          b.classList.add('pointer-events-none', 'opacity-40');
+        });
+      }
       if (mobileBarEl) mobileBarEl.classList.add('hidden');
       if (closeBtn) closeBtn.classList.add('hidden');
 
+      // Khóa vùng nội dung chính
+      if (mainEl) mainEl.classList.add('pointer-events-none', 'select-none', 'filter', 'blur-sm');
+
+      // Hiển thị modal đăng nhập và thanh nhắc nhở
       if (loginModal) {
         loginModal.classList.remove('hidden');
         this.renderSavedAccountsInLoginModal();
         Auth.initGoogleIdentity();
       }
+      if (gatekeeperOverlay) gatekeeperOverlay.classList.remove('hidden');
     } else if (!Auth.isProfileComplete()) {
       // Đã đăng nhập nhưng chưa hoàn tất Họ tên, Lớp, Trường
+      if (headerEl) headerEl.classList.remove('pointer-events-none');
+      if (desktopNav) {
+        desktopNav.querySelectorAll('button').forEach(b => {
+          b.classList.add('pointer-events-none', 'opacity-40');
+        });
+      }
       if (mainEl) mainEl.classList.add('pointer-events-none', 'select-none', 'filter', 'blur-sm');
-      if (headerEl) headerEl.classList.add('pointer-events-none');
       if (mobileBarEl) mobileBarEl.classList.add('hidden');
       if (loginModal) loginModal.classList.add('hidden');
+      if (gatekeeperOverlay) gatekeeperOverlay.classList.remove('hidden');
       Auth.openRequiredProfileModal();
     } else {
       // Đã đăng nhập và hoàn tất hồ sơ -> Mở khóa toàn bộ hệ thống
       if (mainEl) mainEl.classList.remove('pointer-events-none', 'select-none', 'filter', 'blur-sm');
       if (headerEl) headerEl.classList.remove('pointer-events-none');
+      if (desktopNav) {
+        desktopNav.querySelectorAll('button').forEach(b => {
+          b.classList.remove('pointer-events-none', 'opacity-40');
+        });
+      }
       if (mobileBarEl) mobileBarEl.classList.remove('hidden');
       if (loginModal) loginModal.classList.add('hidden');
       if (closeBtn) closeBtn.classList.remove('hidden');
+      if (gatekeeperOverlay) gatekeeperOverlay.classList.add('hidden');
       Auth.closeRequiredProfileModal();
 
       // Nếu học sinh truy cập qua link phòng thi trực tiếp (?room=XYZ), tự động mở màn hình vào phòng thi

@@ -98,7 +98,7 @@ export const Auth = {
   },
 
   isLoggedIn() {
-    return !!this.currentUser;
+    return !!(this.currentUser && (this.currentUser.email || this.currentUser.fullName || this.currentUser.uid));
   },
 
   isAdmin() {
@@ -188,9 +188,9 @@ export const Auth = {
     `;
 
     const signInContainer = document.getElementById('google-signin-btn-container');
-    if (signInContainer) {
+    if (signInContainer && !signInContainer.querySelector('[data-trigger-google-quick]')) {
       signInContainer.innerHTML = `
-        <button type="button" data-trigger-google-quick="signin" class="px-6 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
+        <button type="button" data-trigger-google-quick="signin" class="w-full max-w-xs px-5 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
           ${googleSvg}
           <span>Đăng nhập bằng tài khoản Google</span>
         </button>
@@ -198,9 +198,9 @@ export const Auth = {
     }
 
     const signUpContainer = document.getElementById('google-signup-btn-container');
-    if (signUpContainer) {
+    if (signUpContainer && !signUpContainer.querySelector('[data-trigger-google-quick]')) {
       signUpContainer.innerHTML = `
-        <button type="button" data-trigger-google-quick="signup" class="px-6 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
+        <button type="button" data-trigger-google-quick="signup" class="w-full max-w-xs px-5 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
           ${googleSvg}
           <span>Đăng ký nhanh bằng Google</span>
         </button>
@@ -228,8 +228,11 @@ export const Auth = {
 
     if (!window.google || !window.google.accounts || !window.google.accounts.id) {
       this.renderFallbackGoogleButtons();
-      // Thử lại sau 500ms nếu script Google chưa tải xong
-      setTimeout(() => this.initGoogleIdentity(), 500);
+      if (!this._gisRetryCount) this._gisRetryCount = 0;
+      if (this._gisRetryCount < 4) {
+        this._gisRetryCount++;
+        setTimeout(() => this.initGoogleIdentity(), 800);
+      }
       return;
     }
 
@@ -360,6 +363,59 @@ export const Auth = {
     if (!this.isProfileComplete()) {
       this.openRequiredProfileModal();
     }
+  },
+
+  loginWithDirectIdentity(identity) {
+    const raw = (identity || '').trim();
+    if (!raw) return { success: false, message: 'Vui lòng nhập Email hoặc Họ và tên!' };
+
+    const lower = raw.toLowerCase();
+    const accounts = Storage.getAccountsList();
+
+    // 1. Tìm theo Email
+    let match = accounts.find(a => a.email && a.email.toLowerCase() === lower);
+
+    // 2. Tìm theo Họ và tên chính xác
+    if (!match) {
+      match = accounts.find(a => a.fullName && a.fullName.toLowerCase() === lower);
+    }
+
+    // 3. Tìm theo Họ tên gần đúng
+    if (!match) {
+      match = accounts.find(a => a.fullName && a.fullName.toLowerCase().includes(lower));
+    }
+
+    if (match) {
+      this.saveUser(match);
+      return { success: true, user: match };
+    }
+
+    // 4. Nếu là địa chỉ email nhưng chưa lưu trong danh sách -> Tạo hoặc đăng nhập
+    if (lower.includes('@')) {
+      const newUser = this.loginOrRegisterWithGoogleInfo({
+        email: lower,
+        fullName: raw.split('@')[0]
+      });
+      return { success: true, user: newUser };
+    }
+
+    // 5. Nếu là họ tên hợp lệ (>= 2 ký tự) -> Tạo tài khoản học sinh
+    if (raw.length >= 2) {
+      const newUser = {
+        uid: 'user_' + Date.now(),
+        fullName: raw,
+        email: '',
+        role: 'student',
+        grade: '12',
+        className: '',
+        school: '',
+        createdAt: new Date().toISOString()
+      };
+      this.saveUser(newUser);
+      return { success: true, user: newUser };
+    }
+
+    return { success: false, message: 'Tài khoản chưa tồn tại. Vui lòng đăng ký mới hoặc đăng nhập bằng Google!' };
   },
 
   registerUser({ fullName, grade, className, school, email, role = 'student', secretCode = '' }) {

@@ -5,10 +5,10 @@
   Access-Control-Allow-Origin: *
 
 /css/*
-  Cache-Control: public, max-age=604800, immutable
+  Cache-Control: public, max-age=86400, must-revalidate
 
 /js/*
-  Cache-Control: public, max-age=604800, immutable
+  Cache-Control: public, max-age=0, must-revalidate
 
 /*
   X-Content-Type-Options: nosniff
