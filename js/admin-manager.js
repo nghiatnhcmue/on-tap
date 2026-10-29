@@ -1,7 +1,8 @@
 /**
  * tinhoc-hub: Admin Manager (Quản Trị Hệ Thống)
  * Chỉ dành riêng cho Quản trị viên (Admin).
- * Quản lý: Phân quyền tài khoản (HS <-> GV <-> Admin), Cấu hình mã bảo mật, Google OAuth, Dọn dẹp/Sao lưu.
+ * Quản lý: Phân quyền tài khoản (HS <-> GV <-> Admin), Cấu hình mã bảo mật, 
+ * Cơ sở dữ liệu đám mây, Tải lên Video bài giảng Archive.org S3, Dọn dẹp/Sao lưu.
  */
 
 import { Storage } from './storage.js';
@@ -11,10 +12,57 @@ import { CloudSync } from './cloud-sync.js';
 
 export const AdminManager = {
   container: null,
+  manifest: null,
+  _manifestVideos: null,
+  selectedLocalFiles: new Map(), // standardLowerFilename -> File
+  uploadQueue: [],
+  isUploading: false,
+  isPaused: false,
+  currentXhr: null,
+  currentUploadingName: null,
+  remoteArchiveFiles: new Set(),
+  videoGradeFilter: 'all',
+  videoSearchQuery: '',
+  uploadProgressStats: { totalBytes: 0, loadedBytes: 0, startTime: 0 },
 
-  init(containerEl) {
+  async init(containerEl, manifest = null) {
     this.container = containerEl;
+    if (manifest) {
+      this.manifest = manifest;
+    } else if (!this.manifest) {
+      try {
+        const res = await fetch('data/manifest.json');
+        if (res.ok) this.manifest = await res.json();
+      } catch (e) {
+        console.warn('AdminManager: Không thể tải manifest.json', e);
+      }
+    }
     this.render();
+  },
+
+  getManifestVideos() {
+    if (this._manifestVideos && this._manifestVideos.length > 0) {
+      return this._manifestVideos;
+    }
+    const list = [];
+    const manifest = this.manifest;
+    if (manifest && manifest.grades) {
+      ['10', '11', '12'].forEach(grade => {
+        const vids = manifest.grades[grade]?.interactive_videos || {};
+        Object.keys(vids).forEach(vname => {
+          const v = vids[vname];
+          list.push({
+            grade,
+            video: v.video || vname,
+            lesson: v.lesson || '',
+            topic: v.topic || '',
+            checkpoints: Array.isArray(v.checkpoints) ? v.checkpoints : []
+          });
+        });
+      });
+    }
+    this._manifestVideos = list;
+    return list;
   },
 
   render() {
@@ -52,6 +100,7 @@ export const AdminManager = {
 
     const accounts = Storage.getAccountsList();
     const adminConfig = Storage.getAdminConfig();
+    const videoConfig = Storage.getVideoConfig();
     const history = Storage.getExamHistory();
     const examRooms = Storage.getExamRooms();
     const customQuestions12 = Storage.getCustomQuestions('12');
@@ -59,6 +108,19 @@ export const AdminManager = {
     const customQuestions10 = Storage.getCustomQuestions('10');
     const totalCustomQs = customQuestions12.length + customQuestions11.length + customQuestions10.length;
     const cloudStatus = CloudSync.getStatus();
+    const manifestVideos = this.getManifestVideos();
+
+    // Thống kê video đã ghép khớp và đã tải lên
+    let matchedCount = 0;
+    manifestVideos.forEach(v => {
+      if (this.selectedLocalFiles.has(v.video.toLowerCase())) matchedCount++;
+    });
+    const uploadedRecord = videoConfig.uploadedVideos || {};
+    let uploadedCount = 0;
+    manifestVideos.forEach(v => {
+      const isUp = !!uploadedRecord[v.video] || this.remoteArchiveFiles.has(v.video.toLowerCase());
+      if (isUp) uploadedCount++;
+    });
 
     this.container.innerHTML = `
       <div class="space-y-8 animate-fadeIn">
@@ -73,72 +135,63 @@ export const AdminManager = {
               Bảng Điều Khiển Quản Trị Viên (Admin)
             </h2>
             <p class="text-xs sm:text-sm text-slate-400 mt-1">
-              Toàn quyền cấu hình máy chủ, phân bổ vai trò thành viên (Admin, GV, HS), giám sát phòng thi và bảo trì hệ thống.
+              Toàn quyền cấu hình máy chủ, đồng bộ đám mây, tải lên video Archive.org, giám sát thi và bảo trì dữ liệu.
             </p>
           </div>
 
           <div class="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-xs font-bold text-amber-300">
-            <i class="fa-solid fa-user-shield text-base"></i>
-            <span>Đang đăng nhập: ${escapeHtml(Auth.currentUser?.fullName || 'Admin')}</span>
+            <i class="fa-solid fa-user-shield"></i>
+            <span>Đang đăng nhập: ${escapeHtml(Auth.getCurrentUser()?.fullName || 'Admin')}</span>
           </div>
         </div>
 
-        <!-- Thống Kê Nhanh -->
+        <!-- KPI Thống Kê Nhanh -->
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
           <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-            <span class="text-xs text-slate-400 font-bold block mb-1">TÀI KHOẢN ĐÃ LƯU</span>
-            <span class="text-2xl font-black text-slate-800 dark:text-white">${accounts.length}</span>
+            <span class="text-slate-400 text-xs font-medium block">Tài khoản đã lưu</span>
+            <span class="text-2xl font-black text-slate-800 dark:text-white mt-1 block">${accounts.length}</span>
           </div>
-
           <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-            <span class="text-xs text-slate-400 font-bold block mb-1">PHÒNG THI / GIAO ĐỀ</span>
-            <span class="text-2xl font-black text-emerald-600 dark:text-emerald-400">${examRooms.length}</span>
+            <span class="text-slate-400 text-xs font-medium block">Phòng thi / Giao đề</span>
+            <span class="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block">${examRooms.length}</span>
           </div>
-
           <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-            <span class="text-xs text-slate-400 font-bold block mb-1">BÀI THI HOÀN THÀNH</span>
-            <span class="text-2xl font-black text-blue-600 dark:text-blue-400">${history.length}</span>
+            <span class="text-slate-400 text-xs font-medium block">Bài thi hoàn thành</span>
+            <span class="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1 block">${history.length}</span>
           </div>
-
           <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-            <span class="text-xs text-slate-400 font-bold block mb-1">CÂU HỎI TỰ TẠO (GV)</span>
-            <span class="text-2xl font-black text-purple-600 dark:text-purple-400">${totalCustomQs}</span>
+            <span class="text-slate-400 text-xs font-medium block">Video bài giảng</span>
+            <span class="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1 block">${uploadedCount}/${manifestVideos.length}</span>
           </div>
-
           <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-            <span class="text-xs text-slate-400 font-bold block mb-1">CƠ SỞ DỮ LIỆU</span>
-            ${cloudStatus.isConfigured ? `
-              <span class="text-xs font-bold px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 inline-block mt-1">
-                🟢 Cloud Active
-              </span>
-            ` : `
-              <span class="text-xs font-bold px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 inline-block mt-1">
-                ⚪ Cục bộ (Local)
-              </span>
-            `}
+            <span class="text-slate-400 text-xs font-medium block">Trạng thái máy chủ</span>
+            <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Cloudflare Pages OK
+            </span>
           </div>
         </div>
 
-        <!-- 1. QUẢN LÝ PHÂN QUYỀN TÀI KHOẢN (USER ROLES RBAC) -->
-        <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-700 pb-4">
+        <!-- 1. QUẢN LÝ THÀNH VIÊN VÀ PHÂN QUYỀN -->
+        <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 pb-4">
             <div>
               <h3 class="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                <i class="fa-solid fa-users-gear text-indigo-600"></i> Phân Quyền Thành Viên (Học Sinh, Giáo Viên, Admin)
+                <i class="fa-solid fa-users-gear text-blue-600"></i> Phân Quyền Thành Viên (Học Sinh, Giáo Viên, Admin)
               </h3>
               <p class="text-xs text-slate-400 mt-0.5">
                 Chỉ Admin có quyền chỉ định ai là Giáo viên (được can thiệp câu hỏi) hoặc Admin (toàn quyền).
               </p>
             </div>
-            <button id="btn-admin-refresh-users" class="text-xs font-bold text-blue-600 hover:text-blue-700 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40">
-              <i class="fa-solid fa-rotate-right mr-1"></i> Làm mới danh sách
+            <button id="btn-admin-refresh-users" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center gap-1.5 self-start">
+              <i class="fa-solid fa-rotate-right"></i> Làm mới danh sách
             </button>
           </div>
 
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
               <thead>
-                <tr class="bg-slate-50 dark:bg-slate-900/50 text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700">
+                <tr class="border-b border-slate-200 dark:border-slate-700 text-slate-400 font-semibold uppercase tracking-wider">
                   <th class="py-3 px-3">Họ và tên</th>
                   <th class="py-3 px-3">Email</th>
                   <th class="py-3 px-3">Lớp & Trường</th>
@@ -189,7 +242,7 @@ export const AdminManager = {
                 <i class="fa-solid fa-cloud-arrow-up text-blue-600"></i> Cơ Sở Dữ Liệu Đám Mây (Cloud Real-Time Sync)
               </h3>
               <p class="text-xs text-slate-400 mt-0.5">
-                Chuyển đổi TinHocHub thành Web Động: Học sinh ở nhà đăng ký & nộp bài trên điện thoại sẽ tự động bay về máy Thầy tức thì.
+                Chuyển đổi TinHocHub thành Web Động: Học sinh ở nhà làm bài & nộp điểm sẽ tự động cập nhật về Sổ điểm tức thì.
               </p>
             </div>
             <div>
@@ -272,22 +325,201 @@ export const AdminManager = {
               </button>
             </div>
           </form>
+        </div>
 
-          <!-- Hướng Dẫn Kích Hoạt Firebase 2 Phút Miễn Phí -->
-          <div class="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 text-xs space-y-2">
-            <h4 class="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-2 text-xs">
-              <i class="fa-brands fa-google text-amber-600"></i> Hướng dẫn kích hoạt Google Firebase Database miễn phí (2 phút):
-            </h4>
-            <ol class="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-300 leading-relaxed text-[11px]">
-              <li>Truy cập <a href="https://console.firebase.google.com/" target="_blank" class="text-blue-600 font-bold underline">Firebase Console</a> bằng tài khoản Google của Thầy.</li>
-              <li>Bấm <b>"Thêm dự án" (Add project)</b> & đặt tên (ví dụ: <code class="bg-amber-100 dark:bg-amber-900/60 px-1 py-0.5 rounded font-mono">tinhoc-hub</code>).</li>
-              <li>Tại menu bên trái, chọn <b>Build -> Realtime Database</b> -> Bấm <b>"Tạo cơ sở dữ liệu" (Create Database)</b> -> Chọn chế độ <b>"Bắt đầu ở chế độ thử nghiệm" (Start in test mode)</b>.</li>
-              <li>Sao chép đường link URL (dạng: <code class="bg-amber-100 dark:bg-amber-900/60 px-1 py-0.5 rounded font-mono">https://tinhoc-hub-default-rtdb.firebaseio.com</code>) rồi dán vào ô URL bên trên và bấm <b>"Lưu Cấu Hình Cloud"</b>. XONG! Mọi học sinh ở nhà sẽ tự động kết nối chung 1 cơ sở dữ liệu!</li>
-            </ol>
+        <!-- 3. QUẢN LÝ & TẢI LÊN VIDEO BÀI GIẢNG ARCHIVE.ORG S3 (CHỈ DÀNH CHO ADMIN) -->
+        <div id="admin-archive-uploader-card" class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-700 pb-4">
+            <div>
+              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 text-xs font-bold uppercase tracking-wider mb-1">
+                <i class="fa-solid fa-film"></i> Lưu Trữ Video Miễn Phí Vĩnh Viễn
+              </div>
+              <h3 class="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-cloud-arrow-up text-rose-600"></i> Trình Tải Video Lên Archive.org (Archive.org S3 Uploader)
+              </h3>
+              <p class="text-xs text-slate-400 mt-0.5">
+                Tải trực tiếp 93 video bài giảng MP4 (Khối 10, 11, 12) lên Archive.org ngay trong trình duyệt. Không tốn phí, không giới hạn băng thông.
+              </p>
+            </div>
+            
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="px-3 py-1 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                <i class="fa-solid fa-check-double mr-1"></i> Đã có trên web: ${uploadedCount} / ${manifestVideos.length}
+              </span>
+            </div>
+          </div>
+
+          <!-- A. Form Cấu hình Archive.org S3 Keys -->
+          <form id="form-archive-config" class="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <h4 class="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-key text-amber-500"></i> Cấu Hình Khóa S3 API Archive.org
+              </h4>
+              <a href="https://archive.org/account/s3.php" target="_blank" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> Lấy mã S3 Access/Secret Key miễn phí tại đây
+              </a>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Archive.org S3 Access Key *
+                </label>
+                <input type="text" id="archive-cfg-access-key" value="${escapeHtml(videoConfig.archiveAccessKey || '')}" placeholder="Ví dụ: a1b2c3d4e5f6..." class="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Archive.org S3 Secret Key *
+                </label>
+                <div class="relative">
+                  <input type="password" id="archive-cfg-secret-key" value="${escapeHtml(videoConfig.archiveSecretKey || '')}" placeholder="Ví dụ: z9y8x7w6v5u4..." class="w-full px-4 py-2.5 pr-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500" />
+                  <button type="button" id="btn-toggle-s3-secret" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs">
+                    <i class="fa-solid fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Item Identifier (Tên Bucket lưu trữ)
+                </label>
+                <input type="text" id="archive-cfg-identifier" value="${escapeHtml(videoConfig.archiveIdentifier || 'tinhoc-hub-thpt')}" placeholder="tinhoc-hub-thpt" class="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500" />
+                <span class="text-[10px] text-slate-400">Tên định danh gói lưu trữ trên Archive.org (chỉ viết chữ thường, số và dấu gạch nối).</span>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Direct Stream Base URL (Link phát video cho học sinh)
+                </label>
+                <input type="url" id="archive-cfg-base-url" value="${escapeHtml(Storage.getVideoBaseUrl())}" placeholder="https://archive.org/download/tinhoc-hub-thpt/" class="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500" />
+                <span class="text-[10px] text-slate-400">Học sinh bấm phát video sẽ gọi trực tiếp từ địa chỉ này. Tự động đồng bộ tới mọi máy qua Cloud.</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 pt-2 flex-wrap">
+              <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-blue-500/20 flex items-center gap-2">
+                <i class="fa-solid fa-floppy-disk"></i> Lưu Cấu Hình S3 & Base URL
+              </button>
+              <button type="button" id="btn-archive-check-remote" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-emerald-500/20 flex items-center gap-2">
+                <i class="fa-solid fa-magnifying-glass"></i> Quét File Đã Có Trên Archive.org
+              </button>
+            </div>
+          </form>
+
+          <!-- B. Khu Vực Kéo Thả & Chọn Thư Mục Chứa Video -->
+          <div id="archive-dropzone" class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-3xl p-8 text-center bg-slate-50/60 dark:bg-slate-900/40 hover:bg-blue-50/40 dark:hover:bg-blue-950/20 transition cursor-pointer space-y-4">
+            <div class="w-16 h-16 rounded-3xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center text-3xl mx-auto shadow-inner">
+              <i class="fa-solid fa-photo-film"></i>
+            </div>
+            <div>
+              <h4 class="text-sm font-bold text-slate-800 dark:text-white">
+                Kéo thả các tệp video (.mp4) hoặc chọn toàn bộ thư mục video
+              </h4>
+              <p class="text-xs text-slate-400 mt-1 max-w-lg mx-auto">
+                Hệ thống tự động so khớp tên file video với 93 bài học chuẩn (Khối 10: 34 bài, Khối 11: 31 bài, Khối 12: 28 bài).
+              </p>
+            </div>
+
+            <div class="flex items-center justify-center gap-3 flex-wrap pt-2">
+              <button type="button" id="btn-pick-archive-folder" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-blue-500/20 flex items-center gap-2">
+                <i class="fa-solid fa-folder-open"></i> Chọn Thư Mục Chứa 93 Video
+              </button>
+              <button type="button" id="btn-pick-archive-files" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-2">
+                <i class="fa-solid fa-file-video"></i> Chọn Từng File Video (.mp4)
+              </button>
+              <input type="file" id="input-archive-folder" webkitdirectory directory multiple accept="video/mp4" class="hidden" />
+              <input type="file" id="input-archive-files" multiple accept="video/mp4" class="hidden" />
+            </div>
+
+            <div class="inline-flex items-center gap-3 px-4 py-2 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300">
+              <span>Đã chọn: <b class="text-blue-600 font-black">${this.selectedLocalFiles.size}</b> file</span>
+              <span>•</span>
+              <span>Đã khớp chuẩn: <b class="text-emerald-600 font-black">${matchedCount} / ${manifestVideos.length}</b> video</span>
+            </div>
+          </div>
+
+          <!-- C. Thanh Điều Khiển Tải Hàng Loạt & Thanh Tiến Trình Toàn Cục -->
+          <div class="space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+              <div class="flex items-center gap-2 flex-wrap">
+                <button type="button" id="btn-start-batch-upload" ${this.isUploading ? 'disabled' : ''} class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition shadow-md shadow-rose-500/20 flex items-center gap-2">
+                  <i class="fa-solid fa-rocket"></i> Bắt Đầu Tải Lên Tất Cả (Batch Upload)
+                </button>
+                ${this.isUploading ? `
+                  <button type="button" id="btn-pause-resume-upload" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-2">
+                    <i class="fa-solid ${this.isPaused ? 'fa-play' : 'fa-pause'}"></i> ${this.isPaused ? 'Tiếp tục' : 'Tạm dừng'}
+                  </button>
+                  <button type="button" id="btn-cancel-upload" class="px-4 py-2.5 bg-slate-600 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-2">
+                    <i class="fa-solid fa-stop"></i> Hủy tiến trình
+                  </button>
+                ` : ''}
+              </div>
+
+              <!-- Filter Tabs Khối Lớp -->
+              <div class="flex items-center gap-1.5 overflow-x-auto text-xs">
+                <button type="button" data-video-filter-grade="all" class="px-3 py-1.5 rounded-lg font-bold transition ${this.videoGradeFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}">
+                  Tất cả (93)
+                </button>
+                <button type="button" data-video-filter-grade="10" class="px-3 py-1.5 rounded-lg font-bold transition ${this.videoGradeFilter === '10' ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}">
+                  Khối 10 (34)
+                </button>
+                <button type="button" data-video-filter-grade="11" class="px-3 py-1.5 rounded-lg font-bold transition ${this.videoGradeFilter === '11' ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}">
+                  Khối 11 (31)
+                </button>
+                <button type="button" data-video-filter-grade="12" class="px-3 py-1.5 rounded-lg font-bold transition ${this.videoGradeFilter === '12' ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}">
+                  Khối 12 (28)
+                </button>
+              </div>
+            </div>
+
+            <!-- Global Upload Progress Indicator (Hiện khi đang upload) -->
+            <div id="archive-global-progress-bar" class="${this.isUploading ? '' : 'hidden'} p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 space-y-2">
+              <div class="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-white">
+                <span id="archive-global-status-text">
+                  <i class="fa-solid fa-spinner fa-spin text-rose-600 mr-1.5"></i> Đang tải lên: ${escapeHtml(this.currentUploadingName || '')}
+                </span>
+                <span id="archive-global-percent-text" class="font-mono text-rose-600">0%</span>
+              </div>
+              <div class="w-full h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div id="archive-global-progress-fill" class="h-full bg-gradient-to-r from-rose-500 via-indigo-600 to-blue-500 transition-all duration-300" style="width: 0%"></div>
+              </div>
+              <div class="flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                <span id="archive-global-speed-text">Tốc độ: 0 MB/s</span>
+                <span id="archive-global-count-text">Hàng đợi: 0 file còn lại</span>
+              </div>
+            </div>
+
+            <!-- Search box -->
+            <div class="relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+              <input type="text" id="input-archive-search" value="${escapeHtml(this.videoSearchQuery)}" placeholder="Tìm kiếm theo bài học, tên file (vd: TIN10-BAI1, K12Bai01)..." class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white" />
+            </div>
+          </div>
+
+          <!-- D. Bảng Danh Sách 93 Video Bài Giảng Chi Tiết -->
+          <div class="overflow-x-auto max-h-[500px] overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-700">
+            <table class="w-full text-left text-xs">
+              <thead class="sticky top-0 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold z-10 shadow-sm">
+                <tr>
+                  <th class="py-2.5 px-3">#</th>
+                  <th class="py-2.5 px-3">Khối</th>
+                  <th class="py-2.5 px-3">Bài học & Chủ đề</th>
+                  <th class="py-2.5 px-3">Tên file chuẩn</th>
+                  <th class="py-2.5 px-3">Điểm dừng</th>
+                  <th class="py-2.5 px-3">File trên máy</th>
+                  <th class="py-2.5 px-3">Trạng thái</th>
+                  <th class="py-2.5 px-3 text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 dark:divide-slate-700/60 font-medium">
+                ${this.renderVideoRowsHtml(manifestVideos, uploadedRecord)}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        <!-- 2. CÀI ĐẶT BẢO MẬT & MÃ XÁC THỰC -->
+        <!-- 4. CÀI ĐẶT BẢO MẬT & MÃ XÁC THỰC -->
         <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
           <div class="border-b border-slate-100 dark:border-slate-700 pb-4">
             <h3 class="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -339,7 +571,7 @@ export const AdminManager = {
           </form>
         </div>
 
-        <!-- 3. BẢO TRÌ & DỌN DẸP DỮ LIỆU -->
+        <!-- 5. BẢO TRÌ & DỌN DẸP DỮ LIỆU -->
         <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
           <div class="border-b border-slate-100 dark:border-slate-700 pb-4">
             <h3 class="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -382,6 +614,96 @@ export const AdminManager = {
     `;
 
     this.bindEvents();
+  },
+
+  renderVideoRowsHtml(manifestVideos, uploadedRecord) {
+    const q = (this.videoSearchQuery || '').toLowerCase().trim();
+    const filtered = manifestVideos.filter(v => {
+      if (this.videoGradeFilter !== 'all' && v.grade !== this.videoGradeFilter) return false;
+      if (q) {
+        const text = `${v.grade} ${v.video} ${v.lesson} ${v.topic}`.toLowerCase();
+        if (!text.includes(q)) return false;
+      }
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      return `
+        <tr>
+          <td colspan="8" class="py-6 text-center text-slate-400 text-xs">
+            Không tìm thấy video bài giảng nào khớp với điều kiện tìm kiếm.
+          </td>
+        </tr>
+      `;
+    }
+
+    const baseUrl = Storage.getVideoBaseUrl();
+
+    return filtered.map((v, idx) => {
+      const vLower = v.video.toLowerCase();
+      const localFile = this.selectedLocalFiles.get(vLower);
+      const isUploaded = !!uploadedRecord[v.video] || this.remoteArchiveFiles.has(vLower);
+      const isCurrentUploading = this.isUploading && this.currentUploadingName === v.video;
+
+      let statusBadge = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400">⚪ Chưa chọn file</span>';
+      if (isUploaded) {
+        statusBadge = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">🟢 Đã tải lên Archive</span>';
+      } else if (isCurrentUploading) {
+        statusBadge = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 animate-pulse">🔵 Đang tải lên...</span>';
+      } else if (localFile) {
+        const sizeMb = (localFile.size / (1024 * 1024)).toFixed(1);
+        statusBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">🟡 Sẵn sàng (${sizeMb} MB)</span>`;
+      }
+
+      const directUrl = `${baseUrl}${v.video}`;
+
+      return `
+        <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition">
+          <td class="py-2.5 px-3 font-mono text-slate-400 text-[11px]">${idx + 1}</td>
+          <td class="py-2.5 px-3">
+            <span class="px-2 py-0.5 rounded font-black text-[10px] ${v.grade === '12' ? 'bg-rose-100 text-rose-700' : v.grade === '11' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}">
+              K${v.grade}
+            </span>
+          </td>
+          <td class="py-2.5 px-3">
+            <span class="font-bold text-slate-800 dark:text-white block truncate max-w-[220px]" title="${escapeHtml(v.lesson)}">
+              ${escapeHtml(v.lesson)}
+            </span>
+            <span class="text-[10px] text-slate-400 block truncate max-w-[220px]" title="${escapeHtml(v.topic)}">
+              ${escapeHtml(v.topic)}
+            </span>
+          </td>
+          <td class="py-2.5 px-3 font-mono text-xs text-blue-600 dark:text-blue-400 font-bold">
+            ${escapeHtml(v.video)}
+          </td>
+          <td class="py-2.5 px-3">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
+              <i class="fa-solid fa-stopwatch text-[9px]"></i> ${v.checkpoints.length} mốc
+            </span>
+          </td>
+          <td class="py-2.5 px-3 text-[11px] text-slate-500 font-mono">
+            ${localFile ? `${(localFile.size / (1024 * 1024)).toFixed(1)} MB` : '-'}
+          </td>
+          <td class="py-2.5 px-3" id="status-cell-${vLower.replace(/[^a-z0-9]/g, '_')}">
+            ${statusBadge}
+          </td>
+          <td class="py-2.5 px-3 text-right">
+            <div class="flex items-center justify-end gap-1.5">
+              ${localFile && !isUploaded ? `
+                <button type="button" data-single-upload-video="${escapeHtml(v.video)}" class="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] transition shadow-sm">
+                  <i class="fa-solid fa-arrow-up-from-bracket mr-1"></i> Tải
+                </button>
+              ` : ''}
+              ${isUploaded ? `
+                <a href="${directUrl}" target="_blank" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-bold transition flex items-center gap-1" title="Mở link video trên Archive.org">
+                  <i class="fa-solid fa-external-link"></i> Link
+                </a>
+              ` : ''}
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
   },
 
   bindEvents() {
@@ -459,10 +781,181 @@ export const AdminManager = {
       };
     }
 
-    // Lưu cấu hình Admin & Security codes
-    const form = document.getElementById('form-admin-config');
-    if (form) {
-      form.onsubmit = (e) => {
+    // 2. Cấu hình Archive.org S3
+    const formArchive = document.getElementById('form-archive-config');
+    if (formArchive) {
+      formArchive.onsubmit = (e) => {
+        e.preventDefault();
+        const accessKey = document.getElementById('archive-cfg-access-key')?.value.trim() || '';
+        const secretKey = document.getElementById('archive-cfg-secret-key')?.value.trim() || '';
+        const identifier = document.getElementById('archive-cfg-identifier')?.value.trim() || 'tinhoc-hub-thpt';
+        let baseUrl = document.getElementById('archive-cfg-base-url')?.value.trim() || `https://archive.org/download/${identifier}/`;
+
+        if (!baseUrl.endsWith('/')) baseUrl += '/';
+
+        Storage.saveVideoConfig({
+          archiveAccessKey: accessKey,
+          archiveSecretKey: secretKey,
+          archiveIdentifier: identifier,
+          videoBaseUrl: baseUrl
+        });
+
+        alert('✅ Đã lưu cấu hình Archive.org S3 và đồng bộ Base URL lên Cloud thành công!');
+        this.render();
+      };
+    }
+
+    // Toggle hiện/ẩn S3 Secret Key
+    const btnToggleSecret = document.getElementById('btn-toggle-s3-secret');
+    if (btnToggleSecret) {
+      btnToggleSecret.onclick = () => {
+        const input = document.getElementById('archive-cfg-secret-key');
+        if (input) {
+          const isPass = input.type === 'password';
+          input.type = isPass ? 'text' : 'password';
+          btnToggleSecret.innerHTML = isPass ? '<i class="fa-solid fa-eye-slash"></i>' : '<i class="fa-solid fa-eye"></i>';
+        }
+      };
+    }
+
+    // Quét file đã có trên Archive.org qua REST API Metadata
+    const btnCheckRemote = document.getElementById('btn-archive-check-remote');
+    if (btnCheckRemote) {
+      btnCheckRemote.onclick = async () => {
+        const id = document.getElementById('archive-cfg-identifier')?.value.trim() || 'tinhoc-hub-thpt';
+        btnCheckRemote.disabled = true;
+        btnCheckRemote.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Đang quét...';
+
+        try {
+          const res = await fetch(`https://archive.org/metadata/${encodeURIComponent(id)}/files`);
+          if (!res.ok) {
+            throw new Error(`Archive.org phản hồi HTTP ${res.status}`);
+          }
+          const data = await res.json();
+          const files = Array.isArray(data.result) ? data.result : [];
+          this.remoteArchiveFiles.clear();
+          let count = 0;
+          files.forEach(f => {
+            if (f.name) {
+              this.remoteArchiveFiles.add(f.name.toLowerCase());
+              count++;
+            }
+          });
+
+          alert(`✅ Đã quét xong Bucket [${id}]!\nTìm thấy ${count} file đã lưu trữ trên Archive.org.`);
+        } catch (err) {
+          alert(`⚠️ Không thể quét tệp từ Archive.org: ${err.message}\n(Lưu ý: Nếu đây là bucket mới toanh chưa tải file nào thì Archive.org sẽ chưa có metadata, bạn hãy bấm Tải Lên file đầu tiên để tự động khởi tạo bucket).`);
+        } finally {
+          btnCheckRemote.disabled = false;
+          btnCheckRemote.innerHTML = '<i class="fa-solid fa-magnifying-glass mr-1"></i> Quét File Đã Có Trên Archive.org';
+          this.render();
+        }
+      };
+    }
+
+    // Xử lý chọn thư mục video
+    const btnPickFolder = document.getElementById('btn-pick-archive-folder');
+    const inputFolder = document.getElementById('input-archive-folder');
+    if (btnPickFolder && inputFolder) {
+      btnPickFolder.onclick = () => inputFolder.click();
+      inputFolder.onchange = (e) => this.handleLocalFilesSelected(e.target.files);
+    }
+
+    // Xử lý chọn file video
+    const btnPickFiles = document.getElementById('btn-pick-archive-files');
+    const inputFiles = document.getElementById('input-archive-files');
+    if (btnPickFiles && inputFiles) {
+      btnPickFiles.onclick = () => inputFiles.click();
+      inputFiles.onchange = (e) => this.handleLocalFilesSelected(e.target.files);
+    }
+
+    // Xử lý Drag & Drop trên dropzone
+    const dropzone = document.getElementById('archive-dropzone');
+    if (dropzone) {
+      ['dragenter', 'dragover'].forEach(name => {
+        dropzone.addEventListener(name, (e) => {
+          e.preventDefault();
+          dropzone.classList.add('border-blue-500', 'bg-blue-50/50', 'dark:bg-blue-950/40');
+        });
+      });
+      ['dragleave', 'drop'].forEach(name => {
+        dropzone.addEventListener(name, (e) => {
+          e.preventDefault();
+          dropzone.classList.remove('border-blue-500', 'bg-blue-50/50', 'dark:bg-blue-950/40');
+        });
+      });
+      dropzone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer?.files;
+        if (files && files.length > 0) {
+          this.handleLocalFilesSelected(files);
+        }
+      });
+    }
+
+    // Filter khối lớp
+    this.container.querySelectorAll('[data-video-filter-grade]').forEach(btn => {
+      btn.onclick = () => {
+        this.videoGradeFilter = btn.getAttribute('data-video-filter-grade');
+        this.render();
+      };
+    });
+
+    // Tìm kiếm video
+    const inputSearch = document.getElementById('input-archive-search');
+    if (inputSearch) {
+      inputSearch.oninput = (e) => {
+        this.videoSearchQuery = e.target.value;
+        const tbody = this.container.querySelector('tbody');
+        if (tbody) {
+          const manifestVideos = this.getManifestVideos();
+          const uploadedRecord = Storage.getVideoConfig().uploadedVideos || {};
+          tbody.innerHTML = this.renderVideoRowsHtml(manifestVideos, uploadedRecord);
+          this.bindRowEvents();
+        }
+      };
+    }
+
+    // Bắt đầu Batch Upload
+    const btnBatch = document.getElementById('btn-start-batch-upload');
+    if (btnBatch) {
+      btnBatch.onclick = () => this.startBatchUpload();
+    }
+
+    // Tạm dừng / Tiếp tục
+    const btnPauseResume = document.getElementById('btn-pause-resume-upload');
+    if (btnPauseResume) {
+      btnPauseResume.onclick = () => {
+        this.isPaused = !this.isPaused;
+        this.render();
+        if (!this.isPaused && this.isUploading) {
+          this.processNextInQueue();
+        }
+      };
+    }
+
+    // Hủy bỏ upload
+    const btnCancel = document.getElementById('btn-cancel-upload');
+    if (btnCancel) {
+      btnCancel.onclick = () => {
+        if (confirm('Bạn có chắc chắn muốn hủy bỏ tiến trình tải lên?')) {
+          if (this.currentXhr) {
+            this.currentXhr.abort();
+            this.currentXhr = null;
+          }
+          this.isUploading = false;
+          this.isPaused = false;
+          this.uploadQueue = [];
+          this.render();
+        }
+      };
+    }
+
+    this.bindRowEvents();
+
+    // 3. Cấu hình bảo mật hệ thống
+    const formAdmin = document.getElementById('form-admin-config');
+    if (formAdmin) {
+      formAdmin.onsubmit = (e) => {
         e.preventDefault();
         const teacherCode = document.getElementById('admin-input-teacher-code')?.value || 'GV2025';
         const adminCode = document.getElementById('admin-input-admin-code')?.value || 'ADMIN2025';
@@ -514,7 +1007,7 @@ export const AdminManager = {
       URL.revokeObjectURL(url);
     });
 
-    // Nhập / Phục hồi backup
+    // Nhập backup
     const importBtn = this.container.querySelector('#btn-admin-import-backup');
     const importFileInput = this.container.querySelector('#input-admin-import-backup');
     if (importBtn && importFileInput) {
@@ -554,5 +1047,225 @@ export const AdminManager = {
         this.render();
       }
     });
+  },
+
+  bindRowEvents() {
+    // Nút tải lên từng file riêng lẻ
+    this.container.querySelectorAll('[data-single-upload-video]').forEach(btn => {
+      btn.onclick = () => {
+        const videoName = btn.getAttribute('data-single-upload-video');
+        const file = this.selectedLocalFiles.get(videoName.toLowerCase());
+        if (file) {
+          this.uploadSingleFile(videoName, file);
+        } else {
+          alert(`Chưa chọn file ${videoName} từ máy tính! Vui lòng chọn file trước.`);
+        }
+      };
+    });
+  },
+
+  handleLocalFilesSelected(fileList) {
+    if (!fileList || fileList.length === 0) return;
+    const manifestVideos = this.getManifestVideos();
+    const manifestMap = new Map();
+    manifestVideos.forEach(v => {
+      manifestMap.set(v.video.toLowerCase(), v);
+    });
+
+    let matched = 0;
+    Array.from(fileList).forEach(file => {
+      if (file.name.toLowerCase().endsWith('.mp4')) {
+        const fNameLower = file.name.toLowerCase();
+        if (manifestMap.has(fNameLower)) {
+          this.selectedLocalFiles.set(fNameLower, file);
+          matched++;
+        }
+      }
+    });
+
+    alert(`📁 Đã duyệt ${fileList.length} tệp tin.\n✅ Đã ghép khớp thành công: ${matched} video bài giảng chuẩn!`);
+    this.render();
+  },
+
+  async startBatchUpload() {
+    const config = Storage.getVideoConfig();
+    if (!config.archiveAccessKey || !config.archiveSecretKey) {
+      alert('Vui lòng nhập Archive.org S3 Access Key và Secret Key trước khi tải lên!');
+      document.getElementById('archive-cfg-access-key')?.focus();
+      return;
+    }
+
+    const manifestVideos = this.getManifestVideos();
+    const queue = [];
+
+    manifestVideos.forEach(v => {
+      const vLower = v.video.toLowerCase();
+      const file = this.selectedLocalFiles.get(vLower);
+      const isAlreadyUp = !!config.uploadedVideos?.[v.video] || this.remoteArchiveFiles.has(vLower);
+      if (file && !isAlreadyUp) {
+        queue.push({ videoName: v.video, file, lesson: v.lesson });
+      }
+    });
+
+    if (queue.length === 0) {
+      alert('Không có video nào cần tải lên (hoặc các video đã có trên Archive.org rồi)!');
+      return;
+    }
+
+    const confirmMsg = `Chuẩn bị tải lên ${queue.length} video bài giảng lên Archive.org (${config.archiveIdentifier || 'tinhoc-hub-thpt'}).\nBạn có muốn bắt đầu ngay?`;
+    if (!confirm(confirmMsg)) return;
+
+    this.uploadQueue = queue;
+    this.isUploading = true;
+    this.isPaused = false;
+    this.uploadProgressStats = {
+      totalCount: queue.length,
+      currentIdx: 0,
+      startTime: Date.now()
+    };
+
+    this.render();
+    this.processNextInQueue();
+  },
+
+  async processNextInQueue() {
+    if (!this.isUploading || this.isPaused) return;
+
+    if (this.uploadQueue.length === 0) {
+      this.isUploading = false;
+      alert('🎉 Chúc mừng! Đã tải lên hoàn tất toàn bộ danh sách video bài giảng lên Archive.org!');
+      this.render();
+      return;
+    }
+
+    const item = this.uploadQueue.shift();
+    this.currentUploadingName = item.videoName;
+    this.uploadProgressStats.currentIdx++;
+
+    this.updateGlobalProgress(0, item.videoName);
+
+    try {
+      await this.performS3Upload(item.videoName, item.file, item.lesson);
+      // Ghi nhận thành công
+      const cfg = Storage.getVideoConfig();
+      if (!cfg.uploadedVideos) cfg.uploadedVideos = {};
+      cfg.uploadedVideos[item.videoName] = {
+        uploadedAt: new Date().toISOString(),
+        size: item.file.size
+      };
+      Storage.saveVideoConfig(cfg);
+      this.remoteArchiveFiles.add(item.videoName.toLowerCase());
+    } catch (err) {
+      console.error(`Lỗi tải lên ${item.videoName}:`, err);
+      // Tiếp tục các video tiếp theo
+    }
+
+    if (this.isUploading && !this.isPaused) {
+      // Nghỉ 1.5 giây giữa các file để đường truyền ổn định
+      setTimeout(() => this.processNextInQueue(), 1500);
+    }
+  },
+
+  async uploadSingleFile(videoName, file) {
+    const config = Storage.getVideoConfig();
+    if (!config.archiveAccessKey || !config.archiveSecretKey) {
+      alert('Vui lòng nhập Archive.org S3 Access Key và Secret Key trước khi tải lên!');
+      return;
+    }
+
+    this.isUploading = true;
+    this.currentUploadingName = videoName;
+    this.render();
+
+    try {
+      await this.performS3Upload(videoName, file);
+      const cfg = Storage.getVideoConfig();
+      if (!cfg.uploadedVideos) cfg.uploadedVideos = {};
+      cfg.uploadedVideos[videoName] = {
+        uploadedAt: new Date().toISOString(),
+        size: file.size
+      };
+      Storage.saveVideoConfig(cfg);
+      this.remoteArchiveFiles.add(videoName.toLowerCase());
+      alert(`✅ Tải lên video ${videoName} thành công!`);
+    } catch (err) {
+      alert(`❌ Lỗi tải lên: ${err.message}`);
+    } finally {
+      this.isUploading = false;
+      this.currentUploadingName = null;
+      this.render();
+    }
+  },
+
+  performS3Upload(videoName, file, lessonName = '') {
+    return new Promise((resolve, reject) => {
+      const config = Storage.getVideoConfig();
+      const identifier = config.archiveIdentifier || 'tinhoc-hub-thpt';
+      const targetUrl = `https://s3.us.archive.org/${encodeURIComponent(identifier)}/${encodeURIComponent(videoName)}`;
+
+      const xhr = new XMLHttpRequest();
+      this.currentXhr = xhr;
+
+      const startTime = Date.now();
+
+      xhr.open('PUT', targetUrl, true);
+      xhr.setRequestHeader('Authorization', `LOW ${config.archiveAccessKey}:${config.archiveSecretKey}`);
+      xhr.setRequestHeader('x-amz-auto-make-bucket', '1');
+      xhr.setRequestHeader('x-archive-meta-mediatype', 'movies');
+      xhr.setRequestHeader('x-archive-meta-collection', 'opensource_movies');
+      xhr.setRequestHeader('x-archive-meta-title', `Bài giảng Tin học THPT - ${lessonName || videoName}`);
+      xhr.setRequestHeader('x-archive-ignore-preexisting-bucket', '1');
+      xhr.setRequestHeader('Content-Type', 'video/mp4');
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          const elapsed = (Date.now() - startTime) / 1000;
+          const speedBytes = elapsed > 0 ? e.loaded / elapsed : 0;
+          const speedMb = (speedBytes / (1024 * 1024)).toFixed(1);
+          this.updateGlobalProgress(percent, videoName, speedMb, e.loaded, e.total);
+        }
+      };
+
+      xhr.onload = () => {
+        this.currentXhr = null;
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(true);
+        } else {
+          reject(new Error(`Archive.org trả về mã lỗi HTTP ${xhr.status}: ${xhr.statusText}`));
+        }
+      };
+
+      xhr.onerror = () => {
+        this.currentXhr = null;
+        reject(new Error('Lỗi kết nối mạng khi tải lên Archive.org!'));
+      };
+
+      xhr.onabort = () => {
+        this.currentXhr = null;
+        reject(new Error('Tiến trình tải lên đã bị hủy'));
+      };
+
+      xhr.send(file);
+    });
+  },
+
+  updateGlobalProgress(percent, videoName, speedMb = '0', loaded = 0, total = 0) {
+    const textStatus = document.getElementById('archive-global-status-text');
+    const textPercent = document.getElementById('archive-global-percent-text');
+    const fillBar = document.getElementById('archive-global-progress-fill');
+    const textSpeed = document.getElementById('archive-global-speed-text');
+    const textCount = document.getElementById('archive-global-count-text');
+
+    if (textStatus) {
+      textStatus.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-rose-600 mr-1.5"></i> Đang tải lên: <b>${escapeHtml(videoName)}</b> (${(loaded / (1024*1024)).toFixed(1)} / ${(total / (1024*1024)).toFixed(1)} MB)`;
+    }
+    if (textPercent) textPercent.textContent = `${percent}%`;
+    if (fillBar) fillBar.style.width = `${percent}%`;
+    if (textSpeed) textSpeed.textContent = `Tốc độ: ${speedMb} MB/s`;
+    if (textCount) {
+      const remaining = this.uploadQueue.length;
+      textCount.textContent = `Còn ${remaining} video trong hàng đợi`;
+    }
   }
 };

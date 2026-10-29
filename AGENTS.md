@@ -36,15 +36,17 @@ D:\app-on-tap/
 │   ├── leaderboard.js      # Bảng Vinh Danh Học Sinh: Podium Top 1-2-3, xếp hạng theo ngày/tuần/tháng/năm
 │   ├── gradebook.js        # Sổ điểm & Phân tích Tiến trình: theo học sinh, theo lớp, học bạ điện tử, xuất Excel BOM
 │   ├── questions-manager.js# Quản lý Ngân hàng đề cho Giáo viên: Thêm, Sửa, Xóa câu hỏi, Xuất/Nhập JSON
-│   ├── admin-manager.js    # Bảng điều khiển Quản trị viên (Admin): đổi mã bảo mật, phân vai, dọn dẹp hệ thống
+│   ├── admin-manager.js    # Bảng điều khiển Quản trị viên (Admin): đổi mã bảo mật, phân vai, Archive.org Uploader
+│   ├── interactive-video.js# Bài Giảng Video Tương Tác: điểm dừng, câu hỏi đếm ngược, truyền điểm realtime
 │   ├── search.js           # Tìm kiếm tức thì 4.098 câu hỏi theo từ khóa, khối, chủ đề, cấp độ
 │   ├── print.js            # Xuất đề thi in ấn chuẩn A4 kèm bảng đáp án và hướng dẫn chấm
 │   └── utils.js            # Tiện ích chung, trọng tâm là hàm chống XSS escapeHtml()
 ├── data/
-│   ├── manifest.json       # Thống kê metadata (tổng 4.098 câu MCQ và Đúng/Sai theo từng khối và chủ đề)
+│   ├── manifest.json       # Thống kê metadata (tổng 4.098 câu, 93 video bài giảng, checkpoints điểm dừng)
 │   ├── grade_10.json       # 1.379 câu hỏi Khối 10 (gồm MCQ 1, 2, 3, 4 và Đúng/Sai DS)
 │   ├── grade_11.json       # 1.240 câu hỏi Khối 11 (gồm MCQ 1, 2, 3, 4)
 │   └── grade_12.json       # 1.479 câu hỏi Khối 12 (gồm MCQ 1, 2, 3, 4 và Đúng/Sai DS)
+├── upload_archive.py       # Công cụ CLI tải hàng loạt 93 video bài giảng lên Archive.org S3
 ├── convert_bank.py         # Script Python chuyển đổi Excel sang JSON đồng bộ chuẩn schema
 ├── Ngan Hang de.xlsx       # File Excel ngân hàng câu hỏi gốc
 ├── _headers                # Header tối ưu cache và bảo mật cho Cloudflare Workers / Pages

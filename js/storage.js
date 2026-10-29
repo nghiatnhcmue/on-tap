@@ -17,11 +17,109 @@ const STORAGE_KEYS = {
   ACTIVE_EXAM_SESSION: 'tinhoc_active_exam_session',
   WRONG_QUESTIONS: 'tinhoc_wrong_questions',
   USER_NOTES: 'tinhoc_user_notes',
-  STUDY_STREAK: 'tinhoc_study_streak'
+  STUDY_STREAK: 'tinhoc_study_streak',
+  VIDEO_CONFIG: 'tinhoc_video_config',
+  VIDEO_PROGRESS: 'tinhoc_video_progress'
 };
 
 export const Storage = {
   cloudSync: null,
+
+  // --- CẤU HÌNH VIDEO BÀI GIẢNG & ARCHIVE.ORG S3 ---
+  getVideoConfig() {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.VIDEO_CONFIG);
+      return data ? JSON.parse(data) : {
+        archiveAccessKey: '',
+        archiveSecretKey: '',
+        archiveIdentifier: 'tinhoc-hub-thpt',
+        videoBaseUrl: 'https://archive.org/download/tinhoc-hub-thpt/',
+        uploadedVideos: {}
+      };
+    } catch (e) {
+      return {
+        archiveAccessKey: '',
+        archiveSecretKey: '',
+        archiveIdentifier: 'tinhoc-hub-thpt',
+        videoBaseUrl: 'https://archive.org/download/tinhoc-hub-thpt/',
+        uploadedVideos: {}
+      };
+    }
+  },
+
+  saveVideoConfig(config) {
+    try {
+      const current = this.getVideoConfig();
+      const updated = { ...current, ...config };
+      // Chuẩn hóa videoBaseUrl kết thúc bằng dấu gạch chéo
+      if (updated.videoBaseUrl) {
+        updated.videoBaseUrl = updated.videoBaseUrl.trim();
+        if (!updated.videoBaseUrl.endsWith('/')) {
+          updated.videoBaseUrl += '/';
+        }
+      }
+      localStorage.setItem(STORAGE_KEYS.VIDEO_CONFIG, JSON.stringify(updated));
+      if (this.cloudSync && typeof this.cloudSync.pushVideoConfigToCloud === 'function') {
+        this.cloudSync.pushVideoConfigToCloud(updated).catch(() => {});
+      }
+      return updated;
+    } catch (e) {
+      console.error('Error saving video config', e);
+    }
+  },
+
+  getVideoBaseUrl() {
+    const cfg = this.getVideoConfig();
+    if (cfg && cfg.videoBaseUrl && cfg.videoBaseUrl.trim()) {
+      let url = cfg.videoBaseUrl.trim();
+      return url.endsWith('/') ? url : url + '/';
+    }
+    const id = (cfg && cfg.archiveIdentifier) ? cfg.archiveIdentifier.trim() : 'tinhoc-hub-thpt';
+    return `https://archive.org/download/${id}/`;
+  },
+
+  // --- TIẾN TRÌNH HỌC TẬP VIDEO TƯƠNG TÁC ---
+  getVideoProgress(videoFile) {
+    if (!videoFile) return null;
+    try {
+      const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.VIDEO_PROGRESS) || '{}');
+      return all[videoFile] || null;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  getAllVideoProgress() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEYS.VIDEO_PROGRESS) || '{}');
+    } catch (e) {
+      return {};
+    }
+  },
+
+  recordVideoProgress(videoFile, score, totalQuestions, details = []) {
+    if (!videoFile) return;
+    try {
+      const all = this.getAllVideoProgress();
+      const current = all[videoFile] || { attempts: 0, highestScore: 0, completed: false };
+      const numScore = Number(score) || 0;
+      const isComplete = numScore >= 5.0 || (totalQuestions > 0 && numScore > 0);
+      
+      all[videoFile] = {
+        videoFile,
+        attempts: (current.attempts || 0) + 1,
+        highestScore: Math.max(current.highestScore || 0, numScore),
+        lastScore: numScore,
+        totalQuestions: totalQuestions || current.totalQuestions || 0,
+        completed: current.completed || isComplete,
+        lastAttemptDate: new Date().toISOString()
+      };
+
+      localStorage.setItem(STORAGE_KEYS.VIDEO_PROGRESS, JSON.stringify(all));
+    } catch (e) {
+      console.error('Error recording video progress:', e);
+    }
+  },
 
   // --- CẤU HÌNH ADMIN & MÃ BẢO MẬT PHÂN QUYỀN ---
   getAdminConfig() {

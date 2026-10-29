@@ -198,6 +198,9 @@ export const CloudSync = {
       // 3. Đồng bộ Kết quả thi (Exam History)
       await this.syncHistory(baseUrl);
 
+      // 4. Đồng bộ Cấu hình Video Bài Giảng (Video Base URL & Archive Bucket)
+      await this.syncVideoConfig(baseUrl);
+
       this.config.lastSync = new Date().toISOString();
       try {
         localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(this.config));
@@ -439,6 +442,53 @@ export const CloudSync = {
       });
     } catch (e) {
       console.warn('Lỗi push điểm thi lên cloud:', e);
+    }
+  },
+
+  // --- ĐỒNG BỘ CẤU HÌNH VIDEO ARCHIVE.ORG & BÀI GIẢNG ---
+  async syncVideoConfig(baseUrl) {
+    try {
+      const res = await fetch(`${baseUrl}/config/video.json`);
+      if (!res.ok) return;
+      const remoteConfig = await res.json();
+      const localConfig = Storage.getVideoConfig();
+
+      if (remoteConfig && (remoteConfig.videoBaseUrl || remoteConfig.archiveIdentifier)) {
+        // Cập nhật cấu hình video từ Cloud xuống máy học sinh/giáo viên
+        const merged = {
+          ...localConfig,
+          ...remoteConfig,
+          // Giữ lại private key nếu máy này là Admin
+          archiveAccessKey: localConfig.archiveAccessKey || remoteConfig.archiveAccessKey || '',
+          archiveSecretKey: localConfig.archiveSecretKey || remoteConfig.archiveSecretKey || ''
+        };
+        localStorage.setItem('tinhoc_video_config', JSON.stringify(merged));
+      } else if (localConfig.videoBaseUrl || localConfig.archiveIdentifier) {
+        // Nếu Cloud chưa có mà máy này có, đẩy lên Cloud
+        await this.pushVideoConfigToCloud(localConfig);
+      }
+    } catch (e) {
+      console.warn('Lỗi đồng bộ cấu hình video từ Cloud:', e);
+    }
+  },
+
+  async pushVideoConfigToCloud(config) {
+    if (!this.isConfigured() || !config) return;
+    try {
+      // Chỉ đẩy public info lên Cloud để học sinh tải được video
+      const publicPayload = {
+        archiveIdentifier: config.archiveIdentifier || 'tinhoc-hub-thpt',
+        videoBaseUrl: config.videoBaseUrl || `https://archive.org/download/${config.archiveIdentifier || 'tinhoc-hub-thpt'}/`,
+        uploadedVideos: config.uploadedVideos || {},
+        updatedAt: new Date().toISOString()
+      };
+      await fetch(`${this.config.databaseUrl}/config/video.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(publicPayload)
+      });
+    } catch (e) {
+      console.warn('Lỗi đẩy cấu hình video lên cloud:', e);
     }
   },
 

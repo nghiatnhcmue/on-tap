@@ -17,6 +17,7 @@ import { ExamRooms } from './exam-rooms.js';
 import { Proctor } from './proctor.js';
 import { Gradebook } from './gradebook.js';
 import { CloudSync } from './cloud-sync.js';
+import { InteractiveVideo } from './interactive-video.js';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -26,6 +27,7 @@ if (typeof window !== 'undefined') {
   window.ExamRooms = ExamRooms;
   window.Gradebook = Gradebook;
   window.CloudSync = CloudSync;
+  window.InteractiveVideo = InteractiveVideo;
 }
 
 class App {
@@ -209,6 +211,8 @@ class App {
       this.initPracticeView();
     } else if (this.currentTab === 'home') {
       this.renderHome();
+    } else if (this.currentTab === 'interactive-video') {
+      InteractiveVideo.setGrade(grade);
     }
   }
 
@@ -269,7 +273,7 @@ class App {
       'view-home', 'view-practice', 'view-exam-setup', 'view-exam-room',
       'view-search', 'view-bookmarks', 'view-history', 'view-print',
       'view-gradebook', 'view-leaderboard', 'view-questions-manage', 'view-admin-system',
-      'view-exam-rooms'
+      'view-exam-rooms', 'view-interactive-video'
     ];
     views.forEach(id => {
       const el = document.getElementById(id);
@@ -321,13 +325,22 @@ class App {
         document.getElementById('view-leaderboard')?.classList.remove('hidden');
         Leaderboard.init(document.getElementById('leaderboard-area'));
         break;
+      case 'interactive-video':
+        document.getElementById('view-interactive-video')?.classList.remove('hidden');
+        await InteractiveVideo.init(
+          document.getElementById('view-interactive-video'),
+          this.manifest,
+          (g) => this.loadGradeData(g),
+          this.currentGrade
+        );
+        break;
       case 'questions-manage':
         document.getElementById('view-questions-manage')?.classList.remove('hidden');
         QuestionsManager.init(document.getElementById('questions-manage-area'), this.manifest, (g) => this.loadGradeData(g));
         break;
       case 'admin-system':
         document.getElementById('view-admin-system')?.classList.remove('hidden');
-        AdminManager.init(document.getElementById('admin-system-area'));
+        AdminManager.init(document.getElementById('admin-system-area'), this.manifest);
         break;
     }
   }

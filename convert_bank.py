@@ -56,6 +56,24 @@ def main():
         grade = str(row[11]).strip() if row[11] else '10'
         video = str(row[13]).strip() if row[13] else ''
 
+        v_stop = None
+        if len(row) > 14 and row[14] is not None and str(row[14]).strip():
+            try:
+                v_stop = int(float(str(row[14]).strip()))
+            except:
+                v_stop = str(row[14]).strip()
+
+        v_quiz = None
+        if len(row) > 15 and row[15] is not None and str(row[15]).strip():
+            v_quiz = str(row[15]).strip()
+
+        v_time = 15
+        if len(row) > 16 and row[16] is not None and str(row[16]).strip():
+            try:
+                v_time = int(float(str(row[16]).strip()))
+            except:
+                v_time = 15
+
         # CHỈ GIỮ LẠI DẠNG TRẮC NGHIỆM (1, 2, 3, 4) VÀ ĐÚNG/SAI (DS) - LOẠI BỎ TRẢ LỜI NGẮN (TLN)
         if level not in ['1', '2', '3', '4', 'DS']:
             continue
@@ -94,11 +112,14 @@ def main():
             'grade': grade,
             'topic': topic,
             'lesson': lesson,
-            'level': level, # '1', '2', '3', '4', 'DS', 'TLN'
+            'level': level, # '1', '2', '3', '4', 'DS'
             'question': q_text,
             'options': [opt_a, opt_b, opt_c, opt_d] if level in ['1', '2', '3', '4', 'DS'] else [],
             'answer': correct,
-            'video': video
+            'video': video,
+            'video_stop': v_stop,
+            'video_quiz': v_quiz,
+            'video_time': v_time
         }
 
         if grade in grades_data:
@@ -108,6 +129,21 @@ def main():
             m_grade = manifest['grades'][grade]
             m_grade['total'] += 1
             m_grade['levels'][level] = m_grade['levels'].get(level, 0) + 1
+
+            if 'interactive_videos' not in m_grade:
+                m_grade['interactive_videos'] = {}
+            if video and v_stop is not None:
+                if video not in m_grade['interactive_videos']:
+                    m_grade['interactive_videos'][video] = {
+                        'video': video,
+                        'lesson': lesson,
+                        'topic': topic,
+                        'checkpoints': []
+                    }
+                v_entry = m_grade['interactive_videos'][video]
+                if v_stop not in v_entry['checkpoints']:
+                    v_entry['checkpoints'].append(v_stop)
+                    v_entry['checkpoints'].sort()
             
             if topic not in m_grade['topics']:
                 m_grade['topics'][topic] = {'name': topic, 'total': 0, 'lessons': {}}

@@ -241,6 +241,9 @@
         <button data-tab-target="exam-setup" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
           <i class="fa-solid fa-pen-clip text-xs"></i> Thi thử
         </button>
+        <button data-tab-target="interactive-video" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-circle-play text-xs text-rose-500"></i> Video tương tác
+        </button>
         <button data-tab-target="leaderboard" class="px-3 py-2 rounded-xl text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-50 dark:hover:bg-amber-950/30 transition flex items-center gap-1.5">
           <i class="fa-solid fa-crown text-xs"></i> Vinh danh
         </button>
@@ -378,6 +381,9 @@
       <button data-tab-target="exam-setup" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
         <i class="fa-solid fa-pen-clip w-5 text-indigo-600"></i> Thi thử trực tuyến
       </button>
+      <button data-tab-target="interactive-video" class="w-full text-left px-3 py-2.5 rounded-xl font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center gap-2">
+        <i class="fa-solid fa-circle-play w-5 text-rose-500"></i> Video bài giảng tương tác
+      </button>
       <button data-tab-target="leaderboard" class="w-full text-left px-3 py-2.5 rounded-xl font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 flex items-center gap-2">
         <i class="fa-solid fa-crown w-5 text-amber-500"></i> Bảng vinh danh học sinh giỏi
       </button>
@@ -443,6 +449,9 @@
             <button data-tab-target="leaderboard" class="px-5 sm:px-6 py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-amber-500/25 flex items-center gap-2">
               <i class="fa-solid fa-crown text-yellow-300"></i> Bảng Vinh Danh
             </button>
+            <button data-tab-target="interactive-video" class="px-5 sm:px-6 py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-rose-600/25 flex items-center gap-2">
+              <i class="fa-solid fa-circle-play"></i> Video tương tác
+            </button>
           </div>
         </div>
 
@@ -453,6 +462,25 @@
 
       <!-- User Progress Stats Quick Bar -->
       <div id="home-user-stats"></div>
+
+      <!-- Interactive Video Banner -->
+      <div class="bg-gradient-to-r from-rose-600 via-indigo-600 to-blue-600 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+        <div class="relative z-10 max-w-xl">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-bold uppercase tracking-wider mb-2">
+            <i class="fa-solid fa-bolt"></i> Trải Nghiệm Học Tập Đột Phá
+          </div>
+          <h3 class="text-xl sm:text-2xl font-black">
+            Bài Giảng Video Tương Tác 93 Bài Học THPT
+          </h3>
+          <p class="text-xs sm:text-sm text-white/90 mt-1 leading-relaxed">
+            Xem video bài giảng tự động dừng tại các mốc trọng tâm, trả lời câu hỏi trắc nghiệm có đồng hồ đếm ngược và truyền điểm về máy Thầy Cô tức thời!
+          </p>
+        </div>
+        <button data-tab-target="interactive-video" class="relative z-10 px-6 py-3.5 bg-white hover:bg-slate-100 text-rose-600 rounded-2xl text-xs sm:text-sm font-black transition shadow-lg shadow-black/20 flex items-center gap-2 shrink-0">
+          <i class="fa-solid fa-circle-play text-base"></i> Học Video Tương Tác Ngay
+        </button>
+        <div class="absolute -right-8 -bottom-8 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+      </div>
 
       <!-- 3 Grade Cards -->
       <div>
@@ -1011,6 +1039,9 @@
 
     <!-- VIEW: PHÒNG THI (EXAM ROOM) -->
     <section id="view-exam-room" class="hidden"></section>
+
+    <!-- VIEW: BÀI GIẢNG VIDEO TƯƠNG TÁC (INTERACTIVE VIDEO) -->
+    <section id="view-interactive-video" class="hidden max-w-6xl mx-auto"></section>
 
     <!-- VIEW: TRA CỨU NGÂN HÀNG CÂU HỎI (SEARCH) -->
     <section id="view-search" class="hidden">
@@ -2045,7 +2076,7 @@
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261029_10"></script>
+  <script type="module" src="js/app.js?v=20261029_11"></script>
 </body>
 </html>
 

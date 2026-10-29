@@ -414,6 +414,382 @@
             }
           }
         }
+      },
+      "interactive_videos": {
+        "TIN10-BAI1.mp4": {
+          "video": "TIN10-BAI1.mp4",
+          "lesson": "Bài 1: Thông tin và xử lí thông tin",
+          "topic": "1: Máy tính và xã hội tri thức",
+          "checkpoints": [
+            112,
+            160,
+            232,
+            348
+          ]
+        },
+        "TIN10-BAI2.mp4": {
+          "video": "TIN10-BAI2.mp4",
+          "lesson": "Bài 2: Vai trò của thiết bị thông minh",
+          "topic": "1: Máy tính và xã hội tri thức",
+          "checkpoints": [
+            140,
+            197,
+            259,
+            410
+          ]
+        },
+        "TIN10-BAI3.mp4": {
+          "video": "TIN10-BAI3.mp4",
+          "lesson": "Bài 3: Một số kiểu dữ liệu và dữ liệu văn bản",
+          "topic": "1: Máy tính và xã hội tri thức",
+          "checkpoints": [
+            164,
+            212,
+            283,
+            426
+          ]
+        },
+        "TIN10-BAI4.mp4": {
+          "video": "TIN10-BAI4.mp4",
+          "lesson": "Bài 4: Hệ nhị phân và số nguyên",
+          "topic": "1: Máy tính và xã hội tri thức",
+          "checkpoints": [
+            69,
+            122,
+            187,
+            454
+          ]
+        },
+        "TIN10-BAI5.mp4": {
+          "video": "TIN10-BAI5.mp4",
+          "lesson": "Bài 5: Dữ liệu lôgic",
+          "topic": "1: Máy tính và xã hội tri thức",
+          "checkpoints": [
+            77,
+            145,
+            179,
+            344
+          ]
+        },
+        "TIN10-BAI6.mp4": {
+          "video": "TIN10-BAI6.mp4",
+          "lesson": "Bài 6: Dữ liệu âm thanh và hình ảnh",
+          "topic": "1: Máy tính và xã hội tri thức",
+          "checkpoints": [
+            133,
+            186,
+            243,
+            503
+          ]
+        },
+        "TIN10-BAI7.mp4": {
+          "video": "TIN10-BAI7.mp4",
+          "lesson": "Bài 7: Thực hành sử dụng thiết bị số thông dụng",
+          "topic": "1: Máy tính và xã hội tri thức",
+          "checkpoints": [
+            30,
+            90,
+            150,
+            394
+          ]
+        },
+        "TIN10-BAI8.mp4": {
+          "video": "TIN10-BAI8.mp4",
+          "lesson": "Bài 8: Mạng máy tính trong cuộc sống hiện đại",
+          "topic": "2: Mạng máy tính và Internet",
+          "checkpoints": [
+            45,
+            105,
+            165,
+            401
+          ]
+        },
+        "TIN10-BAI9.mp4": {
+          "video": "TIN10-BAI9.mp4",
+          "lesson": "Bài 9: An toàn trên không gian mạng",
+          "topic": "3: Đạo đức, pháp luật và văn hoá",
+          "checkpoints": [
+            50,
+            100,
+            150,
+            175
+          ]
+        },
+        "TIN10-BAI10.mp4": {
+          "video": "TIN10-BAI10.mp4",
+          "lesson": "Bài 10: Thực hành khai thác tài nguyên trên Internet",
+          "topic": "2: Mạng máy tính và Internet",
+          "checkpoints": [
+            60,
+            120,
+            180,
+            260
+          ]
+        },
+        "TIN10-BAI11.mp4": {
+          "video": "TIN10-BAI11.mp4",
+          "lesson": "Bài 11: Ứng xử trên môi trường số. Nghĩa vụ tôn trọng bản quyền",
+          "topic": "3: Đạo đức, pháp luật và văn hoá trong môi trường số",
+          "checkpoints": [
+            60,
+            120,
+            160,
+            200
+          ]
+        },
+        "TIN10-BAI12.mp4": {
+          "video": "TIN10-BAI12.mp4",
+          "lesson": "Bài 12: Phần mềm thiết kế đồ hoạ",
+          "topic": "4: Ứng dụng tin học",
+          "checkpoints": [
+            60,
+            120,
+            180,
+            240
+          ]
+        },
+        "TIN10-BAI13.mp4": {
+          "video": "TIN10-BAI13.mp4",
+          "lesson": "Bài 13: Bổ sung các đối tượng đồ họa",
+          "topic": "4: Ứng dụng tin học",
+          "checkpoints": [
+            45,
+            90,
+            130,
+            180
+          ]
+        },
+        "TIN10-BAI14.mp4": {
+          "video": "TIN10-BAI14.mp4",
+          "lesson": "Bài 14: Làm việc với đối tượng đường và văn bản",
+          "topic": "4: Ứng dụng tin học",
+          "checkpoints": [
+            60,
+            120,
+            180,
+            250
+          ]
+        },
+        "TIN10-BAI15.mp4": {
+          "video": "TIN10-BAI15.mp4",
+          "lesson": "Bài 15: Hoàn thiện hình ảnh đồ hoạ",
+          "topic": "4: Ứng dụng tin học",
+          "checkpoints": [
+            45,
+            100,
+            150,
+            190
+          ]
+        },
+        "TIN10-BAI16.mp4": {
+          "video": "TIN10-BAI16.mp4",
+          "lesson": "Bài 16: Ngôn ngữ lập trình bậc cao và Python",
+          "topic": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
+          "checkpoints": [
+            60,
+            120,
+            180,
+            230
+          ]
+        },
+        "TIN10-BAI17.mp4": {
+          "video": "TIN10-BAI17.mp4",
+          "lesson": "Bài 17: Biến và lệnh gán",
+          "topic": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
+          "checkpoints": [
+            60,
+            120,
+            180,
+            240
+          ]
+        },
+        "TIN10-BAI18.mp4": {
+          "video": "TIN10-BAI18.mp4",
+          "lesson": "Bài 18: Các lệnh vào ra đơn giản",
+          "topic": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
+          "checkpoints": [
+            40,
+            90,
+            130,
+            160
+          ]
+        },
+        "TIN10-BAI19.mp4": {
+          "video": "TIN10-BAI19.mp4",
+          "lesson": "Bài 19: Lệnh rẽ nhánh if",
+          "topic": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
+          "checkpoints": [
+            60,
+            120,
+            165,
+            229
+          ]
+        },
+        "TIN10-BAI20.mp4": {
+          "video": "TIN10-BAI20.mp4",
+          "lesson": "Bài 20: Câu lệnh lặp for",
+          "topic": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
+          "checkpoints": [
+            60,
+            100,
+            140,
+            180
+          ]
+        },
+        "TIN10-BAI21.mp4": {
+          "video": "TIN10-BAI21.mp4",
+          "lesson": "Bài 21: Lệnh lặp while",
+          "topic": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
+          "checkpoints": [
+            45,
+            90,
+            135,
+            165
+          ]
+        },
+        "TIN10-BAI22.mp4": {
+          "video": "TIN10-BAI22.mp4",
+          "lesson": "Bài 22: Kiểu dữ liệu danh sách",
+          "topic": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
+          "checkpoints": [
+            45,
+            105,
+            165,
+            225
+          ]
+        },
+        "TIN10-BAI23.mp4": {
+          "video": "TIN10-BAI23.mp4",
+          "lesson": "Bài 23: Một số lệnh làm việc với dữ liệu danh sách",
+          "topic": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
+          "checkpoints": [
+            40,
+            80,
+            120,
+            180
+          ]
+        },
+        "TIN10-BAI24.mp4": {
+          "video": "TIN10-BAI24.mp4",
+          "lesson": "Bài 24: Xâu kí tự",
+          "topic": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
+          "checkpoints": [
+            45,
+            90,
+            135,
+            170
+          ]
+        },
+        "TIN10-BAI25.mp4": {
+          "video": "TIN10-BAI25.mp4",
+          "lesson": "Bài 25: Một số lệnh làm việc với xâu kí tự",
+          "topic": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
+          "checkpoints": [
+            40,
+            80,
+            120,
+            160
+          ]
+        },
+        "TIN10-BAI26.mp4": {
+          "video": "TIN10-BAI26.mp4",
+          "lesson": "Bài 26: Hàm trong Python",
+          "topic": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
+          "checkpoints": [
+            50,
+            110,
+            170,
+            230
+          ]
+        },
+        "TIN10-BAI27.mp4": {
+          "video": "TIN10-BAI27.mp4",
+          "lesson": "Bài 27: Tham số của hàm",
+          "topic": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
+          "checkpoints": [
+            45,
+            90,
+            150,
+            180
+          ]
+        },
+        "TIN10-BAI28.mp4": {
+          "video": "TIN10-BAI28.mp4",
+          "lesson": "Bài 28: Phạm vi của biến",
+          "topic": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
+          "checkpoints": [
+            45,
+            90,
+            135,
+            165
+          ]
+        },
+        "TIN10-BAI29.mp4": {
+          "video": "TIN10-BAI29.mp4",
+          "lesson": "Bài 29: Nhận biết lỗi chương trình",
+          "topic": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
+          "checkpoints": [
+            65,
+            115,
+            175,
+            215
+          ]
+        },
+        "TIN10-BAI30.mp4": {
+          "video": "TIN10-BAI30.mp4",
+          "lesson": "Bài 30: Kiểm thử và gỡ lỗi chương trình",
+          "topic": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
+          "checkpoints": [
+            60,
+            110,
+            160,
+            200
+          ]
+        },
+        "TIN10-BAI31.mp4": {
+          "video": "TIN10-BAI31.mp4",
+          "lesson": "Bài 31: Thực hành Python",
+          "topic": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
+          "checkpoints": [
+            40,
+            80,
+            120,
+            160
+          ]
+        },
+        "TIN10-BAI32.mp4": {
+          "video": "TIN10-BAI32.mp4",
+          "lesson": "Bài 32: Ôn tập lập trình Python",
+          "topic": "5: Giải quyết vấn đề với sự trợ giúp của máy tính",
+          "checkpoints": [
+            45,
+            90,
+            135,
+            180
+          ]
+        },
+        "TIN10-BAI33.mp4": {
+          "video": "TIN10-BAI33.mp4",
+          "lesson": "Bài 33: Nghề thiết kế đồ hoạ máy tính",
+          "topic": "6: Hướng nghiệp với Tin học",
+          "checkpoints": [
+            40,
+            80,
+            120,
+            160
+          ]
+        },
+        "TIN10-BAI34.mp4": {
+          "video": "TIN10-BAI34.mp4",
+          "lesson": "Bài 34: Nghề phát triển phần mềm",
+          "topic": "6: Hướng nghiệp với tin học",
+          "checkpoints": [
+            100,
+            150,
+            200,
+            230
+          ]
+        }
       }
     },
     "11": {
@@ -777,6 +1153,348 @@
               }
             }
           }
+        }
+      },
+      "interactive_videos": {
+        "TIN11-BAI1.mp4": {
+          "video": "TIN11-BAI1.mp4",
+          "lesson": "Bài 1: Hệ điều hành",
+          "topic": "Chủ đề 1: Máy tính và xã hội tri thức",
+          "checkpoints": [
+            45,
+            90,
+            135,
+            182
+          ]
+        },
+        "TIN11-BAI2.mp4": {
+          "video": "TIN11-BAI2.mp4",
+          "lesson": "Bài 2: Thực hành sử dụng hệ điều hành",
+          "topic": "Chủ đề 1: Máy tính và xã hội tri thức",
+          "checkpoints": [
+            48,
+            80,
+            108,
+            166
+          ]
+        },
+        "TIN11-BAI3.mp4": {
+          "video": "TIN11-BAI3.mp4",
+          "lesson": "Bài 3: Phần mềm nguồn mở và phần mềm chạy trên Internet",
+          "topic": "Chủ đề 1: Máy tính và xã hội tri thức",
+          "checkpoints": [
+            52,
+            112,
+            165,
+            200
+          ]
+        },
+        "TIN11-BAI4.mp4": {
+          "video": "TIN11-BAI4.mp4",
+          "lesson": "Bài 4: Bên trong máy tính",
+          "topic": "Chủ đề 1: Máy tính và xã hội tri thức",
+          "checkpoints": [
+            117,
+            168,
+            232,
+            265
+          ]
+        },
+        "TIN11-BAI5.mp4": {
+          "video": "TIN11-BAI5.mp4",
+          "lesson": "Bài 5: Kết nối máy tính với các thiết bị số",
+          "topic": "Chủ đề 1: Máy tính và xã hội tri thức",
+          "checkpoints": [
+            35,
+            72,
+            135,
+            237
+          ]
+        },
+        "TIN11-BAI6.mp4": {
+          "video": "TIN11-BAI6.mp4",
+          "lesson": "Bài 6. Lưu trữ và chia sẻ tệp tin trên Internet",
+          "topic": "Chủ đề 2. Tổ chức lưu trữ, tìm kiếm và trao đổi thông tin",
+          "checkpoints": [
+            73,
+            108,
+            146,
+            185
+          ]
+        },
+        "TIN11-BAI7.mp4": {
+          "video": "TIN11-BAI7.mp4",
+          "lesson": "Bài 7. Thực hành tìm kiếm thông tin trên Internet",
+          "topic": "Chủ đề 2. Tổ chức lưu trữ, tìm kiếm và trao đổi thông tin",
+          "checkpoints": [
+            55,
+            103,
+            130,
+            175
+          ]
+        },
+        "TIN11-BAI8.mp4": {
+          "video": "TIN11-BAI8.mp4",
+          "lesson": "Bài 8. Thực hành nâng cao sử dụng thư điện tử và mạng xã hội",
+          "topic": "Chủ đề 2. Tổ chức lưu trữ, tìm kiếm và trao đổi thông tin",
+          "checkpoints": [
+            105,
+            168,
+            225,
+            238
+          ]
+        },
+        "TIN11-BAI9.mp4": {
+          "video": "TIN11-BAI9.mp4",
+          "lesson": "Bài 9. Giao tiếp an toàn trên Internet",
+          "topic": "Chủ đề 3. Đạo đức, pháp luật và văn hoá trong môi trường số",
+          "checkpoints": [
+            113,
+            165,
+            247,
+            329
+          ]
+        },
+        "TIN11-BAI10.mp4": {
+          "video": "TIN11-BAI10.mp4",
+          "lesson": "Bài 10. Lưu trữ dữ liệu và khai thác thông tin phục vụ quản lí",
+          "topic": "Chủ đề 4. Giới thiệu các hệ cơ sở dữ liệu",
+          "checkpoints": [
+            60,
+            120,
+            180,
+            244
+          ]
+        },
+        "TIN11-BAI11.mp4": {
+          "video": "TIN11-BAI11.mp4",
+          "lesson": "Bài 10. Lưu trữ dữ liệu và khai thác thông tin phục vụ quản lí",
+          "topic": "Chủ đề 4. Giới thiệu các hệ cơ sở dữ liệu",
+          "checkpoints": [
+            65,
+            123,
+            164,
+            205
+          ]
+        },
+        "TIN11-BAI12.mp4": {
+          "video": "TIN11-BAI12.mp4",
+          "lesson": "Bài 12. Hệ quản trị cơ sở dữ liệu và hệ cơ sở dữ liệu",
+          "topic": "Chủ đề 4. Giới thiệu các hệ cơ sở dữ liệu",
+          "checkpoints": [
+            60,
+            110,
+            145,
+            234
+          ]
+        },
+        "TIN11-BAI13.mp4": {
+          "video": "TIN11-BAI13.mp4",
+          "lesson": "Bài 13. Cơ sở dữ liệu quan hệ",
+          "topic": "Chủ đề 4. Giới thiệu các hệ cơ sở dữ liệu",
+          "checkpoints": [
+            110,
+            169,
+            250,
+            290
+          ]
+        },
+        "TIN11-BAI14.mp4": {
+          "video": "TIN11-BAI14.mp4",
+          "lesson": "Bài 14. SQL – Ngôn ngữ truy vấn có cấu trúc",
+          "topic": "Chủ đề 4. Giới thiệu các hệ cơ sở dữ liệu",
+          "checkpoints": [
+            106,
+            164,
+            234,
+            262
+          ]
+        },
+        "TIN11-BAI15.mp4": {
+          "video": "TIN11-BAI15.mp4",
+          "lesson": "Bài 15. Bảo mật và an toàn hệ cơ sở dữ liệu",
+          "topic": "Chủ đề 4. Giới thiệu các hệ cơ sở dữ liệu",
+          "checkpoints": [
+            90,
+            180,
+            270,
+            360
+          ]
+        },
+        "TIN11-BAI16.mp4": {
+          "video": "TIN11-BAI16.mp4",
+          "lesson": "Bài 16. Công việc quản trị cơ sở dữ liệu",
+          "topic": "Chủ đề 5. Hướng nghiệp với tin học",
+          "checkpoints": [
+            45,
+            90,
+            135,
+            180
+          ]
+        },
+        "TIN11-BAI17.mp4": {
+          "video": "TIN11-BAI17.mp4",
+          "lesson": "Bài 17. Quản trị cơ sở dữ liệu trên máy tính",
+          "topic": "Chủ đề 6: Thực hành tạo và khai thác cơ sở dữ liệu",
+          "checkpoints": [
+            60,
+            120,
+            180,
+            233
+          ]
+        },
+        "TIN11-BAI18.mp4": {
+          "video": "TIN11-BAI18.mp4",
+          "lesson": "Bài 18. Thực hành xác định cấu trúc bảng và các trường khoá",
+          "topic": "Chủ đề 6: Thực hành tạo và khai thác cơ sở dữ liệu",
+          "checkpoints": [
+            55,
+            159,
+            240,
+            247
+          ]
+        },
+        "TIN11-BAI19.mp4": {
+          "video": "TIN11-BAI19.mp4",
+          "lesson": "Bài 19. Thực hành tạo lập cơ sở dữ liệu và các bảng",
+          "topic": "Chủ đề 6: Thực hành tạo và khai thác cơ sở dữ liệu",
+          "checkpoints": [
+            90,
+            180,
+            270,
+            360
+          ]
+        },
+        "TIN11-BAI20.mp4": {
+          "video": "TIN11-BAI20.mp4",
+          "lesson": "Bài 20. Thực hành tạo lập các bảng có khoá ngoài",
+          "topic": "Chủ đề 6: Thực hành tạo và khai thác cơ sở dữ liệu",
+          "checkpoints": [
+            134,
+            192,
+            229,
+            297
+          ]
+        },
+        "TIN11-BAI21.mp4": {
+          "video": "TIN11-BAI21.mp4",
+          "lesson": "Bài 21. Thực hành cập nhật và truy xuất dữ liệu các bảng",
+          "topic": "Chủ đề 6: Thực hành tạo và khai thác cơ sở dữ liệu",
+          "checkpoints": [
+            82,
+            180,
+            236,
+            260
+          ]
+        },
+        "TIN11-BAI22.mp4": {
+          "video": "TIN11-BAI22.mp4",
+          "lesson": "Bài 22. Thực hành cập nhật bảng dữ liệu có tham chiếu",
+          "topic": "Chủ đề 6: Thực hành tạo và khai thác cơ sở dữ liệu",
+          "checkpoints": [
+            90,
+            180,
+            270,
+            360
+          ]
+        },
+        "TIN11-BAI23.mp4": {
+          "video": "TIN11-BAI23.mp4",
+          "lesson": "Bài 23. Thực hành truy xuất dữ liệu qua liên kết các bảng",
+          "topic": "Chủ đề 6: Thực hành tạo và khai thác cơ sở dữ liệu",
+          "checkpoints": [
+            106,
+            111,
+            113
+          ]
+        },
+        "TIN11-BAI24.mp4": {
+          "video": "TIN11-BAI24.mp4",
+          "lesson": "Bài 24. Thực hành sao lưu dữ liệu",
+          "topic": "Chủ đề 6: Thực hành tạo và khai thác cơ sở dữ liệu",
+          "checkpoints": [
+            60,
+            120,
+            180,
+            210
+          ]
+        },
+        "TIN11-BAI25.mp4": {
+          "video": "TIN11-BAI25.mp4",
+          "lesson": "Bài 25. Phần mềm chỉnh sửa ảnh",
+          "topic": "Chủ đề 7: Phần mềm chỉnh sửa ảnh và làm video",
+          "checkpoints": [
+            90,
+            180,
+            270,
+            360
+          ]
+        },
+        "TIN11-BAI26.mp4": {
+          "video": "TIN11-BAI26.mp4",
+          "lesson": "Bài 26. Công cụ tinh chỉnh màu sắc và công cụ chọn",
+          "topic": "Chủ đề 7: Phần mềm chỉnh sửa ảnh và làm video",
+          "checkpoints": [
+            67,
+            110,
+            146,
+            245
+          ]
+        },
+        "TIN11-BAI27.mp4": {
+          "video": "TIN11-BAI27.mp4",
+          "lesson": "Bài 27. Công cụ vẽ và một số ứng dụng",
+          "topic": "Chủ đề 7: Phần mềm chỉnh sửa ảnh và làm video",
+          "checkpoints": [
+            79,
+            138,
+            182,
+            202
+          ]
+        },
+        "TIN11-BAI28.mp4": {
+          "video": "TIN11-BAI28.mp4",
+          "lesson": "Bài 28. Tạo ảnh động",
+          "topic": "Chủ đề 7: Phần mềm chỉnh sửa ảnh và làm video",
+          "checkpoints": [
+            90,
+            180,
+            289,
+            302
+          ]
+        },
+        "TIN11-BAI29.mp4": {
+          "video": "TIN11-BAI29.mp4",
+          "lesson": "Bài 29. Khám phá phần mềm làm phim",
+          "topic": "Chủ đề 7: Phần mềm chỉnh sửa ảnh và làm video",
+          "checkpoints": [
+            92,
+            158,
+            191,
+            244
+          ]
+        },
+        "TIN11-BAI30.mp4": {
+          "video": "TIN11-BAI30.mp4",
+          "lesson": "Bài 30. Biên tập phim",
+          "topic": "Chủ đề 7: Phần mềm chỉnh sửa ảnh và làm video",
+          "checkpoints": [
+            102,
+            176,
+            211,
+            250
+          ]
+        },
+        "TIN11-BAI31.mp4": {
+          "video": "TIN11-BAI31.mp4",
+          "lesson": "Bài 31. Thực hành tạo phim hoạt hình",
+          "topic": "Chủ đề 7: Phần mềm chỉnh sửa ảnh và làm video",
+          "checkpoints": [
+            60,
+            120,
+            180,
+            214
+          ]
         }
       }
     },
@@ -1177,6 +1895,320 @@
               }
             }
           }
+        }
+      },
+      "interactive_videos": {
+        "K12Bai01.mp4": {
+          "video": "K12Bai01.mp4",
+          "lesson": "Bài 01. Làm quen với trí tuệ nhân tạo",
+          "topic": "1. MÁY TÍNH VÀ XÃ HỘI TRI THỨC",
+          "checkpoints": [
+            89,
+            172,
+            206,
+            304
+          ]
+        },
+        "K12Bai02.mp4": {
+          "video": "K12Bai02.mp4",
+          "lesson": "Bài 02. Trí tuệ nhân tạo trong khoa học và đời sống",
+          "topic": "1. MÁY TÍNH VÀ XÃ HỘI TRI THỨC",
+          "checkpoints": [
+            94,
+            147,
+            196,
+            265
+          ]
+        },
+        "K12Bai03.mp4": {
+          "video": "K12Bai03.mp4",
+          "lesson": "Bài 03. Một số thiết bị mạng thông dụng",
+          "topic": "2. MẠNG MÁY TÍNH VÀ INTERNET",
+          "checkpoints": [
+            135,
+            165,
+            263,
+            386
+          ]
+        },
+        "K12Bai04.mp4": {
+          "video": "K12Bai04.mp4",
+          "lesson": "Bài 04. Giao thức mạng",
+          "topic": "2. MẠNG MÁY TÍNH VÀ INTERNET",
+          "checkpoints": [
+            109,
+            197,
+            261,
+            358
+          ]
+        },
+        "K12Bai05.mp4": {
+          "video": "K12Bai05.mp4",
+          "lesson": "Bài 05. Thực hành chia sẻ tài nguyên trên mạng",
+          "topic": "2. MẠNG MÁY TÍNH VÀ INTERNET",
+          "checkpoints": [
+            87,
+            140,
+            198,
+            238,
+            336
+          ]
+        },
+        "K12Bai06.mp4": {
+          "video": "K12Bai06.mp4",
+          "lesson": "Bài 06. Giao tiếp và ứng xử trong không gian mạng",
+          "topic": "3. ĐẠO ĐỨC PHÁP LUẬT VÀ VĂN HÓA TRONG MÔI TRƯỜNG SỐ",
+          "checkpoints": [
+            65,
+            103,
+            131,
+            172
+          ]
+        },
+        "K12Bai07.mp4": {
+          "video": "K12Bai07.mp4",
+          "lesson": "Bài 07. HTML và cấu trúc trang web",
+          "topic": "4. GIẢI QUYẾT VẤN ĐỀ VỚI SỰ TRỢ GIÚP CỦA MÁY TÍNH",
+          "checkpoints": [
+            76,
+            181,
+            264,
+            342
+          ]
+        },
+        "K12Bai08.mp4": {
+          "video": "K12Bai08.mp4",
+          "lesson": "Bài 08. Định dạng văn bản",
+          "topic": "4. GIẢI QUYẾT VẤN ĐỀ VỚI SỰ TRỢ GIÚP CỦA MÁY TÍNH",
+          "checkpoints": [
+            138,
+            219,
+            279,
+            351
+          ]
+        },
+        "K12Bai09.mp4": {
+          "video": "K12Bai09.mp4",
+          "lesson": "Bài 09. Tạo danh sách, bảng",
+          "topic": "4. GIẢI QUYẾT VẤN ĐỀ VỚI SỰ TRỢ GIÚP CỦA MÁY TÍNH",
+          "checkpoints": [
+            188,
+            276,
+            328
+          ]
+        },
+        "K12Bai10.mp4": {
+          "video": "K12Bai10.mp4",
+          "lesson": "Bài 10. Tạo liên kết",
+          "topic": "4. GIẢI QUYẾT VẤN ĐỀ VỚI SỰ TRỢ GIÚP CỦA MÁY TÍNH",
+          "checkpoints": [
+            143,
+            227,
+            260,
+            318
+          ]
+        },
+        "K12Bai11.mp4": {
+          "video": "K12Bai11.mp4",
+          "lesson": "Bài 11. Chèn tệp đa phương tiên và khung nội tuyến vào trang web",
+          "topic": "4. GIẢI QUYẾT VẤN ĐỀ VỚI SỰ TRỢ GIÚP CỦA MÁY TÍNH",
+          "checkpoints": [
+            142,
+            195,
+            258,
+            308
+          ]
+        },
+        "K12Bai12.mp4": {
+          "video": "K12Bai12.mp4",
+          "lesson": "Bài 12. Tạo biểu mẫu",
+          "topic": "4. GIẢI QUYẾT VẤN ĐỀ VỚI SỰ TRỢ GIÚP CỦA MÁY TÍNH",
+          "checkpoints": [
+            93,
+            184,
+            261,
+            374
+          ]
+        },
+        "K12Bai13.mp4": {
+          "video": "K12Bai13.mp4",
+          "lesson": "Bài 13. Khái niệm, vai trò của CSS",
+          "topic": "4. GIẢI QUYẾT VẤN ĐỀ VỚI SỰ TRỢ GIÚP CỦA MÁY TÍNH",
+          "checkpoints": [
+            40,
+            112,
+            134,
+            185,
+            229,
+            311
+          ]
+        },
+        "K12Bai14.mp4": {
+          "video": "K12Bai14.mp4",
+          "lesson": "Bài 14. Định dạng văn bản bằng CSS",
+          "topic": "4. GIẢI QUYẾT VẤN ĐỀ VỚI SỰ TRỢ GIÚP CỦA MÁY TÍNH",
+          "checkpoints": [
+            41,
+            116,
+            160,
+            188,
+            229,
+            337,
+            395
+          ]
+        },
+        "K12Bai15.mp4": {
+          "video": "K12Bai15.mp4",
+          "lesson": "Bài 15. Tạo màu cho chữ và nền",
+          "topic": "4. GIẢI QUYẾT VẤN ĐỀ VỚI SỰ TRỢ GIÚP CỦA MÁY TÍNH",
+          "checkpoints": [
+            149,
+            225,
+            373
+          ]
+        },
+        "K12Bai16.mp4": {
+          "video": "K12Bai16.mp4",
+          "lesson": "Bài 16. Định dạng khung",
+          "topic": "4. GIẢI QUYẾT VẤN ĐỀ VỚI SỰ TRỢ GIÚP CỦA MÁY TÍNH",
+          "checkpoints": [
+            114,
+            158,
+            217,
+            325
+          ]
+        },
+        "K12Bai17.mp4": {
+          "video": "K12Bai17.mp4",
+          "lesson": "Bài 17. Các mức ưu tiên của bộ chọn",
+          "topic": "4. GIẢI QUYẾT VẤN ĐỀ VỚI SỰ TRỢ GIÚP CỦA MÁY TÍNH",
+          "checkpoints": [
+            158,
+            200,
+            293,
+            397
+          ]
+        },
+        "K12Bai18.mp4": {
+          "video": "K12Bai18.mp4",
+          "lesson": "Bài 18. Thực hành tổng hợp thiết kế trang Web",
+          "topic": "4. GIẢI QUYẾT VẤN ĐỀ VỚI SỰ TRỢ GIÚP CỦA MÁY TÍNH",
+          "checkpoints": [
+            119,
+            196,
+            256,
+            345
+          ]
+        },
+        "K12Bai19.mp4": {
+          "video": "K12Bai19.mp4",
+          "lesson": "Bài 19. Dịch vụ sửa chữa và bảo trì máy tính",
+          "topic": "5. HƯỚNG NGHIỆP VỚI TIN HỌC",
+          "checkpoints": [
+            109,
+            172,
+            210,
+            281
+          ]
+        },
+        "K12Bai20.mp4": {
+          "video": "K12Bai20.mp4",
+          "lesson": "Bài 20. Nhóm nghề Quản trị thuộc ngành Công nghệ thông tin",
+          "topic": "5. HƯỚNG NGHIỆP VỚI TIN HỌC",
+          "checkpoints": [
+            79,
+            253,
+            327,
+            404
+          ]
+        },
+        "K12Bai21.mp4": {
+          "video": "K12Bai21.mp4",
+          "lesson": "Bài 21 Hội thảo hướng nghiệp",
+          "topic": "5. HƯỚNG NGHIỆP VỚI TIN HỌC",
+          "checkpoints": [
+            93,
+            157,
+            293,
+            371
+          ]
+        },
+        "K12Bai22.mp4": {
+          "video": "K12Bai22.mp4",
+          "lesson": "Bài 22. Thực hành kết nối các thiết bị số",
+          "topic": "6. MÁY TÍNH VÀ XÃ HỘI TRI THỨC",
+          "checkpoints": [
+            137,
+            208,
+            298,
+            377
+          ]
+        },
+        "K12Bai23.mp4": {
+          "video": "K12Bai23.mp4",
+          "lesson": "Bài 23. Chuẩn bị xây dựng trang web",
+          "topic": "7. ỨNG DỤNG TIN HỌC",
+          "checkpoints": [
+            90,
+            178,
+            233,
+            291
+          ]
+        },
+        "K12Bai24.mp4": {
+          "video": "K12Bai24.mp4",
+          "lesson": "Bài 24. Xây dựng phần đầu trang web",
+          "topic": "7. ỨNG DỤNG TIN HỌC",
+          "checkpoints": [
+            67,
+            102,
+            172,
+            230
+          ]
+        },
+        "K12Bai25.mp4": {
+          "video": "K12Bai25.mp4",
+          "lesson": "Bài 25 Xây dựng phần thân và chân trang web",
+          "topic": "7. ỨNG DỤNG TIN HỌC",
+          "checkpoints": [
+            86,
+            144,
+            193,
+            285
+          ]
+        },
+        "K12Bai26.mp4": {
+          "video": "K12Bai26.mp4",
+          "lesson": "Bài 26: Liên kết và thanh điều hướng.",
+          "topic": "7. ỨNG DỤNG TIN HỌC",
+          "checkpoints": [
+            77,
+            195,
+            237,
+            349
+          ]
+        },
+        "K12Bai27.mp4": {
+          "video": "K12Bai27.mp4",
+          "lesson": "Bài 27: Biểu mẫu trên trang web.",
+          "topic": "7. ỨNG DỤNG TIN HỌC",
+          "checkpoints": [
+            96,
+            139,
+            172,
+            267
+          ]
+        },
+        "K12Bai28.mp4": {
+          "video": "K12Bai28.mp4",
+          "lesson": "Bài 28. Thực hành tổng hợp",
+          "topic": "7. ỨNG DỤNG TIN HỌC",
+          "checkpoints": [
+            158,
+            224,
+            299,
+            441
+          ]
         }
       }
     }
