@@ -1,17 +1,53 @@
 /* =========================================================
-   TIN HỌC HUB - STYLESHEET TƯƠNG THÍCH ĐA TỈ LỆ KHUNG HÌNH
-   Hỗ trợ 100% Phone (16:9 đến 21:9), Foldables, Tablet, Desktop, Ultrawide
+   TIN HỌC HUB - KIẾN TRÚC BỐ CỤC LỎNG THÍCH ỨNG TOÀN DIỆN
+   (FLUID & ADAPTIVE ARCHITECTURE FOR ALL SCREEN FORMATS)
+   Hỗ trợ 100%: Smartwatch (<320px tròn/vuông), Foldables,
+   Phablets (16:9 - 21:9), Tablets (Split View), Desktop,
+   Ultrawide (21:9, 32:9) & Smart TV (4K/8K 10-foot UI).
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
+/* =========================================================
+   1. HỆ THỐNG BIẾN THÍCH ỨNG TOÀN CẦU (FLUID DESIGN TOKENS)
+   Triệt tiêu "Magic Numbers" bằng clamp() & đơn vị động
+   ========================================================= */
 :root {
   --font-main: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+
+  /* Safe Area Insets (iOS Dynamic Island, Android notch, bottom gesture bar) */
   --sat: env(safe-area-inset-top, 0px);
   --sar: env(safe-area-inset-right, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
   --sal: env(safe-area-inset-left, 0px);
+
+  /* Fluid Spacing Scale: Tự động co giãn theo tỷ lệ khung hình */
+  --fluid-space-2xs: clamp(0.2rem, 0.3vw + 0.2vh, 0.375rem);
+  --fluid-space-xs:  clamp(0.35rem, 0.5vw + 0.3vh, 0.625rem);
+  --fluid-space-sm:  clamp(0.5rem, 0.8vw + 0.5vh, 1rem);
+  --fluid-space-md:  clamp(0.75rem, 1.2vw + 0.8vh, 1.75rem);
+  --fluid-space-lg:  clamp(1rem, 2vw + 1.2vh, 2.5rem);
+  --fluid-space-xl:  clamp(1.5rem, 3vw + 2vh, 3.75rem);
+
+  /* Fluid Typography Scale */
+  --fluid-font-2xs: clamp(0.65rem, 0.5vw + 0.3vh, 0.75rem);
+  --fluid-font-xs:  clamp(0.72rem, 0.65vw + 0.35vh, 0.85rem);
+  --fluid-font-sm:  clamp(0.8rem, 0.8vw + 0.4vh, 0.95rem);
+  --fluid-font-base: clamp(0.9rem, 0.95vw + 0.5vh, 1.125rem);
+  --fluid-font-lg:  clamp(1.05rem, 1.2vw + 0.6vh, 1.45rem);
+  --fluid-font-xl:  clamp(1.25rem, 1.6vw + 0.9vh, 2rem);
+  --fluid-font-2xl: clamp(1.5rem, 2.4vw + 1.2vh, 2.85rem);
+  --fluid-font-hero: clamp(1.75rem, 3.5vw + 1.5vh, 3.75rem);
+
+  /* Chiều cao khung nhìn động (Dynamic Viewport Height - dvh) */
+  --vh-actual: 100dvh;
+}
+
+@supports not (height: 100dvh) {
+  :root {
+    --vh-actual: 100vh;
+  }
 }
 
 html {
@@ -21,7 +57,7 @@ html {
 
 body {
   font-family: var(--font-main);
-  min-height: 100dvh;
+  min-height: var(--vh-actual);
   min-height: -webkit-fill-available;
   overflow-x: hidden;
   padding-top: var(--sat);
@@ -35,11 +71,231 @@ code, pre, .font-code {
   font-family: var(--font-mono);
 }
 
-/* Tối ưu cảm ứng cho điện thoại & máy tính bảng (loại bỏ 300ms delay) */
+/* Tối ưu cảm ứng loại bỏ độ trễ 300ms và chống chạm nhầm */
 button, a, input, select, textarea, [role="button"] {
   touch-action: manipulation;
 }
 
+/* =========================================================
+   2. CONTAINER QUERIES (TỪ SCREEN-BASED SANG CONTAINER-BASED)
+   Giải quyết trọn vẹn màn hình gập & chia đôi cửa sổ Tablet
+   ========================================================= */
+#app-main,
+.fluid-container,
+.view-section,
+.adaptive-container,
+.modal-box-adaptive {
+  container-type: inline-size;
+}
+
+/* Các quy tắc thích ứng dựa theo độ rộng khung chứa component */
+@container (max-width: 520px) {
+  .container-stack-on-mobile {
+    flex-direction: column !important;
+  }
+  .container-grid-1col {
+    grid-template-columns: 1fr !important;
+  }
+  .container-hide-compact {
+    display: none !important;
+  }
+  .container-compact-text {
+    font-size: var(--fluid-font-xs) !important;
+  }
+  .container-compact-p {
+    padding: var(--fluid-space-xs) !important;
+  }
+}
+
+@container (min-width: 521px) and (max-width: 880px) {
+  .container-grid-adaptive {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@container (min-width: 881px) {
+  .container-grid-adaptive {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+  }
+}
+
+/* =========================================================
+   3. BỐ CỤC LƯỚI TỰ ĐỘNG THÔNG MINH (SMART AUTO-GRID)
+   ========================================================= */
+.auto-grid-fluid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: var(--fluid-space-md);
+}
+
+.auto-grid-compact {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: var(--fluid-space-sm);
+}
+
+.auto-grid-palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 40px), 1fr));
+  gap: 0.35rem;
+}
+
+/* =========================================================
+   4. MÀN HÌNH SIÊU RỘNG (ULTRAWIDE 21:9 & 32:9) & SMART TV
+   Tránh mỏi cổ bằng Golden Reading Zone giới hạn 75ch
+   ========================================================= */
+@media (min-width: 1700px) {
+  #app-header > div,
+  #app-main,
+  footer > div {
+    max-width: 1540px !important;
+    margin-inline: auto !important;
+  }
+
+  /* Giới hạn độ rộng dòng chữ tối ưu cho mắt đọc (65 - 78 ký tự/dòng) */
+  .reading-constrained,
+  .question-stem,
+  .lesson-content {
+    max-width: 80ch !important;
+  }
+}
+
+@media (min-width: 2400px) {
+  #app-header > div,
+  #app-main,
+  footer > div {
+    max-width: 1720px !important;
+    margin-inline: auto !important;
+  }
+}
+
+/* Smart TV 4K/8K (Khoảng cách nhìn xa 2 - 3 mét: Ten-Foot UI) */
+@media (min-width: 2560px) and (min-height: 1200px) {
+  html {
+    font-size: 18px;
+  }
+
+  .option-btn {
+    min-height: 56px !important;
+    font-size: 1.1rem !important;
+  }
+}
+
+@media (min-width: 3840px) {
+  html {
+    font-size: 22px;
+  }
+
+  .option-btn {
+    min-height: 64px !important;
+    font-size: 1.25rem !important;
+  }
+}
+
+/* =========================================================
+   5. WEARABLE & SMARTWATCH (<320px, MÀN HÌNH VUÔNG/TRÒN)
+   ========================================================= */
+@media (max-width: 320px) {
+  html {
+    font-size: 13px !important;
+  }
+
+  body {
+    padding-left: max(var(--sal), 6px) !important;
+    padding-right: max(var(--sar), 6px) !important;
+  }
+
+  #app-header .max-w-7xl {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+    height: 48px !important;
+  }
+
+  .modal-box-adaptive {
+    max-width: 98vw !important;
+    padding: 0.75rem !important;
+    border-radius: 1rem !important;
+  }
+
+  .option-btn {
+    min-height: 40px !important;
+    padding: 0.4rem 0.6rem !important;
+    font-size: 0.78rem !important;
+  }
+}
+
+/* Bảo vệ màn hình tròn (Smartwatch Shape Protection) */
+@supports (shape-inside: circle()) or (shape-outside: circle()) {
+  .watch-ui-safe {
+    padding: 14% 16% !important;
+    border-radius: 50% !important;
+    overflow: hidden !important;
+    text-align: center;
+  }
+}
+
+/* =========================================================
+   6. SMARTPHONE (16:9 ĐẾN 21:9), NOTCH, DYNAMIC ISLAND & THUMB ZONE
+   ========================================================= */
+.min-h-screen-adaptive {
+  min-height: var(--vh-actual);
+}
+
+.mobile-bottom-bar {
+  padding-bottom: calc(var(--sab) + 0.45rem);
+  padding-left: max(var(--sal), 0.75rem);
+  padding-right: max(var(--sar), 0.75rem);
+}
+
+body.in-exam .mobile-bottom-bar {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  body:not(.in-exam) {
+    padding-bottom: calc(var(--sab) + 4.75rem);
+  }
+}
+
+/* Cuộn mượt trên màn hình cảm ứng */
+.smooth-scroll-touch {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* =========================================================
+   7. ĐIỀU KHIỂN BẰNG BÀN PHÍM / REMOTE TV (SPATIAL NAVIGATION)
+   Vòng tiêu điểm tương phản cao (High-Contrast Focus Visible)
+   ========================================================= */
+:focus-visible {
+  outline: 3px solid #3b82f6 !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.28) !important;
+  border-radius: inherit;
+}
+
+.dark :focus-visible {
+  outline: 3px solid #60a5fa !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(96, 165, 250, 0.35) !important;
+}
+
+/* Khử răng cưa và giữ sắc nét biểu tượng vector SVG/FontAwesome */
+img, svg, i {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Touch Targets theo chuẩn quốc tế Google Material & Apple HIG (>= 44-48px) */
+.touch-target-comfortable {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+/* =========================================================
+   8. CÁC THẺ PHƯƠNG ÁN CÂU HỎI & BẢNG ĐIỀU HƯỚNG BÀI THI
+   ========================================================= */
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -76,7 +332,7 @@ button, a, input, select, textarea, [role="button"] {
   -webkit-backdrop-filter: blur(16px);
 }
 
-/* Option Cards for Questions (Touch Target >= 44px) */
+/* Option Cards for Questions (Touch Target >= 48px) */
 .option-btn {
   min-height: 48px;
   transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
@@ -171,17 +427,8 @@ button, a, input, select, textarea, [role="button"] {
   animation: pulse-subtle 2s infinite ease-in-out;
 }
 
-/* Mobile Bottom Navigation Bar (Dành cho màn hình điện thoại tỉ lệ 16:9 đến 21:9) */
-.mobile-bottom-bar {
-  padding-bottom: calc(var(--sab) + 0.35rem);
-}
-
-body.in-exam .mobile-bottom-bar {
-  display: none !important;
-}
-
 /* =========================================================
-   PROCTOR & CHỐNG GIAN LẬN THI TRỰC TUYẾN ĐA NỀN TẢNG
+   9. PROCTOR & CHỐNG GIAN LẬN THI TRỰC TUYẾN ĐA NỀN TẢNG
    (Windows, macOS, Android, iOS / iPadOS)
    ========================================================= */
 body.in-proctored-exam {
@@ -222,7 +469,6 @@ body.proctor-privacy-shield #view-exam-room {
   animation: alert-shake 0.45s ease-in-out;
 }
 
-/* Hiệu ứng nhấp nháy cảnh báo vi phạm */
 @keyframes proctor-blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
@@ -232,15 +478,8 @@ body.proctor-privacy-shield #view-exam-room {
   animation: proctor-blink 1.2s infinite ease-in-out;
 }
 
-/* Tránh che nội dung trên màn hình điện thoại có bottom bar */
-@media (max-width: 768px) {
-  body:not(.in-exam) {
-    padding-bottom: calc(var(--sab) + 4.5rem);
-  }
-}
-
 /* =========================================================
-   PRINT STYLES - XUẤT ĐỀ THI & ĐÁP ÁN RA GIẤY / PDF
+   10. PRINT STYLES - XUẤT ĐỀ THI & ĐÁP ÁN RA GIẤY / PDF
    ========================================================= */
 @media print {
   body {

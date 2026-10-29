@@ -144,7 +144,19 @@ Hệ thống tự động nhận diện nền tảng (`Proctor.detectPlatform()`
 
 ---
 
-## 5. Schema Dữ liệu Câu hỏi
+## 5. Kiến trúc Bố cục Lỏng Thích Ứng Toàn Diện (Fluid & Adaptive Architecture)
+
+Hệ thống được thiết kế theo tiêu chuẩn bao trùm **100% mọi phân khúc thiết bị trên thị trường**:
+1. **Container Queries (`container-type: inline-size`)**: Chuyển từ screen-based sang container-based, giúp giao diện tự co giãn mượt mà khi người dùng **chia đôi màn hình (Split View / Slide Over)** trên iPad hoặc **gập/mở điện thoại (Foldables)**.
+2. **Fluid Tokens (`clamp()`)**: Tự động điều chỉnh khoảng cách (`--fluid-space-*`) và cỡ chữ (`--fluid-font-*`) theo cả chiều rộng và chiều cao khung nhìn mà không dùng "magic numbers" cố định.
+3. **Màn hình siêu rộng (Ultrawide 21:9 & 32:9)**: Khống chế độ rộng tối đa (Golden Reading Zone) và căn giữa (`margin-inline: auto`), giới hạn dòng đọc 65–80 ký tự để người học không bị mỏi cổ.
+4. **Smart TV & Màn hình 4K/8K (Ten-Foot UI)**: Vòng tiêu điểm tương phản cao (`:focus-visible`), hỗ trợ điều hướng bàn phím / remote D-pad, tự động phóng to font chữ từ khoảng cách 2–3 mét.
+5. **Đồng hồ thông minh & Màn hình phụ (< 320px tròn/vuông)**: Padding hình tròn (`@supports (shape-inside: circle())`), co gọn modal (`.modal-box-adaptive`) và thu nhỏ phím bấm chống cắt góc.
+6. **Điện thoại dài (19.5:9 đến 21:9, Dynamic Island, Tai thỏ)**: Hỗ trợ triệt để Safe Area Insets (`--sat`, `--sab`, `--sal`, `--sar`), `interactive-widget=resizes-content` tránh bàn phím ảo che khuất, và bố trí thanh điều hướng trong vùng với của ngón tay cái (Thumb Zone).
+
+---
+
+## 6. Schema Dữ liệu Câu hỏi
 
 Mỗi câu hỏi tuân thủ cấu trúc đối tượng JSON:
 ```json
@@ -169,7 +181,7 @@ Mỗi câu hỏi tuân thủ cấu trúc đối tượng JSON:
 
 ---
 
-## 6. Quy ước Bắt buộc Khi Chỉnh sửa Code
+## 7. Quy ước Bắt buộc Khi Chỉnh sửa Code
 
 1. **Bảo tồn ES Modules thuần:**
    - Không thêm bước bundler (Webpack/Vite/Rollup) hoặc framework nặng (React/Vue/Svelte) nếu không có yêu cầu rõ ràng.
@@ -185,7 +197,7 @@ Mỗi câu hỏi tuân thủ cấu trúc đối tượng JSON:
 
 ---
 
-## 7. Các Lệnh Kiểm tra Nhanh (Cheat Sheet)
+## 8. Các Lệnh Kiểm tra Nhanh (Cheat Sheet)
 
 Chạy trong môi trường dòng lệnh (PowerShell / Command Prompt):
 
