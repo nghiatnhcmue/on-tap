@@ -1228,6 +1228,9 @@ export const AdminManager = {
     this.uploadProgressStats = {
       totalCount: queue.length,
       currentIdx: 0,
+      successCount: 0,
+      failedCount: 0,
+      failures: [],
       startTime: Date.now()
     };
 
@@ -1241,8 +1244,17 @@ export const AdminManager = {
     if (this.uploadQueue.length === 0) {
       this.isUploading = false;
       this.currentUploadingName = null;
-      alert('🎉 Chúc mừng! Đã tải lên hoàn tất toàn bộ danh sách video bài giảng lên Archive.org!');
+      const stats = this.uploadProgressStats;
       this.render();
+
+      if (stats.successCount === 0) {
+        const firstErr = stats.failures[0] || 'Lỗi mạng hoặc Archive.org từ chối xác thực';
+        alert(`❌ TẢI LÊN THẤT BẠI!\n\nKhông có video nào được lưu trên Archive.org (${stats.failedCount} video lỗi).\nNguyên nhân: ${firstErr}\n\n👉 Vui lòng bấm nút "Kiểm Tra Khóa S3" trong bảng cấu hình để xác thực lại cặp khóa.`);
+      } else if (stats.failedCount > 0) {
+        alert(`⚠️ Đã tải lên thành công ${stats.successCount} / ${stats.totalCount} video.\nCó ${stats.failedCount} video bị lỗi (xem chi tiết ở cột Trạng thái bên dưới).`);
+      } else {
+        alert(`🎉 Chúc mừng! Đã tải lên thành công trọn vẹn ${stats.successCount} video bài giảng lên Archive.org!\nHọc sinh trên mọi thiết bị có thể bấm xem ngay bây giờ.`);
+      }
       return;
     }
 
@@ -1252,7 +1264,7 @@ export const AdminManager = {
 
     const fileSize = item.file ? item.file.size : 0;
     this.updateGlobalProgress(0, item.videoName, '0', 0, fileSize);
-    this.updateRowStatus(item.videoName, 'uploading');
+    this.updateRowStatus(item.videoName, 'uploading', '0%');
 
     try {
       await this.performS3Upload(item.videoName, item.file, item.lesson);
@@ -1265,9 +1277,12 @@ export const AdminManager = {
       };
       Storage.saveVideoConfig(cfg);
       this.remoteArchiveFiles.add(item.videoName.toLowerCase());
+      this.uploadProgressStats.successCount++;
       this.updateRowStatus(item.videoName, 'success');
     } catch (err) {
       console.error(`Lỗi tải lên ${item.videoName}:`, err);
+      this.uploadProgressStats.failedCount++;
+      this.uploadProgressStats.failures.push(err.message);
       this.updateRowStatus(item.videoName, 'error', err.message);
 
       // Nếu lỗi từ chối xác thực khóa S3 (401 hoặc 403 Forbidden / InvalidAccessKeyId)
@@ -1359,6 +1374,7 @@ export const AdminManager = {
           const speedBytes = elapsed > 0 ? e.loaded / elapsed : 0;
           const speedMb = (speedBytes / (1024 * 1024)).toFixed(1);
           this.updateGlobalProgress(percent, videoName, speedMb, e.loaded, e.total);
+          this.updateRowStatus(videoName, 'uploading', `${percent}%`);
         }
       };
 
@@ -1395,16 +1411,17 @@ export const AdminManager = {
     });
   },
 
-  updateRowStatus(videoName, status, errorMsg = '') {
+  updateRowStatus(videoName, status, extra = '') {
     const vLower = (videoName || '').toLowerCase().replace(/[^a-z0-9]/g, '_');
     const cell = document.getElementById(`status-cell-${vLower}`);
     if (cell) {
       if (status === 'success') {
         cell.innerHTML = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">🟢 Đã tải lên Archive</span>';
       } else if (status === 'error') {
-        cell.innerHTML = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300" title="${escapeHtml(errorMsg)}">🔴 Lỗi: ${escapeHtml(errorMsg.slice(0, 35))}</span>`;
+        cell.innerHTML = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300" title="${escapeHtml(extra)}">🔴 Lỗi: ${escapeHtml(extra.slice(0, 35))}</span>`;
       } else if (status === 'uploading') {
-        cell.innerHTML = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 animate-pulse">🔵 Đang tải lên...</span>';
+        const pctStr = extra ? ` (${extra})` : '';
+        cell.innerHTML = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 animate-pulse">🔵 Đang tải lên...${pctStr}</span>`;
       }
     }
   },
