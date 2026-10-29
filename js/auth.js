@@ -236,9 +236,9 @@ export const Auth = {
       if (!firebase.apps || firebase.apps.length === 0) {
         firebase.initializeApp({
           apiKey: cleanKey,
-          authDomain: cfg.authDomain || (cfg.projectId ? `${cfg.projectId}.firebaseapp.com` : undefined),
-          projectId: cfg.projectId,
-          databaseURL: cfg.databaseURL
+          authDomain: cfg.authDomain || (cfg.projectId ? `${cfg.projectId}.firebaseapp.com` : 'on-tap-nghiaedu-tin-hoc.firebaseapp.com'),
+          projectId: cfg.projectId || 'on-tap-nghiaedu-tin-hoc',
+          databaseURL: cfg.databaseURL || 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.firebaseio.com'
         });
       }
 
@@ -534,9 +534,9 @@ export const Auth = {
         this.openFirebaseConfigModal('⚠️ Firebase Web API Key chưa hợp lệ. Vui lòng kiểm tra lại hoặc sử dụng tính năng Trải nghiệm nhanh bên dưới.');
       } else if (err.code === 'auth/popup-blocked') {
         alert('Trình duyệt đã chặn cửa sổ đăng nhập Google (Pop-up blocked)!\nVui lòng nhấp vào biểu tượng Pop-up trên thanh địa chỉ của trình duyệt để "Cho phép Pop-up", sau đó thử lại.');
-      } else if (err.code === 'auth/unauthorized-domain') {
+      } else if (err.code === 'auth/unauthorized-domain' || err.code === 'auth/invalid-continue-uri' || (err.message && err.message.includes('invalid-continue-uri'))) {
         const domain = window.location.hostname;
-        alert(`Tên miền [${domain}] chưa được khai báo trong Firebase!\n\nCách kích hoạt (30 giây):\n1. Mở Firebase Console -> Authentication -> Settings -> Authorized domains\n2. Bấm "Add domain" và nhập: ${domain}\n3. Bấm Lưu và đăng nhập lại.`);
+        alert(`⚠️ TÊN MIỀN CHƯA ĐƯỢC ỦY QUYỀN TRONG FIREBASE!\n\nLỗi: (auth/invalid-continue-uri / unauthorized-domain)\n\n👉 Cách kích hoạt để Google cho phép đăng nhập (chỉ mất 30 giây):\n1. Mở Firebase Console (dự án on-tap-nghiaedu-tin-hoc)\n2. Chọn Authentication -> tab Settings (hoặc Sign-in method)\n3. Cuộn xuống mục [Authorized domains] (Miền được ủy quyền)\n4. Bấm "Add domain" và nhập chính xác: ${domain}\n5. Bấm Lưu và bấm lại nút Đăng nhập Google!`);
       } else if (err.code === 'auth/operation-not-allowed') {
         alert('Phương thức Google Sign-In chưa được bật trong Firebase!\n\nVào Firebase Console -> Authentication -> Sign-in method -> Bật Google (Enable) rồi bấm Lưu.');
       } else if (err.code === 'auth/popup-closed-by-user') {

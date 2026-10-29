@@ -245,13 +245,13 @@ export const Storage = {
       result.apiKey = cloudCfg.apiKey || adminCfg.firebaseApiKey || '';
     }
     if (!result.authDomain) {
-      result.authDomain = cloudCfg.authDomain || (derivedProjectId ? `${derivedProjectId}.firebaseapp.com` : '');
+      result.authDomain = cloudCfg.authDomain || (derivedProjectId ? `${derivedProjectId}.firebaseapp.com` : 'on-tap-nghiaedu-tin-hoc.firebaseapp.com');
     }
     if (!result.projectId) {
-      result.projectId = cloudCfg.projectId || derivedProjectId || '';
+      result.projectId = cloudCfg.projectId || derivedProjectId || 'on-tap-nghiaedu-tin-hoc';
     }
     if (!result.databaseURL) {
-      result.databaseURL = dbUrl;
+      result.databaseURL = dbUrl || 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.firebaseio.com';
     }
 
     // Kiểm tra và chuẩn hóa Firebase Web API Key: Bắt đầu bằng 'AIza'
