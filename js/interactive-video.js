@@ -263,24 +263,26 @@ export const InteractiveVideo = {
               Vừa xem bài giảng vừa trả lời các câu hỏi mốc dừng. Hệ thống trang bị <b>giám sát chống gian lận đa nền tảng</b>, hỗ trợ <b>phát video trực tiếp từ máy tính</b> hoặc qua đám mây Archive.org, tự động đồng bộ điểm về Sổ điểm thời gian thực!
             </p>
 
-            <!-- Bộ công cụ tải/nạp video offline nhanh -->
-            <div class="pt-4 flex items-center gap-2 flex-wrap">
-              <label class="cursor-pointer px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-xs font-bold transition flex items-center gap-2 border border-white/20">
-                <i class="fa-solid fa-folder-open text-amber-300"></i> Nạp Thư Mục Video Từ Máy
-                <input type="file" id="video-batch-folder-input" webkitdirectory directory multiple accept="video/mp4,video/*" class="hidden" />
-              </label>
+            <!-- Bộ công cụ tải/nạp video offline (Dành cho GV & Admin) -->
+            ${isTeacher ? `
+              <div class="pt-4 flex items-center gap-2 flex-wrap">
+                <label class="cursor-pointer px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-xs font-bold transition flex items-center gap-2 border border-white/20">
+                  <i class="fa-solid fa-folder-open text-amber-300"></i> Nạp Thư Mục Video Từ Máy
+                  <input type="file" id="video-batch-folder-input" webkitdirectory directory multiple accept="video/mp4,video/*" class="hidden" />
+                </label>
 
-              <label class="cursor-pointer px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-md text-white text-xs font-bold transition flex items-center gap-2 border border-white/20">
-                <i class="fa-solid fa-file-video"></i> Chọn Từng File MP4
-                <input type="file" id="video-batch-files-input" multiple accept="video/mp4,video/*" class="hidden" />
-              </label>
+                <label class="cursor-pointer px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-md text-white text-xs font-bold transition flex items-center gap-2 border border-white/20">
+                  <i class="fa-solid fa-file-video"></i> Chọn Từng File MP4
+                  <input type="file" id="video-batch-files-input" multiple accept="video/mp4,video/*" class="hidden" />
+                </label>
 
-              ${localCount > 0 ? `
-                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/30 text-emerald-200 text-xs font-bold border border-emerald-400/40">
-                  <i class="fa-solid fa-circle-check text-emerald-300"></i> Đã nạp sẵn ${localCount} file từ máy tính
-                </span>
-              ` : ''}
-            </div>
+                ${localCount > 0 ? `
+                  <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/30 text-emerald-200 text-xs font-bold border border-emerald-400/40">
+                    <i class="fa-solid fa-circle-check text-emerald-300"></i> Đã nạp sẵn ${localCount} file từ máy tính
+                  </span>
+                ` : ''}
+              </div>
+            ` : ''}
           </div>
 
           <!-- Nút chuyển khối lớp -->
@@ -347,17 +349,17 @@ export const InteractiveVideo = {
                   </div>
                   <div class="text-right">
                     <div class="flex items-center gap-1.5 justify-end flex-wrap">
-                      ${hasLocal ? `
+                      ${isTeacher && hasLocal ? `
                         <span class="inline-block px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-emerald-500 text-white shadow-sm" title="Đã nạp file video từ máy tính">
                           <i class="fa-solid fa-hard-drive"></i> Local File
                         </span>
                       ` : ''}
-                      ${hasCustom ? `
+                      ${isTeacher && hasCustom ? `
                         <span class="inline-block px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-purple-500 text-white shadow-sm" title="Có câu hỏi do Thầy/Cô tùy biến">
                           <i class="fa-solid fa-sliders"></i> Tùy biến
                         </span>
                       ` : ''}
-                      ${hasUrl ? `
+                      ${isTeacher && hasUrl ? `
                         <span class="inline-block px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-blue-500 text-white shadow-sm" title="Đang dùng link URL tùy chỉnh">
                           <i class="fa-solid fa-link"></i> Link riêng
                         </span>
@@ -366,9 +368,11 @@ export const InteractiveVideo = {
                         Khối ${v.grade}
                       </span>
                     </div>
-                    <span class="block text-[11px] font-mono text-slate-300 mt-1">
-                      ${escapeHtml(v.video)}
-                    </span>
+                    ${isTeacher ? `
+                      <span class="block text-[11px] font-mono text-slate-300 mt-1">
+                        ${escapeHtml(v.video)}
+                      </span>
+                    ` : ''}
                   </div>
                 </div>
 
@@ -406,27 +410,27 @@ export const InteractiveVideo = {
                       <i class="fa-solid fa-circle-play text-sm"></i> Bắt đầu học tương tác & giám sát
                     </button>
 
-                    <div class="flex items-center gap-1.5">
-                      <!-- Nút chọn video từ máy tính -->
-                      <label class="flex-1 cursor-pointer py-1.5 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-[11px] font-bold transition flex items-center justify-center gap-1.5 text-center">
-                        <i class="fa-solid fa-folder-open text-amber-500"></i> ${hasLocal ? 'Đổi video máy' : 'Chọn video máy'}
-                        <input type="file" accept="video/mp4,video/*" class="hidden" data-pick-single-video="${escapeHtml(v.video)}" />
-                      </label>
+                    ${isTeacher ? `
+                      <div class="flex items-center gap-1.5">
+                        <!-- Nút chọn video từ máy tính -->
+                        <label class="flex-1 cursor-pointer py-1.5 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-[11px] font-bold transition flex items-center justify-center gap-1.5 text-center">
+                          <i class="fa-solid fa-folder-open text-amber-500"></i> ${hasLocal ? 'Đổi video máy' : 'Chọn video máy'}
+                          <input type="file" accept="video/mp4,video/*" class="hidden" data-pick-single-video="${escapeHtml(v.video)}" />
+                        </label>
 
-                      <!-- Nút Cài đặt câu hỏi (Dành cho GV và Admin) -->
-                      ${isTeacher ? `
+                        <!-- Nút Cài đặt câu hỏi (Dành cho GV và Admin) -->
                         <button type="button" data-open-question-editor="${escapeHtml(v.video)}" class="py-1.5 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 text-[11px] font-bold transition flex items-center gap-1" title="Cài đặt câu hỏi dừng cho bài giảng này">
                           <i class="fa-solid fa-sliders"></i> Cài đặt câu hỏi
                         </button>
-                      ` : ''}
 
-                      <!-- Nút Tải lên Archive.org (Dành cho Admin khi đã có file) -->
-                      ${isAdmin && hasLocal ? `
-                        <button type="button" data-admin-upload-archive="${escapeHtml(v.video)}" class="py-1.5 px-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300 text-[11px] font-bold transition" title="Tải file video này lên Archive.org">
-                          <i class="fa-solid fa-cloud-arrow-up"></i>
-                        </button>
-                      ` : ''}
-                    </div>
+                        <!-- Nút Tải lên Archive.org (Dành cho Admin khi đã có file) -->
+                        ${isAdmin && hasLocal ? `
+                          <button type="button" data-admin-upload-archive="${escapeHtml(v.video)}" class="py-1.5 px-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300 text-[11px] font-bold transition" title="Tải file video này lên Archive.org">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                          </button>
+                        ` : ''}
+                      </div>
+                    ` : ''}
                   </div>
                 </div>
               </div>
@@ -965,26 +969,26 @@ export const InteractiveVideo = {
                 </ul>
               </div>
 
-              <!-- Thanh công cụ -->
-              <div class="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100 dark:border-slate-700 text-xs">
-                <label class="cursor-pointer px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold transition flex items-center gap-1.5 text-[11px]">
-                  <i class="fa-solid fa-folder-open text-amber-500"></i> Chọn video máy
-                  <input type="file" id="input-player-choose-file" accept="video/mp4,video/*" class="hidden" />
-                </label>
-                <button type="button" id="btn-player-custom-url" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition flex items-center gap-1.5 text-[11px]">
-                  <i class="fa-solid fa-link text-blue-500"></i> Link URL
-                </button>
-                ${isTeacher ? `
+              <!-- Thanh công cụ (Dành cho GV & Admin) -->
+              ${isTeacher ? `
+                <div class="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100 dark:border-slate-700 text-xs">
+                  <label class="cursor-pointer px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold transition flex items-center gap-1.5 text-[11px]">
+                    <i class="fa-solid fa-folder-open text-amber-500"></i> Chọn video máy
+                    <input type="file" id="input-player-choose-file" accept="video/mp4,video/*" class="hidden" />
+                  </label>
+                  <button type="button" id="btn-player-custom-url" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition flex items-center gap-1.5 text-[11px]">
+                    <i class="fa-solid fa-link text-blue-500"></i> Link URL
+                  </button>
                   <button type="button" id="btn-player-edit-questions" class="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold transition flex items-center gap-1.5 text-[11px]">
                     <i class="fa-solid fa-sliders"></i> Sửa mốc
                   </button>
-                ` : ''}
-                ${isAdmin && hasLocal ? `
-                  <button type="button" id="btn-player-admin-upload" class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 text-rose-300 font-bold transition flex items-center gap-1.5 text-[11px]">
-                    <i class="fa-solid fa-cloud-arrow-up"></i> Up Archive
-                  </button>
-                ` : ''}
-              </div>
+                  ${isAdmin && hasLocal ? `
+                    <button type="button" id="btn-player-admin-upload" class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 text-rose-300 font-bold transition flex items-center gap-1.5 text-[11px]">
+                      <i class="fa-solid fa-cloud-arrow-up"></i> Up Archive
+                    </button>
+                  ` : ''}
+                </div>
+              ` : ''}
             </div>
 
           </div>
@@ -1471,7 +1475,9 @@ export const InteractiveVideo = {
       parent.appendChild(fallback);
     }
 
-    fallback.innerHTML = `
+    const isTeacher = Auth.isTeacher() || Auth.isAdmin();
+
+    fallback.innerHTML = isTeacher ? `
       <div class="w-16 h-16 rounded-3xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-3xl shadow-inner">
         <i class="fa-solid fa-cloud-arrow-up"></i>
       </div>
@@ -1480,7 +1486,7 @@ export const InteractiveVideo = {
           Chưa tìm thấy video trên đám mây Archive.org
         </h4>
         <p class="text-xs text-slate-300 mt-1 max-w-md mx-auto leading-relaxed">
-          Tệp <code class="font-mono text-amber-300">${escapeHtml(this.activeLesson.video)}</code> đang chờ tải lên Archive.org. Bạn có thể <b>chọn ngay file MP4 từ máy tính</b> để phát ngay lập tức và thử sức với các câu hỏi tương tác!
+          Tệp <code class="font-mono text-amber-300">${escapeHtml(this.activeLesson.video)}</code> đang chờ tải lên Archive.org. Thầy Cô có thể <b>chọn ngay file MP4 từ máy tính</b> để phát ngay lập tức và thử sức với các câu hỏi tương tác!
         </p>
       </div>
       <div class="flex items-center gap-3 flex-wrap justify-center pt-2">
@@ -1495,7 +1501,36 @@ export const InteractiveVideo = {
           <i class="fa-solid fa-link"></i> Nhập link URL khác
         </button>
       </div>
+    ` : `
+      <div class="w-16 h-16 rounded-3xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-3xl shadow-inner">
+        <i class="fa-solid fa-video text-2xl"></i>
+      </div>
+      <div>
+        <h4 class="text-base sm:text-lg font-black text-white">
+          Đang kết nối lại video bài giảng
+        </h4>
+        <p class="text-xs text-slate-300 mt-1 max-w-md mx-auto leading-relaxed">
+          Đường truyền máy chủ đám mây đang bận hoặc bài giảng đang cập nhật. Em vui lòng bấm tải lại hoặc quay về danh sách bài học.
+        </p>
+      </div>
+      <div class="flex items-center gap-3 flex-wrap justify-center pt-2">
+        <button type="button" id="btn-fallback-retry-cors" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-lg shadow-emerald-600/30 flex items-center gap-2">
+          <i class="fa-solid fa-rotate"></i> Thử tải lại bài giảng
+        </button>
+        <button type="button" id="btn-fallback-back-list" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition border border-slate-700 flex items-center gap-2">
+          <i class="fa-solid fa-arrow-left"></i> Về danh sách bài
+        </button>
+      </div>
     `;
+
+    const btnBackList = document.getElementById('btn-fallback-back-list');
+    if (btnBackList) {
+      btnBackList.onclick = () => {
+        this.cleanupActivePlayer();
+        this.activeLesson = null;
+        this.render();
+      };
+    }
 
     const btnRetryCors = document.getElementById('btn-fallback-retry-cors');
     if (btnRetryCors) {

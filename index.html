@@ -45,7 +45,7 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261029_26" />
+  <link rel="stylesheet" href="css/style.css?v=20261029_27" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -269,7 +269,7 @@
         <button data-tab-target="admin-system" data-role-req="admin" class="hidden px-3 py-2 rounded-xl text-rose-600 dark:text-rose-400 font-bold hover:bg-rose-50 dark:hover:bg-rose-950/30 transition flex items-center gap-1.5">
           <i class="fa-solid fa-shield-halved text-xs"></i> Quản trị
         </button>
-        <button data-tab-target="search" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+        <button data-tab-target="search" data-role-req="teacher" class="hidden px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
           <i class="fa-solid fa-magnifying-glass text-xs"></i> Tra cứu
         </button>
         <button data-tab-target="bookmarks" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
@@ -278,7 +278,7 @@
         <button data-tab-target="history" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
           <i class="fa-regular fa-clock text-xs"></i> Lịch sử
         </button>
-        <button data-tab-target="print" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+        <button data-tab-target="print" data-role-req="teacher" class="hidden px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
           <i class="fa-solid fa-print text-xs"></i> In đề
         </button>
       </nav>
@@ -319,11 +319,17 @@
             <button id="btn-edit-profile" class="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
               <i class="fa-solid fa-user-pen text-blue-600 w-4"></i> Cập nhật Họ tên, Lớp, Trường
             </button>
-            <button id="btn-open-upgrade-role" class="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
-              <i class="fa-solid fa-key text-amber-500 w-4"></i> Nhập mã kích hoạt GV / Admin
+            <button data-tab-target="history" class="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
+              <i class="fa-regular fa-clock text-cyan-600 w-4"></i> Lịch sử thi của tôi
+            </button>
+            <button data-tab-target="bookmarks" class="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
+              <i class="fa-regular fa-bookmark text-rose-500 w-4"></i> Câu hỏi đã lưu
             </button>
             <button data-tab-target="leaderboard" class="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
               <i class="fa-solid fa-crown text-amber-500 w-4"></i> Bảng vinh danh học sinh giỏi
+            </button>
+            <button id="btn-open-upgrade-role" class="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
+              <i class="fa-solid fa-key text-amber-500 w-4"></i> Nhập mã kích hoạt GV / Admin
             </button>
             <button data-tab-target="exam-rooms" data-role-req="teacher" class="hidden w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
               <i class="fa-solid fa-chalkboard-user text-emerald-600 w-4"></i> Quản lý phòng thi & giao đề
@@ -395,7 +401,7 @@
       <button data-tab-target="leaderboard" class="w-full text-left px-3 py-2.5 rounded-xl font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 flex items-center gap-2">
         <i class="fa-solid fa-crown w-5 text-amber-500"></i> Bảng vinh danh học sinh giỏi
       </button>
-      <button data-tab-target="exam-rooms" class="w-full text-left px-3 py-2.5 rounded-xl font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 flex items-center gap-2">
+      <button data-tab-target="exam-rooms" data-role-req="teacher" class="hidden w-full text-left px-3 py-2.5 rounded-xl font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 flex items-center gap-2">
         <i class="fa-solid fa-door-open w-5 text-emerald-600"></i> Phòng thi & Giao đề thi
       </button>
       <button data-tab-target="questions-manage" data-role-req="teacher" class="hidden w-full text-left px-3 py-2.5 rounded-xl font-bold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 flex items-center gap-2">
@@ -407,7 +413,7 @@
       <button data-tab-target="admin-system" data-role-req="admin" class="hidden w-full text-left px-3 py-2.5 rounded-xl font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center gap-2">
         <i class="fa-solid fa-shield-halved w-5 text-rose-600"></i> Quản trị hệ thống (Admin)
       </button>
-      <button data-tab-target="search" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
+      <button data-tab-target="search" data-role-req="teacher" class="hidden w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
         <i class="fa-solid fa-magnifying-glass w-5 text-amber-600"></i> Tra cứu ngân hàng đề
       </button>
       <button data-tab-target="bookmarks" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
@@ -416,10 +422,7 @@
       <button data-tab-target="history" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
         <i class="fa-regular fa-clock w-5 text-cyan-600"></i> Lịch sử thi
       </button>
-      <button data-tab-target="gradebook" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
-        <i class="fa-solid fa-graduation-cap w-5 text-blue-600"></i> Bảng điểm & Quản lý
-      </button>
-      <button data-tab-target="print" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
+      <button data-tab-target="print" data-role-req="teacher" class="hidden w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2">
         <i class="fa-solid fa-print w-5 text-purple-600"></i> In đề kiểm tra / PDF
       </button>
     </div>
@@ -451,7 +454,7 @@
             <button data-tab-target="exam-setup" class="px-5 sm:px-6 py-3.5 bg-blue-700/80 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs sm:text-sm backdrop-blur-md transition border border-white/20 flex items-center gap-2">
               <i class="fa-solid fa-pen-clip"></i> Thi thử đề chuẩn 2025
             </button>
-            <button data-tab-target="exam-rooms" class="px-5 sm:px-6 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-emerald-500/25 flex items-center gap-2">
+            <button data-tab-target="exam-setup" class="px-5 sm:px-6 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-emerald-500/25 flex items-center gap-2">
               <i class="fa-solid fa-door-open"></i> Vào phòng thi
             </button>
             <button data-tab-target="leaderboard" class="px-5 sm:px-6 py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-amber-500/25 flex items-center gap-2">
@@ -815,8 +818,8 @@
             <button type="button" id="tab-exam-mode-lesson" data-exam-tab="lesson" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 transition whitespace-nowrap">
               <i class="fa-solid fa-book-bookmark mr-1"></i> Theo Bài Học (15p)
             </button>
-            <button type="button" id="tab-exam-mode-matrix" data-exam-tab="matrix" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 transition whitespace-nowrap">
-              <i class="fa-solid fa-sliders mr-1"></i> Ma Trận Tự Do
+            <button type="button" id="tab-exam-mode-matrix" data-exam-tab="matrix" data-role-req="teacher" class="hidden px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 transition whitespace-nowrap">
+              <i class="fa-solid fa-sliders mr-1"></i> Ma Trận Tự Do (GV)
             </button>
           </div>
         </div>
@@ -1193,9 +1196,9 @@
         <span class="text-[10px]">Vinh danh</span>
       </button>
 
-      <button data-tab-target="search" class="flex flex-col items-center justify-center gap-1 text-slate-600 dark:text-slate-300 font-medium transition">
-        <i class="fa-solid fa-magnifying-glass text-base"></i>
-        <span class="text-[10px]">Tra cứu</span>
+      <button data-tab-target="interactive-video" class="flex flex-col items-center justify-center gap-1 text-slate-600 dark:text-slate-300 font-medium transition">
+        <i class="fa-solid fa-circle-play text-base text-rose-500"></i>
+        <span class="text-[10px]">Video</span>
       </button>
     </div>
   </nav>
@@ -2388,7 +2391,7 @@
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261029_26"></script>
+  <script type="module" src="js/app.js?v=20261029_27"></script>
 </body>
 </html>
 

@@ -263,7 +263,7 @@ class App {
       alert('Chức năng Quản Trị Hệ Thống chỉ dành riêng cho Quản trị viên (Admin)!');
       return false;
     }
-    if ((tab === 'questions-manage' || tab === 'gradebook' || tab === 'exam-rooms') && !Auth.isTeacher()) {
+    if ((tab === 'questions-manage' || tab === 'gradebook' || tab === 'exam-rooms' || tab === 'print') && !Auth.isTeacher()) {
       alert('Chức năng này dành cho Giáo viên (GV) & Quản trị viên (Admin)!\nHọc sinh vui lòng tham gia thi thử và xem bảng vinh danh.');
       return false;
     }
