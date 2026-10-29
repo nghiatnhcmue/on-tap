@@ -1218,6 +1218,7 @@ class App {
         tabLoginBtn?.classList.add('text-slate-500', 'dark:text-slate-400');
         tabRegBtn?.classList.add('bg-white', 'dark:bg-slate-800', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm');
         tabRegBtn?.classList.remove('text-slate-500', 'dark:text-slate-400');
+        Auth.initGoogleIdentity();
       } else {
         panelRegister?.classList.add('hidden');
         panelLogin?.classList.remove('hidden');
@@ -1434,6 +1435,34 @@ class App {
         Auth.setGoogleClientId(inputClientId.value);
         modalGoogleConfig?.classList.add('hidden');
         alert('Đã lưu Google Client ID thành công!');
+      });
+    }
+
+    // Form đăng nhập / đăng ký nhanh bằng Google (Gmail)
+    const formGoogleQuick = document.getElementById('form-google-quick-signin');
+    const modalGoogleQuick = document.getElementById('modal-google-quick-prompt');
+    const btnQuickOpenOAuthCfg = document.getElementById('btn-google-quick-open-oauth-cfg');
+
+    if (formGoogleQuick) {
+      formGoogleQuick.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('google-quick-email')?.value || '';
+        const fullName = document.getElementById('google-quick-name')?.value || '';
+        if (!email.trim()) {
+          alert('Vui lòng nhập địa chỉ Email Google của bạn!');
+          return;
+        }
+        modalGoogleQuick?.classList.add('hidden');
+        Auth.loginOrRegisterWithGoogleInfo({ email, fullName });
+        this.enforceAuthentication();
+      });
+    }
+
+    if (btnQuickOpenOAuthCfg) {
+      btnQuickOpenOAuthCfg.addEventListener('click', () => {
+        modalGoogleQuick?.classList.add('hidden');
+        if (inputClientId) inputClientId.value = Auth.getGoogleClientId();
+        modalGoogleConfig?.classList.remove('hidden');
       });
     }
   }

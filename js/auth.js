@@ -17,7 +17,8 @@ export const Auth = {
   onAuthChangeCallbacks: [],
 
   init() {
-    this.clientId = localStorage.getItem(GOOGLE_CLIENT_ID_KEY) || '';
+    const savedId = localStorage.getItem(GOOGLE_CLIENT_ID_KEY) || '';
+    this.clientId = savedId || (DEFAULT_CLIENT_ID !== '1082697841285-sample.apps.googleusercontent.com' ? DEFAULT_CLIENT_ID : '');
     this.loadUserFromStorage();
     this.initGoogleIdentity();
   },
@@ -128,14 +129,61 @@ export const Auth = {
     return this.clientId;
   },
 
+  renderFallbackGoogleButtons() {
+    const googleSvg = `
+      <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+        <path fill="#34A853" d="M12 24c3.3 0 6.08-1.09 8.11-2.96l-3.88-3.05c-1.08.72-2.45 1.16-4.23 1.16-3.26 0-6.02-2.2-7-5.15H1.01v3.14C3.03 21.16 7.21 24 12 24z"/>
+        <path fill="#FBBC05" d="M5 14c-.25-.72-.39-1.49-.39-2.3s.14-1.58.39-2.3V6.26H1.01C.37 7.54 0 8.98 0 11.7s.37 4.16 1.01 5.44L5 14z"/>
+        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.21 0 3.03 2.84 1.01 6.86L5 10c.98-2.95 3.74-5.25 7-5.25z"/>
+      </svg>
+    `;
+
+    const signInContainer = document.getElementById('google-signin-btn-container');
+    if (signInContainer) {
+      signInContainer.innerHTML = `
+        <button type="button" data-trigger-google-quick="signin" class="px-6 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
+          ${googleSvg}
+          <span>Đăng nhập bằng tài khoản Google</span>
+        </button>
+      `;
+    }
+
+    const signUpContainer = document.getElementById('google-signup-btn-container');
+    if (signUpContainer) {
+      signUpContainer.innerHTML = `
+        <button type="button" data-trigger-google-quick="signup" class="px-6 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
+          ${googleSvg}
+          <span>Đăng ký nhanh bằng Google</span>
+        </button>
+      `;
+    }
+
+    document.querySelectorAll('[data-trigger-google-quick]').forEach(btn => {
+      btn.onclick = () => {
+        const modal = document.getElementById('modal-google-quick-prompt');
+        if (modal) {
+          modal.classList.remove('hidden');
+          document.getElementById('google-quick-email')?.focus();
+        }
+      };
+    });
+  },
+
   initGoogleIdentity() {
+    const hasValidClientId = this.clientId && this.clientId.includes('.apps.googleusercontent.com') && this.clientId !== DEFAULT_CLIENT_ID;
+
+    if (!hasValidClientId) {
+      this.renderFallbackGoogleButtons();
+      return;
+    }
+
     if (!window.google || !window.google.accounts || !window.google.accounts.id) {
+      this.renderFallbackGoogleButtons();
       // Thử lại sau 500ms nếu script Google chưa tải xong
       setTimeout(() => this.initGoogleIdentity(), 500);
       return;
     }
-
-    if (!this.clientId) return;
 
     try {
       window.google.accounts.id.initialize({
@@ -145,10 +193,10 @@ export const Auth = {
         cancel_on_tap_outside: true
       });
 
-      const btnContainer = document.getElementById('google-signin-btn-container');
-      if (btnContainer) {
-        btnContainer.innerHTML = '';
-        window.google.accounts.id.renderButton(btnContainer, {
+      const signInContainer = document.getElementById('google-signin-btn-container');
+      if (signInContainer) {
+        signInContainer.innerHTML = '';
+        window.google.accounts.id.renderButton(signInContainer, {
           type: 'standard',
           theme: 'outline',
           size: 'large',
@@ -157,9 +205,57 @@ export const Auth = {
           logo_alignment: 'left'
         });
       }
+
+      const signUpContainer = document.getElementById('google-signup-btn-container');
+      if (signUpContainer) {
+        signUpContainer.innerHTML = '';
+        window.google.accounts.id.renderButton(signUpContainer, {
+          type: 'standard',
+          theme: 'outline',
+          size: 'large',
+          text: 'signup_with',
+          shape: 'pill',
+          logo_alignment: 'left'
+        });
+      }
     } catch (err) {
       console.warn('Lỗi khởi tạo Google Identity Services', err);
+      this.renderFallbackGoogleButtons();
     }
+  },
+
+  loginOrRegisterWithGoogleInfo({ email, fullName, picture = '', sub = '' }) {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanName = (fullName || '').trim() || 'Người dùng Google';
+    const avatar = picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=3b82f6&color=fff`;
+
+    // Tự động gán quyền Admin nếu email khớp với cấu hình Admin
+    const adminConfig = Storage.getAdminConfig();
+    const isAdminEmail = (adminConfig.adminEmail && cleanEmail === adminConfig.adminEmail.toLowerCase());
+
+    // Tìm xem tài khoản Gmail này đã từng đăng ký trên thiết bị chưa
+    const savedAccounts = Storage.getAccountsList();
+    const found = savedAccounts.find(a => a.email && a.email.toLowerCase() === cleanEmail);
+
+    const profile = {
+      uid: sub ? ('google_' + sub) : (found?.uid || 'google_' + Date.now()),
+      email: cleanEmail,
+      fullName: cleanName || found?.fullName || 'Học sinh',
+      avatar: avatar,
+      grade: found?.grade || '12',
+      className: found?.className || (isAdminEmail ? 'Quản trị hệ thống' : ''),
+      school: found?.school || (isAdminEmail ? 'Ban Quản Trị TinHocHub' : ''),
+      role: isAdminEmail ? 'admin' : (found?.role || 'student'),
+      createdAt: found?.createdAt || new Date().toISOString()
+    };
+
+    this.saveUser(profile);
+
+    // Nếu chưa điền đủ Họ tên, Lớp, Trường -> Mở modal hoàn tất hồ sơ bắt buộc
+    if (!this.isProfileComplete()) {
+      this.openRequiredProfileModal();
+    }
+    return profile;
   },
 
   handleGoogleCredentialResponse(response) {
@@ -167,43 +263,12 @@ export const Auth = {
       const jwt = response.credential;
       const payload = this.parseJwt(jwt);
 
-      const email = payload.email || '';
-      const name = payload.name || '';
-      const picture = payload.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'Học Sinh')}&background=3b82f6&color=fff`;
-
-      // Tự động gán quyền Admin nếu email khớp với cấu hình Admin
-      const adminConfig = Storage.getAdminConfig();
-      const isAdminEmail = (adminConfig.adminEmail && email.toLowerCase() === adminConfig.adminEmail.toLowerCase());
-
-      // Kiểm tra xem đã có hồ sơ trước đó chưa
-      let existingProfile = this.currentUser;
-      if (!existingProfile || existingProfile.email !== email) {
-        // Tìm trong danh sách tài khoản đã lưu nếu có
-        const savedAccounts = Storage.getAccountsList();
-        const found = savedAccounts.find(a => a.email.toLowerCase() === email.toLowerCase());
-
-        existingProfile = {
-          uid: 'google_' + payload.sub,
-          email,
-          fullName: name,
-          avatar: picture,
-          grade: '12',
-          className: '',
-          school: '',
-          role: isAdminEmail ? 'admin' : (found?.role || 'student'),
-          createdAt: new Date().toISOString()
-        };
-      } else {
-        existingProfile.avatar = picture;
-        if (isAdminEmail) existingProfile.role = 'admin';
-      }
-
-      this.saveUser(existingProfile);
-
-      // Nếu chưa điền đủ Họ tên, Lớp, Trường -> Mở modal bắt buộc
-      if (!this.isProfileComplete()) {
-        this.openRequiredProfileModal();
-      }
+      this.loginOrRegisterWithGoogleInfo({
+        email: payload.email || '',
+        fullName: payload.name || '',
+        picture: payload.picture || '',
+        sub: payload.sub || ''
+      });
     } catch (e) {
       console.error('Lỗi xử lý phản hồi từ Google', e);
       alert('Không thể xác thực tài khoản Google. Vui lòng thử lại!');

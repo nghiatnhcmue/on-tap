@@ -900,6 +900,18 @@
 
       <!-- PANEL 2: ĐĂNG KÝ TÀI KHOẢN -->
       <div id="auth-panel-register" class="hidden space-y-4">
+        <!-- Đăng ký nhanh bằng Google -->
+        <div class="p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700/80 text-center">
+          <span class="text-xs font-bold text-slate-600 dark:text-slate-300 block mb-2.5">Đăng ký nhanh bằng tài khoản Google</span>
+          <div id="google-signup-btn-container" class="flex justify-center min-h-[42px]"></div>
+        </div>
+
+        <div class="flex items-center gap-3 my-1">
+          <div class="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">HOẶC ĐIỀN THÔNG TIN TRỰC TIẾP</span>
+          <div class="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
+        </div>
+
         <form id="form-register-account" class="space-y-3.5">
           <div>
             <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
@@ -1121,15 +1133,70 @@
           <input type="text" id="input-google-client-id" placeholder="ví dụ: 123456789-xxx.apps.googleusercontent.com" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
 
-        <div class="p-3 bg-slate-50 dark:bg-slate-750 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-300 space-y-1">
-          <p class="font-bold text-slate-700 dark:text-slate-200">Các miền cần thêm vào Authorized JavaScript origins:</p>
-          <p>• <code class="bg-black/10 px-1.5 py-0.5 rounded font-mono">https://on-tap.nghiaedu.workers.dev</code></p>
-          <p>• <code class="bg-black/10 px-1.5 py-0.5 rounded font-mono">https://tinhoc-thpt.pages.dev</code></p>
-          <p>• <code class="bg-black/10 px-1.5 py-0.5 rounded font-mono">http://localhost:8080</code></p>
+        <div class="p-3 bg-slate-50 dark:bg-slate-750 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-300 space-y-1.5">
+          <p class="font-bold text-slate-700 dark:text-slate-200">Hướng dẫn lấy mã Google Client ID miễn phí (3 bước):</p>
+          <p>1. Truy cập <b>console.cloud.google.com/apis/credentials</b> → Chọn <b>Create Credentials</b> → <b>OAuth client ID</b> (Web application).</p>
+          <p>2. Tại mục <b>Authorized JavaScript origins</b>, thêm các tên miền sau:</p>
+          <p class="pl-2">• <code class="bg-black/10 px-1.5 py-0.5 rounded font-mono">https://on-tap.nghiaedu.workers.dev</code></p>
+          <p class="pl-2">• <code class="bg-black/10 px-1.5 py-0.5 rounded font-mono">https://tinhoc-thpt.pages.dev</code></p>
+          <p class="pl-2">• <code class="bg-black/10 px-1.5 py-0.5 rounded font-mono">http://localhost:8080</code></p>
+          <p>3. Sao chép mã <b>Client ID</b> (có đuôi <code class="font-mono">.apps.googleusercontent.com</code>) và dán vào ô trên.</p>
         </div>
 
         <button id="btn-save-client-id" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs transition shadow-md shadow-blue-500/20">
-          Lưu Cấu Hình
+          Lưu Cấu Hình & Kích Hoạt Google Sign-In
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: ĐĂNG NHẬP / ĐĂNG KÝ VỚI GOOGLE (GMAIL) ==================== -->
+  <div id="modal-google-quick-prompt" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative">
+      <button data-close-modal="modal-google-quick-prompt" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="text-center mb-5">
+        <div class="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-center mx-auto mb-3">
+          <svg class="w-6 h-6" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+            <path fill="#34A853" d="M12 24c3.3 0 6.08-1.09 8.11-2.96l-3.88-3.05c-1.08.72-2.45 1.16-4.23 1.16-3.26 0-6.02-2.2-7-5.15H1.01v3.14C3.03 21.16 7.21 24 12 24z"/>
+            <path fill="#FBBC05" d="M5 14c-.25-.72-.39-1.49-.39-2.3s.14-1.58.39-2.3V6.26H1.01C.37 7.54 0 8.98 0 11.7s.37 4.16 1.01 5.44L5 14z"/>
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.21 0 3.03 2.84 1.01 6.86L5 10c.98-2.95 3.74-5.25 7-5.25z"/>
+          </svg>
+        </div>
+        <h3 class="text-base sm:text-lg font-bold text-slate-800 dark:text-white">
+          Đăng nhập / Đăng ký bằng Google
+        </h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          Tiếp tục tới <b>TinHocHub</b> bằng tài khoản Gmail của bạn
+        </p>
+      </div>
+
+      <form id="form-google-quick-signin" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            Địa chỉ Email Google (Gmail) <span class="text-rose-500">*</span>
+          </label>
+          <input type="email" id="google-quick-email" required placeholder="tenban@gmail.com" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            Họ và Tên hiển thị <span class="text-rose-500">*</span>
+          </label>
+          <input type="text" id="google-quick-name" required placeholder="Ví dụ: Nguyễn Văn An" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <button type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs transition shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
+          Tiếp tục với tài khoản Google này
+        </button>
+      </form>
+
+      <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 text-center">
+        <button type="button" id="btn-google-quick-open-oauth-cfg" class="text-[11px] text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition">
+          <i class="fa-solid fa-gear mr-1"></i> Dành cho Giáo viên: Cài đặt Google Cloud Client ID chính thức
         </button>
       </div>
     </div>
