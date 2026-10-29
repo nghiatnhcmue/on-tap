@@ -181,19 +181,35 @@ body.in-exam .mobile-bottom-bar {
 }
 
 /* =========================================================
-   PROCTOR & CHỐNG GIAN LẬN THI TRỰC TUYẾN
+   PROCTOR & CHỐNG GIAN LẬN THI TRỰC TUYẾN ĐA NỀN TẢNG
+   (Windows, macOS, Android, iOS / iPadOS)
    ========================================================= */
 body.in-proctored-exam {
   -webkit-user-select: none !important;
   -moz-user-select: none !important;
   -ms-user-select: none !important;
   user-select: none !important;
+  -webkit-touch-callout: none !important;
+  overscroll-behavior: contain;
+}
+
+body.in-proctored-exam input,
+body.in-proctored-exam textarea {
+  -webkit-user-select: text !important;
+  user-select: text !important;
 }
 
 body.in-proctored-exam img {
   pointer-events: none !important;
   -webkit-user-drag: none !important;
   user-drag: none !important;
+}
+
+/* Màn chắn làm mờ tức thì khi rời cửa sổ hoặc chụp màn hình (Anti-Screenshot Shield) */
+body.proctor-privacy-shield #view-exam-room {
+  filter: blur(22px) grayscale(80%) !important;
+  pointer-events: none !important;
+  transition: filter 0.05s ease-out !important;
 }
 
 @keyframes alert-shake {

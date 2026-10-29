@@ -432,7 +432,11 @@
               <span><i class="fa-solid fa-list-ol text-purple-600 mr-1"></i>Đảo phương án (A, B, C, D)</span>
             </label>
           </div>
-          <span class="text-[11px] text-slate-400">Tùy chọn xáo trộn chống học vẹt</span>
+          <div class="flex items-center gap-2">
+            <button type="button" id="btn-practice-wrong-questions" class="px-3.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 font-bold transition flex items-center gap-1.5">
+              <i class="fa-solid fa-fire-flame-curved"></i> Ôn lại câu hay sai (<span id="practice-wrong-count">0</span>)
+            </button>
+          </div>
         </div>
       </div>
 
@@ -452,6 +456,9 @@
           Vào phòng thi do Thầy Cô giao hoặc tự do luyện tập kỹ năng dưới áp lực thời gian
         </p>
       </div>
+
+      <!-- Banner Khôi phục bài thi đang làm dở (nếu có) -->
+      <div id="active-exam-recovery-banner"></div>
 
       <!-- Thẻ VÀO PHÒNG THI ĐƯỢC GIAO (Thời gian, Password, Chống gian lận) -->
       <div class="bg-gradient-to-br from-indigo-900 via-blue-900 to-slate-900 text-white p-6 sm:p-8 rounded-3xl shadow-xl border border-indigo-700/60 relative overflow-hidden">
@@ -532,7 +539,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <!-- Toggle 1: Đảo thứ tự câu hỏi -->
           <label class="flex items-start gap-3 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 bg-slate-50/50 dark:bg-slate-900/40 cursor-pointer transition group">
             <input type="checkbox" id="exam-cfg-shuffle-questions" checked class="w-5 h-5 mt-0.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer" />
@@ -555,6 +562,19 @@
               </span>
               <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
                 Đảo ngẫu nhiên vị trí 4 đáp án trong từng câu (đáp án đúng tự cập nhật theo).
+              </p>
+            </div>
+          </label>
+
+          <!-- Toggle 3: Giám sát chống gian lận đa nền tảng -->
+          <label class="flex items-start gap-3 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-emerald-400 dark:hover:border-emerald-500 bg-slate-50/50 dark:bg-slate-900/40 cursor-pointer transition group">
+            <input type="checkbox" id="exam-cfg-anticheat" checked class="w-5 h-5 mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer" />
+            <div class="flex-1">
+              <span class="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                <i class="fa-solid fa-shield-halved text-emerald-600"></i> Giám sát chống gian lận
+              </span>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                Chống chuyển tab/app, chống Split-Screen & chụp màn hình trên Windows, macOS, Android, iOS.
               </p>
             </div>
           </label>

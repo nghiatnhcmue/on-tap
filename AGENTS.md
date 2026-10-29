@@ -79,18 +79,19 @@ Dự án áp dụng chính sách **bắt buộc đăng ký / đăng nhập trư�
 ### 3.2. Cấu trúc Modal Auth Portal (`#modal-login`)
 Gồm 2 tab chuyển đổi:
 - **Tab Đăng Nhập (`#auth-panel-login`)**:
-  - Tích hợp Google Identity Services (nút đăng nhập Google chính thức).
+  - Tích hợp Google Identity Services (nút đăng nhập Google chính thức + nút Google Nhanh `#modal-google-quick-prompt` hoạt động ngay cả khi chưa cấu hình Google Cloud Client ID).
   - Khung **"Tài khoản trên thiết bị này"** (`#saved-accounts-section`): Liệt kê tối đa 5 tài khoản gần nhất lưu trong `Storage.getAccountsList()`. Bấm 1 chạm để đăng nhập tức thì.
   - 3 nút Đăng nhập trải nghiệm nhanh: Học sinh (HS), Giáo viên (GV), Admin.
   - Nút cài đặt Google Client ID cho giáo viên/admin.
 - **Tab Đăng Ký Mới (`#auth-panel-register`)**:
+  - Hỗ trợ nút **"Đăng ký nhanh với Google"** (`#google-signup-btn-container`) tự động điền Email & Họ tên hoặc tạo tài khoản lập tức.
   - Form nhập thông tin: Họ tên (\*), Khối lớp (\*), Lớp học (\*), Trường (\*), Email (tùy chọn), Vai trò (Học sinh / Giáo viên / Admin).
   - Nếu chọn vai trò Giáo viên hoặc Admin -> Hiển thị trường nhập mã kích hoạt bí mật (`GV2025` hoặc `ADMIN2025`).
   - Nút **"Đăng Ký & Vào Học Ngay"** xử lý bằng `Auth.registerUser()`.
 
 ---
 
-## 4. Quy tắc Nghiệp vụ Đề thi & Ôn tập
+## 4. Quy tắc Nghiệp vụ Đề thi, Ôn tập & Chống Gian Lận Đa Nền Tảng
 
 ### 4.1. Cấu trúc Đề chuẩn Bộ GD&ĐT 2025 (`bgd_2025`)
 - Thời gian làm bài: **50 phút**.
@@ -104,25 +105,37 @@ Gồm 2 tab chuyển đổi:
   - Đúng 4 ý: **1.0 điểm**.
 - **Quy tắc đặc thù Khối 11:** Trong ngân hàng câu hỏi gốc, Khối 11 chỉ có câu hỏi MCQ (cấp độ 1–4) và không có câu hỏi Đúng/Sai (DS). Để đảm bảo luôn tạo được đề chuẩn 28 câu cho học sinh Khối 11, hàm `App.startExam()` trong `js/app.js` tự động bổ sung 4 câu DS từ Khối 12.
 
-### 4.2. Chế độ Luyện tập (`js/practice.js`)
+### 4.2. Chế độ Luyện tập Thông minh (`js/practice.js`)
 - Hỗ trợ 2 chế độ hiển thị: **Thẻ đơn (Single Card)** và **Danh sách (List View)**.
 - Xử lý trọn vẹn cả 3 dạng câu hỏi:
   - Trắc nghiệm 4 phương án (`1`, `2`, `3`, `4`).
   - Đúng / Sai (`DS`): 4 ý a, b, c, d độc lập, chấm điểm theo barem Bộ GD.
   - Trả lời ngắn (`TLN`): Chuẩn hóa chuỗi (bỏ khoảng trắng thừa, so sánh không phân biệt hoa/thường).
+- **Ngân hàng Câu hỏi Hay Sai (`Storage.getWrongQuestions()`)**: Tự động lưu câu trả lời sai trong cả Ôn tập và Thi thử để học sinh ôn tập lại (`Practice.startWrongQuestionsPractice()`), và tự động xóa khỏi danh sách khi học sinh trả lời đúng.
+- **Sổ tay Ghi chú Cá nhân (`Storage.getQuestionNote()`)**: Cho phép học sinh gắn ghi chú/mẹo giải riêng vào từng câu hỏi.
+- **Chuỗi Ngày Học Liên Tiếp (`Storage.getStudyStreak()` 🔥)**: Ghi nhận streak học tập mỗi ngày trên trang chủ.
 - Hỗ trợ phím tắt điều hướng: Mũi tên Trái (<kbd>←</kbd>) và Phải (<kbd>→</kbd>).
 
-### 4.3. Giám sát Chống gian lận (`js/proctor.js`)
-- Tự động phát hiện và ghi nhật ký mốc thời gian vi phạm:
-  - Chuyển tab hoặc ẩn cửa sổ trình duyệt (`visibilitychange`, `blur`).
-  - Thoát chế độ toàn màn hình (`fullscreenchange`).
-  - Cố tình mở phím tắt DevTools (<kbd>F12</kbd>, <kbd>Ctrl+Shift+I</kbd>).
-  - Cố tình bôi đen, sao chép nội dung (`copy`, `contextmenu`, `selectstart`).
-- Khi vi phạm vượt quá ngưỡng quy định (mặc định: 3 lần), hệ thống tự động đình chỉ thi và nộp bài với điểm số tại thời điểm vi phạm.
+### 4.3. Giám sát Chống gian lận Đa Nền Tảng (`js/proctor.js`)
+Hệ thống tự động nhận diện nền tảng (`Proctor.detectPlatform()`) gồm **Windows, macOS, Android, iOS (iPhone), iPadOS, Linux** để áp dụng cơ chế giám sát tương thích:
+- **Toàn màn hình & Chế độ Tập trung (Fullscreen / iOS Safe Mode):**
+  - Trên Windows, macOS, Android, iPadOS: Kích hoạt Fullscreen API (`requestFullscreen` / `webkitRequestFullscreen`) ngay trong luồng click của người dùng.
+  - Trên iPhone iOS (trình duyệt không hỗ trợ Fullscreen API cho thẻ `<html>`): Tự động chuyển sang **iOS Safe Viewport Mode** (khóa chạm giữ `-webkit-touch-callout: none`, khóa kéo nảy trang, giám sát `visibilitychange`/`blur` và cử chỉ đa điểm) mà không gây lỗi phạt oan.
+- **Phát hiện Chia đôi màn hình / Cửa sổ nổi (Split-Screen & Picture-in-Picture):**
+  - Theo dõi tỷ lệ `window.innerWidth` / `window.innerHeight` so với `screen.availWidth` / `availHeight` trên Android, iPadOS và Desktop.
+  - Tự động loại trừ trường hợp bàn phím ảo (`isVirtualKeyboardOpen()`) bật lên khi học sinh nhập đáp án câu Trả lời ngắn (`TLN`).
+- **Màn chắn Chống chụp màn hình (Privacy Blur Shield):**
+  - Tự động làm mờ tức thì toàn bộ đề thi (`body.proctor-privacy-shield`) khi cửa sổ mất tiêu điểm (`blur`), ẩn tab (`visibilitychange`), chạm >= 3 ngón tay trên màn hình cảm ứng, hoặc nhấn phím chụp màn hình (`PrintScreen`, `Win+Shift+S`, `⌘+Shift+3/4/5`).
+- **Chặn phím tắt hệ thống trên cả Windows & macOS:**
+  - Chặn DevTools, Xem mã nguồn, In, Lưu trang, Tìm kiếm, Sao chép/Dán với cả `Ctrl` (Windows/Linux) và `⌘ Command` / `Option` (macOS).
+- **Giữ sáng màn hình (`navigator.wakeLock`) & Cảnh báo Rung/Âm thanh:**
+  - Giữ màn hình điện thoại không tự tắt khi đang đọc đề; phát âm thanh cảnh báo Web Audio API kèm rung phản hồi (`navigator.vibrate`) trên thiết bị di động.
+- **Tự động lưu phiên thi (`Storage.saveActiveExamSession()`):**
+  - Lưu trạng thái bài thi và số lần vi phạm mỗi 5 giây và sau mỗi thao tác chọn đáp án. Nếu trình duyệt bị tắt đột ngột hoặc tải lại trang, học sinh có thể khôi phục bài thi đang làm dở mà không thể xóa lịch sử vi phạm.
 
 ### 4.4. Phòng thi Trực tuyến (`js/exam-rooms.js`)
-- Giáo viên có thể tạo phòng thi với: Tên phòng, Khối, Thời lượng, Mật khẩu, Khung giờ mở/đóng, Cấu hình bật/tắt giám sát chống gian lận.
-- Nút "Copy thông báo lớp" tự động xuất đường link trực tiếp `${origin}?room=${roomId}` để gửi học sinh vào thẳng phòng thi mà không cần gõ mã thủ công.
+- Giáo viên có thể tạo và chỉnh sửa phòng thi với: Tên phòng, Khối, Thời lượng, Mật khẩu, Khung giờ mở/đóng, Cấu hình bật/tắt giám sát chống gian lận.
+- Nút "Copy thông báo lớp" tự động xuất đường link trực tiếp `${origin}?room=${roomId}` để gửi học sinh vào thẳng phòng thi mà không cần gõ mã thủ công (hỗ trợ lưu giữ mã phòng ngay cả khi học sinh phải đăng nhập qua Auth Gatekeeper trước).
 
 ---
 

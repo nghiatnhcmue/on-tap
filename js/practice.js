@@ -221,6 +221,9 @@ export const Practice = {
 
         <!-- Khu vực phương án hoặc nhập liệu -->
         ${contentHtml}
+
+        <!-- Khu vực Ghi chú cá nhân cho câu hỏi -->
+        ${this.renderPersonalNoteBox(q)}
       </div>
 
       <!-- Điều hướng Trước / Sau -->
@@ -448,6 +451,7 @@ export const Practice = {
               </h3>
 
               ${q.level in { '1': 1, '2': 1, '3': 1, '4': 1 } ? this.renderMCQOptions(q, userAns) : (q.level === 'DS' ? this.renderTrueFalseOptions(q, userAns) : this.renderShortAnswerInput(q, userAns))}
+              ${this.renderPersonalNoteBox(q)}
             </div>
           `;
         }).join('')}
@@ -470,6 +474,38 @@ export const Practice = {
     `;
 
     this.bindEventsList(pageQuestions, currentPage, pageSize);
+  },
+
+  renderPersonalNoteBox(q) {
+    const note = Storage.getQuestionNote(q.id);
+    return `
+      <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/60 flex flex-col gap-2">
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-400 font-medium flex items-center gap-1.5">
+            <i class="fa-regular fa-note-sticky text-amber-500"></i>
+            ${note ? `<span class="text-slate-700 dark:text-slate-200 font-semibold">Ghi chú của tôi:</span> <span class="italic text-amber-700 dark:text-amber-300">${escapeHtml(note)}</span>` : 'Chưa có ghi chú cá nhân cho câu này'}
+          </span>
+          <button type="button" data-edit-note="${escapeHtml(q.id)}" class="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline shrink-0 ml-2">
+            <i class="fa-solid fa-pen-clip mr-1"></i>${note ? 'Sửa ghi chú' : 'Thêm ghi chú'}
+          </button>
+        </div>
+      </div>
+    `;
+  },
+
+  bindNoteButtons() {
+    if (!this.container) return;
+    this.container.querySelectorAll('[data-edit-note]').forEach(btn => {
+      btn.onclick = () => {
+        const qId = btn.getAttribute('data-edit-note');
+        const currentNote = Storage.getQuestionNote(qId);
+        const updated = prompt('Nhập ghi chú cá nhân / mẹo nhớ nhanh cho câu hỏi này (để trống nếu muốn xóa):', currentNote);
+        if (updated !== null) {
+          Storage.saveQuestionNote(qId, updated);
+          this.render();
+        }
+      };
+    });
   },
 
   getLevelBadge(level) {
@@ -511,7 +547,7 @@ export const Practice = {
     this.sessionStats.answered++;
     if (correctSubCount >= 3) this.sessionStats.correct++;
     else this.sessionStats.wrong++;
-    Storage.recordPracticeResult(correctSubCount === 4);
+    Storage.recordPracticeResult(correctSubCount === 4, q);
 
     this.render();
   },
@@ -531,7 +567,7 @@ export const Practice = {
     this.sessionStats.answered++;
     if (isCorrect) this.sessionStats.correct++;
     else this.sessionStats.wrong++;
-    Storage.recordPracticeResult(isCorrect);
+    Storage.recordPracticeResult(isCorrect, q);
 
     this.render();
   },
@@ -594,7 +630,7 @@ export const Practice = {
         this.sessionStats.answered++;
         if (isCorrect) this.sessionStats.correct++;
         else this.sessionStats.wrong++;
-        Storage.recordPracticeResult(isCorrect);
+        Storage.recordPracticeResult(isCorrect, q);
 
         this.render();
       });
@@ -642,6 +678,8 @@ export const Practice = {
         this.handleCheckTln(q.id);
       });
     }
+
+    this.bindNoteButtons();
   },
 
   bindEventsList(questions, currentPage, pageSize) {
@@ -692,7 +730,7 @@ export const Practice = {
         this.sessionStats.answered++;
         if (isCorrect) this.sessionStats.correct++;
         else this.sessionStats.wrong++;
-        Storage.recordPracticeResult(isCorrect);
+        Storage.recordPracticeResult(isCorrect, targetQ);
 
         this.render();
       });
@@ -744,6 +782,8 @@ export const Practice = {
         this.handleCheckTln(qid);
       });
     });
+
+    this.bindNoteButtons();
   }
 };
 

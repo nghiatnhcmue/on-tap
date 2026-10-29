@@ -267,54 +267,125 @@ class App {
     const stats = Storage.getPracticeStats();
     const history = Storage.getExamHistory();
     const bookmarks = Storage.getBookmarks();
+    const wrongQuestions = Storage.getWrongQuestions();
+    const streakInfo = Storage.getStudyStreak();
+    const activeSession = Storage.getActiveExamSession();
+
+    const validHistory = history.filter(h => !h.isDisqualified);
+    const avgScore = validHistory.length > 0
+      ? (validHistory.reduce((sum, h) => sum + (Number(h.score) || 0), 0) / validHistory.length).toFixed(2)
+      : null;
+    const maxScore = validHistory.length > 0
+      ? Math.max(...validHistory.map(h => Number(h.score) || 0)).toFixed(2)
+      : null;
 
     const homeStatsContainer = document.getElementById('home-user-stats');
     if (homeStatsContainer) {
       homeStatsContainer.innerHTML = `
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl shrink-0">
-              <i class="fa-solid fa-list-check"></i>
+        <div class="space-y-4">
+          ${activeSession ? this.getActiveSessionBannerHtml(activeSession) : ''}
+
+          <!-- Hàng 1: 4 chỉ số tổng quan -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
+              <div class="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl shrink-0">
+                <i class="fa-solid fa-list-check"></i>
+              </div>
+              <div>
+                <span class="text-xs text-slate-400 block font-medium">Đã luyện tập</span>
+                <span class="text-xl font-black text-slate-800 dark:text-white">${stats.total} câu</span>
+              </div>
             </div>
-            <div>
-              <span class="text-xs text-slate-400 block font-medium">Đã luyện tập</span>
-              <span class="text-xl font-black text-slate-800 dark:text-white">${stats.total} câu</span>
+
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
+              <div class="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl shrink-0">
+                <i class="fa-solid fa-bullseye"></i>
+              </div>
+              <div>
+                <span class="text-xs text-slate-400 block font-medium">Tỷ lệ đúng</span>
+                <span class="text-xl font-black text-emerald-600 dark:text-emerald-400">
+                  ${stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0}%
+                </span>
+              </div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
+              <div class="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xl shrink-0">
+                <i class="fa-solid fa-graduation-cap"></i>
+              </div>
+              <div>
+                <span class="text-xs text-slate-400 block font-medium">Đề đã thi / Điểm TB</span>
+                <span class="text-xl font-black text-purple-600 dark:text-purple-400">${history.length} đề ${avgScore !== null ? `<span class="text-xs font-bold text-slate-400">(${avgScore}đ)</span>` : ''}</span>
+              </div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
+              <div class="w-12 h-12 rounded-xl bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xl shrink-0">
+                <i class="fa-solid fa-fire-flame-curved"></i>
+              </div>
+              <div>
+                <span class="text-xs text-slate-400 block font-medium">Chuỗi ngày học</span>
+                <span class="text-xl font-black text-orange-600 dark:text-orange-400">${streakInfo.streak} ngày 🔥</span>
+              </div>
             </div>
           </div>
 
-          <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl shrink-0">
-              <i class="fa-solid fa-bullseye"></i>
+          <!-- Hàng 2: Luyện Câu Hay Sai & Năng Lực Cá Nhân -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between gap-4">
+              <div class="flex items-center gap-3.5">
+                <div class="w-11 h-11 rounded-xl bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center text-lg shrink-0">
+                  <i class="fa-solid fa-rotate"></i>
+                </div>
+                <div>
+                  <h4 class="text-xs sm:text-sm font-bold text-slate-800 dark:text-white">
+                    Ngân Hàng Câu Hỏi Hay Sai (${wrongQuestions.length} câu)
+                  </h4>
+                  <p class="text-[11px] text-slate-400 mt-0.5">
+                    Hệ thống tự động gom các câu bạn làm sai khi ôn tập và thi thử để ôn lại đến khi thuần thục
+                  </p>
+                </div>
+              </div>
+              <button type="button" id="btn-home-practice-wrong" ${wrongQuestions.length === 0 ? 'disabled' : ''} class="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 dark:disabled:bg-slate-700 text-white disabled:text-slate-400 text-xs font-bold transition shrink-0 shadow-sm">
+                Ôn câu sai ngay
+              </button>
             </div>
-            <div>
-              <span class="text-xs text-slate-400 block font-medium">Tỷ lệ đúng</span>
-              <span class="text-xl font-black text-emerald-600 dark:text-emerald-400">
-                ${stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0}%
-              </span>
-            </div>
-          </div>
 
-          <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xl shrink-0">
-              <i class="fa-solid fa-graduation-cap"></i>
-            </div>
-            <div>
-              <span class="text-xs text-slate-400 block font-medium">Đề đã thi</span>
-              <span class="text-xl font-black text-purple-600 dark:text-purple-400">${history.length} đề</span>
-            </div>
-          </div>
-
-          <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl shrink-0">
-              <i class="fa-solid fa-bookmark"></i>
-            </div>
-            <div>
-              <span class="text-xs text-slate-400 block font-medium">Câu đã lưu</span>
-              <span class="text-xl font-black text-amber-600 dark:text-amber-400">${bookmarks.length} câu</span>
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between gap-4">
+              <div class="flex items-center gap-3.5">
+                <div class="w-11 h-11 rounded-xl bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center text-lg shrink-0">
+                  <i class="fa-solid fa-bookmark"></i>
+                </div>
+                <div>
+                  <h4 class="text-xs sm:text-sm font-bold text-slate-800 dark:text-white">
+                    Đã lưu ${bookmarks.length} câu hỏi • Kỷ lục: ${maxScore !== null ? maxScore + ' điểm' : 'Chưa thi'}
+                  </h4>
+                  <p class="text-[11px] text-slate-400 mt-0.5">
+                    Hỗ trợ chống gian lận đa nền tảng (Windows, macOS, Android, iOS) & tự động lưu nháp bài thi
+                  </p>
+                </div>
+              </div>
+              <button type="button" id="btn-home-open-bookmarks" class="px-4 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-bold transition shrink-0">
+                Xem câu đã lưu
+              </button>
             </div>
           </div>
         </div>
       `;
+
+      this.bindActiveSessionBannerEvents(homeStatsContainer);
+
+      homeStatsContainer.querySelector('#btn-home-practice-wrong')?.addEventListener('click', async () => {
+        if (wrongQuestions.length === 0) return;
+        await this.switchTab('practice');
+        const practiceArea = document.getElementById('practice-question-area');
+        Practice.init(practiceArea, wrongQuestions, this.manifest);
+        Practice.setQuestions(wrongQuestions);
+      });
+
+      homeStatsContainer.querySelector('#btn-home-open-bookmarks')?.addEventListener('click', () => {
+        this.switchTab('bookmarks');
+      });
     }
 
     // Render danh sách chủ đề nổi bật của khối hiện tại
@@ -357,6 +428,69 @@ class App {
     }
   }
 
+  getActiveSessionBannerHtml(activeSession) {
+    const mins = Math.floor((activeSession.remainingSeconds || 0) / 60);
+    const secs = (activeSession.remainingSeconds || 0) % 60;
+    const answered = Object.keys(activeSession.userAnswers || {}).length;
+    const total = (activeSession.examQuestions || []).length;
+    const title = activeSession.examConfig?.title || 'Đề thi thử Tin học';
+
+    return `
+      <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-lg shrink-0 mt-0.5">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+          </div>
+          <div>
+            <span class="text-[10px] font-black uppercase tracking-wider bg-black/20 px-2 py-0.5 rounded">Phát hiện bài thi đang làm dở</span>
+            <h4 class="text-sm font-black mt-1">${escapeHtml(title)}</h4>
+            <p class="text-xs text-amber-100 mt-0.5">
+              Đã làm: <b>${answered}/${total} câu</b> • Thời gian còn lại: <b>${mins} phút ${secs} giây</b>
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button type="button" data-resume-exam-session class="px-4 py-2.5 bg-white text-orange-600 hover:bg-orange-50 font-black rounded-xl text-xs transition shadow-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-play"></i> Tiếp tục làm bài
+          </button>
+          <button type="button" data-discard-exam-session class="px-3 py-2.5 bg-black/20 hover:bg-black/30 text-white font-bold rounded-xl text-xs transition">
+            Hủy nháp
+          </button>
+        </div>
+      </div>
+    `;
+  },
+
+  bindActiveSessionBannerEvents(containerEl) {
+    if (!containerEl) return;
+    const resumeBtn = containerEl.querySelector('[data-resume-exam-session]');
+    const discardBtn = containerEl.querySelector('[data-discard-exam-session]');
+
+    if (resumeBtn) {
+      resumeBtn.onclick = async () => {
+        const session = Storage.getActiveExamSession();
+        if (!session) return;
+        const grade = session.examConfig?.grade || this.currentGrade;
+        await this.loadGradeData(grade);
+        const questions = [...(this.gradeCache[grade] || [])];
+        await this.switchTab('exam-room');
+        const roomEl = document.getElementById('view-exam-room');
+        Exam.init(roomEl, questions, this.manifest);
+        Exam.resumeSavedSession(session);
+      };
+    }
+
+    if (discardBtn) {
+      discardBtn.onclick = () => {
+        if (confirm('Bạn có chắc chắn muốn hủy bỏ bài thi đang làm dở này không?')) {
+          Storage.clearActiveExamSession();
+          if (this.currentTab === 'home') this.renderHome();
+          else if (this.currentTab === 'exam-setup') this.renderExamSetup();
+        }
+      };
+    }
+  },
+
   // --- PRACTICE VIEW ---
   async initPracticeView() {
     const questions = await this.loadGradeData(this.currentGrade);
@@ -364,6 +498,22 @@ class App {
     Practice.init(container, questions, this.manifest);
     this.populatePracticeFilters();
     Practice.setQuestions(questions);
+
+    // Cập nhật số lượng câu hay sai trên thanh công cụ Luyện tập
+    const wrongCountEl = document.getElementById('practice-wrong-count');
+    const wrongBtn = document.getElementById('btn-practice-wrong-questions');
+    const wrongList = Storage.getWrongQuestions();
+    if (wrongCountEl) wrongCountEl.textContent = wrongList.length;
+    if (wrongBtn) {
+      wrongBtn.onclick = () => {
+        const latestWrong = Storage.getWrongQuestions();
+        if (latestWrong.length === 0) {
+          alert('Tuyệt vời! Hiện tại bạn không có câu hỏi nào trong danh sách làm sai.');
+          return;
+        }
+        Practice.setQuestions(latestWrong);
+      };
+    }
 
     // Bật tắt xáo trộn câu hỏi và phương án trong Luyện tập
     const pShuffleQ = document.getElementById('practice-cfg-shuffle-questions');
@@ -436,18 +586,41 @@ class App {
     const gradeSelect = document.getElementById('exam-cfg-grade');
     if (gradeSelect) gradeSelect.value = this.currentGrade;
 
+    // Hiển thị banner khôi phục bài thi đang làm dở (nếu có)
+    const recoveryBannerEl = document.getElementById('active-exam-recovery-banner');
+    if (recoveryBannerEl) {
+      const activeSession = Storage.getActiveExamSession();
+      recoveryBannerEl.innerHTML = activeSession ? this.getActiveSessionBannerHtml(activeSession) : '';
+      this.bindActiveSessionBannerEvents(recoveryBannerEl);
+    }
+
     // Thiết lập trạng thái toggle theo Storage
     const settings = Storage.getSettings();
     const shuffleQCheckbox = document.getElementById('exam-cfg-shuffle-questions');
     const shuffleOptCheckbox = document.getElementById('exam-cfg-shuffle-options');
+    const antiCheatCheckbox = document.getElementById('exam-cfg-anticheat');
     if (shuffleQCheckbox) shuffleQCheckbox.checked = settings.shuffleQuestions ?? true;
     if (shuffleOptCheckbox) shuffleOptCheckbox.checked = settings.shuffleOptions ?? true;
+    if (antiCheatCheckbox) antiCheatCheckbox.checked = settings.proctorPracticeExam ?? true;
 
     const getExamShuffleConfig = () => {
       const shuffleQuestions = shuffleQCheckbox ? shuffleQCheckbox.checked : true;
       const shuffleOptions = shuffleOptCheckbox ? shuffleOptCheckbox.checked : true;
-      Storage.saveSettings({ shuffleQuestions, shuffleOptions });
-      return { shuffleQuestions, shuffleOptions };
+      const proctorPracticeExam = antiCheatCheckbox ? antiCheatCheckbox.checked : true;
+      Storage.saveSettings({ shuffleQuestions, shuffleOptions, proctorPracticeExam });
+      return {
+        shuffleQuestions,
+        shuffleOptions,
+        antiCheat: {
+          enabled: proctorPracticeExam,
+          maxViolations: 3,
+          enforceFullscreen: true,
+          preventTabSwitch: true,
+          disableCopyPaste: true,
+          blockDevTools: true,
+          detectSplitScreen: true
+        }
+      };
     };
 
     // Vào phòng thi theo mã & mật khẩu (Đợt thi được giao)
@@ -492,14 +665,15 @@ class App {
     if (btnStartBgd) {
       btnStartBgd.onclick = async () => {
         const grade = gradeSelect ? gradeSelect.value : this.currentGrade;
-        const { shuffleQuestions, shuffleOptions } = getExamShuffleConfig();
+        const { shuffleQuestions, shuffleOptions, antiCheat } = getExamShuffleConfig();
         await this.startExam({
           type: 'bgd_2025',
           title: `Đề thi thử Tốt nghiệp THPT 2025 môn Tin học - Khối ${grade}`,
           grade,
           duration: 50,
           shuffleQuestions,
-          shuffleOptions
+          shuffleOptions,
+          antiCheat
         });
       };
     }
@@ -511,7 +685,7 @@ class App {
         const count = parseInt(document.getElementById('exam-cfg-count')?.value || '30', 10);
         const duration = parseInt(document.getElementById('exam-cfg-duration')?.value || '45', 10);
         const title = `Đề kiểm tra Tin học ${duration} phút - Khối ${grade}`;
-        const { shuffleQuestions, shuffleOptions } = getExamShuffleConfig();
+        const { shuffleQuestions, shuffleOptions, antiCheat } = getExamShuffleConfig();
 
         await this.startExam({
           type: 'custom',
@@ -520,7 +694,8 @@ class App {
           count,
           duration,
           shuffleQuestions,
-          shuffleOptions
+          shuffleOptions,
+          antiCheat
         });
       };
     }

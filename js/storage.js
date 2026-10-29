@@ -13,7 +13,11 @@ const STORAGE_KEYS = {
   DELETED_QUESTIONS: 'tinhoc_deleted_question_ids',
   ACCOUNTS: 'tinhoc_user_accounts',
   ADMIN_CONFIG: 'tinhoc_admin_config',
-  EXAM_ROOMS: 'tinhoc_exam_rooms'
+  EXAM_ROOMS: 'tinhoc_exam_rooms',
+  ACTIVE_EXAM_SESSION: 'tinhoc_active_exam_session',
+  WRONG_QUESTIONS: 'tinhoc_wrong_questions',
+  USER_NOTES: 'tinhoc_user_notes',
+  STUDY_STREAK: 'tinhoc_study_streak'
 };
 
 export const Storage = {
@@ -638,6 +642,24 @@ export const Storage = {
       // Giữ tối đa 100 bài thi gần nhất
       if (history.length > 100) history.pop();
       localStorage.setItem(STORAGE_KEYS.EXAM_HISTORY, JSON.stringify(history));
+
+      // Tự động xóa phiên làm bài nháp sau khi đã nộp bài
+      this.clearActiveExamSession();
+
+      // Tự động ghi nhận chuỗi ngày học tập
+      this.recordDailyActivity();
+
+      // Tự động lưu các câu trả lời sai vào Ngân hàng câu hay sai
+      if (Array.isArray(result.details)) {
+        result.details.forEach(d => {
+          if (!d.isCorrect && d.question) {
+            this.recordWrongQuestion(d.question);
+          } else if (d.isCorrect && d.question?.id) {
+            this.markWrongQuestionResolved(d.question.id);
+          }
+        });
+      }
+
       return entry;
     } catch (e) {
       console.error('Error saving exam result', e);
@@ -647,6 +669,172 @@ export const Storage = {
 
   clearExamHistory() {
     localStorage.removeItem(STORAGE_KEYS.EXAM_HISTORY);
+  },
+
+  // --- LƯU NHÁP & KHÔI PHỤC BÀI THI ĐANG LÀM DỞ (AUTO-SAVE SESSION) ---
+  saveActiveExamSession(sessionData) {
+    try {
+      if (!sessionData || !sessionData.examQuestions || sessionData.examQuestions.length === 0) return;
+      const payload = {
+        ...sessionData,
+        savedAt: Date.now()
+      };
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_EXAM_SESSION, JSON.stringify(payload));
+    } catch (e) {
+      console.error('Error saving active exam session', e);
+    }
+  },
+
+  getActiveExamSession() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.ACTIVE_EXAM_SESSION);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      // Chỉ khôi phục các phiên làm bài trong vòng 3 giờ gần nhất và còn thời gian
+      if (!data.savedAt || (Date.now() - data.savedAt) > 3 * 3600 * 1000 || (data.remainingSeconds || 0) <= 5) {
+        this.clearActiveExamSession();
+        return null;
+      }
+      return data;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  clearActiveExamSession() {
+    localStorage.removeItem(STORAGE_KEYS.ACTIVE_EXAM_SESSION);
+  },
+
+  // --- NGÂN HÀNG CÂU HỎI HAY SAI (SMART MISTAKE BANK) ---
+  getWrongQuestions() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.WRONG_QUESTIONS);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  recordWrongQuestion(question) {
+    if (!question || !question.id) return;
+    try {
+      let list = this.getWrongQuestions();
+      const idx = list.findIndex(item => item.id === question.id);
+      if (idx >= 0) {
+        list[idx].wrongCount = (list[idx].wrongCount || 1) + 1;
+        list[idx].lastWrongAt = new Date().toISOString();
+      } else {
+        list.unshift({
+          id: question.id,
+          grade: question.grade,
+          topic: question.topic,
+          lesson: question.lesson,
+          level: question.level,
+          question: question.question,
+          options: question.options,
+          answer: question.answer,
+          wrongCount: 1,
+          lastWrongAt: new Date().toISOString()
+        });
+      }
+      if (list.length > 200) list = list.slice(0, 200);
+      localStorage.setItem(STORAGE_KEYS.WRONG_QUESTIONS, JSON.stringify(list));
+    } catch (e) {
+      console.error('Error recording wrong question', e);
+    }
+  },
+
+  markWrongQuestionResolved(questionId) {
+    if (!questionId) return;
+    try {
+      let list = this.getWrongQuestions();
+      const filtered = list.filter(item => item.id !== questionId);
+      if (filtered.length !== list.length) {
+        localStorage.setItem(STORAGE_KEYS.WRONG_QUESTIONS, JSON.stringify(filtered));
+      }
+    } catch (e) {}
+  },
+
+  clearWrongQuestions() {
+    localStorage.removeItem(STORAGE_KEYS.WRONG_QUESTIONS);
+  },
+
+  // --- GHI CHÚ CÁ NHÂN CHO TỪNG CÂU HỎI (PERSONAL NOTES) ---
+  getAllQuestionNotes() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.USER_NOTES);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  },
+
+  getQuestionNote(questionId) {
+    if (!questionId) return '';
+    const notes = this.getAllQuestionNotes();
+    return notes[questionId] || '';
+  },
+
+  saveQuestionNote(questionId, noteText) {
+    if (!questionId) return;
+    try {
+      const notes = this.getAllQuestionNotes();
+      const clean = (noteText || '').trim();
+      if (clean) {
+        notes[questionId] = clean;
+      } else {
+        delete notes[questionId];
+      }
+      localStorage.setItem(STORAGE_KEYS.USER_NOTES, JSON.stringify(notes));
+    } catch (e) {
+      console.error('Error saving question note', e);
+    }
+  },
+
+  // --- CHUỖI NGÀY HỌC LIÊN TIẾP (DAILY STUDY STREAK) ---
+  getStudyStreak() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.STUDY_STREAK);
+      if (!raw) return { streak: 0, lastDate: null, todayCount: 0 };
+      const data = JSON.parse(raw);
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const yesterdayStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      if (data.lastDate !== todayStr && data.lastDate !== yesterdayStr) {
+        return { streak: 0, lastDate: data.lastDate, todayCount: 0 };
+      }
+      return {
+        streak: data.streak || 0,
+        lastDate: data.lastDate,
+        todayCount: data.lastDate === todayStr ? (data.todayCount || 0) : 0
+      };
+    } catch (e) {
+      return { streak: 0, lastDate: null, todayCount: 0 };
+    }
+  },
+
+  recordDailyActivity() {
+    try {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const yesterdayStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      const raw = localStorage.getItem(STORAGE_KEYS.STUDY_STREAK);
+      let data = raw ? JSON.parse(raw) : { streak: 0, lastDate: null, todayCount: 0 };
+
+      if (data.lastDate === todayStr) {
+        data.todayCount = (data.todayCount || 0) + 1;
+      } else if (data.lastDate === yesterdayStr) {
+        data.streak = (data.streak || 0) + 1;
+        data.lastDate = todayStr;
+        data.todayCount = 1;
+      } else {
+        data.streak = 1;
+        data.lastDate = todayStr;
+        data.todayCount = 1;
+      }
+      localStorage.setItem(STORAGE_KEYS.STUDY_STREAK, JSON.stringify(data));
+      return data;
+    } catch (e) {
+      return { streak: 1, lastDate: null, todayCount: 1 };
+    }
   },
 
   // --- THỐNG KÊ LUYỆN TẬP ---
@@ -659,13 +847,19 @@ export const Storage = {
     }
   },
 
-  recordPracticeResult(isCorrect) {
+  recordPracticeResult(isCorrect, question = null) {
     try {
       const stats = this.getPracticeStats();
       stats.total += 1;
-      if (isCorrect) stats.correct += 1;
-      else stats.wrong += 1;
+      if (isCorrect) {
+        stats.correct += 1;
+        if (question?.id) this.markWrongQuestionResolved(question.id);
+      } else {
+        stats.wrong += 1;
+        if (question) this.recordWrongQuestion(question);
+      }
       localStorage.setItem(STORAGE_KEYS.PRACTICE_STATS, JSON.stringify(stats));
+      this.recordDailyActivity();
       return stats;
     } catch (e) {
       console.error('Error recording practice result', e);

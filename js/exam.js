@@ -85,12 +85,13 @@ export const Exam = {
             badgeEl.innerHTML = `Vi phạm: <strong class="text-white">${total}</strong>/${this.maxViolations}`;
             badgeEl.className = 'text-[11px] font-mono px-2.5 py-1 rounded-lg bg-rose-600 text-white font-bold animate-pulse';
           }
+          this.saveCurrentSession();
         },
         (logs) => {
           this.terminateExamDueToCheating(logs);
         }
       );
-      setTimeout(() => Proctor.start(), 400);
+      Proctor.start();
     }
 
     if (gradePool.length === 0) {
@@ -161,9 +162,71 @@ export const Exam = {
     this.remainingSeconds = this.totalSeconds;
     this.examState = 'taking';
     document.body.classList.add('in-exam');
+    this.saveCurrentSession();
     this.startTimer();
     this.renderExamInterface();
     return true;
+  },
+
+  resumeSavedSession(savedSession) {
+    if (!savedSession || !savedSession.examQuestions || savedSession.examQuestions.length === 0) return false;
+    this.resetState();
+    this.examConfig = savedSession.examConfig || { type: 'bgd_2025', title: 'Đề thi thử Tin học', grade: '12', duration: 50 };
+    this.examQuestions = savedSession.examQuestions;
+    this.userAnswers = savedSession.userAnswers || {};
+    this.flaggedQuestions = new Set(savedSession.flaggedQuestions || []);
+    this.currentIndex = savedSession.currentIndex || 0;
+    this.totalSeconds = savedSession.totalSeconds || 3000;
+    this.remainingSeconds = savedSession.remainingSeconds || 600;
+    this.isProctored = !!savedSession.isProctored;
+    this.maxViolations = savedSession.maxViolations || 3;
+    this.isDisqualified = false;
+    this.disqualifiedReason = '';
+
+    if (this.isProctored) {
+      const antiCheatCfg = {
+        ...(this.examConfig.antiCheat || { enabled: true, maxViolations: this.maxViolations }),
+        initialViolationCount: savedSession.violationCount || 0,
+        initialViolationLogs: savedSession.violationLogs || []
+      };
+      Proctor.init(antiCheatCfg,
+        (record, remaining, total) => {
+          const badgeEl = document.getElementById('proctor-violation-badge');
+          if (badgeEl) {
+            badgeEl.innerHTML = `Vi phạm: <strong class="text-white">${total}</strong>/${this.maxViolations}`;
+            badgeEl.className = 'text-[11px] font-mono px-2.5 py-1 rounded-lg bg-rose-600 text-white font-bold animate-pulse';
+          }
+          this.saveCurrentSession();
+        },
+        (logs) => {
+          this.terminateExamDueToCheating(logs);
+        }
+      );
+      Proctor.start();
+    }
+
+    this.examState = 'taking';
+    document.body.classList.add('in-exam');
+    this.startTimer();
+    this.renderExamInterface();
+    return true;
+  },
+
+  saveCurrentSession() {
+    if (this.examState !== 'taking') return;
+    Storage.saveActiveExamSession({
+      examConfig: this.examConfig,
+      examQuestions: this.examQuestions,
+      userAnswers: this.userAnswers,
+      flaggedQuestions: [...this.flaggedQuestions],
+      currentIndex: this.currentIndex,
+      totalSeconds: this.totalSeconds,
+      remainingSeconds: this.remainingSeconds,
+      isProctored: this.isProctored,
+      maxViolations: this.maxViolations,
+      violationCount: this.isProctored ? Proctor.violationCount : 0,
+      violationLogs: this.isProctored ? Proctor.violationLogs : []
+    });
   },
 
   sampleQuestions(pool, count, shouldShuffle = true) {
@@ -180,6 +243,9 @@ export const Exam = {
     this.timerInterval = setInterval(() => {
       this.remainingSeconds--;
       this.updateTimerDisplay();
+      if (this.remainingSeconds % 5 === 0) {
+        this.saveCurrentSession();
+      }
 
       if (this.remainingSeconds <= 0) {
         clearInterval(this.timerInterval);
@@ -267,16 +333,19 @@ export const Exam = {
         <!-- Cột 1: Câu hỏi đang hiển thị (3 phần) -->
         <div class="lg:col-span-3 space-y-6">
 
-          <!-- Banner Giám Sát Chống Gian Lận (Nếu có bật) -->
+          <!-- Banner Giám Sát Chống Gian Lận Đa Nền Tảng (Nếu có bật) -->
           ${this.isProctored ? `
             <div class="p-3.5 bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-sm border border-slate-700/80">
               <div class="flex items-center gap-2.5">
-                <span class="w-3 h-3 rounded-full ${Proctor.violationCount > 0 ? 'bg-amber-400 animate-ping' : 'bg-emerald-400 animate-pulse'}"></span>
+                <span class="w-3 h-3 rounded-full ${Proctor.violationCount > 0 ? 'bg-amber-400 animate-ping' : 'bg-emerald-400 animate-pulse'} shrink-0"></span>
                 <div>
-                  <span class="font-bold text-xs flex items-center gap-1.5 text-white">
-                    <i class="fa-solid fa-shield-halved text-blue-400"></i> Phòng thi được giám sát chống gian lận
+                  <span class="font-bold text-xs flex items-center flex-wrap gap-1.5 text-white">
+                    <i class="fa-solid fa-shield-halved text-blue-400"></i> Giám sát đa nền tảng:
+                    <span class="px-2 py-0.5 rounded bg-blue-500/20 border border-blue-400/30 text-blue-200 font-mono text-[10px]">${escapeHtml(Proctor.platform?.os || 'Thiết bị')}</span>
                   </span>
-                  <span class="text-[10px] text-slate-400 block">Nghiêm cấm chuyển tab, thu nhỏ hoặc rời khỏi cửa sổ thi</span>
+                  <span class="text-[10px] text-slate-400 block mt-0.5">
+                    Chống chuyển Tab/App • Chống Split-Screen • Màn chắn chống chụp màn hình • Tự động lưu nháp
+                  </span>
                 </div>
               </div>
 
@@ -284,9 +353,15 @@ export const Exam = {
                 <span id="proctor-violation-badge" class="text-[11px] font-mono px-3 py-1 rounded-xl ${Proctor.violationCount > 0 ? 'bg-rose-600 text-white font-bold animate-pulse' : 'bg-white/10 text-slate-300'}">
                   Vi phạm: <strong class="text-white">${Proctor.violationCount}</strong>/${this.maxViolations || 3}
                 </span>
-                <button type="button" id="btn-toggle-fullscreen" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-slate-200 rounded-xl text-xs font-semibold transition border border-white/10 flex items-center gap-1">
-                  <i class="fa-solid fa-expand text-[10px]"></i> Toàn màn hình
-                </button>
+                ${Proctor.platform?.supportsFullscreen ? `
+                  <button type="button" id="btn-toggle-fullscreen" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-slate-200 rounded-xl text-xs font-semibold transition border border-white/10 flex items-center gap-1">
+                    <i class="fa-solid fa-expand text-[10px]"></i> Toàn màn hình
+                  </button>
+                ` : `
+                  <span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 rounded-xl text-[10px] font-bold border border-emerald-500/30 flex items-center gap-1">
+                    <i class="fa-solid fa-lock text-[9px]"></i> Khung hình iOS An toàn
+                  </span>
+                `}
               </div>
             </div>
           ` : ''}
@@ -554,6 +629,7 @@ export const Exam = {
         } else {
           this.flaggedQuestions.add(currentQ.id);
         }
+        this.saveCurrentSession();
         this.renderExamInterface();
       });
     }
@@ -564,6 +640,7 @@ export const Exam = {
       btn.addEventListener('click', () => {
         const letter = btn.getAttribute('data-exam-mcq');
         this.userAnswers[currentQ.id] = { chosen: letter };
+        this.saveCurrentSession();
         this.renderExamInterface();
       });
     });
@@ -578,6 +655,7 @@ export const Exam = {
         let existing = this.userAnswers[currentQ.id] ? this.userAnswers[currentQ.id].choices : ['', '', '', ''];
         existing[idx] = val;
         this.userAnswers[currentQ.id] = { choices: [...existing] };
+        this.saveCurrentSession();
         this.renderExamInterface();
       });
     });
@@ -592,6 +670,7 @@ export const Exam = {
         } else {
           delete this.userAnswers[currentQ.id];
         }
+        this.saveCurrentSession();
       });
     }
 
