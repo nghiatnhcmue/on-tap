@@ -37,7 +37,177 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css?v=20261029_06" />
+
+  <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
+  <script>
+    (function() {
+      try {
+        var uStr = localStorage.getItem('tinhoc_user');
+        if (uStr) {
+          var u = JSON.parse(uStr);
+          if (u && (u.email || u.fullName || u.uid) && u.school && u.className) {
+            document.documentElement.classList.add('is-authenticated');
+          } else if (u && (u.email || u.fullName || u.uid)) {
+            document.documentElement.classList.add('has-incomplete-profile');
+          }
+        }
+      } catch(e) {}
+
+      window.openLoginModal = function(tab) {
+        document.documentElement.classList.remove('is-authenticated');
+        var m = document.getElementById('modal-login');
+        if (m) {
+          m.classList.remove('hidden');
+          m.style.setProperty('display', 'flex', 'important');
+          m.style.setProperty('visibility', 'visible', 'important');
+          m.style.setProperty('opacity', '1', 'important');
+          m.style.setProperty('z-index', '99999', 'important');
+        }
+        if (tab && typeof window.switchAuthTab === 'function') {
+          window.switchAuthTab(tab);
+        }
+        if (window.AppInstance && typeof window.AppInstance.renderSavedAccountsInLoginModal === 'function') {
+          window.AppInstance.renderSavedAccountsInLoginModal();
+        }
+        if (window.Auth && typeof window.Auth.initGoogleIdentity === 'function') {
+          window.Auth.initGoogleIdentity();
+        }
+      };
+
+      window.closeLoginModal = function() {
+        try {
+          var uStr = localStorage.getItem('tinhoc_user');
+          if (!uStr) {
+            alert('Hệ thống yêu cầu Đăng ký hoặc Đăng nhập để sử dụng TinHocHub!');
+            return;
+          }
+        } catch(e) {}
+        document.documentElement.classList.add('is-authenticated');
+        var m = document.getElementById('modal-login');
+        if (m) {
+          m.classList.add('hidden');
+          m.style.setProperty('display', 'none', 'important');
+        }
+      };
+
+      window.switchAuthTab = function(tab) {
+        var panelLogin = document.getElementById('auth-panel-login');
+        var panelRegister = document.getElementById('auth-panel-register');
+        var tabLoginBtn = document.getElementById('tab-btn-auth-login');
+        var tabRegBtn = document.getElementById('tab-btn-auth-register');
+
+        if (tab === 'register') {
+          if (panelLogin) panelLogin.classList.add('hidden');
+          if (panelRegister) panelRegister.classList.remove('hidden');
+          if (tabLoginBtn) {
+            tabLoginBtn.classList.remove('bg-white', 'dark:bg-slate-800', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm');
+            tabLoginBtn.classList.add('text-slate-500', 'dark:text-slate-400');
+          }
+          if (tabRegBtn) {
+            tabRegBtn.classList.add('bg-white', 'dark:bg-slate-800', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm');
+            tabRegBtn.classList.remove('text-slate-500', 'dark:text-slate-400');
+          }
+          if (window.Auth && typeof window.Auth.setupSchoolClassSync === 'function') {
+            window.Auth.setupSchoolClassSync({
+              schoolSelectId: 'reg-input-school',
+              customSchoolInputId: 'reg-input-school-custom',
+              gradeSelectId: 'reg-input-grade',
+              classSelectId: 'reg-input-class',
+              customClassInputId: 'reg-input-class-custom',
+              initialSchool: document.getElementById('reg-input-school')?.value || 'TT GDNN GDTX Chu Văn An',
+              initialGrade: document.getElementById('reg-input-grade')?.value || '12',
+              initialClass: document.getElementById('reg-input-class')?.value || '12A1'
+            });
+          }
+        } else {
+          if (panelRegister) panelRegister.classList.add('hidden');
+          if (panelLogin) panelLogin.classList.remove('hidden');
+          if (tabRegBtn) {
+            tabRegBtn.classList.remove('bg-white', 'dark:bg-slate-800', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm');
+            tabRegBtn.classList.add('text-slate-500', 'dark:text-slate-400');
+          }
+          if (tabLoginBtn) {
+            tabLoginBtn.classList.add('bg-white', 'dark:bg-slate-800', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm');
+            tabLoginBtn.classList.remove('text-slate-500', 'dark:text-slate-400');
+          }
+          if (window.AppInstance && typeof window.AppInstance.renderSavedAccountsInLoginModal === 'function') {
+            window.AppInstance.renderSavedAccountsInLoginModal();
+          }
+        }
+      };
+
+      window.demoLoginQuick = function(role) {
+        if (window.Auth && typeof window.Auth.demoLogin === 'function') {
+          window.Auth.demoLogin(role);
+          document.documentElement.classList.add('is-authenticated');
+          document.documentElement.classList.remove('has-incomplete-profile');
+          var m = document.getElementById('modal-login');
+          if (m) m.classList.add('hidden');
+          if (window.AppInstance && typeof window.AppInstance.enforceAuthentication === 'function') {
+            window.AppInstance.enforceAuthentication();
+          }
+          return;
+        }
+        var demoUsers = {
+          student: { uid: 'demo_hs_01', email: 'hocsinh.demo@tinhoc.edu.vn', fullName: 'Nguyễn Văn An (HS Mẫu)', role: 'student', grade: '12', school: 'TT GDNN GDTX Chu Văn An', className: '12A1', avatar: 'https://ui-avatars.com/api/?name=Nguyen+Van+An&background=3b82f6&color=fff' },
+          teacher: { uid: 'demo_gv_01', email: 'giaovien.demo@tinhoc.edu.vn', fullName: 'Thầy Nguyễn Trọng Nghĩa (GV)', role: 'teacher', school: 'TT GDNN GDTX Chu Văn An', grade: '12', className: '12A1', avatar: 'https://ui-avatars.com/api/?name=Trong+Nghia&background=8b5cf6&color=fff' },
+          admin: { uid: 'demo_admin_01', email: 'admin.demo@tinhoc.edu.vn', fullName: 'Quản Trị Viên Hệ Thống (Admin)', role: 'admin', school: 'Sở Giáo Dục & Đào Tạo', grade: '12', className: '12A1', avatar: 'https://ui-avatars.com/api/?name=Admin&background=ef4444&color=fff' }
+        };
+        var target = demoUsers[role] || demoUsers.student;
+        localStorage.setItem('tinhoc_user', JSON.stringify(target));
+        var accounts = [];
+        try {
+          var accStr = localStorage.getItem('tinhoc_accounts');
+          if (accStr) accounts = JSON.parse(accStr);
+        } catch(e) {}
+        if (!accounts.some(function(a) { return a.email === target.email; })) {
+          accounts.unshift(target);
+          localStorage.setItem('tinhoc_accounts', JSON.stringify(accounts));
+        }
+        location.reload();
+      };
+
+      window.logoutAndOpenLogin = function() {
+        localStorage.removeItem('tinhoc_user');
+        document.documentElement.classList.remove('is-authenticated');
+        document.documentElement.classList.remove('has-incomplete-profile');
+        var mProfile = document.getElementById('modal-required-profile');
+        if (mProfile) mProfile.classList.add('hidden');
+        window.openLoginModal('login');
+      };
+    })();
+
+    // Bắt mọi tương tác click khi chưa đăng nhập và mở modal ngay lập tức
+    document.addEventListener('click', function(e) {
+      if (!document.documentElement.classList.contains('is-authenticated')) {
+        var t = e.target;
+        if (!t.closest('#modal-login') && !t.closest('#modal-required-profile') && !t.closest('#modal-google-quick-prompt') && !t.closest('#modal-google-config')) {
+          if (t.closest('#app-main') || t.closest('[data-tab-target]') || t.closest('[data-open-login-modal]')) {
+            e.preventDefault();
+            e.stopPropagation();
+            window.openLoginModal('login');
+          }
+        }
+      }
+    }, true);
+  </script>
+  <style>
+    /* Khi chưa đăng nhập: luôn đảm bảo modal đăng nhập hiện diện flex */
+    html:not(.is-authenticated):not(.has-incomplete-profile) #modal-login {
+      display: flex !important;
+    }
+    /* Khi đã đăng nhập: ẩn modal đăng nhập */
+    html.is-authenticated #modal-login {
+      display: none !important;
+    }
+    html.has-incomplete-profile #modal-login {
+      display: none !important;
+    }
+    html.has-incomplete-profile #modal-required-profile {
+      display: flex !important;
+    }
+  </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
 
@@ -106,7 +276,7 @@
       <div class="flex items-center gap-2 sm:gap-3">
         
         <!-- Google Auth Button (When NOT logged in) -->
-        <button id="auth-btn-login" data-open-login-modal class="px-3.5 py-1.5 rounded-2xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold hover:border-blue-500 hover:text-blue-600 transition flex items-center gap-2 shadow-sm">
+        <button id="auth-btn-login" data-open-login-modal onclick="window.openLoginModal('login'); return false;" class="px-3.5 py-1.5 rounded-2xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold hover:border-blue-500 hover:text-blue-600 transition flex items-center gap-2 shadow-sm">
           <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -1001,18 +1171,18 @@
           Vui lòng đăng nhập hoặc đăng ký tài khoản để ôn tập ngân hàng 4.449 câu hỏi và thi thử.
         </p>
       </div>
-      <button data-open-login-modal class="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shrink-0 transition shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2">
+      <button data-open-login-modal onclick="window.openLoginModal('login'); return false;" class="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shrink-0 transition shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2">
         <i class="fa-solid fa-right-to-bracket"></i> Đăng Nhập Ngay 🚀
       </button>
     </div>
   </div>
 
   <!-- ==================== MODAL: ĐĂNG KÝ / ĐĂNG NHẬP BẮT BUỘC ==================== -->
-  <div id="modal-login" class="hidden fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+  <div id="modal-login" class="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
     <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative my-auto max-h-[92dvh] overflow-y-auto">
       
       <!-- Nút Đóng modal (chỉ hiển thị khi ĐÃ đăng nhập) -->
-      <button id="btn-close-login-modal" data-close-modal="modal-login" class="hidden absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+      <button id="btn-close-login-modal" onclick="window.closeLoginModal(); return false;" data-close-modal="modal-login" class="hidden absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
@@ -1034,10 +1204,10 @@
 
       <!-- Segmented Control chuyển đổi giữa Đăng Nhập & Đăng Ký -->
       <div class="flex items-center p-1 bg-slate-100 dark:bg-slate-900 rounded-2xl mb-5">
-        <button type="button" id="tab-btn-auth-login" class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm flex items-center justify-center gap-1.5">
+        <button type="button" id="tab-btn-auth-login" onclick="window.switchAuthTab('login')" class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm flex items-center justify-center gap-1.5">
           <i class="fa-solid fa-right-to-bracket text-xs"></i> Đăng Nhập
         </button>
-        <button type="button" id="tab-btn-auth-register" class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white flex items-center justify-center gap-1.5">
+        <button type="button" id="tab-btn-auth-register" onclick="window.switchAuthTab('register')" class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white flex items-center justify-center gap-1.5">
           <i class="fa-solid fa-user-plus text-xs"></i> Đăng Ký Mới
         </button>
       </div>
@@ -1095,24 +1265,24 @@
 
         <!-- 3 Nút đăng nhập trải nghiệm nhanh -->
         <div class="space-y-2">
-          <button id="btn-demo-login-student" type="button" class="w-full py-2.5 px-4 rounded-2xl border border-blue-200 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-xs font-bold text-blue-700 dark:text-blue-300 flex items-center justify-between transition">
+          <button id="btn-demo-login-student" type="button" onclick="window.demoLoginQuick('student')" class="w-full py-2.5 px-4 rounded-2xl border border-blue-200 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-xs font-bold text-blue-700 dark:text-blue-300 flex items-center justify-between transition">
             <span class="flex items-center gap-2"><i class="fa-solid fa-user-graduate"></i> Đăng nhập: <strong>Học sinh (HS)</strong></span>
             <span class="text-[10px] px-2 py-0.5 rounded bg-blue-200/60 dark:bg-blue-800/60">Làm bài & vinh danh</span>
           </button>
 
-          <button id="btn-demo-login-teacher" type="button" class="w-full py-2.5 px-4 rounded-2xl border border-purple-200 dark:border-purple-900 bg-purple-50/60 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-xs font-bold text-purple-700 dark:text-purple-300 flex items-center justify-between transition">
+          <button id="btn-demo-login-teacher" type="button" onclick="window.demoLoginQuick('teacher')" class="w-full py-2.5 px-4 rounded-2xl border border-purple-200 dark:border-purple-900 bg-purple-50/60 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-xs font-bold text-purple-700 dark:text-purple-300 flex items-center justify-between transition">
             <span class="flex items-center gap-2"><i class="fa-solid fa-chalkboard-user"></i> Đăng nhập: <strong>Giáo viên (GV)</strong></span>
             <span class="text-[10px] px-2 py-0.5 rounded bg-purple-200/60 dark:bg-purple-800/60">Quản lý câu hỏi & phòng thi</span>
           </button>
 
-          <button id="btn-demo-login-admin" type="button" class="w-full py-2.5 px-4 rounded-2xl border border-rose-200 dark:border-rose-900 bg-rose-50/60 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center justify-between transition">
+          <button id="btn-demo-login-admin" type="button" onclick="window.demoLoginQuick('admin')" class="w-full py-2.5 px-4 rounded-2xl border border-rose-200 dark:border-rose-900 bg-rose-50/60 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center justify-between transition">
             <span class="flex items-center gap-2"><i class="fa-solid fa-shield-halved"></i> Đăng nhập: <strong>Quản trị viên (Admin)</strong></span>
             <span class="text-[10px] px-2 py-0.5 rounded bg-rose-200/60 dark:bg-rose-800/60">Toàn quyền hệ thống</span>
           </button>
         </div>
 
         <div class="pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between text-[11px]">
-          <button id="btn-switch-to-register" type="button" class="text-blue-600 dark:text-blue-400 hover:underline font-bold">
+          <button id="btn-switch-to-register" type="button" onclick="window.switchAuthTab('register')" class="text-blue-600 dark:text-blue-400 hover:underline font-bold">
             Chưa có tài khoản? Đăng ký ngay
           </button>
           <button id="btn-open-google-config" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 inline-flex items-center gap-1">
@@ -1222,7 +1392,7 @@
         </form>
 
         <div class="pt-3 border-t border-slate-100 dark:border-slate-700 text-center text-[11px]">
-          <button id="btn-switch-to-login" type="button" class="text-blue-600 dark:text-blue-400 hover:underline font-bold">
+          <button id="btn-switch-to-login" type="button" onclick="window.switchAuthTab('login')" class="text-blue-600 dark:text-blue-400 hover:underline font-bold">
             Đã có tài khoản? Quay lại Đăng nhập
           </button>
         </div>
@@ -1349,7 +1519,7 @@
         </div>
 
         <div class="pt-3 flex flex-col sm:flex-row items-center gap-2">
-          <button type="button" id="btn-cancel-profile-logout" class="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-xs transition flex items-center justify-center gap-1.5 shrink-0">
+          <button type="button" id="btn-cancel-profile-logout" onclick="window.logoutAndOpenLogin()" class="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-xs transition flex items-center justify-center gap-1.5 shrink-0">
             <i class="fa-solid fa-arrow-right-from-bracket"></i> Đổi tài khoản khác
           </button>
           <button type="submit" class="w-full sm:flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs transition shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
@@ -1826,7 +1996,7 @@
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261029_04"></script>
+  <script type="module" src="js/app.js?v=20261029_06"></script>
 </body>
 </html>
 

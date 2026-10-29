@@ -18,6 +18,7 @@ import { Proctor } from './proctor.js';
 import { Gradebook } from './gradebook.js';
 
 if (typeof window !== 'undefined') {
+  window.Auth = Auth;
   window.Storage = Storage;
   window.Exam = Exam;
   window.Proctor = Proctor;
@@ -36,10 +37,15 @@ class App {
 
   async init() {
     window.App = this;
+    window.AppInstance = this;
     this.initTheme();
     Auth.init();
     this.initAuthUI();
     this.bindGlobalEvents();
+
+    // Khóa giao diện và mở modal đăng nhập NGAY LẬP TỨC (không chờ nạp manifest / đề thi)
+    this.enforceAuthentication();
+
     await this.loadManifest();
     await this.switchGrade(this.currentGrade);
     this.renderHome();
@@ -170,6 +176,24 @@ class App {
       const confirmLeave = confirm('Bạn đang trong quá trình làm bài thi thử. Nếu rời khỏi phòng thi lúc này, bài làm chưa nộp sẽ bị hủy.\nBạn có chắc chắn muốn thoát không?');
       if (!confirmLeave) return false;
       Exam.resetState();
+    }
+
+    // Kiểm tra đăng nhập bắt buộc khi truy cập các tính năng
+    if (!Auth.isLoggedIn() && tab !== 'home') {
+      if (typeof window.openLoginModal === 'function') {
+        window.openLoginModal('login');
+      } else {
+        document.getElementById('modal-login')?.classList.remove('hidden');
+      }
+      alert('Vui lòng Đăng nhập hoặc Đăng ký tài khoản để sử dụng tính năng này!');
+      return false;
+    }
+
+    // Kiểm tra hoàn tất hồ sơ
+    if (Auth.isLoggedIn() && !Auth.isProfileComplete() && tab !== 'home') {
+      Auth.openRequiredProfileModal();
+      alert('Vui lòng hoàn tất thông tin Họ và tên, Lớp, Trường để tiếp tục!');
+      return false;
     }
 
     // Kiểm tra quyền truy cập theo vai trò (RBAC)
@@ -1804,6 +1828,8 @@ class App {
     const authBtnLogin = document.getElementById('auth-btn-login');
 
     if (!Auth.isLoggedIn()) {
+      document.documentElement.classList.remove('is-authenticated');
+      document.documentElement.classList.remove('has-incomplete-profile');
       // Chưa đăng nhập -> KHÔNG khóa header để nút Đăng nhập trên navbar luôn bấm được!
       if (headerEl) headerEl.classList.remove('pointer-events-none');
       if (authBtnLogin) authBtnLogin.classList.remove('hidden');
@@ -1823,12 +1849,14 @@ class App {
       // Hiển thị modal đăng nhập và thanh nhắc nhở
       if (loginModal) {
         loginModal.classList.remove('hidden');
-        loginModal.style.display = 'flex';
+        loginModal.style.setProperty('display', 'flex', 'important');
         this.renderSavedAccountsInLoginModal();
         Auth.initGoogleIdentity();
       }
       if (gatekeeperOverlay) gatekeeperOverlay.classList.remove('hidden');
     } else if (!Auth.isProfileComplete()) {
+      document.documentElement.classList.remove('is-authenticated');
+      document.documentElement.classList.add('has-incomplete-profile');
       // Đã đăng nhập nhưng chưa hoàn tất Họ tên, Lớp, Trường
       if (headerEl) headerEl.classList.remove('pointer-events-none');
       if (desktopNav) {
@@ -1840,11 +1868,13 @@ class App {
       if (mobileBarEl) mobileBarEl.classList.add('hidden');
       if (loginModal) {
         loginModal.classList.add('hidden');
-        loginModal.style.display = 'none';
+        loginModal.style.setProperty('display', 'none', 'important');
       }
       if (gatekeeperOverlay) gatekeeperOverlay.classList.remove('hidden');
       Auth.openRequiredProfileModal();
     } else {
+      document.documentElement.classList.add('is-authenticated');
+      document.documentElement.classList.remove('has-incomplete-profile');
       // Đã đăng nhập và hoàn tất hồ sơ -> Mở khóa toàn bộ hệ thống
       if (mainEl) mainEl.classList.remove('pointer-events-none', 'select-none', 'filter', 'blur-sm');
       if (headerEl) headerEl.classList.remove('pointer-events-none');
@@ -1856,7 +1886,7 @@ class App {
       if (mobileBarEl) mobileBarEl.classList.remove('hidden');
       if (loginModal) {
         loginModal.classList.add('hidden');
-        loginModal.style.display = 'none';
+        loginModal.style.setProperty('display', 'none', 'important');
       }
       if (closeBtn) closeBtn.classList.remove('hidden');
       if (gatekeeperOverlay) gatekeeperOverlay.classList.add('hidden');
@@ -1989,13 +2019,15 @@ class App {
 }
 
 // Khởi tạo ứng dụng an toàn cho cả khi DOM đã sẵn sàng hoặc đang nạp
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      window.AppInstance = new App();
+      window.AppInstance.init();
+    });
+  } else {
     window.AppInstance = new App();
     window.AppInstance.init();
-  });
-} else {
-  window.AppInstance = new App();
-  window.AppInstance.init();
+  }
 }
 
