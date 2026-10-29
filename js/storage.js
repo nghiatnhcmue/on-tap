@@ -341,6 +341,7 @@ export const Storage = {
         school: user.school || '',
         avatar: user.avatar || '',
         role: user.role || 'student',
+        password: user.password || (idx >= 0 ? list[idx].password : '') || '',
         lastActive: new Date().toISOString()
       };
       if (idx >= 0) {

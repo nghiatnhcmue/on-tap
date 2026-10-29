@@ -566,81 +566,93 @@ export const Auth = {
     }
   },
 
-  loginWithDirectIdentity(identity) {
+  // Đăng nhập an toàn bằng Email / Tên tài khoản + Mật khẩu
+  loginWithCredentials(identity, password) {
     const raw = (identity || '').trim();
-    if (!raw) return { success: false, message: 'Vui lòng nhập Email hoặc Họ và tên!' };
+    const pwd = (password || '').trim();
+    if (!raw) return { success: false, message: 'Vui lòng nhập Email hoặc Tên tài khoản!' };
+    if (!pwd) return { success: false, message: 'Vui lòng nhập Mật khẩu cá nhân!' };
 
     const lower = raw.toLowerCase();
     const accounts = Storage.getAccountsList();
 
-    // 1. Tìm theo Email
-    let match = accounts.find(a => a.email && a.email.toLowerCase() === lower);
+    // 1. Tìm theo Email hoặc UID duy nhất
+    let match = accounts.find(a => (a.email && a.email.toLowerCase() === lower) || (a.uid && a.uid.toLowerCase() === lower));
 
-    // 2. Tìm theo Họ và tên chính xác
+    // 2. Nếu không thấy, tìm theo Họ và tên chính xác
     if (!match) {
       match = accounts.find(a => a.fullName && a.fullName.toLowerCase() === lower);
     }
 
-    // 3. Tìm theo Họ tên gần đúng
     if (!match) {
-      match = accounts.find(a => a.fullName && a.fullName.toLowerCase().includes(lower));
-    }
-
-    if (match) {
-      this.saveUser(match);
-      return { success: true, user: match };
-    }
-
-    // 4. Nếu là địa chỉ email nhưng chưa lưu trong danh sách -> Tạo hoặc đăng nhập
-    if (lower.includes('@')) {
-      const newUser = this.loginOrRegisterWithGoogleInfo({
-        email: lower,
-        fullName: raw.split('@')[0]
-      });
-      return { success: true, user: newUser };
-    }
-
-    // 5. Nếu là họ tên hợp lệ (>= 2 ký tự) -> Tạo tài khoản học sinh
-    if (raw.length >= 2) {
-      const newUser = {
-        uid: 'user_' + Date.now(),
-        fullName: raw,
-        email: '',
-        role: 'student',
-        grade: '12',
-        className: '',
-        school: '',
-        createdAt: new Date().toISOString()
+      return {
+        success: false,
+        message: 'Tài khoản không tồn tại trên hệ thống! Vui lòng kiểm tra lại Email hoặc bấm tab "Đăng Ký Mới" để tạo tài khoản.'
       };
-      this.saveUser(newUser);
-      return { success: true, user: newUser };
     }
 
-    return { success: false, message: 'Tài khoản chưa tồn tại. Vui lòng đăng ký mới hoặc đăng nhập bằng Google!' };
+    // 3. Kiểm tra Mật khẩu bảo vệ tài khoản
+    if (match.password) {
+      if (match.password !== pwd) {
+        return {
+          success: false,
+          message: 'Mật khẩu không chính xác! Vui lòng kiểm tra lại mật khẩu của bạn.'
+        };
+      }
+    } else {
+      // Tài khoản cũ tạo trước khi có tính năng mật khẩu -> Tự động cập nhật mật khẩu lần đầu
+      match.password = pwd;
+      Storage.saveAccountRecord(match);
+    }
+
+    this.saveUser(match);
+    return { success: true, user: match };
   },
 
-  registerUser({ fullName, grade, className, school, email, role = 'student', secretCode = '' }) {
+  // Tương thích ngược với các lệnh gọi cũ
+  loginWithDirectIdentity(identity, password = '') {
+    return this.loginWithCredentials(identity, password);
+  },
+
+  registerUser({ fullName, grade, className, school, email, password = '', role = 'student', secretCode = '' }) {
     const cleanName = (fullName || '').trim();
     const cleanClass = (className || '').trim();
     const cleanSchool = (school || '').trim();
     const cleanGrade = grade || '12';
-    const cleanEmail = (email || '').trim();
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanPassword = (password || '').trim();
 
     if (!cleanName) {
       return { success: false, message: 'Vui lòng nhập Họ và tên của bạn!' };
     }
-    if (!cleanClass) {
-      return { success: false, message: 'Vui lòng nhập Lớp của bạn!' };
-    }
     if (!cleanSchool) {
-      return { success: false, message: 'Vui lòng nhập Trường của bạn!' };
+      return { success: false, message: 'Vui lòng chọn hoặc nhập Trường học của bạn!' };
+    }
+    if (!cleanClass) {
+      return { success: false, message: 'Vui lòng chọn hoặc nhập Lớp học của bạn!' };
+    }
+    if (!cleanEmail) {
+      return { success: false, message: 'Vui lòng nhập Email của bạn để định danh tài khoản duy nhất!' };
+    }
+    if (!cleanPassword || cleanPassword.length < 6) {
+      return { success: false, message: 'Mật khẩu phải có tối thiểu 6 ký tự để bảo mật tài khoản và điểm số của bạn!' };
+    }
+
+    // Kiểm tra tính duy nhất của Email (Chống trùng lặp tài khoản)
+    const accounts = Storage.getAccountsList();
+    const existing = accounts.find(a => a.email && a.email.toLowerCase() === cleanEmail);
+    if (existing) {
+      return {
+        success: false,
+        message: `Email [${cleanEmail}] đã được đăng ký tài khoản trước đó!\nNếu đây là tài khoản của bạn, vui lòng chuyển sang tab "Đăng Nhập" và nhập mật khẩu để vào học.`
+      };
     }
 
     let finalRole = 'student';
     const adminConfig = Storage.getAdminConfig();
 
-    if (role === 'admin' || (cleanEmail && adminConfig.adminEmail && cleanEmail.toLowerCase() === adminConfig.adminEmail.toLowerCase())) {
-      if (secretCode === adminConfig.adminSecretCode || (cleanEmail && adminConfig.adminEmail && cleanEmail.toLowerCase() === adminConfig.adminEmail.toLowerCase())) {
+    if (role === 'admin' || (cleanEmail && adminConfig.adminEmail && cleanEmail === adminConfig.adminEmail.toLowerCase())) {
+      if (secretCode === adminConfig.adminSecretCode || (cleanEmail && adminConfig.adminEmail && cleanEmail === adminConfig.adminEmail.toLowerCase())) {
         finalRole = 'admin';
       } else {
         return { success: false, message: 'Mã xác thực Quản trị viên (Admin) không đúng! (Mặc định: ADMIN2025)' };
@@ -655,7 +667,8 @@ export const Auth = {
 
     const newUser = {
       uid: 'user_' + Date.now(),
-      email: cleanEmail || `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'hs'}_${Date.now().toString().slice(-4)}@tinhoc.local`,
+      email: cleanEmail,
+      password: cleanPassword,
       fullName: cleanName,
       avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=${finalRole === 'admin' ? 'ef4444' : (finalRole === 'teacher' ? '8b5cf6' : '3b82f6')}&color=fff`,
       grade: cleanGrade,

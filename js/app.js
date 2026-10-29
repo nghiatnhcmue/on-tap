@@ -1640,6 +1640,8 @@ class App {
         const classSelectVal = document.getElementById('reg-input-class')?.value || '';
         const className = (classSelectVal === '__other__' ? document.getElementById('reg-input-class-custom')?.value?.trim() : classSelectVal) || '';
         const email = document.getElementById('reg-input-email')?.value || '';
+        const password = document.getElementById('reg-input-password')?.value || '';
+        const passwordConfirm = document.getElementById('reg-input-password-confirm')?.value || '';
         const role = document.getElementById('reg-input-role')?.value || 'student';
         const secretCode = document.getElementById('reg-input-secret')?.value || '';
 
@@ -1651,8 +1653,23 @@ class App {
           alert('Vui lòng chọn hoặc nhập Lớp học của bạn!');
           return;
         }
+        if (!email) {
+          alert('Vui lòng nhập Email của bạn để phân biệt và định danh tài khoản duy nhất!');
+          document.getElementById('reg-input-email')?.focus();
+          return;
+        }
+        if (!password || password.length < 6) {
+          alert('Mật khẩu cá nhân phải có tối thiểu 6 ký tự để bảo mật tài khoản!');
+          document.getElementById('reg-input-password')?.focus();
+          return;
+        }
+        if (password !== passwordConfirm) {
+          alert('Mật khẩu xác nhận không khớp! Vui lòng nhập lại.');
+          document.getElementById('reg-input-password-confirm')?.focus();
+          return;
+        }
 
-        const res = Auth.registerUser({ fullName, grade, className, school, email, role, secretCode });
+        const res = Auth.registerUser({ fullName, grade, className, school, email, password, role, secretCode });
         if (!res.success) {
           alert(res.message);
           return;
@@ -1857,24 +1874,53 @@ class App {
       });
     }
 
-    // Form đăng nhập nhanh bằng Email hoặc Họ tên trực tiếp
+    // Form đăng nhập bảo mật bằng Email / Tên tài khoản + Mật khẩu
     const formLoginDirect = document.getElementById('form-login-direct');
     if (formLoginDirect) {
       formLoginDirect.addEventListener('submit', (e) => {
         e.preventDefault();
         const identity = document.getElementById('login-input-identity')?.value?.trim();
+        const password = document.getElementById('login-input-password')?.value?.trim();
         if (!identity) {
-          alert('Vui lòng nhập Email hoặc Họ và tên của bạn!');
+          alert('Vui lòng nhập Email hoặc Tên tài khoản của bạn!');
+          document.getElementById('login-input-identity')?.focus();
           return;
         }
-        const res = Auth.loginWithDirectIdentity(identity);
+        if (!password) {
+          alert('Vui lòng nhập Mật khẩu cá nhân để xác thực!');
+          document.getElementById('login-input-password')?.focus();
+          return;
+        }
+        const res = Auth.loginWithCredentials(identity, password);
         if (res.success) {
           alert(`Xin chào ${res.user.fullName}! Đăng nhập thành công.`);
           this.enforceAuthentication();
         } else {
-          alert(res.message || 'Không thể đăng nhập. Vui lòng kiểm tra lại thông tin!');
+          alert(res.message || 'Email hoặc mật khẩu không chính xác!');
         }
       });
+    }
+
+    // Nút bật/tắt xem mật khẩu trên form đăng nhập & đăng ký
+    const btnToggleLoginPwd = document.getElementById('btn-toggle-login-pwd');
+    if (btnToggleLoginPwd) {
+      btnToggleLoginPwd.onclick = () => {
+        const inp = document.getElementById('login-input-password');
+        if (inp) {
+          inp.type = inp.type === 'password' ? 'text' : 'password';
+          btnToggleLoginPwd.innerHTML = inp.type === 'password' ? '<i class="fa-solid fa-eye"></i>' : '<i class="fa-solid fa-eye-slash"></i>';
+        }
+      };
+    }
+    const btnToggleRegPwd = document.getElementById('btn-toggle-reg-pwd');
+    if (btnToggleRegPwd) {
+      btnToggleRegPwd.onclick = () => {
+        const inp = document.getElementById('reg-input-password');
+        if (inp) {
+          inp.type = inp.type === 'password' ? 'text' : 'password';
+          btnToggleRegPwd.innerHTML = inp.type === 'password' ? '<i class="fa-solid fa-eye"></i>' : '<i class="fa-solid fa-eye-slash"></i>';
+        }
+      };
     }
 
     // Nút hủy/đổi tài khoản khác trên modal hoàn tất hồ sơ

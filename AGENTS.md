@@ -83,13 +83,14 @@ Dự án áp dụng chính sách **bắt buộc đăng ký / đăng nhập trư�
 ### 3.2. Cấu trúc Modal Auth Portal (`#modal-login`)
 Gồm 2 tab chuyển đổi:
 - **Tab Đăng Nhập (`#auth-panel-login`)**:
-  - Tích hợp **Google Firebase Authentication** (nút đăng nhập Google qua Firebase Popup `signInWithPopup(GoogleAuthProvider)` + nút Google Nhanh `#modal-google-quick-prompt` hoạt động ngay cả khi chưa cấu hình Web API Key).
-  - Form **"Đăng nhập bằng Email hoặc Họ và tên"** (`#form-login-direct`): Hỗ trợ đăng nhập tức thì cho người dùng đã có tài khoản hoặc nhập nhanh tên/email.
-  - Khung **"Tài khoản trên thiết bị này"** (`#saved-accounts-section`): Liệt kê tối đa 5 tài khoản gần nhất lưu trong `Storage.getAccountsList()`. Bấm 1 chạm để đăng nhập tức thì.
+  - Tích hợp **Google Firebase Authentication** (nút đăng nhập Google qua Firebase Popup `signInWithPopup(GoogleAuthProvider)` + cơ chế tự phục hồi nếu API key sai).
+  - Form **"Đăng nhập bảo mật bằng Email/Tài khoản + Mật khẩu"** (`#form-login-direct`): Định danh duy nhất theo Email/Username và xác thực bắt buộc bằng **Mật khẩu cá nhân** (Password) để chống mạo danh và chống trùng tên học sinh.
+  - Khung **"Tài khoản trên thiết bị này"** (`#saved-accounts-section`): Liệt kê tối đa 5 tài khoản gần nhất lưu trong `Storage.getAccountsList()`. Bấm 1 chạm để đăng nhập tức thì trên thiết bị riêng.
   - 3 nút Đăng nhập trải nghiệm nhanh: Học sinh (HS), Giáo viên (GV), Admin.
   - Nút cài đặt Firebase Web API Key (`#btn-open-firebase-config`) cho giáo viên/admin.
 - **Tab Đăng Ký Mới (`#auth-panel-register`) & Cập nhật Hồ sơ (`#modal-required-profile`)**:
-  - Hỗ trợ nút **"Đăng ký nhanh với Google (Firebase)"** (`#google-signup-btn-container`) tự động lấy Email, Họ tên & Avatar qua Firebase Auth.
+  - Bắt buộc nhập **Email định danh duy nhất**, **Mật khẩu cá nhân** (tối thiểu 6 ký tự) và **Xác nhận mật khẩu** để ngăn chặn hoàn toàn việc người khác biết email mạo danh vào tài khoản.
+  - Hỗ trợ nút **"Đăng ký nhanh với Google (Firebase)"** (`#google-signup-btn-container`) tự động lấy Email, Họ tên & Avatar qua Firebase Auth (bảo mật đa nhân tố của Google).
   - Form nhập thông tin dạng danh sách chuẩn hóa (`SCHOOLS_DATA` trong `js/auth.js`):
     - **EMASI**: Khối 10 (`10E`, `10I1`, `10I2`), Khối 11 (`11E`), Khối 12 (`12E`).
     - **Phổ thông Năng khiếu**: Khối 12 (`12TOAN`, `12LI`, `12HOA`, `12SINH`, `12VAN`).
