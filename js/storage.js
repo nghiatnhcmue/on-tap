@@ -121,6 +121,49 @@ export const Storage = {
     }
   },
 
+  // --- CẤU HÌNH XÁC THỰC GOOGLE BẰNG FIREBASE AUTH ---
+  getFirebaseAuthConfig() {
+    try {
+      const data = localStorage.getItem('tinhoc_firebase_auth_config');
+      if (data) return JSON.parse(data);
+    } catch (e) {}
+
+    const cloudCfg = JSON.parse(localStorage.getItem('tinhoc_cloud_config') || '{}');
+    const adminCfg = this.getAdminConfig();
+    const dbUrl = (cloudCfg.databaseUrl || '').trim();
+    let derivedProjectId = '';
+    if (dbUrl) {
+      const m = dbUrl.match(/https?:\/\/([a-zA-Z0-9-]+)(?:-default-rtdb|\.firebaseio)/);
+      if (m && m[1]) derivedProjectId = m[1];
+    }
+    return {
+      apiKey: cloudCfg.apiKey || adminCfg.firebaseApiKey || '',
+      authDomain: cloudCfg.authDomain || (derivedProjectId ? `${derivedProjectId}.firebaseapp.com` : ''),
+      projectId: cloudCfg.projectId || derivedProjectId || '',
+      databaseURL: dbUrl
+    };
+  },
+
+  saveFirebaseAuthConfig(config) {
+    try {
+      const current = this.getFirebaseAuthConfig();
+      const updated = { ...current, ...config };
+      localStorage.setItem('tinhoc_firebase_auth_config', JSON.stringify(updated));
+
+      // Đồng thời cập nhật vào cloud config nếu có apiKey
+      if (updated.apiKey) {
+        const cloudCfg = JSON.parse(localStorage.getItem('tinhoc_cloud_config') || '{}');
+        cloudCfg.apiKey = updated.apiKey;
+        if (updated.authDomain) cloudCfg.authDomain = updated.authDomain;
+        if (updated.projectId) cloudCfg.projectId = updated.projectId;
+        localStorage.setItem('tinhoc_cloud_config', JSON.stringify(cloudCfg));
+      }
+      return updated;
+    } catch (e) {
+      console.error('Error saving firebase auth config:', e);
+    }
+  },
+
   // --- CẤU HÌNH ADMIN & MÃ BẢO MẬT PHÂN QUYỀN ---
   getAdminConfig() {
     try {

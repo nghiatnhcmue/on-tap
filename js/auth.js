@@ -1,15 +1,12 @@
 /**
- * tinhoc-hub: Auth & User Management (Google Sign-In & Student Profile)
- * Quản lý đăng ký / đăng nhập Google, hồ sơ học sinh (Họ tên, Lớp, Trường)
+ * tinhoc-hub: Auth & User Management (Firebase Google Authentication)
+ * Quản lý xác thực tài khoản Google trực tiếp qua Google Firebase Authentication.
+ * Hỗ trợ: Đăng nhập Google Popup, Đồng bộ Firebase Realtime Database, Hồ sơ học sinh.
  */
 
 import { Storage } from './storage.js';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
-const GOOGLE_CLIENT_ID_KEY = 'tinhoc_google_client_id';
-
-// Default Demo/Testing Google Client ID (User có thể thay bằng Client ID của mình)
-const DEFAULT_CLIENT_ID = '1082697841285-sample.apps.googleusercontent.com';
 
 // Danh mục chuẩn các trường và danh sách lớp theo khối
 export const SCHOOLS_DATA = {
@@ -51,14 +48,14 @@ export const SCHOOLS_DATA = {
 
 export const Auth = {
   currentUser: null,
-  clientId: '',
+  firebaseAuth: null,
+  isFirebaseInitialized: false,
   onAuthChangeCallbacks: [],
 
   init() {
-    const savedId = localStorage.getItem(GOOGLE_CLIENT_ID_KEY) || '';
-    this.clientId = savedId || (DEFAULT_CLIENT_ID !== '1082697841285-sample.apps.googleusercontent.com' ? DEFAULT_CLIENT_ID : '');
     this.loadUserFromStorage();
-    this.initGoogleIdentity();
+    this.initFirebaseAuth();
+    this.setupFirebaseAuthUI();
     this.setupSchoolClassSync({
       schoolSelectId: 'reg-input-school',
       customSchoolInputId: 'reg-input-school-custom',
@@ -167,14 +164,151 @@ export const Auth = {
     return !!(fullName && fullName.trim() && className && className.trim() && school && school.trim());
   },
 
+  // ==================== FIREBASE AUTHENTICATION (GOOGLE SIGN-IN) ====================
+  initFirebaseAuth() {
+    if (typeof firebase === 'undefined') {
+      console.warn('Firebase SDK chưa được tải.');
+      return false;
+    }
+
+    const cfg = Storage.getFirebaseAuthConfig ? Storage.getFirebaseAuthConfig() : {};
+    if (!cfg.apiKey) {
+      this.renderFallbackGoogleButtons();
+      return false;
+    }
+
+    try {
+      if (!firebase.apps || firebase.apps.length === 0) {
+        firebase.initializeApp({
+          apiKey: cfg.apiKey,
+          authDomain: cfg.authDomain || (cfg.projectId ? `${cfg.projectId}.firebaseapp.com` : undefined),
+          projectId: cfg.projectId,
+          databaseURL: cfg.databaseURL
+        });
+      }
+
+      this.firebaseAuth = firebase.auth();
+      this.isFirebaseInitialized = true;
+
+      // Lắng nghe thay đổi trạng thái xác thực Firebase
+      this.firebaseAuth.onAuthStateChanged((user) => {
+        if (user && !this.currentUser) {
+          this.handleFirebaseUser(user);
+        }
+      });
+
+      this.renderFallbackGoogleButtons();
+      return true;
+    } catch (err) {
+      console.warn('Lỗi khởi tạo Firebase Auth:', err);
+      this.renderFallbackGoogleButtons();
+      return false;
+    }
+  },
+
+  // Tương thích ngược với các lệnh gọi cũ
+  initGoogleIdentity() {
+    return this.initFirebaseAuth();
+  },
+
   setGoogleClientId(clientId) {
-    this.clientId = clientId.trim();
-    localStorage.setItem(GOOGLE_CLIENT_ID_KEY, this.clientId);
-    this.initGoogleIdentity();
+    // Lưu và chuyển sang cấu hình Firebase API key nếu người dùng nhập
+    if (clientId) {
+      Storage.saveFirebaseAuthConfig({ apiKey: clientId.trim() });
+      this.initFirebaseAuth();
+    }
   },
 
   getGoogleClientId() {
-    return this.clientId;
+    const cfg = Storage.getFirebaseAuthConfig ? Storage.getFirebaseAuthConfig() : {};
+    return cfg.apiKey || '';
+  },
+
+  setupFirebaseAuthUI() {
+    // Bắt sự kiện form cấu hình Firebase Auth
+    const formCfg = document.getElementById('form-firebase-auth-cfg');
+    if (formCfg) {
+      formCfg.onsubmit = (e) => {
+        e.preventDefault();
+        const apiKey = document.getElementById('input-firebase-api-key')?.value.trim() || '';
+        const projectId = document.getElementById('input-firebase-project-id')?.value.trim() || '';
+        let authDomain = document.getElementById('input-firebase-auth-domain')?.value.trim() || '';
+
+        if (!authDomain && projectId) {
+          authDomain = `${projectId}.firebaseapp.com`;
+        }
+
+        if (!apiKey) {
+          alert('Vui lòng nhập Firebase Web API Key!');
+          return;
+        }
+
+        Storage.saveFirebaseAuthConfig({
+          apiKey,
+          projectId,
+          authDomain
+        });
+
+        alert('✅ Đã lưu cấu hình Firebase Auth thành công!\nĐang kết nối xác thực Google...');
+        const modal = document.getElementById('modal-firebase-config');
+        if (modal) modal.classList.add('hidden');
+
+        this.initFirebaseAuth();
+        this.signInWithGoogleFirebase();
+      };
+    }
+
+    // Tự động phân tích khi dán mã cấu hình Firebase JSON
+    const textConfig = document.getElementById('input-firebase-config-json');
+    if (textConfig) {
+      textConfig.oninput = () => {
+        const val = textConfig.value;
+        const apiKeyMatch = val.match(/apiKey["']?\s*:\s*["']([^"']+)["']/);
+        const authDomainMatch = val.match(/authDomain["']?\s*:\s*["']([^"']+)["']/);
+        const projectIdMatch = val.match(/projectId["']?\s*:\s*["']([^"']+)["']/);
+
+        if (apiKeyMatch && apiKeyMatch[1]) {
+          const inputKey = document.getElementById('input-firebase-api-key');
+          if (inputKey) inputKey.value = apiKeyMatch[1];
+        }
+        if (authDomainMatch && authDomainMatch[1]) {
+          const inputDomain = document.getElementById('input-firebase-auth-domain');
+          if (inputDomain) inputDomain.value = authDomainMatch[1];
+        }
+        if (projectIdMatch && projectIdMatch[1]) {
+          const inputProj = document.getElementById('input-firebase-project-id');
+          if (inputProj) inputProj.value = projectIdMatch[1];
+        }
+      };
+    }
+
+    // Mở modal cài đặt Firebase Auth
+    const openBtns = [
+      document.getElementById('btn-open-google-config'),
+      document.getElementById('btn-open-firebase-config'),
+      document.getElementById('btn-google-quick-open-oauth-cfg')
+    ];
+    openBtns.forEach(btn => {
+      if (btn) btn.onclick = () => this.openFirebaseConfigModal();
+    });
+  },
+
+  openFirebaseConfigModal() {
+    const modal = document.getElementById('modal-firebase-config');
+    if (modal) {
+      modal.classList.remove('hidden');
+      const cfg = Storage.getFirebaseAuthConfig ? Storage.getFirebaseAuthConfig() : {};
+      const inputKey = document.getElementById('input-firebase-api-key');
+      const inputProj = document.getElementById('input-firebase-project-id');
+      const inputDomain = document.getElementById('input-firebase-auth-domain');
+      if (inputKey && !inputKey.value) inputKey.value = cfg.apiKey || '';
+      if (inputProj && !inputProj.value) inputProj.value = cfg.projectId || '';
+      if (inputDomain && !inputDomain.value) inputDomain.value = cfg.authDomain || '';
+      inputKey?.focus();
+    } else {
+      const modalQuick = document.getElementById('modal-google-quick-prompt');
+      if (modalQuick) modalQuick.classList.remove('hidden');
+    }
   },
 
   renderFallbackGoogleButtons() {
@@ -188,91 +322,105 @@ export const Auth = {
     `;
 
     const signInContainer = document.getElementById('google-signin-btn-container');
-    if (signInContainer && !signInContainer.querySelector('[data-trigger-google-quick]')) {
+    if (signInContainer) {
       signInContainer.innerHTML = `
-        <button type="button" data-trigger-google-quick="signin" class="w-full max-w-xs px-5 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
+        <button type="button" data-trigger-google-firebase="signin" class="w-full max-w-xs px-5 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
           ${googleSvg}
-          <span>Đăng nhập bằng tài khoản Google</span>
+          <span>Đăng nhập với Google (Firebase)</span>
         </button>
       `;
     }
 
     const signUpContainer = document.getElementById('google-signup-btn-container');
-    if (signUpContainer && !signUpContainer.querySelector('[data-trigger-google-quick]')) {
+    if (signUpContainer) {
       signUpContainer.innerHTML = `
-        <button type="button" data-trigger-google-quick="signup" class="w-full max-w-xs px-5 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
+        <button type="button" data-trigger-google-firebase="signup" class="w-full max-w-xs px-5 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
           ${googleSvg}
-          <span>Đăng ký nhanh bằng Google</span>
+          <span>Đăng ký nhanh với Google (Firebase)</span>
         </button>
       `;
     }
 
-    document.querySelectorAll('[data-trigger-google-quick]').forEach(btn => {
-      btn.onclick = () => {
-        const modal = document.getElementById('modal-google-quick-prompt');
-        if (modal) {
-          modal.classList.remove('hidden');
-          document.getElementById('google-quick-email')?.focus();
-        }
-      };
+    document.querySelectorAll('[data-trigger-google-firebase]').forEach(btn => {
+      btn.onclick = () => this.signInWithGoogleFirebase();
     });
   },
 
-  initGoogleIdentity() {
-    const hasValidClientId = this.clientId && this.clientId.includes('.apps.googleusercontent.com') && this.clientId !== DEFAULT_CLIENT_ID;
+  async signInWithGoogleFirebase() {
+    const cfg = Storage.getFirebaseAuthConfig ? Storage.getFirebaseAuthConfig() : {};
 
-    if (!hasValidClientId) {
-      this.renderFallbackGoogleButtons();
+    // Nếu chưa cấu hình Firebase API key, hướng dẫn cấu hình
+    if (!cfg.apiKey) {
+      this.openFirebaseConfigModal();
       return;
     }
 
-    if (!window.google || !window.google.accounts || !window.google.accounts.id) {
-      this.renderFallbackGoogleButtons();
-      if (!this._gisRetryCount) this._gisRetryCount = 0;
-      if (this._gisRetryCount < 4) {
-        this._gisRetryCount++;
-        setTimeout(() => this.initGoogleIdentity(), 800);
+    if (!this.firebaseAuth) {
+      const ok = this.initFirebaseAuth();
+      if (!ok || !this.firebaseAuth) {
+        this.openFirebaseConfigModal();
+        return;
       }
-      return;
     }
+
+    const btns = document.querySelectorAll('[data-trigger-google-firebase]');
+    btns.forEach(b => {
+      b.disabled = true;
+      b.dataset.prevHtml = b.innerHTML;
+      b.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang mở xác thực Google...';
+    });
 
     try {
-      window.google.accounts.id.initialize({
-        client_id: this.clientId,
-        callback: (response) => this.handleGoogleCredentialResponse(response),
-        auto_select: false,
-        cancel_on_tap_outside: true
-      });
+      const provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
 
-      const signInContainer = document.getElementById('google-signin-btn-container');
-      if (signInContainer) {
-        signInContainer.innerHTML = '';
-        window.google.accounts.id.renderButton(signInContainer, {
-          type: 'standard',
-          theme: 'outline',
-          size: 'large',
-          text: 'signin_with',
-          shape: 'pill',
-          logo_alignment: 'left'
-        });
-      }
-
-      const signUpContainer = document.getElementById('google-signup-btn-container');
-      if (signUpContainer) {
-        signUpContainer.innerHTML = '';
-        window.google.accounts.id.renderButton(signUpContainer, {
-          type: 'standard',
-          theme: 'outline',
-          size: 'large',
-          text: 'signup_with',
-          shape: 'pill',
-          logo_alignment: 'left'
-        });
+      const result = await this.firebaseAuth.signInWithPopup(provider);
+      if (result && result.user) {
+        this.handleFirebaseUser(result.user);
       }
     } catch (err) {
-      console.warn('Lỗi khởi tạo Google Identity Services', err);
-      this.renderFallbackGoogleButtons();
+      console.error('Lỗi đăng nhập Google Firebase:', err);
+      if (err.code === 'auth/popup-blocked') {
+        alert('Trình duyệt đã chặn cửa sổ đăng nhập Google (Pop-up blocked)!\nVui lòng nhấp vào biểu tượng Pop-up trên thanh địa chỉ của trình duyệt để "Cho phép Pop-up", sau đó thử lại.');
+      } else if (err.code === 'auth/unauthorized-domain') {
+        const domain = window.location.hostname;
+        alert(`Tên miền [${domain}] chưa được khai báo trong Firebase!\n\nCách kích hoạt (30 giây):\n1. Mở Firebase Console -> Authentication -> Settings -> Authorized domains\n2. Bấm "Add domain" và nhập: ${domain}\n3. Bấm Lưu và đăng nhập lại.`);
+      } else if (err.code === 'auth/operation-not-allowed') {
+        alert('Phương thức Google Sign-In chưa được bật trong Firebase!\n\nVào Firebase Console -> Authentication -> Sign-in method -> Bật Google (Enable) rồi bấm Lưu.');
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        // Người dùng chủ động đóng popup
+      } else {
+        alert(`Xác thực Firebase: ${err.message || err.code}`);
+      }
+    } finally {
+      btns.forEach(b => {
+        b.disabled = false;
+        if (b.dataset.prevHtml) b.innerHTML = b.dataset.prevHtml;
+      });
     }
+  },
+
+  handleFirebaseUser(firebaseUser) {
+    if (!firebaseUser) return null;
+    const email = (firebaseUser.email || '').trim().toLowerCase();
+    const fullName = firebaseUser.displayName || 'Người dùng Google';
+    const avatar = firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=3b82f6&color=fff`;
+    const uid = firebaseUser.uid || ('firebase_' + Date.now());
+
+    const profile = this.loginOrRegisterWithGoogleInfo({
+      email,
+      fullName,
+      picture: avatar,
+      sub: uid
+    });
+
+    // Tự động đóng modal đăng nhập nếu hồ sơ đã hoàn tất
+    if (this.isProfileComplete()) {
+      if (typeof window.closeLoginModal === 'function') {
+        window.closeLoginModal();
+      }
+    }
+    return profile;
   },
 
   loginOrRegisterWithGoogleInfo({ email, fullName, picture = '', sub = '' }) {
@@ -307,23 +455,6 @@ export const Auth = {
       this.openRequiredProfileModal();
     }
     return profile;
-  },
-
-  handleGoogleCredentialResponse(response) {
-    try {
-      const jwt = response.credential;
-      const payload = this.parseJwt(jwt);
-
-      this.loginOrRegisterWithGoogleInfo({
-        email: payload.email || '',
-        fullName: payload.name || '',
-        picture: payload.picture || '',
-        sub: payload.sub || ''
-      });
-    } catch (e) {
-      console.error('Lỗi xử lý phản hồi từ Google', e);
-      alert('Không thể xác thực tài khoản Google. Vui lòng thử lại!');
-    }
   },
 
   // Hỗ trợ đăng nhập nhanh mô phỏng với từng vai trò
@@ -514,25 +645,12 @@ export const Auth = {
   },
 
   logout() {
+    if (this.firebaseAuth) {
+      this.firebaseAuth.signOut().catch(() => {});
+    }
     this.currentUser = null;
     localStorage.removeItem(AUTH_STORAGE_KEY);
-    if (window.google && window.google.accounts && window.google.accounts.id) {
-      window.google.accounts.id.disableAutoSelect();
-    }
     this.notifyAuthChange();
-  },
-
-  parseJwt(token) {
-    try {
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-      }).join(''));
-      return JSON.parse(jsonPayload);
-    } catch (e) {
-      return {};
-    }
   },
 
   normalizeSchoolName(schoolName) {
@@ -625,7 +743,6 @@ export const Auth = {
       html += `<option value="__other__">Lớp khác (Tự nhập)...</option>`;
       classSelect.innerHTML = html;
 
-      // Determine active target class
       const target = preferredClass || classSelect.dataset.prevClass || '';
       const hasTarget = allSchoolClasses.some(c => c.name === target);
 
@@ -683,7 +800,6 @@ export const Auth = {
       } else {
         if (customClassInput) customClassInput.classList.add('hidden');
 
-        // Detect grade from class (e.g. 10TN, 11A1, 12TOAN)
         let detectedGrade = null;
         if (/^10/.test(val)) detectedGrade = '10';
         else if (/^11/.test(val)) detectedGrade = '11';
@@ -698,7 +814,7 @@ export const Auth = {
       }
     };
 
-    // Apply initial state
+    // Áp dụng trạng thái ban đầu
     if (initialSchool) {
       const stdSchool = this.normalizeSchoolName(initialSchool);
       if (SCHOOLS_DATA[stdSchool]) {
@@ -720,7 +836,6 @@ export const Auth = {
     renderClassDropdown(initialClass);
   },
 
-  // Modal bắt buộc học sinh điền đầy đủ: Họ và tên, Lớp, Trường
   openRequiredProfileModal() {
     const modal = document.getElementById('modal-required-profile');
     if (!modal) return;

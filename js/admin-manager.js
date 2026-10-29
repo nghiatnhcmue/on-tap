@@ -288,6 +288,16 @@ export const AdminManager = {
                 </span>
               </div>
 
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Firebase Web API Key (Bắt buộc để kích hoạt Google Sign-In)
+                </label>
+                <input type="text" id="cloud-cfg-api-key" value="${escapeHtml(Storage.getFirebaseAuthConfig ? Storage.getFirebaseAuthConfig().apiKey : '')}" placeholder="Ví dụ: AIzaSyA1B2C3D4E5..." class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-amber-500" />
+                <span class="text-[11px] text-slate-400 mt-1 block">
+                  Lấy từ Firebase Console (Project Settings -> General -> Web API Key). Dùng để học sinh đăng nhập Google bằng Firebase.
+                </span>
+              </div>
+
               <div>
                 <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                   Tần suất tự động đồng bộ ngầm
@@ -557,10 +567,10 @@ export const AdminManager = {
 
             <div>
               <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Google OAuth Client ID
+                Firebase Web API Key (Google Sign-In)
               </label>
-              <input type="text" id="admin-input-client-id" value="${escapeHtml(Auth.getGoogleClientId())}" placeholder="123456789-xxx.apps.googleusercontent.com" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white" />
-              <span class="text-[10px] text-slate-400">Client ID tạo từ Google Cloud Console cho miền Cloudflare.</span>
+              <input type="text" id="admin-input-client-id" value="${escapeHtml(Storage.getFirebaseAuthConfig ? Storage.getFirebaseAuthConfig().apiKey : '')}" placeholder="Ví dụ: AIzaSyA1B2C3..." class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white" />
+              <span class="text-[10px] text-slate-400">Web API Key lấy từ Firebase Console để kích hoạt xác thực Google.</span>
             </div>
 
             <div class="sm:col-span-2 pt-2">
@@ -714,13 +724,22 @@ export const AdminManager = {
         e.preventDefault();
         const enabled = document.getElementById('cloud-cfg-enabled')?.checked ?? true;
         const url = document.getElementById('cloud-cfg-url')?.value.trim() || '';
+        const apiKey = document.getElementById('cloud-cfg-api-key')?.value.trim() || '';
         const interval = parseFloat(document.getElementById('cloud-cfg-interval')?.value || '1');
 
         CloudSync.saveConfig({
           enabled,
           databaseUrl: url,
+          apiKey: apiKey,
           intervalMinutes: interval
         });
+
+        if (apiKey) {
+          Storage.saveFirebaseAuthConfig({ apiKey, databaseURL: url });
+          if (window.Auth && typeof window.Auth.initFirebaseAuth === 'function') {
+            window.Auth.initFirebaseAuth();
+          }
+        }
 
         alert('Đã lưu cấu hình Cơ sở dữ liệu Đám mây thành công!');
         this.render();
@@ -969,7 +988,9 @@ export const AdminManager = {
         });
 
         if (clientId.trim()) {
+          Storage.saveFirebaseAuthConfig({ apiKey: clientId.trim() });
           Auth.setGoogleClientId(clientId.trim());
+          if (Auth.initFirebaseAuth) Auth.initFirebaseAuth();
         }
 
         alert('Đã lưu cấu hình hệ thống thành công!');

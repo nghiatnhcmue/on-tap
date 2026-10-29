@@ -33,7 +33,11 @@
   <!-- Canvas Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
 
-  <!-- Google Identity Services (GIS) -->
+  <!-- Firebase App & Firebase Authentication SDK (Google Sign-In) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+
+  <!-- Google Identity Services (GIS - Fallback) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <!-- Custom CSS -->
@@ -182,7 +186,7 @@
     document.addEventListener('click', function(e) {
       if (!document.documentElement.classList.contains('is-authenticated')) {
         var t = e.target;
-        if (!t.closest('#modal-login') && !t.closest('#modal-required-profile') && !t.closest('#modal-google-quick-prompt') && !t.closest('#modal-google-config')) {
+        if (!t.closest('#modal-login') && !t.closest('#modal-required-profile') && !t.closest('#modal-google-quick-prompt') && !t.closest('#modal-firebase-config') && !t.closest('#modal-google-config')) {
           if (t.closest('#app-main') || t.closest('[data-tab-target]') || t.closest('[data-open-login-modal]')) {
             e.preventDefault();
             e.stopPropagation();
@@ -1249,21 +1253,21 @@
 
       <!-- PANEL 1: ĐĂNG NHẬP -->
       <div id="auth-panel-login" class="space-y-4">
-        <!-- Google Sign-In Container -->
+        <!-- Google Sign-In Container (Firebase Auth) -->
         <div class="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700/80 text-center">
-          <span class="text-xs font-bold text-slate-600 dark:text-slate-300 block mb-3">Đăng nhập bằng tài khoản Google</span>
+          <span class="text-xs font-bold text-slate-600 dark:text-slate-300 block mb-3">Đăng nhập bằng tài khoản Google (Firebase)</span>
           <div id="google-signin-btn-container" class="flex justify-center min-h-[44px]">
-            <button type="button" data-trigger-google-quick="signin" class="w-full max-w-xs px-5 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
+            <button type="button" id="btn-firebase-google-signin" data-trigger-google-firebase="signin" class="w-full max-w-xs px-5 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
               <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
                 <path fill="#34A853" d="M12 24c3.3 0 6.08-1.09 8.11-2.96l-3.88-3.05c-1.08.72-2.45 1.16-4.23 1.16-3.26 0-6.02-2.2-7-5.15H1.01v3.14C3.03 21.16 7.21 24 12 24z"/>
                 <path fill="#FBBC05" d="M5 14c-.25-.72-.39-1.49-.39-2.3s.14-1.58.39-2.3V6.26H1.01C.37 7.54 0 8.98 0 11.7s.37 4.16 1.01 5.44L5 14z"/>
                 <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.21 0 3.03 2.84 1.01 6.86L5 10c.98-2.95 3.74-5.25 7-5.25z"/>
               </svg>
-              <span>Đăng nhập bằng tài khoản Google</span>
+              <span>Đăng nhập với Google (Firebase)</span>
             </button>
           </div>
-          <p class="text-[10px] text-slate-400 mt-2">Dùng tài khoản Gmail của bạn để tự động lưu kết quả thi</p>
+          <p class="text-[10px] text-slate-400 mt-2">Dùng tài khoản Gmail của bạn qua Firebase Authentication bảo mật cao</p>
         </div>
 
         <!-- Form Đăng nhập nhanh bằng Email hoặc Họ tên đã lưu -->
@@ -1321,25 +1325,25 @@
             Chưa có tài khoản? Đăng ký ngay
           </button>
           <button id="btn-open-google-config" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 inline-flex items-center gap-1">
-            <i class="fa-solid fa-gear text-[10px]"></i> Cài đặt Google Client ID
+            <i class="fa-solid fa-gear text-[10px]"></i> Cài đặt Firebase Google Auth
           </button>
         </div>
       </div>
 
       <!-- PANEL 2: ĐĂNG KÝ TÀI KHOẢN -->
       <div id="auth-panel-register" class="hidden space-y-4">
-        <!-- Đăng ký nhanh bằng Google -->
+        <!-- Đăng ký nhanh bằng Google (Firebase Auth) -->
         <div class="p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700/80 text-center">
-          <span class="text-xs font-bold text-slate-600 dark:text-slate-300 block mb-2.5">Đăng ký nhanh bằng tài khoản Google</span>
+          <span class="text-xs font-bold text-slate-600 dark:text-slate-300 block mb-2.5">Đăng ký nhanh bằng tài khoản Google (Firebase)</span>
           <div id="google-signup-btn-container" class="flex justify-center min-h-[42px]">
-            <button type="button" data-trigger-google-quick="signup" class="w-full max-w-xs px-5 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
+            <button type="button" id="btn-firebase-google-signup" data-trigger-google-firebase="signup" class="w-full max-w-xs px-5 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
               <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
                 <path fill="#34A853" d="M12 24c3.3 0 6.08-1.09 8.11-2.96l-3.88-3.05c-1.08.72-2.45 1.16-4.23 1.16-3.26 0-6.02-2.2-7-5.15H1.01v3.14C3.03 21.16 7.21 24 12 24z"/>
                 <path fill="#FBBC05" d="M5 14c-.25-.72-.39-1.49-.39-2.3s.14-1.58.39-2.3V6.26H1.01C.37 7.54 0 8.98 0 11.7s.37 4.16 1.01 5.44L5 14z"/>
                 <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.21 0 3.03 2.84 1.01 6.86L5 10c.98-2.95 3.74-5.25 7-5.25z"/>
               </svg>
-              <span>Đăng ký nhanh bằng Google</span>
+              <span>Đăng ký nhanh với Google (Firebase)</span>
             </button>
           </div>
         </div>
@@ -1565,50 +1569,69 @@
     </div>
   </div>
 
-  <!-- ==================== MODAL: CÀI ĐẶT GOOGLE CLIENT ID ==================== -->
-  <div id="modal-google-config" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+  <!-- ==================== MODAL: CÀI ĐẶT XÁC THỰC GOOGLE BẰNG FIREBASE AUTH ==================== -->
+  <div id="modal-firebase-config" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[90dvh] overflow-y-auto">
-      <button data-close-modal="modal-google-config" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+      <button data-close-modal="modal-firebase-config" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
       <div class="flex items-center gap-3 mb-4">
-        <div class="w-10 h-10 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg shrink-0">
-          <i class="fa-brands fa-google"></i>
+        <div class="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center text-lg shrink-0">
+          <i class="fa-solid fa-fire"></i>
         </div>
         <div>
           <h3 class="text-base font-bold text-slate-800 dark:text-white">
-            Cài Đặt Google OAuth 2.0 Client ID
+            Cài Đặt Xác Thực Google Bằng Firebase Auth
           </h3>
-          <p class="text-xs text-slate-400">Dành cho Giáo viên / Quản trị viên</p>
+          <p class="text-xs text-slate-400">Đăng nhập tài khoản Google trực tiếp qua Firebase</p>
         </div>
       </div>
 
       <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
-        Để kích hoạt nút đăng nhập Google chính thức trên tên miền của Thầy (trên Cloudflare Pages), hãy dán mã Google Client ID tạo từ Google Cloud Console vào đây:
+        Dán mã <b>Web API Key</b> từ Firebase Console của Thầy để kích hoạt cửa sổ Popup đăng nhập tài khoản Google chính thức trên TinHocHub:
       </p>
 
-      <div class="space-y-4">
+      <form id="form-firebase-auth-cfg" class="space-y-3.5">
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Google Client ID</label>
-          <input type="text" id="input-google-client-id" placeholder="ví dụ: 123456789-xxx.apps.googleusercontent.com" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            Firebase Web API Key <span class="text-rose-500">*</span>
+          </label>
+          <input type="text" id="input-firebase-api-key" placeholder="Ví dụ: AIzaSyA1B2C3D4E5F6G7H8I9..." class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
         </div>
 
-        <div class="p-3 bg-slate-50 dark:bg-slate-750 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-300 space-y-1.5">
-          <p class="font-bold text-slate-700 dark:text-slate-200">Hướng dẫn lấy mã Google Client ID miễn phí (3 bước):</p>
-          <p>1. Truy cập <b>console.cloud.google.com/apis/credentials</b> → Chọn <b>Create Credentials</b> → <b>OAuth client ID</b> (Web application).</p>
-          <p>2. Tại mục <b>Authorized JavaScript origins</b>, thêm các tên miền sau:</p>
-          <p class="pl-2">• <code class="bg-black/10 px-1.5 py-0.5 rounded font-mono">https://on-tap.nghiaedu.workers.dev</code></p>
-          <p class="pl-2">• <code class="bg-black/10 px-1.5 py-0.5 rounded font-mono">http://localhost:8080</code> (nếu chạy nội bộ)</p>
-          <p>3. Sao chép mã <b>Client ID</b> (có đuôi <code class="font-mono">.apps.googleusercontent.com</code>) và dán vào ô trên.</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Project ID</label>
+            <input type="text" id="input-firebase-project-id" placeholder="Ví dụ: tinhoc-thpt" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Auth Domain</label>
+            <input type="text" id="input-firebase-auth-domain" placeholder="Ví dụ: tinhoc-thpt.firebaseapp.com" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white" />
+          </div>
         </div>
 
-        <button id="btn-save-client-id" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs transition shadow-md shadow-blue-500/20">
-          Lưu Cấu Hình & Kích Hoạt Google Sign-In
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            Hoặc dán toàn bộ đoạn mã firebaseConfig (tùy chọn)
+          </label>
+          <textarea id="input-firebase-config-json" rows="2" placeholder="Dán đoạn const firebaseConfig = { apiKey: '...', ... } tại đây..." class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[11px] font-mono text-slate-800 dark:text-white"></textarea>
+        </div>
+
+        <div class="p-3 bg-amber-50/70 dark:bg-amber-950/30 rounded-xl border border-amber-200/80 dark:border-amber-800/60 text-[11px] text-slate-600 dark:text-slate-300 space-y-1">
+          <p class="font-bold text-amber-800 dark:text-amber-300">Hướng dẫn kích hoạt Google Sign-In trong Firebase (2 phút):</p>
+          <p>1. Vào <a href="https://console.firebase.google.com/" target="_blank" class="text-blue-600 underline font-bold">Firebase Console</a> → Chọn dự án của Thầy.</p>
+          <p>2. Chọn menu <b>Authentication</b> → Tab <b>Sign-in method</b> → Bấm <b>Google</b> → Bật <b>Enable</b> và Lưu.</p>
+          <p>3. Vào <b>Project Settings (Bánh răng)</b> → Tab <b>General</b> → Cuộn xuống mục <i>Your apps</i> → Sao chép <b>Web API Key</b> dán vào ô trên.</p>
+        </div>
+
+        <button type="submit" id="btn-save-firebase-auth" class="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl text-xs transition shadow-md shadow-amber-500/20 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-floppy-disk"></i> Lưu Cấu Hình & Kích Hoạt Firebase Google Auth
         </button>
-      </div>
+      </form>
     </div>
   </div>
+  <div id="modal-google-config" class="hidden"></div>
 
   <!-- ==================== MODAL: ĐĂNG NHẬP / ĐĂNG KÝ VỚI GOOGLE (GMAIL) ==================== -->
   <div id="modal-google-quick-prompt" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -2076,7 +2099,7 @@
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261029_11"></script>
+  <script type="module" src="js/app.js?v=20261029_12"></script>
 </body>
 </html>
 
