@@ -41,7 +41,7 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261029_10" />
+  <link rel="stylesheet" href="css/style.css?v=20261029_14" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -2072,6 +2072,231 @@
     </div>
   </div>
 
+  <!-- ==================== MODAL: QUẢN LÝ & THIẾT LẬP CÂU HỎI DỪNG VIDEO TƯƠNG TÁC ==================== -->
+  <div id="modal-video-question-editor" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-4xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[92dvh] overflow-y-auto space-y-6">
+      <button data-close-modal="modal-video-question-editor" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <!-- Header modal -->
+      <div class="flex items-start gap-4 pb-4 border-b border-slate-100 dark:border-slate-700 pr-8">
+        <div class="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center text-2xl font-black shrink-0 shadow-inner">
+          <i class="fa-solid fa-sliders"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <h3 class="text-base sm:text-lg font-black text-slate-800 dark:text-white" id="vqe-modal-title">
+              Thiết Lập Câu Hỏi Dừng Video
+            </h3>
+            <span id="vqe-modal-badge" class="px-2.5 py-0.5 rounded-lg text-[10px] font-black bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+              Khối 12
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1 truncate" id="vqe-modal-subtitle">
+            Tên bài học • Tên tệp video
+          </p>
+        </div>
+      </div>
+
+      <!-- Action bar: Thêm câu hỏi / Khôi phục / Thống kê -->
+      <div class="flex items-center justify-between gap-3 flex-wrap bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+        <div class="flex items-center gap-2">
+          <button type="button" id="btn-vqe-open-add" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-blue-500/20 flex items-center gap-2">
+            <i class="fa-solid fa-plus"></i> Thêm câu hỏi dừng mới
+          </button>
+          <button type="button" id="btn-vqe-reset-default" class="px-3.5 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-rose-50 hover:text-rose-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5" title="Khôi phục câu hỏi ban đầu từ ngân hàng">
+            <i class="fa-solid fa-rotate-left"></i> Khôi phục mặc định
+          </button>
+        </div>
+
+        <div class="text-xs text-slate-500 dark:text-slate-400 font-bold flex items-center gap-3">
+          <span id="vqe-stat-checkpoints">0 mốc dừng</span>
+          <span>•</span>
+          <span id="vqe-stat-questions" class="text-blue-600 dark:text-blue-400">0 câu hỏi</span>
+        </div>
+      </div>
+
+      <!-- Khu vực Form Thêm / Sửa Câu Hỏi (Ẩn mặc định) -->
+      <div id="vqe-form-container" class="hidden p-5 sm:p-6 rounded-2xl bg-blue-50/50 dark:bg-blue-950/30 border-2 border-blue-200 dark:border-blue-800 space-y-4 animate-fadeIn">
+        <div class="flex items-center justify-between pb-2 border-b border-blue-200/60 dark:border-blue-800">
+          <h4 class="text-xs font-black uppercase tracking-wider text-blue-700 dark:text-blue-300 flex items-center gap-2" id="vqe-form-title">
+            <i class="fa-solid fa-pen-to-square"></i> Thêm Câu Hỏi Dừng Mới
+          </h4>
+          <button type="button" id="btn-vqe-close-form" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs">
+            <i class="fa-solid fa-xmark"></i> Hủy
+          </button>
+        </div>
+
+        <form id="vqe-question-form" class="space-y-4">
+          <input type="hidden" id="vqe-edit-q-id" value="" />
+
+          <!-- Mốc dừng, Thời gian & Cấp độ -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Mốc dừng (giây hoặc mm:ss) *
+              </label>
+              <div class="flex items-center gap-2">
+                <input type="text" id="vqe-input-stop-sec" placeholder="Ví dụ: 120 hoặc 02:00" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white" required />
+                <button type="button" id="btn-vqe-grab-video-time" class="px-2.5 py-2 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 dark:bg-slate-700 dark:text-slate-200 rounded-xl text-[11px] font-bold shrink-0 border border-slate-200 dark:border-slate-600" title="Lấy mốc thời gian hiện tại của video">
+                  <i class="fa-solid fa-stopwatch text-rose-500"></i> Lấy mốc
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Thời gian trả lời (Countdown)
+              </label>
+              <select id="vqe-input-time-limit" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white">
+                <option value="10">10 giây (Siêu nhanh)</option>
+                <option value="15" selected>15 giây (Mặc định chuẩn)</option>
+                <option value="20">20 giây</option>
+                <option value="30">30 giây</option>
+                <option value="45">45 giây</option>
+                <option value="60">60 giây (1 phút)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Cấp độ câu hỏi
+              </label>
+              <select id="vqe-input-level" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white">
+                <option value="1">Mức 1 - Nhận biết</option>
+                <option value="2">Mức 2 - Thông hiểu</option>
+                <option value="3">Mức 3 - Vận dụng</option>
+                <option value="4">Mức 4 - Vận dụng cao</option>
+                <option value="DS">Đúng / Sai</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Nội dung câu hỏi -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+              Nội dung câu hỏi dừng *
+            </label>
+            <textarea id="vqe-input-question-text" rows="2" placeholder="Nhập câu hỏi tương tác muốn học sinh trả lời tại mốc này..." class="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white resize-none" required></textarea>
+          </div>
+
+          <!-- 4 Phương án A, B, C, D & Chọn đáp án đúng -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+              Các phương án lựa chọn (Click chọn nút tròn để chỉ định đáp án ĐÚNG) *
+            </label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <!-- A -->
+              <div class="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <input type="radio" name="vqe-correct-choice" value="A" id="vqe-radio-A" checked class="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                <label for="vqe-radio-A" class="font-black text-xs text-slate-700 dark:text-slate-300 w-5">A</label>
+                <input type="text" id="vqe-opt-A" placeholder="Nội dung phương án A" class="flex-1 bg-transparent border-0 text-xs text-slate-800 dark:text-white focus:ring-0 p-0" required />
+              </div>
+
+              <!-- B -->
+              <div class="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <input type="radio" name="vqe-correct-choice" value="B" id="vqe-radio-B" class="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                <label for="vqe-radio-B" class="font-black text-xs text-slate-700 dark:text-slate-300 w-5">B</label>
+                <input type="text" id="vqe-opt-B" placeholder="Nội dung phương án B" class="flex-1 bg-transparent border-0 text-xs text-slate-800 dark:text-white focus:ring-0 p-0" required />
+              </div>
+
+              <!-- C -->
+              <div class="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <input type="radio" name="vqe-correct-choice" value="C" id="vqe-radio-C" class="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                <label for="vqe-radio-C" class="font-black text-xs text-slate-700 dark:text-slate-300 w-5">C</label>
+                <input type="text" id="vqe-opt-C" placeholder="Nội dung phương án C" class="flex-1 bg-transparent border-0 text-xs text-slate-800 dark:text-white focus:ring-0 p-0" required />
+              </div>
+
+              <!-- D -->
+              <div class="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <input type="radio" name="vqe-correct-choice" value="D" id="vqe-radio-D" class="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                <label for="vqe-radio-D" class="font-black text-xs text-slate-700 dark:text-slate-300 w-5">D</label>
+                <input type="text" id="vqe-opt-D" placeholder="Nội dung phương án D" class="flex-1 bg-transparent border-0 text-xs text-slate-800 dark:text-white focus:ring-0 p-0" required />
+              </div>
+            </div>
+          </div>
+
+          <!-- Buttons Form -->
+          <div class="flex items-center justify-end gap-2 pt-2">
+            <button type="button" id="btn-vqe-cancel-form" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition">
+              Hủy
+            </button>
+            <button type="submit" id="btn-vqe-submit-form" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-blue-500/20 flex items-center gap-1.5">
+              <i class="fa-solid fa-floppy-disk"></i> Lưu Câu Hỏi
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Danh sách câu hỏi theo từng mốc dừng -->
+      <div class="space-y-4">
+        <h4 class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+          <i class="fa-solid fa-list-check text-blue-600"></i> Các Mốc Dừng & Câu Hỏi Hiện Tại
+        </h4>
+
+        <div id="vqe-questions-list" class="space-y-3 max-h-[48vh] overflow-y-auto pr-1">
+          <!-- Các mốc dừng được sinh động tại đây -->
+        </div>
+      </div>
+
+      <div class="pt-2 border-t border-slate-100 dark:border-slate-700 flex justify-end">
+        <button data-close-modal="modal-video-question-editor" class="px-6 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition">
+          Đóng Thiết Lập
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: NHẬP URL VIDEO TÙY CHỈNH ==================== -->
+  <div id="modal-video-custom-url" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative space-y-5">
+      <button data-close-modal="modal-video-custom-url" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center text-xl font-black shrink-0">
+          <i class="fa-solid fa-link"></i>
+        </div>
+        <div>
+          <h3 class="text-sm sm:text-base font-black text-slate-800 dark:text-white">
+            Nhập Đường Link Video Tùy Chỉnh
+          </h3>
+          <p class="text-xs text-slate-400" id="modal-custom-url-lesson-name">
+            Tên bài học
+          </p>
+        </div>
+      </div>
+
+      <form id="form-custom-video-url" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+            Đường dẫn Video MP4 (Direct Link) *
+          </label>
+          <input type="url" id="input-custom-video-url" placeholder="https://.../video.mp4" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white" required />
+          <p class="text-[11px] text-slate-400 mt-1">
+            Hỗ trợ link trực tiếp từ Archive.org, Cloudflare R2, Google Drive (direct link) hoặc bất kỳ máy chủ nào.
+          </p>
+        </div>
+
+        <div class="flex items-center justify-between gap-2 pt-2">
+          <button type="button" id="btn-delete-custom-video-url" class="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300 rounded-xl text-xs font-bold transition">
+            <i class="fa-solid fa-trash-can"></i> Xóa Link này
+          </button>
+          <div class="flex items-center gap-2">
+            <button type="button" data-close-modal="modal-video-custom-url" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition">
+              Hủy
+            </button>
+            <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-blue-500/20">
+              Lưu URL
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ==================== FOOTER ==================== -->
   <footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-8 no-print transition-colors">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
@@ -2099,7 +2324,7 @@
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261029_13"></script>
+  <script type="module" src="js/app.js?v=20261029_14"></script>
 </body>
 </html>
 

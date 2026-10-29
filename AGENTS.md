@@ -205,6 +205,19 @@ Phục vụ nhu cầu theo dõi tiến độ, đánh giá năng lực học tậ
     2. **Chi Tiết Toàn Bộ Bài Thi (`Chi_Tiet_Bai_Thi_Tin_Hoc_*.csv`)**: Bảng điểm nhật ký từng lượt thi gồm ngày giờ, học sinh, trường, lớp, phòng thi, mã đề, điểm số, số câu đúng/tổng câu, thời gian làm bài, tỷ lệ đúng, trạng thái giám sát (Hợp lệ / Bị đình chỉ).
   - **Bảo đảm không lỗi font tiếng Việt trong Microsoft Excel:** Tất cả file xuất ra đều được thêm byte order mark UTF-8 (`\uFEFF`) ở đầu chuỗi, mở xem trực tiếp trên Excel của Windows và macOS trọn vẹn dấu tiếng Việt mà không cần thao tác import thủ công.
 
+### 4.6. Bài Giảng Video Tương Tác, Chọn/Tải Video Trực Tiếp & Trình Thiết Lập Câu Hỏi (`js/interactive-video.js`)
+- **Tải / Chọn Video Trực Tiếp Trên Web (Local Video Streaming & Fallback):**
+  - Học sinh và Giáo viên có thể nạp cả thư mục video hoặc chọn từng file video `.mp4` trực tiếp từ máy tính (`InteractiveVideo.localVideoMap`).
+  - Video được stream tức thời qua Blob Object URL (`URL.createObjectURL(file)`), xem và làm câu hỏi dừng trơn tru mà không cần internet hay chờ video tải lên server.
+  - Khi video từ đám mây Archive.org chưa sẵn sàng, hệ thống hiển thị màn chắn thông minh với nút chọn video máy tính 1 chạm để tiếp tục học.
+  - Hỗ trợ đổi đường link URL video trực tiếp (`customVideoUrl`) và tích hợp nút tải lên Archive.org S3 cho Admin.
+- **Trình Thiết Lập Mốc Dừng & Câu Hỏi Video (Question & Checkpoint Editor):**
+  - Dành riêng cho Giáo viên & Admin (`Auth.isTeacher() || Auth.isAdmin()`).
+  - Giao diện quản lý trực quan: Xem toàn bộ timeline mốc dừng, thời lượng đếm ngược (10s, 15s, 20s, 30s, 45s, 60s), cấp độ nhận thức (Mức 1-4, Đúng/Sai), câu hỏi và 4 phương án A/B/C/D.
+  - Nút thông minh **"⏱️ Lấy mốc"**: Tự động lấy giây video hiện tại đang dừng để điền vào mốc câu hỏi mới.
+  - Thao tác Thêm, Sửa, Xóa và Khôi phục mặc định từ ngân hàng đề gốc.
+  - Tự động lưu vào `Storage` và đồng bộ thời gian thực lên Firebase Cloud Database (`/custom_video_questions`) qua `CloudSync`.
+
 ---
 
 ## 5. Kiến trúc Bố cục Lỏng Thích Ứng Toàn Diện (Fluid & Adaptive Architecture)

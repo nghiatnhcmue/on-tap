@@ -201,6 +201,10 @@ export const CloudSync = {
       // 4. Đồng bộ Cấu hình Video Bài Giảng (Video Base URL & Archive Bucket)
       await this.syncVideoConfig(baseUrl);
 
+      // 5. Đồng bộ Câu hỏi dừng tùy biến & URL Video trực tiếp
+      await this.syncCustomVideoQuestions(baseUrl);
+      await this.syncCustomVideoUrls(baseUrl);
+
       this.config.lastSync = new Date().toISOString();
       try {
         localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(this.config));
@@ -489,6 +493,109 @@ export const CloudSync = {
       });
     } catch (e) {
       console.warn('Lỗi đẩy cấu hình video lên cloud:', e);
+    }
+  },
+
+  // --- ĐỒNG BỘ CÂU HỎI DỪNG VIDEO TÙY BIẾN CHO GIÁO VIÊN ---
+  async syncCustomVideoQuestions(baseUrl) {
+    try {
+      const res = await fetch(`${baseUrl}/custom_video_questions.json`);
+      if (!res.ok) return;
+      const remoteData = await res.json();
+      if (!remoteData || typeof remoteData !== 'object') return;
+
+      const localAll = Storage.getAllCustomVideoQuestions();
+      let changed = false;
+
+      Object.entries(remoteData).forEach(([grade, videoMap]) => {
+        if (!videoMap || typeof videoMap !== 'object') return;
+        if (!localAll[grade]) localAll[grade] = {};
+        Object.entries(videoMap).forEach(([vKey, questions]) => {
+          if (Array.isArray(questions)) {
+            // Chuẩn hóa tên tệp video (phục hồi tên từ clean key nếu cần)
+            localAll[grade][vKey] = questions;
+            changed = true;
+          }
+        });
+      });
+
+      if (changed) {
+        localStorage.setItem('tinhoc_custom_video_questions', JSON.stringify(localAll));
+      }
+    } catch (e) {
+      console.warn('Lỗi đồng bộ câu hỏi video từ cloud:', e);
+    }
+  },
+
+  async pushCustomVideoQuestionsToCloud(grade, videoFile, questionsList) {
+    if (!this.isConfigured() || !videoFile) return;
+    grade = String(grade || '12');
+    const key = this.getCleanKey(videoFile);
+    try {
+      await fetch(`${this.config.databaseUrl}/custom_video_questions/${grade}/${key}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(questionsList || [])
+      });
+    } catch (e) {
+      console.warn('Lỗi push câu hỏi video lên cloud:', e);
+    }
+  },
+
+  async deleteCustomVideoQuestionsFromCloud(grade, videoFile) {
+    if (!this.isConfigured() || !videoFile) return;
+    grade = String(grade || '12');
+    const key = this.getCleanKey(videoFile);
+    try {
+      await fetch(`${this.config.databaseUrl}/custom_video_questions/${grade}/${key}.json`, {
+        method: 'DELETE'
+      });
+    } catch (e) {
+      console.warn('Lỗi xóa câu hỏi video trên cloud:', e);
+    }
+  },
+
+  // --- ĐỒNG BỘ URL VIDEO TRỰC TIẾP ---
+  async syncCustomVideoUrls(baseUrl) {
+    try {
+      const res = await fetch(`${baseUrl}/config/custom_video_urls.json`);
+      if (!res.ok) return;
+      const remoteData = await res.json();
+      if (!remoteData || typeof remoteData !== 'object') return;
+
+      const localUrls = Storage.getCustomVideoUrls();
+      let changed = false;
+      Object.entries(remoteData).forEach(([vKey, url]) => {
+        if (url && typeof url === 'string') {
+          localUrls[vKey] = url;
+          changed = true;
+        }
+      });
+      if (changed) {
+        localStorage.setItem('tinhoc_custom_video_urls', JSON.stringify(localUrls));
+      }
+    } catch (e) {
+      console.warn('Lỗi đồng bộ URL video từ cloud:', e);
+    }
+  },
+
+  async pushCustomVideoUrlToCloud(videoFile, url) {
+    if (!this.isConfigured() || !videoFile) return;
+    const key = this.getCleanKey(videoFile);
+    try {
+      if (url && url.trim()) {
+        await fetch(`${this.config.databaseUrl}/config/custom_video_urls/${key}.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(url.trim())
+        });
+      } else {
+        await fetch(`${this.config.databaseUrl}/config/custom_video_urls/${key}.json`, {
+          method: 'DELETE'
+        });
+      }
+    } catch (e) {
+      console.warn('Lỗi đẩy URL video lên cloud:', e);
     }
   },
 

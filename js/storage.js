@@ -19,7 +19,9 @@ const STORAGE_KEYS = {
   USER_NOTES: 'tinhoc_user_notes',
   STUDY_STREAK: 'tinhoc_study_streak',
   VIDEO_CONFIG: 'tinhoc_video_config',
-  VIDEO_PROGRESS: 'tinhoc_video_progress'
+  VIDEO_PROGRESS: 'tinhoc_video_progress',
+  CUSTOM_VIDEO_QUESTIONS: 'tinhoc_custom_video_questions',
+  CUSTOM_VIDEO_URLS: 'tinhoc_custom_video_urls'
 };
 
 export const Storage = {
@@ -118,6 +120,99 @@ export const Storage = {
       localStorage.setItem(STORAGE_KEYS.VIDEO_PROGRESS, JSON.stringify(all));
     } catch (e) {
       console.error('Error recording video progress:', e);
+    }
+  },
+
+  // --- TÙY CHỈNH URL VIDEO TỪNG BÀI HỌC ---
+  getCustomVideoUrls() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEYS.CUSTOM_VIDEO_URLS) || '{}');
+    } catch (e) {
+      return {};
+    }
+  },
+
+  getCustomVideoUrl(videoFile) {
+    if (!videoFile) return null;
+    const all = this.getCustomVideoUrls();
+    return all[videoFile] || null;
+  },
+
+  saveCustomVideoUrl(videoFile, url) {
+    if (!videoFile) return;
+    try {
+      const all = this.getCustomVideoUrls();
+      if (url && url.trim()) {
+        all[videoFile] = url.trim();
+      } else {
+        delete all[videoFile];
+      }
+      localStorage.setItem(STORAGE_KEYS.CUSTOM_VIDEO_URLS, JSON.stringify(all));
+      if (this.cloudSync && typeof this.cloudSync.pushCustomVideoUrlToCloud === 'function') {
+        this.cloudSync.pushCustomVideoUrlToCloud(videoFile, url).catch(() => {});
+      }
+      return all;
+    } catch (e) {
+      console.error('Error saving custom video url', e);
+    }
+  },
+
+  // --- CÂU HỎI & MỐC DỪNG TÙY BIẾN CHO VIDEO BÀI GIẢNG ---
+  getAllCustomVideoQuestions() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEYS.CUSTOM_VIDEO_QUESTIONS) || '{}');
+    } catch (e) {
+      return {};
+    }
+  },
+
+  getCustomVideoQuestions(grade, videoFile) {
+    if (!videoFile) return null;
+    try {
+      grade = String(grade || '12');
+      const all = this.getAllCustomVideoQuestions();
+      const list = all?.[grade]?.[videoFile];
+      return Array.isArray(list) ? list : null;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  saveCustomVideoQuestions(grade, videoFile, questionsList) {
+    if (!videoFile) return false;
+    try {
+      grade = String(grade || '12');
+      const all = this.getAllCustomVideoQuestions();
+      if (!all[grade]) all[grade] = {};
+      all[grade][videoFile] = questionsList || [];
+      localStorage.setItem(STORAGE_KEYS.CUSTOM_VIDEO_QUESTIONS, JSON.stringify(all));
+
+      if (this.cloudSync && typeof this.cloudSync.pushCustomVideoQuestionsToCloud === 'function') {
+        this.cloudSync.pushCustomVideoQuestionsToCloud(grade, videoFile, questionsList).catch(() => {});
+      }
+      return true;
+    } catch (e) {
+      console.error('Error saving custom video questions', e);
+      return false;
+    }
+  },
+
+  resetCustomVideoQuestions(grade, videoFile) {
+    if (!videoFile) return false;
+    try {
+      grade = String(grade || '12');
+      const all = this.getAllCustomVideoQuestions();
+      if (all[grade] && all[grade][videoFile]) {
+        delete all[grade][videoFile];
+        localStorage.setItem(STORAGE_KEYS.CUSTOM_VIDEO_QUESTIONS, JSON.stringify(all));
+      }
+      if (this.cloudSync && typeof this.cloudSync.deleteCustomVideoQuestionsFromCloud === 'function') {
+        this.cloudSync.deleteCustomVideoQuestionsFromCloud(grade, videoFile).catch(() => {});
+      }
+      return true;
+    } catch (e) {
+      console.error('Error resetting custom video questions', e);
+      return false;
     }
   },
 
