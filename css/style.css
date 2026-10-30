@@ -658,3 +658,19 @@ button:active:not(:disabled) {
   transform: scale(0.985);
 }
 
+/* Đảm bảo menu Nghiệp vụ GV không bao giờ bị mất khi di chuột qua khoảng cách giữa nút và menu */
+.group\/teacher-nav {
+  position: relative;
+}
+.group\/teacher-nav::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 16px;
+  background: transparent;
+  z-index: 49;
+}
+
+
