@@ -10,7 +10,7 @@
  * 5. Cơ chế Local-First an toàn: Mất mạng vẫn làm bài bình thường, khi có mạng tự động đẩy dữ liệu lên đám mây.
  */
 
-import { Storage } from './storage.js';
+import { Storage } from './storage.js?v=20261030_43';
 
 const CLOUD_CONFIG_KEY = 'tinhoc_cloud_config';
 export const DEFAULT_FIREBASE_DB_URL = 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -704,13 +704,6 @@ export const CloudSync = {
         videoBaseUrl: cleanBaseUrl,
         updatedAt: new Date().toISOString()
       };
-      if (config.uploadedVideos && Object.keys(config.uploadedVideos).length > 0) {
-        const cleanUploaded = {};
-        Object.entries(config.uploadedVideos).forEach(([k, val]) => {
-          cleanUploaded[this.getCleanKey(k)] = val;
-        });
-        payload.uploadedVideos = cleanUploaded;
-      }
       if (cleanAccess) payload.archiveAccessKey = cleanAccess;
       if (cleanSecret) payload.archiveSecretKey = cleanSecret;
 
@@ -719,7 +712,7 @@ export const CloudSync = {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
-        })
+        }).catch(() => null)
       ];
 
       // Lưu thêm vào nhánh chuyên biệt /config/s3_keys.json khi có khóa S3 để bảo toàn tuyệt đối
@@ -735,8 +728,21 @@ export const CloudSync = {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(s3Payload)
-          })
+          }).catch(() => null)
         );
+      }
+
+      // Đồng bộ danh sách video đã tải lên ở nhánh con độc lập (đã làm sạch dấu chấm .mp4 -> _mp4)
+      if (config.uploadedVideos && Object.keys(config.uploadedVideos).length > 0) {
+        const cleanUploaded = {};
+        Object.entries(config.uploadedVideos).forEach(([k, val]) => {
+          cleanUploaded[this.getCleanKey(k)] = val;
+        });
+        fetch(`${url}/config/video/uploadedVideos.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cleanUploaded)
+        }).catch(() => null);
       }
 
       const results = await Promise.all(reqs);

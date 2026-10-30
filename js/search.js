@@ -3,8 +3,8 @@
  * Tra cứu nhanh từ khóa trong toàn bộ 4.400+ câu hỏi ngân hàng đề Tin học
  */
 
-import { Storage } from './storage.js';
-import { escapeHtml } from './utils.js';
+import { Storage } from './storage.js?v=20261030_43';
+import { escapeHtml } from './utils.js?v=20261030_43';
 
 export const Search = {
   allQuestions: [],
