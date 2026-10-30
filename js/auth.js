@@ -4,8 +4,8 @@
  * Hỗ trợ: Đăng nhập Google Popup, Đồng bộ Firebase Realtime Database, Hồ sơ học sinh.
  */
 
-import { Storage } from './storage.js?v=20261030_43';
-import { CloudSync } from './cloud-sync.js?v=20261030_43';
+import { Storage } from './storage.js?v=20261030_44';
+import { CloudSync } from './cloud-sync.js?v=20261030_44';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
 
@@ -674,8 +674,13 @@ export const Auth = {
     const lower = raw.toLowerCase();
     const accounts = Storage.getAccountsList();
 
-    // 1. Tìm theo Email hoặc UID duy nhất
-    let match = accounts.find(a => (a.email && a.email.toLowerCase() === lower) || (a.uid && a.uid.toLowerCase() === lower));
+    // 1. Tìm theo Email, UID, hoặc Tên tài khoản (username / tiền tố email trước @)
+    let match = accounts.find(a =>
+      (a.email && a.email.toLowerCase() === lower) ||
+      (a.uid && a.uid.toLowerCase() === lower) ||
+      (a.username && a.username.toLowerCase() === lower) ||
+      (a.email && a.email.split('@')[0].toLowerCase() === lower)
+    );
 
     // 2. Nếu không thấy, tìm theo Họ và tên chính xác
     if (!match) {
@@ -685,7 +690,8 @@ export const Auth = {
     if (!match) {
       return {
         success: false,
-        message: 'Tài khoản không tồn tại trên hệ thống! Vui lòng kiểm tra lại Email hoặc bấm tab "Đăng Ký Mới" để tạo tài khoản.'
+        code: 'NOT_FOUND',
+        message: 'Tài khoản không tồn tại trên hệ thống! Vui lòng kiểm tra lại Email/Tên tài khoản hoặc bấm tab "Đăng Ký Mới" để tạo tài khoản.'
       };
     }
 
@@ -694,6 +700,7 @@ export const Auth = {
       if (match.password !== pwd) {
         return {
           success: false,
+          code: 'WRONG_PASSWORD',
           message: 'Mật khẩu không chính xác! Vui lòng kiểm tra lại mật khẩu của bạn.'
         };
       }
@@ -707,6 +714,27 @@ export const Auth = {
     return { success: true, user: match };
   },
 
+  // Đăng nhập bất đồng bộ: Tự động kiểm tra trên Cloud nếu máy mới chưa kịp đồng bộ danh sách tài khoản
+  async loginWithCredentialsAsync(identity, password) {
+    let res = this.loginWithCredentials(identity, password);
+    if (!res.success && CloudSync && typeof CloudSync.syncAccounts === 'function') {
+      await CloudSync.syncAccounts();
+      res = this.loginWithCredentials(identity, password);
+    }
+    if (res.success && CloudSync) {
+      Promise.all([
+        CloudSync.syncUserProgress ? CloudSync.syncUserProgress(null, res.user) : Promise.resolve(),
+        CloudSync.syncHistory ? CloudSync.syncHistory() : Promise.resolve(),
+        CloudSync.syncRooms ? CloudSync.syncRooms() : Promise.resolve()
+      ]).then(() => {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('tinhoc-cloud-synced', { detail: { timestamp: new Date().toISOString() } }));
+        }
+      }).catch(() => {});
+    }
+    return res;
+  },
+
   // Tương thích ngược với các lệnh gọi cũ
   loginWithDirectIdentity(identity, password = '') {
     return this.loginWithCredentials(identity, password);
@@ -717,7 +745,9 @@ export const Auth = {
     const cleanClass = (className || '').trim();
     const cleanSchool = (school || '').trim();
     const cleanGrade = grade || '12';
-    const cleanEmail = (email || '').trim().toLowerCase();
+    const rawEmailOrUser = (email || '').trim().toLowerCase();
+    const cleanUsername = rawEmailOrUser.includes('@') ? rawEmailOrUser.split('@')[0] : rawEmailOrUser;
+    const cleanEmail = rawEmailOrUser.includes('@') ? rawEmailOrUser : (rawEmailOrUser ? `${rawEmailOrUser}@tinhoc.edu.vn` : '');
     const cleanPassword = (password || '').trim();
 
     if (!cleanName) {
@@ -730,19 +760,23 @@ export const Auth = {
       return { success: false, message: 'Vui lòng chọn hoặc nhập Lớp học của bạn!' };
     }
     if (!cleanEmail) {
-      return { success: false, message: 'Vui lòng nhập Email của bạn để định danh tài khoản duy nhất!' };
+      return { success: false, message: 'Vui lòng nhập Email hoặc Tên tài khoản của bạn để định danh duy nhất!' };
     }
     if (!cleanPassword || cleanPassword.length < 6) {
       return { success: false, message: 'Mật khẩu phải có tối thiểu 6 ký tự để bảo mật tài khoản và điểm số của bạn!' };
     }
 
-    // Kiểm tra tính duy nhất của Email (Chống trùng lặp tài khoản)
+    // Kiểm tra tính duy nhất của Email / Tên tài khoản (Chống trùng lặp tài khoản)
     const accounts = Storage.getAccountsList();
-    const existing = accounts.find(a => a.email && a.email.toLowerCase() === cleanEmail);
+    const existing = accounts.find(a =>
+      (a.email && a.email.toLowerCase() === cleanEmail) ||
+      (a.username && a.username.toLowerCase() === cleanUsername) ||
+      (a.uid && a.uid.toLowerCase() === cleanUsername)
+    );
     if (existing) {
       return {
         success: false,
-        message: `Email [${cleanEmail}] đã được đăng ký tài khoản trước đó!\nNếu đây là tài khoản của bạn, vui lòng chuyển sang tab "Đăng Nhập" và nhập mật khẩu để vào học.`
+        message: `Tài khoản [${rawEmailOrUser}] đã được đăng ký trước đó!\nNếu đây là tài khoản của bạn, vui lòng chuyển sang tab "Đăng Nhập" và nhập mật khẩu để vào học.`
       };
     }
 
@@ -764,7 +798,8 @@ export const Auth = {
     }
 
     const newUser = {
-      uid: 'user_' + Date.now(),
+      uid: cleanUsername || ('user_' + Date.now()),
+      username: cleanUsername,
       email: cleanEmail,
       password: cleanPassword,
       fullName: cleanName,
@@ -782,13 +817,19 @@ export const Auth = {
 
   loginWithSavedAccount(uidOrEmail) {
     const list = Storage.getAccountsList();
-    const target = list.find(u => (u.uid && u.uid === uidOrEmail) || (u.email && u.email.toLowerCase() === uidOrEmail.toLowerCase()));
+    const target = list.find(u =>
+      (u.uid && u.uid === uidOrEmail) ||
+      (u.email && u.email.toLowerCase() === String(uidOrEmail).toLowerCase()) ||
+      (u.username && u.username.toLowerCase() === String(uidOrEmail).toLowerCase())
+    );
     if (!target) {
       return { success: false, message: 'Không tìm thấy tài khoản!' };
     }
     const user = {
       uid: target.uid || 'user_' + Date.now(),
+      username: target.username || (target.email ? target.email.split('@')[0] : ''),
       email: target.email || '',
+      password: target.password || '',
       fullName: target.fullName,
       avatar: target.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(target.fullName)}&background=${target.role === 'admin' ? 'ef4444' : (target.role === 'teacher' ? '8b5cf6' : '3b82f6')}&color=fff`,
       grade: target.grade || '12',
@@ -805,6 +846,13 @@ export const Auth = {
     this.currentUser = user;
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
     Storage.saveAccountRecord(user);
+    if (CloudSync && typeof CloudSync.syncUserProgress === 'function') {
+      CloudSync.syncUserProgress(null, user).then(() => {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('tinhoc-cloud-synced', { detail: { timestamp: new Date().toISOString() } }));
+        }
+      }).catch(() => {});
+    }
     this.notifyAuthChange();
   },
 

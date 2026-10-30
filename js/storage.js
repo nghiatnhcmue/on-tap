@@ -155,6 +155,7 @@ export const Storage = {
       };
 
       localStorage.setItem(STORAGE_KEYS.VIDEO_PROGRESS, JSON.stringify(all));
+      this.notifyUserProgressChanged();
     } catch (e) {
       console.error('Error recording video progress:', e);
     }
@@ -366,12 +367,62 @@ export const Storage = {
   },
 
   // --- QUẢN LÝ TÀI KHOẢN & PHÂN QUYỀN (ADMIN) ---
+  getDefaultTestAccounts() {
+    return [
+      {
+        uid: 'tesths',
+        username: 'tesths',
+        email: 'tesths@tinhoc.edu.vn',
+        password: '123456',
+        fullName: 'Nguyễn Minh Khôi (tesths)',
+        grade: '12',
+        className: '12A1',
+        school: 'TT GDNN GDTX Chu Văn An',
+        avatar: 'https://ui-avatars.com/api/?name=Nguyen+Minh+Khoi&background=3b82f6&color=fff',
+        role: 'student',
+        createdAt: '2026-10-30T00:00:00.000Z',
+        lastActive: '2026-10-30T02:00:00.000Z'
+      },
+      {
+        uid: 'testgv',
+        username: 'testgv',
+        email: 'testgv@tinhoc.edu.vn',
+        password: '123456',
+        fullName: 'Thầy Trần Văn Minh (testgv)',
+        grade: '12',
+        className: '12A1',
+        school: 'TT GDNN GDTX Chu Văn An',
+        avatar: 'https://ui-avatars.com/api/?name=Tran+Van+Minh&background=8b5cf6&color=fff',
+        role: 'teacher',
+        createdAt: '2026-10-30T00:00:00.000Z',
+        lastActive: '2026-10-30T02:00:00.000Z'
+      }
+    ];
+  },
+
   getAccountsList() {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.ACCOUNTS);
-      return data ? JSON.parse(data) : [];
+      const list = data ? JSON.parse(data) : [];
+      const defaults = this.getDefaultTestAccounts();
+      let changed = false;
+      defaults.forEach(def => {
+        const exists = list.some(u =>
+          (u.email && u.email.toLowerCase() === def.email.toLowerCase()) ||
+          (u.uid && u.uid.toLowerCase() === def.uid.toLowerCase()) ||
+          (u.username && u.username.toLowerCase() === def.username.toLowerCase())
+        );
+        if (!exists) {
+          list.push(def);
+          changed = true;
+        }
+      });
+      if (changed) {
+        localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(list));
+      }
+      return list;
     } catch (e) {
-      return [];
+      return this.getDefaultTestAccounts();
     }
   },
 
@@ -381,10 +432,15 @@ export const Storage = {
     if (!identifier) return;
     try {
       let list = this.getAccountsList();
-      const idx = list.findIndex(u => (u.email && u.email.toLowerCase() === identifier) || (u.uid && u.uid === identifier));
+      const idx = list.findIndex(u =>
+        (u.email && u.email.toLowerCase() === identifier) ||
+        (u.uid && u.uid.toLowerCase() === identifier) ||
+        (user.username && u.username && u.username.toLowerCase() === user.username.toLowerCase())
+      );
       const record = {
-        uid: user.uid || 'user_' + Date.now(),
-        email: user.email || '',
+        uid: user.uid || (idx >= 0 ? list[idx].uid : ('user_' + Date.now())),
+        username: user.username || (idx >= 0 ? list[idx].username : (user.email ? user.email.split('@')[0] : '')),
+        email: user.email || (idx >= 0 ? list[idx].email : ''),
         fullName: user.fullName || 'Người dùng',
         grade: user.grade || '12',
         className: user.className || '',
@@ -981,6 +1037,7 @@ export const Storage = {
       }
 
       localStorage.setItem(STORAGE_KEYS.BOOKMARKS, JSON.stringify(list));
+      this.notifyUserProgressChanged();
       return isAdded;
     } catch (e) {
       console.error('Error toggling bookmark', e);
@@ -992,6 +1049,43 @@ export const Storage = {
     let list = this.getBookmarks();
     list = list.filter(item => item.id !== questionId);
     localStorage.setItem(STORAGE_KEYS.BOOKMARKS, JSON.stringify(list));
+    this.notifyUserProgressChanged();
+  },
+
+  // --- ĐỒNG BỘ TIẾN TRÌNH HỌC TẬP CÁ NHÂN THEO TỪNG TÀI KHOẢN ---
+  getUserProgressSnapshot() {
+    return {
+      practiceStats: this.getPracticeStats(),
+      bookmarks: this.getBookmarks(),
+      wrongQuestions: this.getWrongQuestions(),
+      studyStreak: this.getStudyStreak(),
+      userNotes: this.getAllQuestionNotes(),
+      videoProgress: this.getAllVideoProgress(),
+      updatedAt: new Date().toISOString()
+    };
+  },
+
+  applyUserProgressSnapshot(snap) {
+    if (!snap || typeof snap !== 'object') return;
+    try {
+      if (snap.practiceStats) localStorage.setItem(STORAGE_KEYS.PRACTICE_STATS, JSON.stringify(snap.practiceStats));
+      if (Array.isArray(snap.bookmarks)) localStorage.setItem(STORAGE_KEYS.BOOKMARKS, JSON.stringify(snap.bookmarks));
+      if (Array.isArray(snap.wrongQuestions)) localStorage.setItem(STORAGE_KEYS.WRONG_QUESTIONS, JSON.stringify(snap.wrongQuestions));
+      if (snap.studyStreak) localStorage.setItem(STORAGE_KEYS.STUDY_STREAK, JSON.stringify(snap.studyStreak));
+      if (snap.userNotes) localStorage.setItem(STORAGE_KEYS.USER_NOTES, JSON.stringify(snap.userNotes));
+      if (snap.videoProgress) localStorage.setItem(STORAGE_KEYS.VIDEO_PROGRESS, JSON.stringify(snap.videoProgress));
+    } catch (e) {
+      console.warn('Error applying user progress snapshot:', e);
+    }
+  },
+
+  notifyUserProgressChanged() {
+    try {
+      const cs = this.getCloudSync();
+      if (cs && typeof cs.pushUserProgressToCloud === 'function') {
+        cs.pushUserProgressToCloud().catch(() => {});
+      }
+    } catch (e) {}
   },
 
   // --- LỊCH SỬ THI THỬ ---
@@ -1003,6 +1097,34 @@ export const Storage = {
       console.error('Error loading exam history', e);
       return [];
     }
+  },
+
+  // Lọc lịch sử thi theo đúng học sinh đang đăng nhập (tránh trộn điểm với tài khoản khác trên cùng thiết bị/Cloud)
+  getUserExamHistory(user = null) {
+    const history = this.getExamHistory();
+    let cur = user;
+    if (!cur) {
+      try {
+        const raw = localStorage.getItem('tinhoc_user');
+        if (raw) cur = JSON.parse(raw);
+      } catch (e) {}
+    }
+    if (!cur) return history;
+
+    const email = (cur.email || '').trim().toLowerCase();
+    const uid = (cur.uid || '').trim().toLowerCase();
+    const username = (cur.username || (email ? email.split('@')[0] : '')).trim().toLowerCase();
+    const fullName = (cur.fullName || '').trim().toLowerCase();
+
+    return history.filter(item => {
+      const itemEmail = (item.studentEmail || '').trim().toLowerCase();
+      const itemName = (item.studentName || '').trim().toLowerCase();
+      if (email && itemEmail && itemEmail === email) return true;
+      if (uid && itemEmail && (itemEmail === uid || itemEmail.split('@')[0] === uid)) return true;
+      if (username && itemEmail && itemEmail.split('@')[0] === username) return true;
+      if (fullName && itemName && itemName === fullName) return true;
+      return false;
+    });
   },
 
   saveExamResult(result) {
@@ -1023,8 +1145,8 @@ export const Storage = {
       } catch (err) {}
 
       const entry = {
-        id: 'exam_' + Date.now(),
-        date: new Date().toISOString(),
+        id: result.id || ('exam_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6)),
+        date: result.date || new Date().toISOString(),
         title: result.title || 'Đề thi thử Tin học',
         grade: result.grade,
         score: result.score, // 0 - 10
@@ -1049,8 +1171,8 @@ export const Storage = {
         details: result.details || [] // danh sách câu hỏi và câu trả lời
       };
       history.unshift(entry);
-      // Giữ tối đa 100 bài thi gần nhất
-      if (history.length > 100) history.pop();
+      // Giữ tối đa 2000 bài thi trên thiết bị để Sổ điểm của Giáo viên luôn đầy đủ
+      if (history.length > 2000) history.pop();
       localStorage.setItem(STORAGE_KEYS.EXAM_HISTORY, JSON.stringify(history));
       const cs = this.getCloudSync();
       if (cs && typeof cs.pushExamResultToCloud === 'function') {
@@ -1074,6 +1196,7 @@ export const Storage = {
         });
       }
 
+      this.notifyUserProgressChanged();
       return entry;
     } catch (e) {
       console.error('Error saving exam result', e);
@@ -1200,6 +1323,7 @@ export const Storage = {
         delete notes[questionId];
       }
       localStorage.setItem(STORAGE_KEYS.USER_NOTES, JSON.stringify(notes));
+      this.notifyUserProgressChanged();
     } catch (e) {
       console.error('Error saving question note', e);
     }
@@ -1274,6 +1398,7 @@ export const Storage = {
       }
       localStorage.setItem(STORAGE_KEYS.PRACTICE_STATS, JSON.stringify(stats));
       this.recordDailyActivity();
+      this.notifyUserProgressChanged();
       return stats;
     } catch (e) {
       console.error('Error recording practice result', e);

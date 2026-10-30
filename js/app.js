@@ -3,21 +3,21 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261030_43';
-import { Practice } from './practice.js?v=20261030_43';
-import { Exam } from './exam.js?v=20261030_43';
-import { Search } from './search.js?v=20261030_43';
-import { PrintManager } from './print.js?v=20261030_43';
-import { Auth } from './auth.js?v=20261030_43';
-import { escapeHtml } from './utils.js?v=20261030_43';
-import { Leaderboard } from './leaderboard.js?v=20261030_43';
-import { QuestionsManager } from './questions-manager.js?v=20261030_43';
-import { AdminManager } from './admin-manager.js?v=20261030_43';
-import { ExamRooms } from './exam-rooms.js?v=20261030_43';
-import { Proctor } from './proctor.js?v=20261030_43';
-import { Gradebook } from './gradebook.js?v=20261030_43';
-import { CloudSync } from './cloud-sync.js?v=20261030_43';
-import { InteractiveVideo } from './interactive-video.js?v=20261030_43';
+import { Storage } from './storage.js?v=20261030_44';
+import { Practice } from './practice.js?v=20261030_44';
+import { Exam } from './exam.js?v=20261030_44';
+import { Search } from './search.js?v=20261030_44';
+import { PrintManager } from './print.js?v=20261030_44';
+import { Auth } from './auth.js?v=20261030_44';
+import { escapeHtml } from './utils.js?v=20261030_44';
+import { Leaderboard } from './leaderboard.js?v=20261030_44';
+import { QuestionsManager } from './questions-manager.js?v=20261030_44';
+import { AdminManager } from './admin-manager.js?v=20261030_44';
+import { ExamRooms } from './exam-rooms.js?v=20261030_44';
+import { Proctor } from './proctor.js?v=20261030_44';
+import { Gradebook } from './gradebook.js?v=20261030_44';
+import { CloudSync } from './cloud-sync.js?v=20261030_44';
+import { InteractiveVideo } from './interactive-video.js?v=20261030_44';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -56,7 +56,9 @@ class App {
 
     // Lắng nghe sự kiện đồng bộ Cloud toàn cục để tự động re-render các màn hình đang mở
     window.addEventListener('tinhoc-cloud-synced', () => {
-      if (this.currentTab === 'gradebook') {
+      if (this.currentTab === 'home') {
+        this.renderHome();
+      } else if (this.currentTab === 'gradebook') {
         this.renderGradebook();
       } else if (this.currentTab === 'leaderboard') {
         if (typeof Leaderboard !== 'undefined') Leaderboard.render();
@@ -64,6 +66,8 @@ class App {
         if (typeof ExamRooms !== 'undefined') ExamRooms.render();
       } else if (this.currentTab === 'history') {
         this.renderHistory();
+      } else if (this.currentTab === 'bookmarks') {
+        this.renderBookmarks();
       } else if (this.currentTab === 'questions-manage') {
         if (typeof QuestionsManager !== 'undefined') QuestionsManager.render();
       } else if (this.currentTab === 'admin-system') {
@@ -307,6 +311,13 @@ class App {
     this.currentTab = tab;
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
+    // Tự động kéo dữ liệu mới nhất từ Cloud ngay khi chuyển sang các tab kết quả / phòng thi
+    if (['home', 'gradebook', 'leaderboard', 'exam-rooms', 'history', 'questions-manage'].includes(tab)) {
+      if (CloudSync && typeof CloudSync.syncAll === 'function') {
+        CloudSync.syncAll(false);
+      }
+    }
+
     // Cập nhật trạng thái active của menu
     document.querySelectorAll('[data-tab-target]').forEach(btn => {
       const target = btn.getAttribute('data-tab-target');
@@ -404,7 +415,7 @@ class App {
   // --- HOME VIEW ---
   renderHome() {
     const stats = Storage.getPracticeStats();
-    const history = Storage.getExamHistory();
+    const history = Auth.isStudent() ? Storage.getUserExamHistory(Auth.getCurrentUser()) : Storage.getExamHistory();
     const bookmarks = Storage.getBookmarks();
     const wrongQuestions = Storage.getWrongQuestions();
     const streakInfo = Storage.getStudyStreak();
@@ -1248,7 +1259,7 @@ class App {
 
   // --- HISTORY VIEW ---
   renderHistory() {
-    const history = Storage.getExamHistory();
+    const history = Auth.isStudent() ? Storage.getUserExamHistory(Auth.getCurrentUser()) : Storage.getExamHistory();
     const container = document.getElementById('history-list-area');
     if (!container) return;
 
@@ -1941,7 +1952,7 @@ class App {
     // Form đăng nhập bảo mật bằng Email / Tên tài khoản + Mật khẩu
     const formLoginDirect = document.getElementById('form-login-direct');
     if (formLoginDirect) {
-      formLoginDirect.addEventListener('submit', (e) => {
+      formLoginDirect.addEventListener('submit', async (e) => {
         e.preventDefault();
         const identity = document.getElementById('login-input-identity')?.value?.trim();
         const password = document.getElementById('login-input-password')?.value?.trim();
@@ -1955,12 +1966,22 @@ class App {
           document.getElementById('login-input-password')?.focus();
           return;
         }
-        const res = Auth.loginWithCredentials(identity, password);
+        const submitBtn = formLoginDirect.querySelector('button[type="submit"]');
+        const prevBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Đang xác thực...';
+        }
+        const res = await Auth.loginWithCredentialsAsync(identity, password);
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = prevBtnHtml;
+        }
         if (res.success) {
-          alert(`Xin chào ${res.user.fullName}! Đăng nhập thành công.`);
+          this.renderHome();
           this.enforceAuthentication();
         } else {
-          alert(res.message || 'Email hoặc mật khẩu không chính xác!');
+          alert(res.message || 'Email/Tài khoản hoặc mật khẩu không chính xác!');
         }
       });
     }

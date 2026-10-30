@@ -10,7 +10,7 @@
  * 5. Cơ chế Local-First an toàn: Mất mạng vẫn làm bài bình thường, khi có mạng tự động đẩy dữ liệu lên đám mây.
  */
 
-import { Storage } from './storage.js?v=20261030_43';
+import { Storage } from './storage.js?v=20261030_44';
 
 const CLOUD_CONFIG_KEY = 'tinhoc_cloud_config';
 export const DEFAULT_FIREBASE_DB_URL = 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -226,6 +226,9 @@ export const CloudSync = {
       // 3. Đồng bộ Kết quả thi (Exam History)
       await this.syncHistory(baseUrl);
 
+      // 3b. Đồng bộ Tiến trình Học tập Cá nhân theo từng Tài khoản (Practice, Bookmarks, Wrong Qs, Video Progress, Streak)
+      await this.syncUserProgress(baseUrl);
+
       // 4. Đồng bộ Câu hỏi dừng tùy biến & URL Video trực tiếp
       await this.syncCustomVideoQuestions(baseUrl);
       await this.syncCustomVideoUrls(baseUrl);
@@ -350,8 +353,9 @@ export const CloudSync = {
 
   // --- CHI TIẾT ĐỒNG BỘ TÀI KHOẢN ---
   async syncAccounts(baseUrl) {
+    const url = baseUrl || this.getBaseUrl();
     try {
-      const res = await fetch(`${baseUrl}/accounts.json`);
+      const res = await fetch(`${url}/accounts.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const remoteData = await res.json() || {};
       
@@ -366,16 +370,17 @@ export const CloudSync = {
       let updated = false;
       Object.entries(remoteData).forEach(([key, remoteAcc]) => {
         if (!remoteAcc || typeof remoteAcc !== 'object') return;
-        const localAcc = localMap.get(key);
+        const cleanKey = this.getCleanKey(remoteAcc.email || remoteAcc.uid || key);
+        const localAcc = localMap.get(cleanKey) || localMap.get(key);
         if (!localAcc) {
-          localMap.set(key, remoteAcc);
+          localMap.set(cleanKey, remoteAcc);
           updated = true;
         } else {
           // So sánh thời gian hoạt động để lấy bản mới hơn
           const remoteTime = new Date(remoteAcc.lastActive || 0).getTime();
           const localTime = new Date(localAcc.lastActive || 0).getTime();
-          if (remoteTime > localTime) {
-            localMap.set(key, { ...localAcc, ...remoteAcc });
+          if (remoteTime >= localTime) {
+            localMap.set(cleanKey, { ...localAcc, ...remoteAcc });
             updated = true;
           }
         }
@@ -418,7 +423,7 @@ export const CloudSync = {
   async syncRooms(baseUrl) {
     const url = baseUrl || this.getBaseUrl();
     try {
-      const res = await fetch(`${url}/exam_rooms.json`);
+      const res = await fetch(`${url}/exam_rooms.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const remoteData = await res.json() || {};
 
@@ -523,8 +528,9 @@ export const CloudSync = {
 
   // --- CHI TIẾT ĐỒNG BỘ KẾT QUẢ THI ---
   async syncHistory(baseUrl) {
+    const url = baseUrl || this.getBaseUrl();
     try {
-      const res = await fetch(`${baseUrl}/exam_history.json`);
+      const res = await fetch(`${url}/exam_history.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const remoteData = await res.json() || {};
 
@@ -587,6 +593,96 @@ export const CloudSync = {
       });
     } catch (e) {
       console.warn('Lỗi push điểm thi lên cloud:', e);
+    }
+  },
+
+  // --- ĐỒNG BỘ TIẾN TRÌNH HỌC TẬP CÁ NHÂN THEO TỪNG TÀI KHOẢN (PRACTICE, BOOKMARKS, WRONG QS, VIDEO) ---
+  getUserProgressKey(user = null) {
+    let cur = user;
+    if (!cur) {
+      try {
+        const raw = localStorage.getItem('tinhoc_user');
+        if (raw) cur = JSON.parse(raw);
+      } catch (e) {}
+    }
+    if (!cur) return null;
+    const rawId = (cur.email || cur.uid || cur.username || '').trim().toLowerCase();
+    if (!rawId) return null;
+    return this.getCleanKey(rawId);
+  },
+
+  async syncUserProgress(baseUrl = null, user = null) {
+    const userKey = this.getUserProgressKey(user);
+    if (!userKey) return null;
+    const url = baseUrl || this.getBaseUrl();
+    try {
+      const res = await fetch(`${url}/user_progress/${userKey}.json`, { cache: 'no-cache' });
+      if (!res.ok) return null;
+      const remoteSnap = await res.json();
+      const localSnap = Storage.getUserProgressSnapshot ? Storage.getUserProgressSnapshot() : null;
+
+      if (!remoteSnap) {
+        if (localSnap && (localSnap.practiceStats?.total > 0 || localSnap.bookmarks?.length > 0 || localSnap.wrongQuestions?.length > 0)) {
+          await this.pushUserProgressToCloud(user);
+        }
+        return localSnap;
+      }
+
+      // Khôi phục tên file .mp4 cho videoProgress
+      const restoredVidProg = {};
+      if (remoteSnap.videoProgress && typeof remoteSnap.videoProgress === 'object') {
+        Object.entries(remoteSnap.videoProgress).forEach(([k, val]) => {
+          const restoredName = this.restoreVideoFileName(k);
+          restoredVidProg[restoredName || k] = val;
+        });
+      }
+
+      const merged = {
+        practiceStats: remoteSnap.practiceStats || localSnap?.practiceStats || { total: 0, correct: 0, wrong: 0 },
+        bookmarks: Array.isArray(remoteSnap.bookmarks) ? remoteSnap.bookmarks : (localSnap?.bookmarks || []),
+        wrongQuestions: Array.isArray(remoteSnap.wrongQuestions) ? remoteSnap.wrongQuestions : (localSnap?.wrongQuestions || []),
+        studyStreak: remoteSnap.studyStreak || localSnap?.studyStreak || { streak: 0, lastDate: null, todayCount: 0 },
+        userNotes: remoteSnap.userNotes || localSnap?.userNotes || {},
+        videoProgress: Object.keys(restoredVidProg).length > 0 ? restoredVidProg : (localSnap?.videoProgress || {}),
+        updatedAt: remoteSnap.updatedAt || new Date().toISOString()
+      };
+
+      if (Storage.applyUserProgressSnapshot) {
+        Storage.applyUserProgressSnapshot(merged);
+      }
+      return merged;
+    } catch (e) {
+      console.warn('Lỗi đồng bộ tiến trình học tập cá nhân:', e);
+      return null;
+    }
+  },
+
+  async pushUserProgressToCloud(user = null) {
+    const userKey = this.getUserProgressKey(user);
+    if (!userKey || !Storage.getUserProgressSnapshot) return false;
+    const url = this.getBaseUrl();
+    try {
+      const snap = Storage.getUserProgressSnapshot();
+      const cleanVidProg = {};
+      if (snap.videoProgress && typeof snap.videoProgress === 'object') {
+        Object.entries(snap.videoProgress).forEach(([k, val]) => {
+          cleanVidProg[this.getCleanKey(k)] = val;
+        });
+      }
+      const payload = {
+        ...snap,
+        videoProgress: cleanVidProg,
+        updatedAt: new Date().toISOString()
+      };
+      const res = await fetch(`${url}/user_progress/${userKey}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('Lỗi đẩy tiến trình học tập cá nhân lên cloud:', e);
+      return false;
     }
   },
 
