@@ -1758,19 +1758,6 @@ class App {
       });
     }
 
-    // 3 Nút đăng nhập trải nghiệm theo vai trò (HS, GV, Admin)
-    document.getElementById('btn-demo-login-student')?.addEventListener('click', () => {
-      Auth.loginWithGoogleDemo({ role: 'student' });
-    });
-
-    document.getElementById('btn-demo-login-teacher')?.addEventListener('click', () => {
-      Auth.loginWithGoogleDemo({ role: 'teacher' });
-    });
-
-    document.getElementById('btn-demo-login-admin')?.addEventListener('click', () => {
-      Auth.loginWithGoogleDemo({ role: 'admin' });
-    });
-
     // Nút mở modal nâng cấp vai trò bằng mã xác thực
     const btnOpenUpgrade = document.getElementById('btn-open-upgrade-role');
     const modalUpgrade = document.getElementById('modal-upgrade-role');
