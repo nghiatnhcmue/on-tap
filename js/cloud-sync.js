@@ -38,6 +38,14 @@ export const CloudSync = {
     }
   },
 
+  getBaseUrl() {
+    let url = (this.config?.databaseUrl || DEFAULT_FIREBASE_DB_URL).trim().replace(/\/+$/, '');
+    if (!url || !url.startsWith('http') || url.includes('on-tap-nghiaedu-tin-hoc-default-rtdb.firebaseio.com')) {
+      url = DEFAULT_FIREBASE_DB_URL;
+    }
+    return url;
+  },
+
   loadConfig() {
     try {
       const saved = localStorage.getItem(CLOUD_CONFIG_KEY);
@@ -52,13 +60,12 @@ export const CloudSync = {
         lastSync: null,
         ...(parsed || {})
       };
-      // Tự động chuyển đổi nếu databaseUrl trống hoặc dùng URL firebaseio.com gây redirect 307
-      if (!this.config.databaseUrl || this.config.databaseUrl.includes('on-tap-nghiaedu-tin-hoc-default-rtdb.firebaseio.com')) {
-        this.config.databaseUrl = DEFAULT_FIREBASE_DB_URL;
-      }
-      if (this.config.enabled === undefined || this.config.enabled === false) {
-        this.config.enabled = true;
-      }
+      // Luôn chuẩn hóa databaseUrl và ép buộc enabled = true (Cloud Sync mặc định của TinHocHub)
+      this.config.databaseUrl = DEFAULT_FIREBASE_DB_URL;
+      this.config.enabled = true;
+      try {
+        localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(this.config));
+      } catch (e) {}
     } catch (e) {
       this.config = {
         enabled: true,
@@ -69,16 +76,17 @@ export const CloudSync = {
         intervalMinutes: 1,
         lastSync: null
       };
+      try {
+        localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(this.config));
+      } catch (e) {}
     }
     return this.config;
   },
 
   saveConfig(newConfig) {
     this.config = { ...this.config, ...newConfig };
-    // Chuẩn hóa databaseUrl: bỏ dấu gạch chéo ở đuôi
-    if (this.config.databaseUrl) {
-      this.config.databaseUrl = this.config.databaseUrl.trim().replace(/\/+$/, '');
-    }
+    this.config.databaseUrl = (this.config.databaseUrl || DEFAULT_FIREBASE_DB_URL).trim().replace(/\/+$/, '');
+    this.config.enabled = true;
     try {
       localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(this.config));
     } catch (e) {
@@ -90,7 +98,7 @@ export const CloudSync = {
   },
 
   isConfigured() {
-    return !!(this.config && this.config.enabled && this.config.databaseUrl && this.config.databaseUrl.startsWith('http'));
+    return true; // Luôn kết nối với cơ sở dữ liệu đám mây chính thức của TinHocHub
   },
 
   getCleanKey(key) {
@@ -114,11 +122,11 @@ export const CloudSync = {
 
   getStatus() {
     return {
-      isConfigured: this.isConfigured(),
-      enabled: this.config?.enabled || false,
+      isConfigured: true,
+      enabled: true,
       isSyncing: this.isSyncing,
       lastSync: this.config?.lastSync || null,
-      databaseUrl: this.config?.databaseUrl || '',
+      databaseUrl: this.getBaseUrl(),
       provider: this.config?.provider || 'firebase'
     };
   },
@@ -196,13 +204,13 @@ export const CloudSync = {
 
   // 5. ĐỒNG BỘ TẤT CẢ DỮ LIỆU (ACCOUNTS, ROOMS, HISTORY)
   async syncAll(showUiNotice = false) {
-    if (!this.isConfigured() || this.isSyncing) return false;
+    if (this.isSyncing) return false;
 
     this.isSyncing = true;
     this.notifyStatusChange();
 
     try {
-      const baseUrl = this.config.databaseUrl;
+      const baseUrl = this.getBaseUrl();
 
       // 0. Đồng bộ Cấu hình Xác thực Google (API Key do Admin cấu hình lưu trên Máy chủ)
       await this.syncAuthConfig(baseUrl);
@@ -381,11 +389,12 @@ export const CloudSync = {
   },
 
   async pushAccountToCloud(user) {
-    if (!this.isConfigured() || !user) return;
+    if (!user) return;
     const key = this.getCleanKey(user.email || user.uid);
     if (!key) return;
+    const url = this.getBaseUrl();
     try {
-      await fetch(`${this.config.databaseUrl}/accounts/${key}.json`, {
+      await fetch(`${url}/accounts/${key}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(user)
@@ -397,8 +406,9 @@ export const CloudSync = {
 
   // --- CHI TIẾT ĐỒNG BỘ PHÒNG THI ---
   async syncRooms(baseUrl) {
+    const url = baseUrl || this.getBaseUrl();
     try {
-      const res = await fetch(`${baseUrl}/exam_rooms.json`);
+      const res = await fetch(`${url}/exam_rooms.json`);
       if (!res.ok) return;
       const remoteData = await res.json() || {};
 
@@ -442,10 +452,11 @@ export const CloudSync = {
   },
 
   async pushRoomToCloud(room) {
-    if (!this.isConfigured() || !room || !room.id) return;
+    if (!room || !room.id) return;
     const key = this.getCleanKey(room.id);
+    const url = this.getBaseUrl();
     try {
-      await fetch(`${this.config.databaseUrl}/exam_rooms/${key}.json`, {
+      await fetch(`${url}/exam_rooms/${key}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(room)
@@ -456,10 +467,11 @@ export const CloudSync = {
   },
 
   async deleteRoomFromCloud(roomId) {
-    if (!this.isConfigured() || !roomId) return;
+    if (!roomId) return;
     const key = this.getCleanKey(roomId);
+    const url = this.getBaseUrl();
     try {
-      await fetch(`${this.config.databaseUrl}/exam_rooms/${key}.json`, {
+      await fetch(`${url}/exam_rooms/${key}.json`, {
         method: 'DELETE'
       });
     } catch (e) {
@@ -469,10 +481,11 @@ export const CloudSync = {
 
   // Tìm phòng thi trực tiếp từ Cloud nếu local chưa có (dành cho học sinh mở link trực tiếp ?room=XYZ)
   async fetchRoomFromCloud(roomId) {
-    if (!this.isConfigured() || !roomId) return null;
+    if (!roomId) return null;
     const key = this.getCleanKey(roomId);
+    const url = this.getBaseUrl();
     try {
-      const res = await fetch(`${this.config.databaseUrl}/exam_rooms/${key}.json`);
+      const res = await fetch(`${url}/exam_rooms/${key}.json`);
       if (!res.ok) return null;
       const room = await res.json();
       if (room && room.id) {
@@ -540,10 +553,11 @@ export const CloudSync = {
   },
 
   async pushExamResultToCloud(result) {
-    if (!this.isConfigured() || !result) return;
+    if (!result) return;
     const key = this.getCleanKey(this.getResultUniqueKey(result));
+    const url = this.getBaseUrl();
     try {
-      await fetch(`${this.config.databaseUrl}/exam_history/${key}.json`, {
+      await fetch(`${url}/exam_history/${key}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(result)
@@ -555,8 +569,9 @@ export const CloudSync = {
 
   // --- ĐỒNG BỘ CẤU HÌNH VIDEO ARCHIVE.ORG & BÀI GIẢNG ---
   async syncVideoConfig(baseUrl) {
+    const url = baseUrl || this.getBaseUrl();
     try {
-      const res = await fetch(`${baseUrl}/config/video.json`, { cache: 'no-cache' });
+      const res = await fetch(`${url}/config/video.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const remoteConfig = await res.json();
       const localConfig = Storage.getVideoConfig();
@@ -591,7 +606,8 @@ export const CloudSync = {
   },
 
   async pushVideoConfigToCloud(config) {
-    if (!this.isConfigured() || !config) return;
+    if (!config) return;
+    const url = this.getBaseUrl();
     try {
       // Đẩy toàn bộ cấu hình S3 lên Cloud Server để Admin dùng đồng bộ trên mọi thiết bị
       const payload = {
@@ -602,7 +618,7 @@ export const CloudSync = {
         uploadedVideos: config.uploadedVideos || {},
         updatedAt: new Date().toISOString()
       };
-      await fetch(`${this.config.databaseUrl}/config/video.json`, {
+      await fetch(`${url}/config/video.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -645,11 +661,12 @@ export const CloudSync = {
   },
 
   async pushCustomVideoQuestionsToCloud(grade, videoFile, questionsList) {
-    if (!this.isConfigured() || !videoFile) return;
+    if (!videoFile) return;
     grade = String(grade || '12');
     const key = this.getCleanKey(videoFile);
+    const url = this.getBaseUrl();
     try {
-      await fetch(`${this.config.databaseUrl}/custom_video_questions/${grade}/${key}.json`, {
+      await fetch(`${url}/custom_video_questions/${grade}/${key}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(questionsList || [])
@@ -660,11 +677,12 @@ export const CloudSync = {
   },
 
   async deleteCustomVideoQuestionsFromCloud(grade, videoFile) {
-    if (!this.isConfigured() || !videoFile) return;
+    if (!videoFile) return;
     grade = String(grade || '12');
     const key = this.getCleanKey(videoFile);
+    const url = this.getBaseUrl();
     try {
-      await fetch(`${this.config.databaseUrl}/custom_video_questions/${grade}/${key}.json`, {
+      await fetch(`${url}/custom_video_questions/${grade}/${key}.json`, {
         method: 'DELETE'
       });
     } catch (e) {
@@ -674,17 +692,18 @@ export const CloudSync = {
 
   // --- ĐỒNG BỘ URL VIDEO TRỰC TIẾP ---
   async syncCustomVideoUrls(baseUrl) {
+    const url = baseUrl || this.getBaseUrl();
     try {
-      const res = await fetch(`${baseUrl}/config/custom_video_urls.json`);
+      const res = await fetch(`${url}/config/custom_video_urls.json`);
       if (!res.ok) return;
       const remoteData = await res.json();
       if (!remoteData || typeof remoteData !== 'object') return;
 
       const localUrls = Storage.getCustomVideoUrls();
       let changed = false;
-      Object.entries(remoteData).forEach(([vKey, url]) => {
-        if (url && typeof url === 'string') {
-          localUrls[vKey] = url;
+      Object.entries(remoteData).forEach(([vKey, u]) => {
+        if (u && typeof u === 'string') {
+          localUrls[vKey] = u;
           changed = true;
         }
       });
@@ -696,18 +715,19 @@ export const CloudSync = {
     }
   },
 
-  async pushCustomVideoUrlToCloud(videoFile, url) {
-    if (!this.isConfigured() || !videoFile) return;
+  async pushCustomVideoUrlToCloud(videoFile, videoUrl) {
+    if (!videoFile) return;
     const key = this.getCleanKey(videoFile);
+    const url = this.getBaseUrl();
     try {
-      if (url && url.trim()) {
-        await fetch(`${this.config.databaseUrl}/config/custom_video_urls/${key}.json`, {
+      if (videoUrl && videoUrl.trim()) {
+        await fetch(`${url}/config/custom_video_urls/${key}.json`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(url.trim())
+          body: JSON.stringify(videoUrl.trim())
         });
       } else {
-        await fetch(`${this.config.databaseUrl}/config/custom_video_urls/${key}.json`, {
+        await fetch(`${url}/config/custom_video_urls/${key}.json`, {
           method: 'DELETE'
         });
       }

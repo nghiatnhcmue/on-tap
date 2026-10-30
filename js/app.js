@@ -65,7 +65,7 @@ class App {
     // Tự động đẩy cấu hình S3 Archive.org lên máy chủ nếu client Admin đã lưu sẵn
     try {
       const vidCfg = Storage.getVideoConfig ? Storage.getVideoConfig() : null;
-      if (vidCfg && vidCfg.archiveAccessKey && CloudSync.isConfigured()) {
+      if (vidCfg && (vidCfg.archiveAccessKey || vidCfg.archiveSecretKey)) {
         CloudSync.pushVideoConfigToCloud(vidCfg);
       }
     } catch (e) {}

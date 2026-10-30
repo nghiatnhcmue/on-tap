@@ -8,7 +8,7 @@
 import { Storage } from './storage.js';
 import { Auth } from './auth.js';
 import { escapeHtml } from './utils.js';
-import { CloudSync } from './cloud-sync.js';
+import { CloudSync, DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js';
 
 export const AdminManager = {
   container: null,
@@ -264,12 +264,12 @@ export const AdminManager = {
           <form id="form-cloud-config" class="space-y-4">
             <div class="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-700">
               <div>
-                <label for="cloud-cfg-enabled" class="text-xs font-bold text-slate-800 dark:text-white block cursor-pointer">
+                <label for="cloud-cfg-enabled" class="text-xs font-bold text-slate-800 dark:text-white block">
                   Kích hoạt Đồng bộ Đám mây (Cloud Sync)
                 </label>
-                <span class="text-[11px] text-slate-500 dark:text-slate-400">Bật tính năng này để mọi thiết bị (laptop của Thầy, điện thoại của HS) cùng chung 1 cơ sở dữ liệu.</span>
+                <span class="text-[11px] text-slate-500 dark:text-slate-400">Hệ thống luôn tự động kích hoạt đồng bộ đám mây thời gian thực đa thiết bị.</span>
               </div>
-              <input type="checkbox" id="cloud-cfg-enabled" ${cloudStatus.enabled ? 'checked' : ''} class="w-5 h-5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer" />
+              <input type="checkbox" id="cloud-cfg-enabled" checked disabled class="w-5 h-5 rounded text-blue-600 focus:ring-blue-500 cursor-not-allowed opacity-90" />
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -278,7 +278,7 @@ export const AdminManager = {
                   URL Cơ Sở Dữ Liệu Đám Mây (Google Firebase Realtime Database) *
                 </label>
                 <div class="flex gap-2">
-                  <input type="url" id="cloud-cfg-url" value="${escapeHtml(cloudStatus.databaseUrl || '')}" placeholder="https://tinhoc-thpt-default-rtdb.firebaseio.com" class="flex-1 px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500" />
+                  <input type="url" id="cloud-cfg-url" value="${escapeHtml(cloudStatus.databaseUrl || DEFAULT_FIREBASE_DB_URL)}" placeholder="${DEFAULT_FIREBASE_DB_URL}" class="flex-1 px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500" />
                   <button type="button" id="btn-cloud-test-conn" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 shrink-0">
                     <i class="fa-solid fa-bolt"></i> Kiểm tra kết nối
                   </button>
@@ -725,13 +725,12 @@ export const AdminManager = {
     if (formCloud) {
       formCloud.onsubmit = async (e) => {
         e.preventDefault();
-        const enabled = document.getElementById('cloud-cfg-enabled')?.checked ?? true;
-        const url = document.getElementById('cloud-cfg-url')?.value.trim() || '';
+        const url = document.getElementById('cloud-cfg-url')?.value.trim() || DEFAULT_FIREBASE_DB_URL;
         const apiKey = document.getElementById('cloud-cfg-api-key')?.value.trim() || '';
         const interval = parseFloat(document.getElementById('cloud-cfg-interval')?.value || '1');
 
         CloudSync.saveConfig({
-          enabled,
+          enabled: true,
           databaseUrl: url,
           apiKey: apiKey,
           intervalMinutes: interval
@@ -739,21 +738,17 @@ export const AdminManager = {
 
         if (apiKey) {
           const authCfg = Storage.saveFirebaseAuthConfig({ apiKey, databaseURL: url });
-          if (window.CloudSync && typeof window.CloudSync.pushAuthConfigToCloud === 'function') {
-            await window.CloudSync.pushAuthConfigToCloud(authCfg, url);
-          }
+          await CloudSync.pushAuthConfigToCloud(authCfg, url);
           if (window.Auth && typeof window.Auth.initFirebaseAuth === 'function') {
             window.Auth.initFirebaseAuth();
           }
         }
 
-        alert('Đã lưu cấu hình Cơ sở dữ liệu Đám mây thành công!');
+        alert(`✅ Đã lưu cấu hình Đám mây thành công!\nCơ sở dữ liệu đang kết nối: ${url}`);
         this.render();
 
-        if (enabled && url) {
-          await CloudSync.syncAll(true);
-          this.render();
-        }
+        await CloudSync.syncAll(true);
+        this.render();
       };
     }
 
@@ -828,11 +823,9 @@ export const AdminManager = {
           videoBaseUrl: baseUrl
         });
 
-        if (window.CloudSync && typeof window.CloudSync.pushVideoConfigToCloud === 'function') {
-          await window.CloudSync.pushVideoConfigToCloud(updated);
-        }
+        await CloudSync.pushVideoConfigToCloud(updated);
 
-        alert('✅ Đã lưu cấu hình Archive.org S3 lên máy chủ đám mây thành công!');
+        alert(`✅ Đã lưu cấu hình Archive.org S3 lên máy chủ đám mây thành công!\n(Đã đồng bộ tại ${CloudSync.getBaseUrl()})`);
         this.render();
       };
 
@@ -847,7 +840,15 @@ export const AdminManager = {
         }
         if (!baseUrl.endsWith('/')) baseUrl += '/';
         if (accessKey || secretKey) {
-          Storage.saveVideoConfig({
+          const cfg = Storage.saveVideoConfig({
+            archiveAccessKey: accessKey,
+            archiveSecretKey: secretKey,
+            archiveIdentifier: identifier,
+            videoBaseUrl: baseUrl
+          });
+          CloudSync.pushVideoConfigToCloud(cfg);
+        }
+      };
             archiveAccessKey: accessKey,
             archiveSecretKey: secretKey,
             archiveIdentifier: identifier,
