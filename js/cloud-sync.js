@@ -556,12 +556,12 @@ export const CloudSync = {
   // --- ĐỒNG BỘ CẤU HÌNH VIDEO ARCHIVE.ORG & BÀI GIẢNG ---
   async syncVideoConfig(baseUrl) {
     try {
-      const res = await fetch(`${baseUrl}/config/video.json`);
+      const res = await fetch(`${baseUrl}/config/video.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const remoteConfig = await res.json();
       const localConfig = Storage.getVideoConfig();
 
-      if (remoteConfig && (remoteConfig.videoBaseUrl || remoteConfig.archiveIdentifier)) {
+      if (remoteConfig && (remoteConfig.videoBaseUrl || remoteConfig.archiveIdentifier || remoteConfig.archiveAccessKey)) {
         // Cập nhật cấu hình video từ Cloud xuống máy học sinh/giáo viên
         let cleanBaseUrl = (remoteConfig.videoBaseUrl || localConfig.videoBaseUrl || '').trim();
         if (cleanBaseUrl.includes('archive.org/download/')) {
@@ -571,12 +571,17 @@ export const CloudSync = {
           ...localConfig,
           ...remoteConfig,
           videoBaseUrl: cleanBaseUrl,
-          // Giữ lại private key nếu máy này là Admin
-          archiveAccessKey: localConfig.archiveAccessKey || remoteConfig.archiveAccessKey || '',
-          archiveSecretKey: localConfig.archiveSecretKey || remoteConfig.archiveSecretKey || ''
+          // Đồng bộ khóa S3 Access Key và Secret Key giữa máy Admin và Server
+          archiveAccessKey: remoteConfig.archiveAccessKey || localConfig.archiveAccessKey || '',
+          archiveSecretKey: remoteConfig.archiveSecretKey || localConfig.archiveSecretKey || ''
         };
         localStorage.setItem('tinhoc_video_config', JSON.stringify(merged));
-      } else if (localConfig.videoBaseUrl || localConfig.archiveIdentifier) {
+
+        // Nếu máy Admin local đã có khóa S3 mà trên máy chủ chưa có -> tự động đẩy lên server luôn!
+        if (localConfig.archiveAccessKey && (!remoteConfig.archiveAccessKey || !remoteConfig.archiveSecretKey)) {
+          await this.pushVideoConfigToCloud(merged);
+        }
+      } else if (localConfig.videoBaseUrl || localConfig.archiveIdentifier || localConfig.archiveAccessKey) {
         // Nếu Cloud chưa có mà máy này có, đẩy lên Cloud
         await this.pushVideoConfigToCloud(localConfig);
       }
@@ -588,9 +593,11 @@ export const CloudSync = {
   async pushVideoConfigToCloud(config) {
     if (!this.isConfigured() || !config) return;
     try {
-      // Chỉ đẩy public info lên Cloud để học sinh tải được video
-      const publicPayload = {
+      // Đẩy toàn bộ cấu hình S3 lên Cloud Server để Admin dùng đồng bộ trên mọi thiết bị
+      const payload = {
         archiveIdentifier: config.archiveIdentifier || 'tinhoc-hub-thpt',
+        archiveAccessKey: config.archiveAccessKey || '',
+        archiveSecretKey: config.archiveSecretKey || '',
         videoBaseUrl: (config.videoBaseUrl || `https://archive.org/cors/${config.archiveIdentifier || 'tinhoc-hub-thpt'}/`).replace('archive.org/download/', 'archive.org/cors/'),
         uploadedVideos: config.uploadedVideos || {},
         updatedAt: new Date().toISOString()
@@ -598,8 +605,9 @@ export const CloudSync = {
       await fetch(`${this.config.databaseUrl}/config/video.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(publicPayload)
+        body: JSON.stringify(payload)
       });
+      console.log('✅ Đã lưu cấu hình S3 Video lên máy chủ đám mây thành công!');
     } catch (e) {
       console.warn('Lỗi đẩy cấu hình video lên cloud:', e);
     }

@@ -809,7 +809,7 @@ export const AdminManager = {
     // 2. Cấu hình Archive.org S3
     const formArchive = document.getElementById('form-archive-config');
     if (formArchive) {
-      formArchive.onsubmit = (e) => {
+      formArchive.onsubmit = async (e) => {
         e.preventDefault();
         const accessKey = document.getElementById('archive-cfg-access-key')?.value.trim() || '';
         const secretKey = document.getElementById('archive-cfg-secret-key')?.value.trim() || '';
@@ -821,16 +821,48 @@ export const AdminManager = {
         }
         if (!baseUrl.endsWith('/')) baseUrl += '/';
 
-        Storage.saveVideoConfig({
+        const updated = Storage.saveVideoConfig({
           archiveAccessKey: accessKey,
           archiveSecretKey: secretKey,
           archiveIdentifier: identifier,
           videoBaseUrl: baseUrl
         });
 
-        alert('✅ Đã lưu cấu hình Archive.org S3 và đồng bộ Base URL lên Cloud thành công!');
+        if (window.CloudSync && typeof window.CloudSync.pushVideoConfigToCloud === 'function') {
+          await window.CloudSync.pushVideoConfigToCloud(updated);
+        }
+
+        alert('✅ Đã lưu cấu hình Archive.org S3 lên máy chủ đám mây thành công!');
         this.render();
       };
+
+      // Tự động lưu ngầm khi Admin nhập xong từng ô (tránh mất dữ liệu khi chuyển tab hoặc chưa kịp bấm Lưu)
+      const saveS3InputsSilently = () => {
+        const accessKey = document.getElementById('archive-cfg-access-key')?.value.trim() || '';
+        const secretKey = document.getElementById('archive-cfg-secret-key')?.value.trim() || '';
+        const identifier = document.getElementById('archive-cfg-identifier')?.value.trim() || 'tinhoc-hub-thpt';
+        let baseUrl = document.getElementById('archive-cfg-base-url')?.value.trim() || `https://archive.org/cors/${identifier}/`;
+        if (baseUrl.includes('archive.org/download/')) {
+          baseUrl = baseUrl.replace('archive.org/download/', 'archive.org/cors/');
+        }
+        if (!baseUrl.endsWith('/')) baseUrl += '/';
+        if (accessKey || secretKey) {
+          Storage.saveVideoConfig({
+            archiveAccessKey: accessKey,
+            archiveSecretKey: secretKey,
+            archiveIdentifier: identifier,
+            videoBaseUrl: baseUrl
+          });
+        }
+      };
+
+      ['archive-cfg-access-key', 'archive-cfg-secret-key', 'archive-cfg-identifier', 'archive-cfg-base-url'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('change', saveS3InputsSilently);
+          el.addEventListener('blur', saveS3InputsSilently);
+        }
+      });
     }
 
     // Toggle hiện/ẩn S3 Secret Key
@@ -893,12 +925,15 @@ export const AdminManager = {
           });
 
           if (res.ok) {
-            Storage.saveVideoConfig({
+            const updated = Storage.saveVideoConfig({
               archiveAccessKey: accessKey,
               archiveSecretKey: secretKey,
               archiveIdentifier: identifier
             });
-            alert(`🎉 CHÚC MỪNG!\nKhóa S3 Archive.org hoàn toàn HỢP LỆ (Mã ${res.status} OK)!\nBucket: [${identifier}]\nĐã tự động lưu cấu hình. Bạn có thể bấm "Bắt Đầu Tải Lên Tất Cả" ngay.`);
+            if (window.CloudSync && typeof window.CloudSync.pushVideoConfigToCloud === 'function') {
+              await window.CloudSync.pushVideoConfigToCloud(updated);
+            }
+            alert(`🎉 CHÚC MỪNG!\nKhóa S3 Archive.org hoàn toàn HỢP LỆ (Mã ${res.status} OK)!\nBucket: [${identifier}]\nĐã tự động lưu cấu hình lên máy chủ đám mây. Bạn có thể bấm "Bắt Đầu Tải Lên Tất Cả" ngay.`);
           } else {
             alert(`❌ KHÓA S3 CHƯA HỢP LỆ!\nMã HTTP: ${res.status}\nChi tiết: ${res.detail}\n\n👉 Vui lòng đăng nhập https://archive.org/account/s3.php để lấy đúng S3 Access Key và Secret Key.`);
           }
@@ -1206,11 +1241,11 @@ export const AdminManager = {
     const inputSecret = document.getElementById('archive-cfg-secret-key')?.value.trim();
     const inputId = document.getElementById('archive-cfg-identifier')?.value.trim();
 
-    if (inputAccess && inputSecret && (!config.archiveAccessKey || !config.archiveSecretKey)) {
+    if (inputAccess || inputSecret) {
       config = Storage.saveVideoConfig({
-        archiveAccessKey: inputAccess,
-        archiveSecretKey: inputSecret,
-        archiveIdentifier: inputId || 'tinhoc-hub-thpt'
+        archiveAccessKey: inputAccess || config.archiveAccessKey,
+        archiveSecretKey: inputSecret || config.archiveSecretKey,
+        archiveIdentifier: inputId || config.archiveIdentifier || 'tinhoc-hub-thpt'
       });
     }
 
@@ -1322,7 +1357,18 @@ export const AdminManager = {
   },
 
   async uploadSingleFile(videoName, file) {
-    const config = Storage.getVideoConfig();
+    let config = Storage.getVideoConfig();
+    const inputAccess = document.getElementById('archive-cfg-access-key')?.value.trim();
+    const inputSecret = document.getElementById('archive-cfg-secret-key')?.value.trim();
+    const inputId = document.getElementById('archive-cfg-identifier')?.value.trim();
+    if (inputAccess || inputSecret) {
+      config = Storage.saveVideoConfig({
+        archiveAccessKey: inputAccess || config.archiveAccessKey,
+        archiveSecretKey: inputSecret || config.archiveSecretKey,
+        archiveIdentifier: inputId || config.archiveIdentifier || 'tinhoc-hub-thpt'
+      });
+    }
+
     if (!config.archiveAccessKey || !config.archiveSecretKey) {
       alert('Vui lòng nhập Archive.org S3 Access Key và Secret Key trước khi tải lên!\n(Đăng nhập https://archive.org/account/s3.php để lấy khóa).');
       return;

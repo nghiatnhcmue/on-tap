@@ -62,6 +62,14 @@ class App {
       }
     } catch (e) {}
 
+    // Tự động đẩy cấu hình S3 Archive.org lên máy chủ nếu client Admin đã lưu sẵn
+    try {
+      const vidCfg = Storage.getVideoConfig ? Storage.getVideoConfig() : null;
+      if (vidCfg && vidCfg.archiveAccessKey && CloudSync.isConfigured()) {
+        CloudSync.pushVideoConfigToCloud(vidCfg);
+      }
+    } catch (e) {}
+
     // Khóa giao diện và mở modal đăng nhập NGAY LẬP TỨC (không chờ nạp manifest / đề thi)
     this.enforceAuthentication();
 

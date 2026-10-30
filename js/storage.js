@@ -69,8 +69,9 @@ export const Storage = {
         }
       }
       localStorage.setItem(STORAGE_KEYS.VIDEO_CONFIG, JSON.stringify(updated));
-      if (this.cloudSync && typeof this.cloudSync.pushVideoConfigToCloud === 'function') {
-        this.cloudSync.pushVideoConfigToCloud(updated).catch(() => {});
+      const cs = this.cloudSync || (typeof window !== 'undefined' ? window.CloudSync : null);
+      if (cs && typeof cs.pushVideoConfigToCloud === 'function') {
+        cs.pushVideoConfigToCloud(updated).catch(() => {});
       }
       return updated;
     } catch (e) {
