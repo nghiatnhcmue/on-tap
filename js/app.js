@@ -54,6 +54,22 @@ class App {
     CloudSync.init();
     this.initCloudSyncUI();
 
+    // Lắng nghe sự kiện đồng bộ Cloud toàn cục để tự động re-render các màn hình đang mở
+    window.addEventListener('tinhoc-cloud-synced', () => {
+      if (this.currentTab === 'gradebook') {
+        this.renderGradebook();
+      } else if (this.currentTab === 'leaderboard') {
+        if (typeof Leaderboard !== 'undefined') Leaderboard.render();
+      } else if (this.currentTab === 'exam-rooms') {
+        if (typeof ExamRooms !== 'undefined') ExamRooms.render();
+      } else if (this.currentTab === 'history') {
+        this.renderHistory();
+      } else if (this.currentTab === 'questions-manage') {
+        if (typeof QuestionsManager !== 'undefined') QuestionsManager.render();
+      }
+      this.renderSavedAccountsInLoginModal();
+    });
+
     // Tự động đẩy cấu hình Auth lên máy chủ nếu client này đã có API Key (từ tài khoản Admin)
     try {
       const localAuth = Storage.getFirebaseAuthConfig ? Storage.getFirebaseAuthConfig() : null;
@@ -328,6 +344,7 @@ class App {
       case 'exam-rooms':
         document.getElementById('view-exam-rooms')?.classList.remove('hidden');
         ExamRooms.init(document.getElementById('exam-rooms-list-area'), this.manifest);
+        CloudSync.syncRooms().then(() => ExamRooms.render()).catch(() => {});
         break;
       case 'exam-room':
         document.getElementById('view-exam-room')?.classList.remove('hidden');
@@ -343,6 +360,7 @@ class App {
       case 'history':
         document.getElementById('view-history')?.classList.remove('hidden');
         this.renderHistory();
+        CloudSync.syncHistory().then(() => this.renderHistory()).catch(() => {});
         break;
       case 'print':
         document.getElementById('view-print')?.classList.remove('hidden');
@@ -351,10 +369,12 @@ class App {
       case 'gradebook':
         document.getElementById('view-gradebook')?.classList.remove('hidden');
         this.renderGradebook();
+        CloudSync.syncHistory().then(() => this.renderGradebook()).catch(() => {});
         break;
       case 'leaderboard':
         document.getElementById('view-leaderboard')?.classList.remove('hidden');
         Leaderboard.init(document.getElementById('leaderboard-area'));
+        CloudSync.syncHistory().then(() => Leaderboard.render()).catch(() => {});
         break;
       case 'interactive-video':
         document.getElementById('view-interactive-video')?.classList.remove('hidden');
@@ -368,6 +388,7 @@ class App {
       case 'questions-manage':
         document.getElementById('view-questions-manage')?.classList.remove('hidden');
         QuestionsManager.init(document.getElementById('questions-manage-area'), this.manifest, (g) => this.loadGradeData(g));
+        CloudSync.syncCustomQuestions().then(() => QuestionsManager.render()).catch(() => {});
         break;
       case 'admin-system':
         document.getElementById('view-admin-system')?.classList.remove('hidden');
@@ -892,9 +913,12 @@ class App {
           return;
         }
 
-        // Nếu phòng thi chưa có trong máy, tự động kéo trực tiếp từ Cloud về
-        if (!Storage.getExamRoom(roomId) && CloudSync.isConfigured()) {
-          await CloudSync.fetchRoomFromCloud(roomId);
+        // Luôn luôn kéo phòng thi mới nhất trực tiếp từ Cloud về trước khi kiểm tra quyền
+        // để đảm bảo học sinh nhận được đề thi, mật khẩu và khung giờ mới nhất
+        if (CloudSync.isConfigured()) {
+          try {
+            await CloudSync.fetchRoomFromCloud(roomId);
+          } catch (e) {}
         }
 
         // Xác thực đối tượng vào thi (Trường, Khối, Lớp, Mật khẩu, Khung giờ)
@@ -2046,18 +2070,20 @@ class App {
       if (gatekeeperOverlay) gatekeeperOverlay.classList.add('hidden');
       Auth.closeRequiredProfileModal();
 
-      // Nếu học sinh truy cập qua link phòng thi trực tiếp (?room=XYZ), tự động mở màn hình vào phòng thi
+      // Nếu học sinh truy cập qua link phòng thi trực tiếp (?room=XYZ), tự động kéo phòng từ Cloud và mở màn hình vào phòng thi
       if (this.pendingRoomParam) {
         const roomCode = this.pendingRoomParam;
         this.pendingRoomParam = null;
-        this.switchTab('exam-setup');
-        setTimeout(() => {
-          const input = document.getElementById('input-enter-room-id');
-          if (input) {
-            input.value = roomCode;
-            document.getElementById('input-enter-room-pwd')?.focus();
-          }
-        }, 150);
+        CloudSync.fetchRoomFromCloud(roomCode).finally(() => {
+          this.switchTab('exam-setup');
+          setTimeout(() => {
+            const input = document.getElementById('input-enter-room-id');
+            if (input) {
+              input.value = roomCode;
+              document.getElementById('input-enter-room-pwd')?.focus();
+            }
+          }, 150);
+        });
       }
     }
   }

@@ -85,9 +85,14 @@ export const ExamRooms = {
             </p>
           </div>
 
-          <button id="btn-create-room" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition shadow-md shadow-emerald-500/20 flex items-center gap-2 self-start sm:self-auto shrink-0">
-            <i class="fa-solid fa-plus"></i> Tạo Phòng Thi Mới
-          </button>
+          <div class="flex items-center gap-2 self-start sm:self-auto shrink-0">
+            <button id="btn-refresh-rooms-cloud" class="px-3.5 py-2.5 bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs">
+              <i class="fa-solid fa-cloud-arrow-down"></i> Tải từ Cloud
+            </button>
+            <button id="btn-create-room" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition shadow-md shadow-emerald-500/20 flex items-center gap-2">
+              <i class="fa-solid fa-plus"></i> Tạo Phòng Thi Mới
+            </button>
+          </div>
         </div>
 
         <!-- Filter Bar -->
@@ -333,6 +338,17 @@ export const ExamRooms = {
     if (filterSearchInput) {
       filterSearchInput.oninput = (e) => {
         this.filterSearch = e.target.value.trim();
+        this.render();
+      };
+    }
+
+    // Nút đồng bộ phòng thi từ Cloud
+    const btnRefreshCloud = this.container.querySelector('#btn-refresh-rooms-cloud');
+    if (btnRefreshCloud) {
+      btnRefreshCloud.onclick = async () => {
+        btnRefreshCloud.disabled = true;
+        btnRefreshCloud.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tải...';
+        if (window.CloudSync) await window.CloudSync.syncRooms();
         this.render();
       };
     }

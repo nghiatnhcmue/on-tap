@@ -243,8 +243,20 @@ export const Gradebook = {
           <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto">
             Khi học sinh hoàn thành bài kiểm tra hoặc thi thử trực tuyến, điểm số, tiến trình và phân tích năng lực sẽ tự động hiển thị đầy đủ tại đây.
           </p>
+          <button id="btn-gradebook-refresh-empty" class="mt-4 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold transition inline-flex items-center gap-2 shadow-sm shadow-blue-500/20">
+            <i class="fa-solid fa-cloud-arrow-down"></i> Tải Kết Quả Mới Nhất Từ Cloud
+          </button>
         </div>
       `;
+      const btnEmptyRefresh = this.container.querySelector('#btn-gradebook-refresh-empty');
+      if (btnEmptyRefresh) {
+        btnEmptyRefresh.onclick = async () => {
+          btnEmptyRefresh.disabled = true;
+          btnEmptyRefresh.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tải...';
+          if (window.CloudSync) await window.CloudSync.syncHistory();
+          this.render();
+        };
+      }
       return;
     }
 
@@ -305,8 +317,11 @@ export const Gradebook = {
             </p>
           </div>
 
-          <!-- Nhóm nút xuất Excel -->
+          <!-- Nhóm nút xuất Excel & Đồng bộ Cloud -->
           <div class="flex items-center gap-2 flex-wrap">
+            <button id="btn-gradebook-refresh-cloud" class="px-3.5 py-2.5 bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs">
+              <i class="fa-solid fa-cloud-arrow-down"></i> Đồng bộ Cloud
+            </button>
             <button id="btn-export-students-excel" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition flex items-center gap-2 shadow-sm shadow-emerald-500/20">
               <i class="fa-solid fa-file-excel"></i> Xuất Báo Cáo Học Sinh
             </button>
@@ -887,6 +902,17 @@ export const Gradebook = {
         }
       };
     });
+
+    // Nút đồng bộ Cloud
+    const btnRefreshCloud = this.container.querySelector('#btn-gradebook-refresh-cloud');
+    if (btnRefreshCloud) {
+      btnRefreshCloud.onclick = async () => {
+        btnRefreshCloud.disabled = true;
+        btnRefreshCloud.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tải...';
+        if (window.CloudSync) await window.CloudSync.syncHistory();
+        this.render();
+      };
+    }
 
     // Nút xuất Excel danh sách học sinh
     const btnExpStudents = this.container.querySelector('#btn-export-students-excel');

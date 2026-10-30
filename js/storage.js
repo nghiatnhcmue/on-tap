@@ -27,6 +27,10 @@ const STORAGE_KEYS = {
 export const Storage = {
   cloudSync: null,
 
+  getCloudSync() {
+    return this.cloudSync || (typeof window !== 'undefined' ? window.CloudSync : null);
+  },
+
   // --- CẤU HÌNH VIDEO BÀI GIẢNG & ARCHIVE.ORG S3 ---
   getVideoConfig() {
     try {
@@ -382,8 +386,9 @@ export const Storage = {
         list.unshift(record);
       }
       localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(list));
-      if (this.cloudSync) {
-        this.cloudSync.pushAccountToCloud(record).catch(() => {});
+      const cs = this.getCloudSync();
+      if (cs && typeof cs.pushAccountToCloud === 'function') {
+        cs.pushAccountToCloud(record).catch(() => {});
       }
     } catch (e) {
       console.error('Error saving account record', e);
@@ -402,8 +407,9 @@ export const Storage = {
       if (user) {
         user.role = newRole;
         localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(list));
-        if (this.cloudSync) {
-          this.cloudSync.pushAccountToCloud(user).catch(() => {});
+        const cs = this.getCloudSync();
+        if (cs && typeof cs.pushAccountToCloud === 'function') {
+          cs.pushAccountToCloud(user).catch(() => {});
         }
       }
       // Cập nhật session hiện tại nếu trùng email hoặc uid
@@ -469,7 +475,7 @@ export const Storage = {
     return rooms.find(r => r.id.toUpperCase() === cleanId) || null;
   },
 
-  saveExamRoom(roomData) {
+  saveExamRoom(roomData, skipCloud = false) {
     try {
       const rooms = this.getExamRooms();
       const cleanId = (roomData.id || ('ROOM-' + Math.floor(1000 + Math.random() * 9000))).trim().toUpperCase();
@@ -489,8 +495,11 @@ export const Storage = {
       }
 
       localStorage.setItem(STORAGE_KEYS.EXAM_ROOMS, JSON.stringify(rooms));
-      if (this.cloudSync) {
-        this.cloudSync.pushRoomToCloud(newRoom).catch(() => {});
+      if (!skipCloud) {
+        const cs = this.getCloudSync();
+        if (cs && typeof cs.pushRoomToCloud === 'function') {
+          cs.pushRoomToCloud(newRoom).catch(() => {});
+        }
       }
       return newRoom;
     } catch (e) {
@@ -505,8 +514,9 @@ export const Storage = {
       const cleanId = roomId.trim().toUpperCase();
       rooms = rooms.filter(r => r.id.toUpperCase() !== cleanId);
       localStorage.setItem(STORAGE_KEYS.EXAM_ROOMS, JSON.stringify(rooms));
-      if (this.cloudSync) {
-        this.cloudSync.deleteRoomFromCloud(cleanId).catch(() => {});
+      const cs = this.getCloudSync();
+      if (cs && typeof cs.deleteRoomFromCloud === 'function') {
+        cs.deleteRoomFromCloud(cleanId).catch(() => {});
       }
       return true;
     } catch (e) {
@@ -670,10 +680,15 @@ export const Storage = {
         };
         customAll[grade].unshift(newQ);
         localStorage.setItem(STORAGE_KEYS.CUSTOM_QUESTIONS, JSON.stringify(customAll));
+        const cs = this.getCloudSync();
+        if (cs && typeof cs.pushCustomQuestionsToCloud === 'function') {
+          cs.pushCustomQuestionsToCloud().catch(() => {});
+        }
         return newQ;
       } else {
         // Cập nhật câu hỏi hiện có
         const id = questionData.id;
+        let resQuestion = null;
         // Kiểm tra xem có phải câu hỏi tự tạo trong customAll không
         const customIdx = customAll[grade].findIndex(q => q.id === id);
         if (customIdx >= 0) {
@@ -683,7 +698,7 @@ export const Storage = {
             updatedAt: new Date().toISOString()
           };
           localStorage.setItem(STORAGE_KEYS.CUSTOM_QUESTIONS, JSON.stringify(customAll));
-          return customAll[grade][customIdx];
+          resQuestion = customAll[grade][customIdx];
         } else {
           // Là câu hỏi gốc trong file JSON được sửa
           modifiedMap[id] = {
@@ -692,8 +707,13 @@ export const Storage = {
             updatedAt: new Date().toISOString()
           };
           localStorage.setItem(STORAGE_KEYS.MODIFIED_QUESTIONS, JSON.stringify(modifiedMap));
-          return modifiedMap[id];
+          resQuestion = modifiedMap[id];
         }
+        const cs = this.getCloudSync();
+        if (cs && typeof cs.pushCustomQuestionsToCloud === 'function') {
+          cs.pushCustomQuestionsToCloud().catch(() => {});
+        }
+        return resQuestion;
       }
     } catch (e) {
       console.error('Error saving question', e);
@@ -710,6 +730,10 @@ export const Storage = {
         if (customIdx >= 0) {
           customAll[grade].splice(customIdx, 1);
           localStorage.setItem(STORAGE_KEYS.CUSTOM_QUESTIONS, JSON.stringify(customAll));
+          const cs = this.getCloudSync();
+          if (cs && typeof cs.pushCustomQuestionsToCloud === 'function') {
+            cs.pushCustomQuestionsToCloud().catch(() => {});
+          }
           return true;
         }
       }
@@ -726,6 +750,10 @@ export const Storage = {
       if (modifiedMap[questionId]) {
         delete modifiedMap[questionId];
         localStorage.setItem(STORAGE_KEYS.MODIFIED_QUESTIONS, JSON.stringify(modifiedMap));
+      }
+      const cs = this.getCloudSync();
+      if (cs && typeof cs.pushCustomQuestionsToCloud === 'function') {
+        cs.pushCustomQuestionsToCloud().catch(() => {});
       }
       return true;
     } catch (e) {
@@ -745,6 +773,10 @@ export const Storage = {
         localStorage.removeItem(STORAGE_KEYS.CUSTOM_QUESTIONS);
         localStorage.removeItem(STORAGE_KEYS.MODIFIED_QUESTIONS);
         localStorage.removeItem(STORAGE_KEYS.DELETED_QUESTIONS);
+      }
+      const cs = this.getCloudSync();
+      if (cs && typeof cs.pushCustomQuestionsToCloud === 'function') {
+        cs.pushCustomQuestionsToCloud().catch(() => {});
       }
       return true;
     } catch (e) {
@@ -1006,8 +1038,9 @@ export const Storage = {
       // Giữ tối đa 100 bài thi gần nhất
       if (history.length > 100) history.pop();
       localStorage.setItem(STORAGE_KEYS.EXAM_HISTORY, JSON.stringify(history));
-      if (this.cloudSync) {
-        this.cloudSync.pushExamResultToCloud(entry).catch(() => {});
+      const cs = this.getCloudSync();
+      if (cs && typeof cs.pushExamResultToCloud === 'function') {
+        cs.pushExamResultToCloud(entry).catch(() => {});
       }
 
       // Tự động xóa phiên làm bài nháp sau khi đã nộp bài

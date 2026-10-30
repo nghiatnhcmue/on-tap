@@ -32,10 +32,8 @@ export const CloudSync = {
     // Đồng bộ tức thì cấu hình xác thực Auth từ máy chủ để sẵn sàng cho Google Sign-In
     this.syncAuthConfig();
 
-    // Nếu đã cấu hình Cloud, tự động đồng bộ ngay khi khởi động
-    if (this.isConfigured()) {
-      setTimeout(() => this.syncAll(false), 1200);
-    }
+    // Đồng bộ toàn bộ dữ liệu từ Cloud NGAY LẬP TỨC để người dùng nhận dữ liệu mới nhất
+    this.syncAll(false);
   },
 
   getBaseUrl() {
@@ -137,14 +135,12 @@ export const CloudSync = {
       clearInterval(this.syncInterval);
       this.syncInterval = null;
     }
-    if (this.isConfigured() && this.config.autoSync) {
-      const ms = Math.max(20000, (this.config.intervalMinutes || 1) * 60000);
-      this.syncInterval = setInterval(() => {
-        if (!document.hidden) {
-          this.syncAll(false);
-        }
-      }, ms);
-    }
+    // Tự động đồng bộ nền định kỳ mỗi 20 giây để học sinh & giáo viên luôn nhận dữ liệu mới nhất
+    this.syncInterval = setInterval(() => {
+      if (!document.hidden) {
+        this.syncAll(false);
+      }
+    }, 20000);
   },
 
   setupVisibilitySync() {
@@ -231,13 +227,23 @@ export const CloudSync = {
       await this.syncCustomVideoQuestions(baseUrl);
       await this.syncCustomVideoUrls(baseUrl);
 
+      // 6. Đồng bộ Ngân hàng Câu hỏi Tùy biến (Custom Questions do GV/Admin tạo & chỉnh sửa)
+      await this.syncCustomQuestions(baseUrl);
+
       this.config.lastSync = new Date().toISOString();
       try {
         localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(this.config));
       } catch (e) {}
 
+      // Phát sự kiện toàn cục để toàn bộ giao diện (Sổ điểm, Bảng vinh danh, Phòng thi) tự động cập nhật
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('tinhoc-cloud-synced', {
+          detail: { timestamp: new Date().toISOString() }
+        }));
+      }
+
       if (showUiNotice && window.alert) {
-        alert('✅ Đồng bộ dữ liệu Đám mây thành công!\nToàn bộ Tài khoản, Phòng thi và Điểm số đã được cập nhật mới nhất.');
+        alert('✅ Đồng bộ dữ liệu Đám mây thành công!\nToàn bộ Tài khoản, Phòng thi, Câu hỏi và Điểm số đã được cập nhật mới nhất.');
       }
 
       return true;
@@ -374,6 +380,7 @@ export const CloudSync = {
 
       if (updated) {
         const mergedList = Array.from(localMap.values());
+        localStorage.setItem('tinhoc_user_accounts', JSON.stringify(mergedList));
         localStorage.setItem('tinhoc_accounts', JSON.stringify(mergedList));
       }
 
@@ -420,6 +427,13 @@ export const CloudSync = {
       Object.entries(remoteData).forEach(([cleanId, remoteRoom]) => {
         if (!remoteRoom || !remoteRoom.id) return;
         const id = remoteRoom.id.toUpperCase();
+        if (remoteRoom.isDeleted) {
+          if (localMap.has(id)) {
+            localMap.delete(id);
+            updated = true;
+          }
+          return;
+        }
         const localRoom = localMap.get(id);
         if (!localRoom) {
           localMap.set(id, remoteRoom);
@@ -439,10 +453,10 @@ export const CloudSync = {
         localStorage.setItem('tinhoc_exam_rooms', JSON.stringify(mergedRooms));
       }
 
-      // Đẩy ngược phòng thi tạo từ máy local lên Cloud
+      // Đẩy ngược phòng thi tạo từ máy local lên Cloud (nếu phòng chưa có và không bị xóa)
       for (const [id, localRoom] of localMap.entries()) {
         const cleanKey = this.getCleanKey(id);
-        if (!remoteData[cleanKey]) {
+        if (!remoteData[cleanKey] && !localRoom.isDeleted) {
           this.pushRoomToCloud(localRoom).catch(() => {});
         }
       }
@@ -471,25 +485,31 @@ export const CloudSync = {
     const key = this.getCleanKey(roomId);
     const url = this.getBaseUrl();
     try {
+      // Đánh dấu isDeleted trên Cloud và sau đó xóa
       await fetch(`${url}/exam_rooms/${key}.json`, {
-        method: 'DELETE'
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: roomId, isDeleted: true, updatedAt: new Date().toISOString() })
       });
+      setTimeout(() => {
+        fetch(`${url}/exam_rooms/${key}.json`, { method: 'DELETE' }).catch(() => {});
+      }, 5000);
     } catch (e) {
       console.warn('Lỗi xóa phòng thi trên cloud:', e);
     }
   },
 
-  // Tìm phòng thi trực tiếp từ Cloud nếu local chưa có (dành cho học sinh mở link trực tiếp ?room=XYZ)
+  // Tìm phòng thi trực tiếp từ Cloud (dành cho học sinh làm bài hoặc mở link ?room=XYZ)
   async fetchRoomFromCloud(roomId) {
     if (!roomId) return null;
     const key = this.getCleanKey(roomId);
     const url = this.getBaseUrl();
     try {
-      const res = await fetch(`${url}/exam_rooms/${key}.json`);
+      const res = await fetch(`${url}/exam_rooms/${key}.json`, { cache: 'no-cache' });
       if (!res.ok) return null;
       const room = await res.json();
-      if (room && room.id) {
-        Storage.saveExamRoom(room); // Lưu vào cache local
+      if (room && room.id && !room.isDeleted) {
+        Storage.saveExamRoom(room, true); // Lưu vào cache local (skipCloud = true)
         return room;
       }
     } catch (e) {
@@ -736,6 +756,102 @@ export const CloudSync = {
     }
   },
 
+  // --- ĐỒNG BỘ CÂU HỎI TÙY BIẾN (CUSTOM, MODIFIED, DELETED QUESTIONS) ---
+  async syncCustomQuestions(baseUrl) {
+    const url = baseUrl || this.getBaseUrl();
+    try {
+      const res = await fetch(`${url}/custom_questions.json`, { cache: 'no-cache' });
+      if (!res.ok) return;
+      const remoteData = await res.json();
+      if (!remoteData) {
+        // Nếu trên Cloud chưa có gì mà máy có câu hỏi tự tạo, đẩy lên Cloud
+        const customAll = Storage.getCustomQuestions ? Storage.getCustomQuestions() : {};
+        const modified = Storage.getModifiedQuestions ? Storage.getModifiedQuestions() : {};
+        const deleted = Storage.getDeletedQuestionIds ? Storage.getDeletedQuestionIds() : [];
+        const hasLocal = (customAll['10']?.length || customAll['11']?.length || customAll['12']?.length || Object.keys(modified).length || deleted.length);
+        if (hasLocal) {
+          await this.pushCustomQuestionsToCloud();
+        }
+        return;
+      }
+
+      let changed = false;
+
+      // 1. Đồng bộ câu hỏi tự tạo (custom)
+      if (remoteData.custom && typeof remoteData.custom === 'object') {
+        const localCustom = Storage.getCustomQuestions ? Storage.getCustomQuestions() : { '10': [], '11': [], '12': [] };
+        ['10', '11', '12'].forEach(grade => {
+          const remoteList = remoteData.custom[grade] || [];
+          if (Array.isArray(remoteList) && remoteList.length > 0) {
+            const map = new Map();
+            (localCustom[grade] || []).forEach(q => { if (q && q.id) map.set(q.id, q); });
+            remoteList.forEach(q => {
+              if (q && q.id && !map.has(q.id)) {
+                map.set(q.id, q);
+                changed = true;
+              }
+            });
+            localCustom[grade] = Array.from(map.values());
+          }
+        });
+        localStorage.setItem('tinhoc_custom_questions', JSON.stringify(localCustom));
+      }
+
+      // 2. Đồng bộ câu hỏi gốc được sửa (modified)
+      if (remoteData.modified && typeof remoteData.modified === 'object') {
+        const localModified = Storage.getModifiedQuestions ? Storage.getModifiedQuestions() : {};
+        Object.entries(remoteData.modified).forEach(([id, q]) => {
+          if (q && id && !localModified[id]) {
+            localModified[id] = q;
+            changed = true;
+          }
+        });
+        localStorage.setItem('tinhoc_modified_questions', JSON.stringify(localModified));
+      }
+
+      // 3. Đồng bộ câu hỏi gốc bị xóa (deleted)
+      if (Array.isArray(remoteData.deleted)) {
+        const localDeleted = new Set(Storage.getDeletedQuestionIds ? Storage.getDeletedQuestionIds() : []);
+        remoteData.deleted.forEach(id => {
+          if (id && !localDeleted.has(id)) {
+            localDeleted.add(id);
+            changed = true;
+          }
+        });
+        localStorage.setItem('tinhoc_deleted_question_ids', JSON.stringify(Array.from(localDeleted)));
+      }
+
+      if (changed) {
+        console.log('✅ Đã cập nhật ngân hàng câu hỏi mới nhất từ Cloud');
+        if (typeof window !== 'undefined' && window.App) {
+          window.App.gradeCache = {};
+        }
+      }
+    } catch (e) {
+      console.warn('Lỗi đồng bộ câu hỏi từ cloud:', e);
+    }
+  },
+
+  async pushCustomQuestionsToCloud() {
+    const url = this.getBaseUrl();
+    try {
+      const payload = {
+        custom: Storage.getCustomQuestions ? Storage.getCustomQuestions() : { '10': [], '11': [], '12': [] },
+        modified: Storage.getModifiedQuestions ? Storage.getModifiedQuestions() : {},
+        deleted: Storage.getDeletedQuestionIds ? Storage.getDeletedQuestionIds() : [],
+        updatedAt: new Date().toISOString()
+      };
+      await fetch(`${url}/custom_questions.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      console.log('✅ Đã đẩy cập nhật ngân hàng câu hỏi lên Cloud thành công!');
+    } catch (e) {
+      console.warn('Lỗi đẩy câu hỏi lên cloud:', e);
+    }
+  },
+
   // 6. ĐẨY TOÀN BỘ DỮ LIỆU LOCAL LÊN ĐÁM MÂY (FORCE PUSH)
   async pushAllLocalToCloud() {
     if (!this.isConfigured()) {
@@ -772,7 +888,10 @@ export const CloudSync = {
         histSuccess++;
       }
 
-      alert(`✅ Tải lên Đám mây thành công!\n• ${accSuccess} Tài khoản\n• ${roomSuccess} Phòng thi\n• ${histSuccess} Lượt thi`);
+      await this.pushCustomQuestionsToCloud();
+      await this.pushVideoConfigToCloud(Storage.getVideoConfig());
+
+      alert(`✅ Tải lên Đám mây thành công!\n• ${accSuccess} Tài khoản\n• ${roomSuccess} Phòng thi\n• ${histSuccess} Lượt thi\n• Ngân hàng câu hỏi tùy biến`);
       return true;
     } catch (e) {
       alert(`⚠️ Lỗi tải lên: ${e.message}`);

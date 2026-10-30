@@ -25,6 +25,9 @@ export const QuestionsManager = {
     this.manifest = manifest;
     this.loadGradeDataCallback = loadGradeDataFn;
     this.render();
+    if (typeof window !== 'undefined' && window.CloudSync) {
+      window.CloudSync.syncCustomQuestions().then(() => this.render()).catch(() => {});
+    }
   },
 
   async findAndEditQuestion(qId) {

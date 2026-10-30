@@ -14,6 +14,9 @@ export const Leaderboard = {
   init(containerEl) {
     this.container = containerEl;
     this.render();
+    if (typeof window !== 'undefined' && window.CloudSync) {
+      window.CloudSync.syncHistory().then(() => this.render()).catch(() => {});
+    }
   },
 
   setTimeframe(tf) {
