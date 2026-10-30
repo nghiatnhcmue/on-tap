@@ -264,7 +264,7 @@ export const Storage = {
       result.projectId = cloudCfg.projectId || derivedProjectId || 'on-tap-nghiaedu-tin-hoc';
     }
     if (!result.databaseURL) {
-      result.databaseURL = dbUrl || 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.firebaseio.com';
+      result.databaseURL = dbUrl || 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
     }
 
     // Kiểm tra và chuẩn hóa Firebase Web API Key: Bắt đầu bằng 'AIza'
@@ -304,6 +304,12 @@ export const Storage = {
         if (updated.authDomain) cloudCfg.authDomain = updated.authDomain;
         if (updated.projectId) cloudCfg.projectId = updated.projectId;
         localStorage.setItem('tinhoc_cloud_config', JSON.stringify(cloudCfg));
+
+        // Tự động đẩy cấu hình lên server đám mây để toàn bộ học sinh được thừa hưởng
+        const cs = this.cloudSync || (typeof window !== 'undefined' ? window.CloudSync : null);
+        if (cs && typeof cs.pushAuthConfigToCloud === 'function') {
+          cs.pushAuthConfigToCloud(updated);
+        }
       }
       return updated;
     } catch (e) {

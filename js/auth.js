@@ -5,6 +5,7 @@
  */
 
 import { Storage } from './storage.js';
+import { CloudSync } from './cloud-sync.js';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
 
@@ -305,13 +306,18 @@ export const Auth = {
           return;
         }
 
-        Storage.saveFirebaseAuthConfig({
+        const savedAuth = Storage.saveFirebaseAuthConfig({
           apiKey: cleanKey,
           projectId,
           authDomain
         });
 
-        alert('✅ Đã lưu cấu hình Firebase Auth thành công!\nĐang kết nối xác thực Google...');
+        // Tự động đẩy lên máy chủ Cloud (Firebase RTDB) để toàn bộ học sinh được thừa hưởng
+        if (CloudSync && typeof CloudSync.pushAuthConfigToCloud === 'function') {
+          CloudSync.pushAuthConfigToCloud(savedAuth);
+        }
+
+        alert('✅ Đã lưu cấu hình Firebase Auth lên máy chủ thành công!\nToàn bộ học sinh và giáo viên sẽ tự động đăng nhập được bằng Google mà không cần nhập key.');
         const modal = document.getElementById('modal-firebase-config');
         if (modal) modal.classList.add('hidden');
 
@@ -411,6 +417,11 @@ export const Auth = {
   },
 
   openFirebaseConfigModal(hintMessage = '') {
+    // Chỉ Admin mới được phép mở modal cấu hình kỹ thuật Firebase Web API Key
+    if (!this.isAdmin()) {
+      alert('Chức năng cài đặt API Key chỉ dành riêng cho Quản trị viên (Admin).\nNếu em là học sinh, hãy đăng nhập trực tiếp bằng Email/Tài khoản và Mật khẩu ở bên dưới nhé!');
+      return;
+    }
     const modal = document.getElementById('modal-firebase-config');
     if (modal) {
       modal.classList.remove('hidden');
@@ -474,25 +485,52 @@ export const Auth = {
   },
 
   async signInWithGoogleFirebase() {
-    const cfg = Storage.getFirebaseAuthConfig ? Storage.getFirebaseAuthConfig() : {};
+    let cfg = Storage.getFirebaseAuthConfig ? Storage.getFirebaseAuthConfig() : {};
 
-    // Nếu chưa cấu hình Firebase API key hoặc API key không đúng chuẩn (phải bắt đầu bằng AIza)
+    // 1. Nếu chưa có API Key ở client, tự động kéo tức thì từ máy chủ về trước
+    if (!cfg.apiKey || !this.isFirebaseApiKey(cfg.apiKey)) {
+      if (CloudSync && typeof CloudSync.fetchAuthConfigFromServer === 'function') {
+        const remote = await CloudSync.fetchAuthConfigFromServer();
+        if (remote && remote.apiKey && this.isFirebaseApiKey(remote.apiKey)) {
+          cfg = Storage.getFirebaseAuthConfig();
+        }
+      }
+    }
+
+    // 2. Nếu VẪN chưa có API Key hợp lệ:
     if (!cfg.apiKey || !this.isFirebaseApiKey(cfg.apiKey)) {
       if (cfg.apiKey && !this.isFirebaseApiKey(cfg.apiKey)) {
         Storage.saveFirebaseAuthConfig({ apiKey: '' });
       }
-      this.openFirebaseConfigModal(
-        '⚠️ Chưa cấu hình Firebase Web API Key hợp lệ!\nKhóa chuẩn của Firebase bắt đầu bằng "AIzaSy...". Bạn hãy dán Web API Key từ Firebase Console (Project Settings -> General) hoặc sử dụng tính năng Đăng nhập nhanh bên dưới.'
-      );
+
+      // TUYỆT ĐỐI KHÔNG BẮT HỌC SINH ĐIỀN API KEY!
+      if (this.isAdmin()) {
+        this.openFirebaseConfigModal(
+          'Dành cho Admin: Firebase Web API Key chưa có trên máy chủ. Thầy vui lòng dán Web API Key từ Firebase Console để lưu lên máy chủ cho toàn bộ học sinh.'
+        );
+      } else {
+        alert('Hệ thống đang hoàn tất kết nối đăng nhập Google từ máy chủ.\n\n👉 Em có thể đăng nhập bằng Email/Tài khoản và Mật khẩu ở khung bên dưới để vào học ngay nhé!');
+        const inputId = document.getElementById('login-input-identity');
+        if (inputId) {
+          inputId.focus();
+          inputId.classList.add('ring-2', 'ring-blue-500');
+          setTimeout(() => inputId.classList.remove('ring-2', 'ring-blue-500'), 2500);
+        }
+      }
       return;
     }
 
     if (!this.firebaseAuth) {
       const ok = this.initFirebaseAuth();
       if (!ok || !this.firebaseAuth) {
-        this.openFirebaseConfigModal(
-          '⚠️ Không thể khởi tạo Firebase Auth với API Key hiện tại. Vui lòng kiểm tra lại cấu hình Web API Key.'
-        );
+        if (this.isAdmin()) {
+          this.openFirebaseConfigModal(
+            '⚠️ Không thể khởi tạo Firebase Auth với API Key hiện tại. Vui lòng kiểm tra lại cấu hình Web API Key.'
+          );
+        } else {
+          alert('Đang kết nối xác thực Google. Em hãy đăng nhập bằng Email/Tài khoản và Mật khẩu bên dưới để vào học ngay nhé!');
+          document.getElementById('login-input-identity')?.focus();
+        }
         return;
       }
     }
@@ -520,15 +558,20 @@ export const Auth = {
                           (err.message && String(err.message).includes('api-key-not-valid'));
 
       if (isApiKeyErr) {
-        // Tự động xóa API key hỏng để không bao giờ bị kẹt lại
-        Storage.saveFirebaseAuthConfig({ apiKey: '' });
-        if (this.firebaseAuth) {
-          try { firebase.app().delete(); } catch (e) {}
-          this.firebaseAuth = null;
-          this.isFirebaseInitialized = false;
+        if (this.isAdmin()) {
+          // Tự động xóa API key hỏng
+          Storage.saveFirebaseAuthConfig({ apiKey: '' });
+          if (this.firebaseAuth) {
+            try { firebase.app().delete(); } catch (e) {}
+            this.firebaseAuth = null;
+            this.isFirebaseInitialized = false;
+          }
+          alert('⚠️ Khóa Firebase Web API Key hiện tại chưa được kích hoạt hoặc bị Google từ chối!\n\nThầy hãy kiểm tra lại Web API Key trong Firebase Console (Project Settings -> General).');
+          this.openFirebaseConfigModal('⚠️ Firebase Web API Key chưa hợp lệ. Vui lòng kiểm tra lại.');
+        } else {
+          alert('Đăng nhập Google tạm thời gián đoạn. Em vui lòng đăng nhập bằng Email/Tài khoản và Mật khẩu ở bên dưới nhé!');
+          document.getElementById('login-input-identity')?.focus();
         }
-        alert('⚠️ Khóa Firebase Web API Key hiện tại chưa được kích hoạt hoặc bị Google từ chối!\n\n💡 Bạn có thể vào học ngay lập tức mà không cần đợi cài Google Auth:\n1. Bấm nút "Đăng nhập: Học sinh (HS)" hoặc "Giáo viên / Admin" ở khung [TRẢI NGHIỆM NHANH] bên dưới (1 chạm là vào ngay).\n2. Hoặc Đăng ký tài khoản cá nhân có Mật khẩu ở tab "Đăng Ký Mới".\n\n👉 Để kích hoạt Google Sign-In: Hãy vào Firebase Console -> Authentication -> Bấm "Get started" và bật "Google Sign-in".');
-        this.openFirebaseConfigModal('⚠️ Firebase Web API Key chưa hợp lệ. Vui lòng kiểm tra lại hoặc sử dụng tính năng Trải nghiệm nhanh bên dưới.');
       } else if (err.code === 'auth/popup-blocked') {
         alert('Trình duyệt đã chặn cửa sổ đăng nhập Google (Pop-up blocked)!\nVui lòng nhấp vào biểu tượng Pop-up trên thanh địa chỉ của trình duyệt để "Cho phép Pop-up", sau đó thử lại.');
       } else if (err.code === 'auth/unauthorized-domain' || err.code === 'auth/invalid-continue-uri' || (err.message && err.message.includes('invalid-continue-uri'))) {

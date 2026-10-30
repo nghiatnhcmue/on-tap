@@ -738,7 +738,10 @@ export const AdminManager = {
         });
 
         if (apiKey) {
-          Storage.saveFirebaseAuthConfig({ apiKey, databaseURL: url });
+          const authCfg = Storage.saveFirebaseAuthConfig({ apiKey, databaseURL: url });
+          if (window.CloudSync && typeof window.CloudSync.pushAuthConfigToCloud === 'function') {
+            await window.CloudSync.pushAuthConfigToCloud(authCfg, url);
+          }
           if (window.Auth && typeof window.Auth.initFirebaseAuth === 'function') {
             window.Auth.initFirebaseAuth();
           }
@@ -1061,7 +1064,10 @@ export const AdminManager = {
         if (clientId.trim()) {
           const val = clientId.trim();
           if (val.startsWith('AIza')) {
-            Storage.saveFirebaseAuthConfig({ apiKey: val });
+            const authCfg = Storage.saveFirebaseAuthConfig({ apiKey: val });
+            if (window.CloudSync && typeof window.CloudSync.pushAuthConfigToCloud === 'function') {
+              window.CloudSync.pushAuthConfigToCloud(authCfg);
+            }
             if (Auth.initFirebaseAuth) Auth.initFirebaseAuth();
           } else if (val.includes('googleusercontent.com')) {
             Storage.saveAdminConfig({ googleClientId: val });

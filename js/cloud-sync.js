@@ -13,6 +13,9 @@
 import { Storage } from './storage.js';
 
 const CLOUD_CONFIG_KEY = 'tinhoc_cloud_config';
+export const DEFAULT_FIREBASE_DB_URL = 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
+export const DEFAULT_FIREBASE_PROJECT_ID = 'on-tap-nghiaedu-tin-hoc';
+export const DEFAULT_FIREBASE_AUTH_DOMAIN = 'on-tap-nghiaedu-tin-hoc.firebaseapp.com';
 
 export const CloudSync = {
   config: null,
@@ -26,29 +29,41 @@ export const CloudSync = {
     this.setupAutoSync();
     this.setupVisibilitySync();
 
+    // Đồng bộ tức thì cấu hình xác thực Auth từ máy chủ để sẵn sàng cho Google Sign-In
+    this.syncAuthConfig();
+
     // Nếu đã cấu hình Cloud, tự động đồng bộ ngay khi khởi động
     if (this.isConfigured()) {
-      setTimeout(() => this.syncAll(false), 1500);
+      setTimeout(() => this.syncAll(false), 1200);
     }
   },
 
   loadConfig() {
     try {
       const saved = localStorage.getItem(CLOUD_CONFIG_KEY);
-      this.config = saved ? JSON.parse(saved) : {
-        enabled: false,
+      const parsed = saved ? JSON.parse(saved) : null;
+      this.config = {
+        enabled: true,
         provider: 'firebase', // 'firebase' | 'custom'
-        databaseUrl: '', // Ví dụ: https://tinhoc-thpt-default-rtdb.firebaseio.com
+        databaseUrl: DEFAULT_FIREBASE_DB_URL,
         apiKey: '',
         autoSync: true,
         intervalMinutes: 1,
-        lastSync: null
+        lastSync: null,
+        ...(parsed || {})
       };
+      // Tự động chuyển đổi nếu databaseUrl trống hoặc dùng URL firebaseio.com gây redirect 307
+      if (!this.config.databaseUrl || this.config.databaseUrl.includes('on-tap-nghiaedu-tin-hoc-default-rtdb.firebaseio.com')) {
+        this.config.databaseUrl = DEFAULT_FIREBASE_DB_URL;
+      }
+      if (this.config.enabled === undefined || this.config.enabled === false) {
+        this.config.enabled = true;
+      }
     } catch (e) {
       this.config = {
-        enabled: false,
+        enabled: true,
         provider: 'firebase',
-        databaseUrl: '',
+        databaseUrl: DEFAULT_FIREBASE_DB_URL,
         apiKey: '',
         autoSync: true,
         intervalMinutes: 1,
@@ -189,6 +204,9 @@ export const CloudSync = {
     try {
       const baseUrl = this.config.databaseUrl;
 
+      // 0. Đồng bộ Cấu hình Xác thực Google (API Key do Admin cấu hình lưu trên Máy chủ)
+      await this.syncAuthConfig(baseUrl);
+
       // 1. Đồng bộ Tài khoản (Accounts)
       await this.syncAccounts(baseUrl);
 
@@ -225,6 +243,92 @@ export const CloudSync = {
       this.isSyncing = false;
       this.notifyStatusChange();
     }
+  },
+
+  // --- CHI TIẾT ĐỒNG BỘ CẤU HÌNH XÁC THỰC GOOGLE (FIREBASE AUTH API KEY) ---
+  async syncAuthConfig(baseUrl = null) {
+    const url = (baseUrl || this.config?.databaseUrl || DEFAULT_FIREBASE_DB_URL).trim().replace(/\/+$/, '');
+    if (!url || !url.startsWith('http')) return;
+
+    try {
+      const res = await fetch(`${url}/config/auth.json`, { cache: 'no-cache' });
+      if (!res.ok) return;
+      const remoteAuth = await res.json();
+      const localAuth = Storage.getFirebaseAuthConfig ? Storage.getFirebaseAuthConfig() : {};
+
+      if (remoteAuth && remoteAuth.apiKey && typeof remoteAuth.apiKey === 'string' && remoteAuth.apiKey.startsWith('AIza')) {
+        // Server đã lưu API Key của Admin -> nạp tự động cho máy học sinh / giáo viên
+        if (!localAuth.apiKey || localAuth.apiKey !== remoteAuth.apiKey) {
+          Storage.saveFirebaseAuthConfig({
+            apiKey: remoteAuth.apiKey,
+            projectId: remoteAuth.projectId || DEFAULT_FIREBASE_PROJECT_ID,
+            authDomain: remoteAuth.authDomain || DEFAULT_FIREBASE_AUTH_DOMAIN,
+            databaseURL: remoteAuth.databaseURL || url
+          });
+          if (window.Auth && typeof window.Auth.initFirebaseAuth === 'function') {
+            window.Auth.initFirebaseAuth();
+          }
+        }
+      } else if (localAuth.apiKey && typeof localAuth.apiKey === 'string' && localAuth.apiKey.startsWith('AIza')) {
+        // Server chưa có API Key nhưng Admin trên máy tính này đã nhập -> tự động đẩy lên server lưu vĩnh viễn
+        await this.pushAuthConfigToCloud(localAuth, url);
+      }
+    } catch (e) {
+      console.warn('Lỗi đồng bộ cấu hình xác thực từ máy chủ:', e);
+    }
+  },
+
+  async pushAuthConfigToCloud(authConfig, baseUrl = null) {
+    const url = (baseUrl || this.config?.databaseUrl || DEFAULT_FIREBASE_DB_URL).trim().replace(/\/+$/, '');
+    if (!url || !url.startsWith('http') || !authConfig || !authConfig.apiKey) return;
+    const cleanKey = String(authConfig.apiKey).trim().replace(/['";,\s]/g, '');
+    if (!cleanKey.startsWith('AIza') || cleanKey.length < 25) return;
+
+    const payload = {
+      apiKey: cleanKey,
+      projectId: authConfig.projectId || DEFAULT_FIREBASE_PROJECT_ID,
+      authDomain: authConfig.authDomain || DEFAULT_FIREBASE_AUTH_DOMAIN,
+      databaseURL: authConfig.databaseURL || url,
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      const res = await fetch(`${url}/config/auth.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        console.log('✅ Đã lưu cấu hình Firebase Auth lên máy chủ thành công!');
+      }
+    } catch (e) {
+      console.warn('Lỗi đẩy cấu hình xác thực lên máy chủ:', e);
+    }
+  },
+
+  async fetchAuthConfigFromServer(baseUrl = null) {
+    const url = (baseUrl || this.config?.databaseUrl || DEFAULT_FIREBASE_DB_URL).trim().replace(/\/+$/, '');
+    if (!url || !url.startsWith('http')) return null;
+    try {
+      const res = await fetch(`${url}/config/auth.json`, { cache: 'no-cache' });
+      if (!res.ok) return null;
+      const remote = await res.json();
+      if (remote && remote.apiKey && typeof remote.apiKey === 'string' && remote.apiKey.startsWith('AIza')) {
+        Storage.saveFirebaseAuthConfig({
+          apiKey: remote.apiKey,
+          projectId: remote.projectId || DEFAULT_FIREBASE_PROJECT_ID,
+          authDomain: remote.authDomain || DEFAULT_FIREBASE_AUTH_DOMAIN,
+          databaseURL: remote.databaseURL || url
+        });
+        if (window.Auth && typeof window.Auth.initFirebaseAuth === 'function') {
+          window.Auth.initFirebaseAuth();
+        }
+        return remote;
+      }
+    } catch (e) {
+      console.warn('fetchAuthConfigFromServer error:', e);
+    }
+    return null;
   },
 
   // --- CHI TIẾT ĐỒNG BỘ TÀI KHOẢN ---

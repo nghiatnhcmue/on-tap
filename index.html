@@ -45,7 +45,7 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261029_32" />
+  <link rel="stylesheet" href="css/style.css?v=20261029_33" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -1555,7 +1555,7 @@
           <button id="btn-switch-to-register" type="button" onclick="window.switchAuthTab('register')" class="text-blue-600 dark:text-blue-400 hover:underline font-bold">
             Chưa có tài khoản? Đăng ký ngay
           </button>
-          <button id="btn-open-google-config" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 inline-flex items-center gap-1">
+          <button id="btn-open-google-config" data-role-req="admin" type="button" class="hidden text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 inline-flex items-center gap-1">
             <i class="fa-solid fa-gear text-[10px]"></i> Cài đặt Firebase Google Auth
           </button>
         </div>
@@ -1836,7 +1836,7 @@
           <h3 class="text-base font-bold text-slate-800 dark:text-white">
             Cài Đặt Xác Thực Google Bằng Firebase Auth
           </h3>
-          <p class="text-xs text-slate-400">Đăng nhập tài khoản Google trực tiếp qua Firebase</p>
+          <p class="text-xs text-slate-400">Dành riêng cho Quản trị viên (Admin) • Tự động lưu lên máy chủ cho toàn bộ học sinh</p>
         </div>
       </div>
 
@@ -1890,7 +1890,7 @@
         </div>
 
         <button type="submit" id="btn-save-firebase-auth" class="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl text-xs transition shadow-md shadow-amber-500/20 flex items-center justify-center gap-2">
-          <i class="fa-solid fa-floppy-disk"></i> Lưu Cấu Hình & Kích Hoạt Firebase Google Auth
+          <i class="fa-solid fa-cloud-arrow-up"></i> Lưu Lên Máy Chủ & Kích Hoạt Cho Toàn Hệ Thống
         </button>
 
         <!-- Nút dự phòng không cần API Key -->
@@ -2600,7 +2600,7 @@
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261029_32"></script>
+  <script type="module" src="js/app.js?v=20261029_33"></script>
 </body>
 </html>
 

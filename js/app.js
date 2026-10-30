@@ -54,6 +54,14 @@ class App {
     CloudSync.init();
     this.initCloudSyncUI();
 
+    // Tự động đẩy cấu hình Auth lên máy chủ nếu client này đã có API Key (từ tài khoản Admin)
+    try {
+      const localAuth = Storage.getFirebaseAuthConfig ? Storage.getFirebaseAuthConfig() : null;
+      if (localAuth && localAuth.apiKey && String(localAuth.apiKey).startsWith('AIza')) {
+        CloudSync.pushAuthConfigToCloud(localAuth);
+      }
+    } catch (e) {}
+
     // Khóa giao diện và mở modal đăng nhập NGAY LẬP TỨC (không chờ nạp manifest / đề thi)
     this.enforceAuthentication();
 
