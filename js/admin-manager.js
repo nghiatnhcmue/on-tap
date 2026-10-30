@@ -849,13 +849,6 @@ export const AdminManager = {
           CloudSync.pushVideoConfigToCloud(cfg);
         }
       };
-            archiveAccessKey: accessKey,
-            archiveSecretKey: secretKey,
-            archiveIdentifier: identifier,
-            videoBaseUrl: baseUrl
-          });
-        }
-      };
 
       ['archive-cfg-access-key', 'archive-cfg-secret-key', 'archive-cfg-identifier', 'archive-cfg-base-url'].forEach(id => {
         const el = document.getElementById(id);
