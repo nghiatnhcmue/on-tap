@@ -3,21 +3,21 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261030_44';
-import { Practice } from './practice.js?v=20261030_44';
-import { Exam } from './exam.js?v=20261030_44';
-import { Search } from './search.js?v=20261030_44';
-import { PrintManager } from './print.js?v=20261030_44';
-import { Auth } from './auth.js?v=20261030_44';
-import { escapeHtml } from './utils.js?v=20261030_44';
-import { Leaderboard } from './leaderboard.js?v=20261030_44';
-import { QuestionsManager } from './questions-manager.js?v=20261030_44';
-import { AdminManager } from './admin-manager.js?v=20261030_44';
-import { ExamRooms } from './exam-rooms.js?v=20261030_44';
-import { Proctor } from './proctor.js?v=20261030_44';
-import { Gradebook } from './gradebook.js?v=20261030_44';
-import { CloudSync } from './cloud-sync.js?v=20261030_44';
-import { InteractiveVideo } from './interactive-video.js?v=20261030_44';
+import { Storage } from './storage.js?v=20261030_45';
+import { Practice } from './practice.js?v=20261030_45';
+import { Exam } from './exam.js?v=20261030_45';
+import { Search } from './search.js?v=20261030_45';
+import { PrintManager } from './print.js?v=20261030_45';
+import { Auth } from './auth.js?v=20261030_45';
+import { escapeHtml } from './utils.js?v=20261030_45';
+import { Leaderboard } from './leaderboard.js?v=20261030_45';
+import { QuestionsManager } from './questions-manager.js?v=20261030_45';
+import { AdminManager } from './admin-manager.js?v=20261030_45';
+import { ExamRooms } from './exam-rooms.js?v=20261030_45';
+import { Proctor } from './proctor.js?v=20261030_45';
+import { Gradebook } from './gradebook.js?v=20261030_45';
+import { CloudSync } from './cloud-sync.js?v=20261030_45';
+import { InteractiveVideo } from './interactive-video.js?v=20261030_45';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -1846,6 +1846,65 @@ class App {
       });
       document.addEventListener('click', () => {
         profileDropdown.classList.add('hidden');
+      });
+    }
+
+    // Menu Nghiệp vụ Giáo viên: Hỗ trợ cả Rê chuột mượt (có trễ 280ms chống mất menu) lẫn Bấm Click ghim mở
+    const teacherWrap = document.getElementById('teacher-nav-dropdown-wrap');
+    const teacherBtn = document.getElementById('btn-teacher-nav-dropdown');
+    const teacherMenu = document.getElementById('teacher-nav-dropdown-menu');
+    const teacherChevron = document.getElementById('icon-teacher-nav-chevron');
+    if (teacherWrap && teacherBtn && teacherMenu) {
+      let closeTimer = null;
+      let isPinnedByClick = false;
+
+      const openTeacherMenu = () => {
+        if (closeTimer) {
+          clearTimeout(closeTimer);
+          closeTimer = null;
+        }
+        teacherMenu.classList.remove('hidden');
+        teacherBtn.setAttribute('aria-expanded', 'true');
+        if (teacherChevron) teacherChevron.classList.add('rotate-180');
+      };
+
+      const closeTeacherMenu = (force = false) => {
+        if (isPinnedByClick && !force) return;
+        if (closeTimer) clearTimeout(closeTimer);
+        closeTimer = setTimeout(() => {
+          teacherMenu.classList.add('hidden');
+          teacherBtn.setAttribute('aria-expanded', 'false');
+          if (teacherChevron) teacherChevron.classList.remove('rotate-180');
+          isPinnedByClick = false;
+        }, force ? 0 : 280);
+      };
+
+      teacherWrap.addEventListener('mouseenter', openTeacherMenu);
+      teacherWrap.addEventListener('mouseleave', () => closeTeacherMenu(false));
+
+      teacherBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!teacherMenu.classList.contains('hidden') && isPinnedByClick) {
+          isPinnedByClick = false;
+          closeTeacherMenu(true);
+        } else {
+          isPinnedByClick = true;
+          openTeacherMenu();
+        }
+      });
+
+      teacherMenu.querySelectorAll('[data-tab-target]').forEach(item => {
+        item.addEventListener('click', () => {
+          isPinnedByClick = false;
+          closeTeacherMenu(true);
+        });
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!teacherWrap.contains(e.target)) {
+          isPinnedByClick = false;
+          closeTeacherMenu(true);
+        }
       });
     }
 
