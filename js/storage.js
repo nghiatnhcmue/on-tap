@@ -25,6 +25,8 @@ const STORAGE_KEYS = {
 };
 
 export const DEFAULT_FIREBASE_API_KEY = 'AIzaSyBOn_vHOZXDhRPpeOhjuZOiECpCRfhXPA0';
+export const DEFAULT_ARCHIVE_ACCESS_KEY = 'JoOq2I9q1IHAC5Uu';
+export const DEFAULT_ARCHIVE_SECRET_KEY = 'BMsIv0RQ4X0O3Qqa';
 
 export const Storage = {
   cloudSync: null,
@@ -38,12 +40,18 @@ export const Storage = {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.VIDEO_CONFIG);
       let parsed = data ? JSON.parse(data) : {
-        archiveAccessKey: '',
-        archiveSecretKey: '',
+        archiveAccessKey: DEFAULT_ARCHIVE_ACCESS_KEY,
+        archiveSecretKey: DEFAULT_ARCHIVE_SECRET_KEY,
         archiveIdentifier: 'tinhoc-hub-thpt',
         videoBaseUrl: 'https://archive.org/cors/tinhoc-hub-thpt/',
         uploadedVideos: {}
       };
+      if (!parsed.archiveAccessKey || !String(parsed.archiveAccessKey).trim()) {
+        parsed.archiveAccessKey = DEFAULT_ARCHIVE_ACCESS_KEY;
+      }
+      if (!parsed.archiveSecretKey || !String(parsed.archiveSecretKey).trim()) {
+        parsed.archiveSecretKey = DEFAULT_ARCHIVE_SECRET_KEY;
+      }
       // Tự động chuyển đổi download/ sang cors/ để chống lỗi ERR_CONNECTION_RESET tại Việt Nam
       if (parsed.videoBaseUrl && parsed.videoBaseUrl.includes('archive.org/download/')) {
         parsed.videoBaseUrl = parsed.videoBaseUrl.replace('archive.org/download/', 'archive.org/cors/');
@@ -51,8 +59,8 @@ export const Storage = {
       return parsed;
     } catch (e) {
       return {
-        archiveAccessKey: '',
-        archiveSecretKey: '',
+        archiveAccessKey: DEFAULT_ARCHIVE_ACCESS_KEY,
+        archiveSecretKey: DEFAULT_ARCHIVE_SECRET_KEY,
         archiveIdentifier: 'tinhoc-hub-thpt',
         videoBaseUrl: 'https://archive.org/cors/tinhoc-hub-thpt/',
         uploadedVideos: {}

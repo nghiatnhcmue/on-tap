@@ -623,6 +623,17 @@ export const CloudSync = {
       }
       if (!cleanBaseUrl.endsWith('/')) cleanBaseUrl += '/';
 
+      const restoredUploadedVideos = { ...(localConfig?.uploadedVideos || {}) };
+      if (remoteConfig?.uploadedVideos && typeof remoteConfig.uploadedVideos === 'object') {
+        Object.entries(remoteConfig.uploadedVideos).forEach(([k, val]) => {
+          const restoredName = this.restoreVideoFileName(k);
+          restoredUploadedVideos[k] = val;
+          if (restoredName && restoredName !== k) {
+            restoredUploadedVideos[restoredName] = val;
+          }
+        });
+      }
+
       const merged = {
         ...localConfig,
         ...(remoteConfig || {}),
@@ -630,10 +641,7 @@ export const CloudSync = {
         videoBaseUrl: cleanBaseUrl,
         archiveAccessKey: finalAccessKey,
         archiveSecretKey: finalSecretKey,
-        uploadedVideos: {
-          ...(localConfig?.uploadedVideos || {}),
-          ...(remoteConfig?.uploadedVideos || {})
-        }
+        uploadedVideos: restoredUploadedVideos
       };
 
       localStorage.setItem('tinhoc_video_config', JSON.stringify(merged));
@@ -697,7 +705,11 @@ export const CloudSync = {
         updatedAt: new Date().toISOString()
       };
       if (config.uploadedVideos && Object.keys(config.uploadedVideos).length > 0) {
-        payload.uploadedVideos = config.uploadedVideos;
+        const cleanUploaded = {};
+        Object.entries(config.uploadedVideos).forEach(([k, val]) => {
+          cleanUploaded[this.getCleanKey(k)] = val;
+        });
+        payload.uploadedVideos = cleanUploaded;
       }
       if (cleanAccess) payload.archiveAccessKey = cleanAccess;
       if (cleanSecret) payload.archiveSecretKey = cleanSecret;
@@ -728,11 +740,11 @@ export const CloudSync = {
       }
 
       const results = await Promise.all(reqs);
-      const allOk = results.every(r => r && r.ok);
-      if (allOk) {
+      const anyOk = results.some(r => r && r.ok);
+      if (anyOk) {
         console.log('✅ Đã lưu đồng bộ cấu hình S3 Video lên máy chủ đám mây thành công!');
       }
-      return allOk;
+      return anyOk;
     } catch (e) {
       console.warn('Lỗi đẩy cấu hình video lên cloud:', e);
       return false;
