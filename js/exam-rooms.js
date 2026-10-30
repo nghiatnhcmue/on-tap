@@ -3,9 +3,9 @@
  * Quản lý giao đề thi theo khung giờ, trường học, lớp học, mật khẩu và chống gian lận cho Giáo viên & Admin
  */
 
-import { Storage } from './storage.js?v=20261030_47';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261030_47';
-import { escapeHtml } from './utils.js?v=20261030_47';
+import { Storage } from './storage.js?v=20261030_48';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261030_48';
+import { escapeHtml } from './utils.js?v=20261030_48';
 
 export const ExamRooms = {
   container: null,
@@ -13,6 +13,13 @@ export const ExamRooms = {
   filterGrade: 'all',
   filterSchool: 'all',
   filterSearch: '',
+  currentScope: 'all',
+  selectedQuestionsMap: new Map(),
+  loadedGradeQuestions: [],
+  gradeQuestionsCache: {},
+  importedQuestionsList: [],
+  onlyViewSelected: false,
+  activeImportTab: 'word',
 
   init(containerEl, manifest = null) {
     this.container = containerEl;
@@ -202,7 +209,16 @@ export const ExamRooms = {
                         <p class="text-xs text-slate-400 mt-0.5">
                           Thời lượng: <b>${room.duration} phút</b> • ${escapeHtml(examTypeLabel)}
                         </p>
-                        ${(room.contentScope === 'custom' && room.selectedLessons && room.selectedLessons.length > 0) ? `
+                        ${(room.fixedQuestions && room.fixedQuestions.length > 0) ? `
+                          <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-bold text-[11px] border border-blue-200 dark:border-blue-800">
+                              <i class="fa-solid fa-list-check text-[10px]"></i> Đề chọn đích danh (${room.fixedQuestions.length} câu)
+                            </span>
+                            <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                              Giáo viên đã đọc và duyệt trực tiếp từng câu
+                            </span>
+                          </div>
+                        ` : ((room.contentScope === 'custom' && room.selectedLessons && room.selectedLessons.length > 0) ? `
                           <div class="mt-2 flex flex-wrap items-center gap-1.5">
                             <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold text-[11px] border border-emerald-200 dark:border-emerald-800">
                               <i class="fa-solid fa-layer-group text-[10px]"></i> ${room.selectedLessons.length} bài học (${room.questionCount || 28} câu)
@@ -211,7 +227,7 @@ export const ExamRooms = {
                               ${escapeHtml(room.selectedLessons.slice(0, 2).map(l => (l.lesson.split(':')[0] || l.lesson) + ` (${l.count}c)`).join(', '))}${room.selectedLessons.length > 2 ? ` + ${room.selectedLessons.length - 2} bài khác` : ''}
                             </span>
                           </div>
-                        ` : ''}
+                        ` : '')}
                       </div>
 
                       <!-- Room ID Badge -->
@@ -400,7 +416,9 @@ export const ExamRooms = {
         else if (room.type === 'custom') typeDesc = `Kiểm tra định kỳ (${room.questionCount || 30} câu)`;
 
         let scopeDesc = '';
-        if (room.contentScope === 'custom' && room.selectedLessons && room.selectedLessons.length > 0) {
+        if (room.fixedQuestions && room.fixedQuestions.length > 0) {
+          scopeDesc = `\n📝 Đề thi do Giáo viên trực tiếp chọn lọc từng câu (${room.fixedQuestions.length} câu)`;
+        } else if (room.contentScope === 'custom' && room.selectedLessons && room.selectedLessons.length > 0) {
           scopeDesc = `\n📚 Nội dung bài học kiểm tra (${room.selectedLessons.length} bài):\n` +
             room.selectedLessons.map((l, i) => `   ${i+1}. ${l.lesson} (${l.count} câu - ${l.weight || 0}%)`).join('\n');
         }
@@ -490,36 +508,770 @@ export const ExamRooms = {
     }
   },
 
-  // --- BỘ CẤU HÌNH MA TRẬN BÀI HỌC & ĐIỀU CHỈNH TỈ LỆ ---
-  currentScope: 'all',
+  // --- NẠP CÂU HỎI CỦA KHỐI ĐỂ GIÁO VIÊN ĐỌC VÀ CHỌN TRỰC TIẾP ---
+  async loadGradeQuestions(grade) {
+    if (this.gradeQuestionsCache && this.gradeQuestionsCache[grade] && this.gradeQuestionsCache[grade].length > 0) {
+      this.loadedGradeQuestions = this.gradeQuestionsCache[grade];
+      return this.loadedGradeQuestions;
+    }
+    if (!this.gradeQuestionsCache) this.gradeQuestionsCache = {};
 
+    let data = [];
+    if (window.AppInstance && typeof window.AppInstance.loadGradeData === 'function') {
+      try {
+        data = await window.AppInstance.loadGradeData(grade);
+      } catch (e) {
+        data = [];
+      }
+    }
+
+    if (!data || data.length === 0) {
+      try {
+        const res = await fetch(`data/grade_${grade}.json`);
+        data = await res.json();
+      } catch (e) {
+        data = [];
+      }
+    }
+
+    // Nếu khối 11 thì bổ sung thêm câu Đúng/Sai (DS) từ khối 12 để GV có thể chọn đề chuẩn Bộ 28 câu
+    if (grade === '11') {
+      try {
+        let q12 = this.gradeQuestionsCache['12'];
+        if (!q12) {
+          const res12 = await fetch('data/grade_12.json');
+          q12 = await res12.json();
+          this.gradeQuestionsCache['12'] = q12;
+        }
+        const ds12 = (q12 || []).filter(q => q.level === 'DS');
+        data = [...(data || []), ...ds12];
+      } catch (e) {}
+    }
+
+    this.loadedGradeQuestions = data || [];
+    this.gradeQuestionsCache[grade] = this.loadedGradeQuestions;
+    return this.loadedGradeQuestions;
+  },
+
+  // --- BỘ ĐIỀU PHỐI 4 CHẾ ĐỘ CHỌN ĐỀ CỦA GIÁO VIÊN ---
   setupScopeSwitcher(activeScope = 'all') {
     const btnScopeAll = document.getElementById('btn-scope-all');
     const btnScopeCustom = document.getElementById('btn-scope-custom');
-    const matrixPanel = document.getElementById('room-lessons-matrix-panel');
+    const btnScopeQuestions = document.getElementById('btn-scope-questions');
+    const btnScopeImport = document.getElementById('btn-scope-import');
 
-    const setScope = (scope) => {
+    const matrixPanel = document.getElementById('room-lessons-matrix-panel');
+    const questionsPanel = document.getElementById('room-specific-questions-panel');
+    const importPanel = document.getElementById('room-import-panel');
+
+    const setScope = async (scope) => {
       this.currentScope = scope;
+
+      // Reset style các button
+      [btnScopeAll, btnScopeCustom, btnScopeQuestions, btnScopeImport].forEach(b => {
+        b?.classList.remove('bg-white', 'dark:bg-slate-800', 'text-emerald-600', 'dark:text-emerald-400', 'text-blue-600', 'dark:text-blue-400', 'text-purple-600', 'dark:text-purple-400', 'shadow-sm');
+        b?.classList.add('text-slate-500', 'dark:text-slate-400');
+      });
+
+      // Ẩn tất cả panel
+      matrixPanel?.classList.add('hidden');
+      questionsPanel?.classList.add('hidden');
+      importPanel?.classList.add('hidden');
+
+      const grade = document.getElementById('room-input-grade')?.value || '12';
+
       if (scope === 'custom') {
         matrixPanel?.classList.remove('hidden');
         btnScopeCustom?.classList.add('bg-white', 'dark:bg-slate-800', 'text-emerald-600', 'dark:text-emerald-400', 'shadow-sm');
         btnScopeCustom?.classList.remove('text-slate-500', 'dark:text-slate-400');
-        btnScopeAll?.classList.remove('bg-white', 'dark:bg-slate-800', 'text-emerald-600', 'dark:text-emerald-400', 'shadow-sm');
-        btnScopeAll?.classList.add('text-slate-500', 'dark:text-slate-400');
         this.updateMatrixSummary();
+      } else if (scope === 'questions') {
+        questionsPanel?.classList.remove('hidden');
+        btnScopeQuestions?.classList.add('bg-white', 'dark:bg-slate-800', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm');
+        btnScopeQuestions?.classList.remove('text-slate-500', 'dark:text-slate-400');
+        await this.loadGradeQuestions(grade);
+        this.populateQuestionPickFilters(grade);
+        this.renderQuestionsPicker();
+        this.updateQuestionsPickSummary();
+      } else if (scope === 'import') {
+        importPanel?.classList.remove('hidden');
+        btnScopeImport?.classList.add('bg-white', 'dark:bg-slate-800', 'text-purple-600', 'dark:text-purple-400', 'shadow-sm');
+        btnScopeImport?.classList.remove('text-slate-500', 'dark:text-slate-400');
+        this.initImportPanelEvents();
       } else {
-        matrixPanel?.classList.add('hidden');
         btnScopeAll?.classList.add('bg-white', 'dark:bg-slate-800', 'text-emerald-600', 'dark:text-emerald-400', 'shadow-sm');
         btnScopeAll?.classList.remove('text-slate-500', 'dark:text-slate-400');
-        btnScopeCustom?.classList.remove('bg-white', 'dark:bg-slate-800', 'text-emerald-600', 'dark:text-emerald-400', 'shadow-sm');
-        btnScopeCustom?.classList.add('text-slate-500', 'dark:text-slate-400');
       }
     };
 
     if (btnScopeAll) btnScopeAll.onclick = () => setScope('all');
     if (btnScopeCustom) btnScopeCustom.onclick = () => setScope('custom');
+    if (btnScopeQuestions) btnScopeQuestions.onclick = () => setScope('questions');
+    if (btnScopeImport) btnScopeImport.onclick = () => setScope('import');
 
     setScope(activeScope);
+  },
+
+  // Đổ danh sách Chủ đề & Bài học vào bộ lọc của khung chọn từng câu
+  populateQuestionPickFilters(grade) {
+    const topicSel = document.getElementById('room-qpick-filter-topic');
+    const lessonSel = document.getElementById('room-qpick-filter-lesson');
+    if (!topicSel || !lessonSel) return;
+
+    const questions = this.loadedGradeQuestions || [];
+    const topics = [...new Set(questions.map(q => q.topic).filter(Boolean))];
+
+    let tHtml = '<option value="all">Tất cả chủ đề trong khối</option>';
+    topics.forEach(t => {
+      tHtml += `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`;
+    });
+    topicSel.innerHTML = tHtml;
+
+    const updateLessons = () => {
+      const curTopic = topicSel.value;
+      const filtered = (curTopic === 'all')
+        ? questions
+        : questions.filter(q => q.topic === curTopic);
+      const lessons = [...new Set(filtered.map(q => q.lesson).filter(Boolean))];
+      let lHtml = '<option value="all">Tất cả bài học</option>';
+      lessons.forEach(l => {
+        lHtml += `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`;
+      });
+      lessonSel.innerHTML = lHtml;
+    };
+
+    topicSel.onchange = () => {
+      updateLessons();
+      this.renderQuestionsPicker();
+    };
+    lessonSel.onchange = () => this.renderQuestionsPicker();
+
+    updateLessons();
+  },
+
+  // Hiển thị danh sách câu hỏi chi tiết để Giáo viên đọc và tick chọn
+  renderQuestionsPicker() {
+    const listContainer = document.getElementById('room-qpick-list');
+    if (!listContainer) return;
+
+    const topicVal = document.getElementById('room-qpick-filter-topic')?.value || 'all';
+    const lessonVal = document.getElementById('room-qpick-filter-lesson')?.value || 'all';
+    const levelVal = document.getElementById('room-qpick-filter-level')?.value || 'all';
+    const query = (document.getElementById('room-qpick-search')?.value || '').trim().toLowerCase();
+
+    let pool = this.loadedGradeQuestions || [];
+
+    // Nếu đang bật chế độ "Chỉ xem các câu đã chọn"
+    if (this.onlyViewSelected) {
+      pool = Array.from(this.selectedQuestionsMap.values());
+    }
+
+    // Áp dụng bộ lọc
+    const filtered = pool.filter(q => {
+      if (topicVal !== 'all' && q.topic !== topicVal) return false;
+      if (lessonVal !== 'all' && q.lesson !== lessonVal) return false;
+      if (levelVal !== 'all' && String(q.level) !== levelVal) return false;
+      if (query) {
+        const text = (q.question || '') + ' ' + (q.options ? q.options.join(' ') : '') + ' ' + (q.topic || '') + ' ' + (q.lesson || '');
+        if (!text.toLowerCase().includes(query)) return false;
+      }
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      listContainer.innerHTML = `
+        <div class="text-center py-10 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 text-xs text-slate-400">
+          <i class="fa-solid fa-magnifying-glass text-xl mb-2 block opacity-50"></i>
+          Không tìm thấy câu hỏi nào phù hợp với bộ lọc hiện tại.
+        </div>
+      `;
+      return;
+    }
+
+    listContainer.innerHTML = filtered.map((q, idx) => {
+      const qKey = q.id || `q_${idx}_${q.question?.substring(0, 15)}`;
+      const isSelected = this.selectedQuestionsMap.has(qKey);
+
+      let levelBadge = 'Mức 2';
+      let levelColor = 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300';
+      if (q.level === '1') {
+        levelBadge = 'Mức 1 - Nhận biết';
+        levelColor = 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300';
+      } else if (q.level === '2') {
+        levelBadge = 'Mức 2 - Thông hiểu';
+        levelColor = 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300';
+      } else if (q.level === '3') {
+        levelBadge = 'Mức 3 - Vận dụng';
+        levelColor = 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300';
+      } else if (q.level === '4') {
+        levelBadge = 'Mức 4 - Vận dụng cao';
+        levelColor = 'bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300';
+      } else if (q.level === 'DS') {
+        levelBadge = 'Đúng / Sai (DS)';
+        levelColor = 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300';
+      }
+
+      // Xử lý các phương án A, B, C, D hoặc ý Đúng/Sai
+      let optionsHtml = '';
+      if (q.level === 'DS' && q.subItems && Array.isArray(q.subItems)) {
+        optionsHtml = `
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+            ${q.subItems.map((sub, sIdx) => {
+              const letter = sub.letter || String.fromCharCode(97 + sIdx);
+              const isTrue = sub.isCorrect ?? (sub.answer === 'Đúng' || sub.answer === true);
+              return `
+                <div class="p-2 rounded-lg text-xs bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/80 flex items-start justify-between gap-2">
+                  <div class="flex items-start gap-1.5 flex-1 min-w-0">
+                    <span class="font-bold text-slate-700 dark:text-slate-300">${letter})</span>
+                    <span class="text-slate-600 dark:text-slate-400 text-[11px] leading-snug">${escapeHtml(sub.content || '')}</span>
+                  </div>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isTrue ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'} shrink-0">
+                    ${isTrue ? 'Đúng' : 'Sai'}
+                  </span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      } else if (q.options && Array.isArray(q.options) && q.options.length > 0) {
+        optionsHtml = `
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+            ${q.options.map((opt, oIdx) => {
+              const letter = String.fromCharCode(65 + oIdx);
+              const isCorrect = (q.answer === letter || q.displayAnswer === letter || q.correctOption === letter);
+              return `
+                <div class="p-2 rounded-lg text-xs flex items-start gap-2 ${isCorrect ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700/80 text-emerald-900 dark:text-emerald-200 font-bold' : 'bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-300'}">
+                  <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 font-bold ${isCorrect ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}">${letter}</span>
+                  <span class="flex-1 min-w-0 text-[11px] leading-relaxed">${escapeHtml(opt)}</span>
+                  ${isCorrect ? '<i class="fa-solid fa-check text-emerald-600 text-xs shrink-0 mt-0.5"></i>' : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+
+      return `
+        <div data-qpick-card="${escapeHtml(qKey)}" class="p-3.5 rounded-2xl border transition cursor-pointer select-none ${isSelected ? 'border-blue-500 bg-blue-50/40 dark:bg-blue-950/30 ring-2 ring-blue-500/20' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-900/40'}">
+          <!-- Header câu hỏi -->
+          <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
+            <div class="flex items-center gap-2 flex-wrap">
+              <input type="checkbox" data-qpick-checkbox="${escapeHtml(qKey)}" ${isSelected ? 'checked' : ''} class="w-4 h-4 rounded text-blue-600 cursor-pointer pointer-events-none" />
+              <span class="font-bold text-xs text-slate-800 dark:text-white">Câu ${idx + 1}</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${levelColor}">${levelBadge}</span>
+              ${q.id ? `<span class="text-[10px] font-mono text-slate-400">#${escapeHtml(q.id)}</span>` : ''}
+            </div>
+            <div class="text-[10px] text-slate-400 font-medium truncate max-w-xs">
+              ${escapeHtml(q.topic || '')} • ${escapeHtml(q.lesson || '')}
+            </div>
+          </div>
+
+          <!-- Nội dung câu hỏi -->
+          <div class="text-xs text-slate-800 dark:text-white font-medium leading-relaxed">
+            ${escapeHtml(q.question || '')}
+          </div>
+
+          <!-- Các phương án lựa chọn A, B, C, D hoặc Đúng/Sai -->
+          ${optionsHtml}
+        </div>
+      `;
+    }).join('');
+
+    // Gắn sự kiện click để toggle chọn/bỏ chọn câu hỏi
+    listContainer.querySelectorAll('[data-qpick-card]').forEach(card => {
+      card.onclick = (e) => {
+        const qKey = card.getAttribute('data-qpick-card');
+        const chk = card.querySelector('[data-qpick-checkbox]');
+        const targetQ = (this.loadedGradeQuestions || []).find(q => (q.id === qKey || `q_${(this.loadedGradeQuestions || []).indexOf(q)}_${q.question?.substring(0, 15)}` === qKey))
+          || this.selectedQuestionsMap.get(qKey);
+
+        if (this.selectedQuestionsMap.has(qKey)) {
+          this.selectedQuestionsMap.delete(qKey);
+          if (chk) chk.checked = false;
+          card.classList.remove('border-blue-500', 'bg-blue-50/40', 'dark:bg-blue-950/30', 'ring-2', 'ring-blue-500/20');
+          card.classList.add('border-slate-200', 'dark:border-slate-700');
+        } else if (targetQ) {
+          this.selectedQuestionsMap.set(qKey, targetQ);
+          if (chk) chk.checked = true;
+          card.classList.add('border-blue-500', 'bg-blue-50/40', 'dark:bg-blue-950/30', 'ring-2', 'ring-blue-500/20');
+          card.classList.remove('border-slate-200', 'dark:border-slate-700');
+        }
+
+        this.updateQuestionsPickSummary();
+      };
+    });
+  },
+
+  // Cập nhật thống kê và badge số câu đã chọn
+  updateQuestionsPickSummary() {
+    const summaryBadge = document.getElementById('room-qpick-summary-badge');
+    const scopeBadge = document.getElementById('badge-scope-q-count');
+    const countInput = document.getElementById('room-input-count');
+    if (!summaryBadge) return;
+
+    const count = this.selectedQuestionsMap.size;
+    const targetTotal = parseInt(countInput?.value || '28', 10);
+
+    let mcqCount = 0;
+    let dsCount = 0;
+    this.selectedQuestionsMap.forEach(q => {
+      if (q.level === 'DS') dsCount++;
+      else mcqCount++;
+    });
+
+    const isMatch = (count === targetTotal);
+    summaryBadge.innerHTML = `Đã chọn: <strong>${count}</strong>/${targetTotal} câu (${mcqCount} MCQ • ${dsCount} DS) ${isMatch ? '✅ (Khớp 100%)' : (count < targetTotal ? `⚠️ (Thiếu ${targetTotal - count}c)` : `⚠️ (Vượt ${count - targetTotal}c)`)}`;
+    summaryBadge.className = `px-2.5 py-0.5 rounded-full text-[11px] font-bold ${isMatch ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'}`;
+
+    if (scopeBadge) {
+      scopeBadge.textContent = count;
+      scopeBadge.classList.toggle('hidden', count === 0);
+    }
+  },
+
+  // Tự động chọn ngẫu nhiên các câu hỏi cho đủ targetTotal
+  autoFillQuestionsRandomly() {
+    const countInput = document.getElementById('room-input-count');
+    const examTypeSelect = document.getElementById('room-input-type');
+    const targetTotal = parseInt(countInput?.value || '28', 10);
+    const examType = examTypeSelect?.value || 'bgd_2025';
+
+    const pool = this.loadedGradeQuestions || [];
+    if (pool.length === 0) {
+      alert('Chưa có câu hỏi nào trong ngân hàng đề để chọn!');
+      return;
+    }
+
+    if (examType === 'bgd_2025' && targetTotal === 28) {
+      // Đề chuẩn Bộ: 24 MCQ + 4 DS
+      const mcqPool = pool.filter(q => ['1', '2', '3', '4'].includes(String(q.level)));
+      const dsPool = pool.filter(q => q.level === 'DS');
+
+      const shuffledMcq = [...mcqPool].sort(() => Math.random() - 0.5).slice(0, 24);
+      const shuffledDs = [...dsPool].sort(() => Math.random() - 0.5).slice(0, 4);
+
+      this.selectedQuestionsMap.clear();
+      [...shuffledMcq, ...shuffledDs].forEach((q, idx) => {
+        const qKey = q.id || `q_${idx}_${q.question?.substring(0, 15)}`;
+        this.selectedQuestionsMap.set(qKey, q);
+      });
+    } else {
+      // Đề tự do: Chọn ngẫu nhiên đủ số câu
+      const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, targetTotal);
+      this.selectedQuestionsMap.clear();
+      shuffled.forEach((q, idx) => {
+        const qKey = q.id || `q_${idx}_${q.question?.substring(0, 15)}`;
+        this.selectedQuestionsMap.set(qKey, q);
+      });
+    }
+
+    this.renderQuestionsPicker();
+    this.updateQuestionsPickSummary();
+    alert(`Đã chọn ngẫu nhiên thành công ${this.selectedQuestionsMap.size} câu hỏi theo chuẩn đề! Thầy Cô có thể đọc lại từng câu và chỉnh sửa câu tùy ý.`);
+  },
+
+  deselectAllQuestions() {
+    this.selectedQuestionsMap.clear();
+    this.renderQuestionsPicker();
+    this.updateQuestionsPickSummary();
+  },
+
+  // ==================== BỘ XỬ LÝ NHẬP CÂU HỎI TỪ WORD / EXCEL ====================
+  initImportPanelEvents() {
+    const tabWordBtn = document.getElementById('btn-import-tab-word');
+    const tabExcelBtn = document.getElementById('btn-import-tab-excel');
+    const wordBox = document.getElementById('import-word-container');
+    const excelBox = document.getElementById('import-excel-container');
+
+    const switchImportTab = (tab) => {
+      this.activeImportTab = tab;
+      if (tab === 'word') {
+        wordBox?.classList.remove('hidden');
+        excelBox?.classList.add('hidden');
+        tabWordBtn?.classList.add('bg-white', 'dark:bg-slate-800', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm');
+        tabWordBtn?.classList.remove('text-slate-500', 'dark:text-slate-400');
+        tabExcelBtn?.classList.remove('bg-white', 'dark:bg-slate-800', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm');
+        tabExcelBtn?.classList.add('text-slate-500', 'dark:text-slate-400');
+      } else {
+        excelBox?.classList.remove('hidden');
+        wordBox?.classList.add('hidden');
+        tabExcelBtn?.classList.add('bg-white', 'dark:bg-slate-800', 'text-emerald-600', 'dark:text-emerald-400', 'shadow-sm');
+        tabExcelBtn?.classList.remove('text-slate-500', 'dark:text-slate-400');
+        tabWordBtn?.classList.remove('bg-white', 'dark:bg-slate-800', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm');
+        tabWordBtn?.classList.add('text-slate-500', 'dark:text-slate-400');
+      }
+    };
+
+    if (tabWordBtn) tabWordBtn.onclick = () => switchImportTab('word');
+    if (tabExcelBtn) tabExcelBtn.onclick = () => switchImportTab('excel');
+
+    // Nút trích xuất từ Word (Văn bản)
+    const btnParseWord = document.getElementById('btn-parse-word-text');
+    if (btnParseWord) {
+      btnParseWord.onclick = () => {
+        const text = document.getElementById('textarea-room-import-word')?.value || '';
+        if (!text.trim()) {
+          alert('Vui lòng dán nội dung đề thi từ Word vào ô văn bản!');
+          return;
+        }
+        const questions = this.parseWordText(text);
+        if (questions.length === 0) {
+          alert('Không tìm thấy câu hỏi hợp lệ nào trong văn bản Word vừa dán!\nVui lòng kiểm tra định dạng: "Câu 1: ... A. ... B. ... C. ... D. ... Đáp án: A".');
+          return;
+        }
+        this.displayImportedPreview(questions);
+      };
+    }
+
+    // Chọn file Word (.docx)
+    const inputWordFile = document.getElementById('input-room-import-word-file');
+    if (inputWordFile) {
+      inputWordFile.onchange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const nameLabel = document.getElementById('label-import-word-filename');
+        if (nameLabel) nameLabel.textContent = `Tệp đã chọn: ${file.name}`;
+
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+          try {
+            if (window.mammoth) {
+              const arrayBuffer = ev.target.result;
+              const result = await window.mammoth.extractRawText({ arrayBuffer });
+              const extractedText = result.value || '';
+              const textarea = document.getElementById('textarea-room-import-word');
+              if (textarea) textarea.value = extractedText;
+              const questions = this.parseWordText(extractedText);
+              if (questions.length > 0) {
+                this.displayImportedPreview(questions);
+              } else {
+                alert(`Đã đọc file [${file.name}], vui lòng bấm nút "Trích Xuất Câu Hỏi Từ Word" để phân tích.`);
+              }
+            } else {
+              alert('Thư viện đọc file Word đang được nạp, vui lòng thử lại sau 2 giây.');
+            }
+          } catch (err) {
+            alert('Lỗi khi đọc file Word: ' + err.message);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      };
+    }
+
+    // Nút trích xuất từ Excel (Văn bản hoặc File)
+    const btnParseExcel = document.getElementById('btn-parse-excel-text');
+    if (btnParseExcel) {
+      btnParseExcel.onclick = () => {
+        const text = document.getElementById('textarea-room-import-excel')?.value || '';
+        if (!text.trim()) {
+          alert('Vui lòng dán dữ liệu bảng từ Excel vào ô!');
+          return;
+        }
+        const questions = this.parseExcelData(text, true);
+        if (questions.length === 0) {
+          alert('Không tìm thấy dòng câu hỏi hợp lệ trong bảng Excel vừa dán!');
+          return;
+        }
+        this.displayImportedPreview(questions);
+      };
+    }
+
+    // Chọn file Excel (.xlsx / .csv)
+    const inputExcelFile = document.getElementById('input-room-import-excel-file');
+    if (inputExcelFile) {
+      inputExcelFile.onchange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const nameLabel = document.getElementById('label-import-excel-filename');
+        if (nameLabel) nameLabel.textContent = `Tệp đã chọn: ${file.name}`;
+
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            if (window.XLSX) {
+              const data = new Uint8Array(ev.target.result);
+              const workbook = window.XLSX.read(data, { type: 'array' });
+              const firstSheetName = workbook.SheetNames[0];
+              const worksheet = workbook.Sheets[firstSheetName];
+              const jsonData = window.XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+              const questions = this.parseExcelData(jsonData, false);
+              if (questions.length > 0) {
+                this.displayImportedPreview(questions);
+              } else {
+                alert('Không thể nhận diện câu hỏi từ file Excel này! Vui lòng kiểm tra đúng thứ tự cột.');
+              }
+            } else {
+              alert('Thư viện SheetJS đang nạp, vui lòng thử lại sau 2 giây.');
+            }
+          } catch (err) {
+            alert('Lỗi khi đọc file Excel: ' + err.message);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      };
+    }
+
+    // Nút Tải file mẫu Excel
+    const btnDownloadTpl = document.getElementById('btn-download-excel-template');
+    if (btnDownloadTpl) {
+      btnDownloadTpl.onclick = () => this.downloadExcelTemplate();
+    }
+
+    // Nút Áp dụng câu hỏi đã nhập vào đề thi phòng này
+    const btnApplyImport = document.getElementById('btn-apply-imported-questions');
+    if (btnApplyImport) {
+      btnApplyImport.onclick = () => this.applyImportedQuestionsToRoom();
+    }
+
+    // Xóa trắng văn bản
+    document.getElementById('btn-clear-word-text')?.addEventListener('click', () => {
+      const t = document.getElementById('textarea-room-import-word');
+      if (t) t.value = '';
+    });
+    document.getElementById('btn-clear-excel-text')?.addEventListener('click', () => {
+      const t = document.getElementById('textarea-room-import-excel');
+      if (t) t.value = '';
+    });
+  },
+
+  // Bộ phân tích cú pháp trắc nghiệm từ văn bản Word
+  parseWordText(text) {
+    if (!text || !text.trim()) return [];
+    const lines = text.split(/\r?\n/);
+    const questions = [];
+    let currentQ = null;
+
+    const finalizeQ = (q) => {
+      if (!q || !q.question) return;
+      if (q.options && q.options.filter(Boolean).length >= 2) {
+        let ans = (q.answer || 'A').toUpperCase().trim();
+        const m = ans.match(/[ABCD]/);
+        if (m) ans = m[0];
+        q.answer = ans;
+        questions.push(q);
+      } else if (q.subItems && q.subItems.length > 0) {
+        q.level = 'DS';
+        questions.push(q);
+      }
+    };
+
+    const qStartRegex = /^(?:câu|bài|question)\s*(\d+)[\s.:-]+(.*)/i;
+    const numStartRegex = /^(\d+)[\s.:-]+(.*)/;
+    const optRegex = /^\s*([A-D])[\s.:\)-]+(.*)/i;
+    const subItemRegex = /^\s*([a-d])[\s.:\)-]+(.*)/i;
+    const ansRegex = /^(?:đáp án|đáp án đúng|key|answer|dap an)[\s.:-]+([A-D])/i;
+
+    const curGrade = document.getElementById('room-input-grade')?.value || '12';
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const qMatch = line.match(qStartRegex) || (!line.match(optRegex) && !line.match(subItemRegex) && line.match(numStartRegex));
+      const ansMatch = line.match(ansRegex);
+      const optMatch = line.match(optRegex);
+      const subMatch = line.match(subItemRegex);
+
+      if (qMatch) {
+        if (currentQ) finalizeQ(currentQ);
+        currentQ = {
+          id: 'w_' + Date.now() + '_' + (questions.length + 1),
+          question: qMatch[2] ? qMatch[2].trim() : '',
+          options: [],
+          answer: 'A',
+          level: '2',
+          grade: curGrade,
+          topic: 'Đề nhập từ Word',
+          lesson: 'Bài kiểm tra',
+          note: ''
+        };
+      } else if (ansMatch && currentQ) {
+        currentQ.answer = ansMatch[1].toUpperCase();
+      } else if (optMatch && currentQ) {
+        const letter = optMatch[1].toUpperCase();
+        const optText = optMatch[2] ? optMatch[2].trim() : '';
+
+        // Tách phương án nếu trên cùng 1 dòng có nhiều lựa chọn (A. ... B. ... C. ... D. ...)
+        const inlineOpts = line.split(/\s+(?=[A-D][\s.:\)-])/i);
+        if (inlineOpts.length > 1) {
+          inlineOpts.forEach(part => {
+            const m = part.trim().match(optRegex);
+            if (m) {
+              const letCode = m[1].toUpperCase();
+              const idx = letCode.charCodeAt(0) - 65;
+              if (idx >= 0 && idx < 4) {
+                currentQ.options[idx] = m[2] ? m[2].trim() : '';
+              }
+            }
+          });
+        } else {
+          const idx = letter.charCodeAt(0) - 65;
+          if (idx >= 0 && idx < 4) {
+            currentQ.options[idx] = optText;
+          }
+        }
+      } else if (subMatch && currentQ) {
+        if (!currentQ.subItems) currentQ.subItems = [];
+        const isTrue = /đúng|true|đ/i.test(subMatch[2]);
+        currentQ.subItems.push({
+          letter: subMatch[1].toLowerCase(),
+          content: subMatch[2].replace(/\s*\((?:đúng|sai|true|false)\)\s*$/i, '').trim(),
+          isCorrect: isTrue
+        });
+        currentQ.level = 'DS';
+      } else if (currentQ) {
+        if (currentQ.options.length === 0 && (!currentQ.subItems || currentQ.subItems.length === 0)) {
+          currentQ.question += ' ' + line;
+        } else if (currentQ.options.length > 0) {
+          const lastIdx = currentQ.options.length - 1;
+          currentQ.options[lastIdx] += ' ' + line;
+        }
+      }
+    }
+
+    if (currentQ) finalizeQ(currentQ);
+    return questions;
+  },
+
+  // Bộ phân tích câu hỏi từ Excel
+  parseExcelData(dataOrText, isRawText = false) {
+    let rows = [];
+    if (isRawText) {
+      const lines = dataOrText.split(/\r?\n/).filter(l => l.trim());
+      rows = lines.map(l => l.split(/\t/).map(c => c.trim()));
+    } else {
+      rows = dataOrText || [];
+    }
+
+    const curGrade = document.getElementById('room-input-grade')?.value || '12';
+    const questions = [];
+
+    // Bỏ qua dòng tiêu đề nếu dòng đầu chứa chữ "câu hỏi" hoặc "question"
+    const startIdx = (rows.length > 0 && typeof rows[0][0] === 'string' && /câu|question|nội dung/i.test(rows[0][0])) ? 1 : 0;
+
+    for (let i = startIdx; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || r.length < 5) continue;
+
+      const qText = (r[0] || '').toString().trim();
+      const optA = (r[1] || '').toString().trim();
+      const optB = (r[2] || '').toString().trim();
+      const optC = (r[3] || '').toString().trim();
+      const optD = (r[4] || '').toString().trim();
+      let ans = (r[5] || 'A').toString().trim().toUpperCase();
+      const level = (r[6] || '2').toString().trim();
+      const topic = (r[7] || 'Đề nhập từ Excel').toString().trim();
+      const lesson = (r[8] || 'Bài kiểm tra').toString().trim();
+
+      const m = ans.match(/[ABCD]/);
+      if (m) ans = m[0];
+      else ans = 'A';
+
+      if (qText && optA && optB) {
+        questions.push({
+          id: 'ex_' + Date.now() + '_' + (questions.length + 1),
+          question: qText,
+          options: [optA, optB, optC, optD].filter(Boolean),
+          answer: ans,
+          level: ['1', '2', '3', '4', 'DS'].includes(level) ? level : '2',
+          grade: curGrade,
+          topic,
+          lesson,
+          note: ''
+        });
+      }
+    }
+
+    return questions;
+  },
+
+  // Tải file mẫu Excel chuẩn CSV có BOM UTF-8
+  downloadExcelTemplate() {
+    const csvContent = '\uFEFFCâu hỏi\tPhương án A\tPhương án B\tPhương án C\tPhương án D\tĐáp án (A/B/C/D)\tMức độ (1-4 hoặc DS)\tChủ đề\tBài học\r\n' +
+      'Thiết bị nào sau đây dùng để định tuyến gói tin trên Internet?\tChuột máy tính\tRouter\tBàn phím\tMáy in\tB\t2\tMạng máy tính\tBài 03. Thiết bị mạng\r\n' +
+      'Định dạng tệp nào sau đây phổ biến nhất cho trang web?\tHTML\tMP3\tEXE\tAVI\tA\t1\tLập trình Web\tBài 01. Nhập môn HTML\r\n';
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'Mau_De_Thi_Tin_Hoc_THPT.csv';
+    link.click();
+  },
+
+  // Hiển thị danh sách câu hỏi trích xuất từ Word / Excel để GV xem trước
+  displayImportedPreview(questions) {
+    this.importedQuestionsList = questions;
+    const wrapper = document.getElementById('room-import-preview-wrapper');
+    const badge = document.getElementById('room-import-extracted-badge');
+    const list = document.getElementById('room-import-preview-list');
+    if (!wrapper || !list) return;
+
+    wrapper.classList.remove('hidden');
+    if (badge) badge.textContent = `${questions.length} câu hỏi hợp lệ đã nhận diện`;
+
+    list.innerHTML = questions.map((q, idx) => `
+      <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-xs">
+        <div class="flex items-center justify-between gap-2 mb-1.5 font-bold">
+          <span class="text-blue-600">Câu ${idx + 1} (${q.level === 'DS' ? 'Đúng/Sai' : 'MCQ'})</span>
+          <span class="px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+            Đáp án: ${escapeHtml(q.answer || 'A')}
+          </span>
+        </div>
+        <p class="font-medium text-slate-800 dark:text-white mb-2 leading-relaxed">${escapeHtml(q.question)}</p>
+        <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-600 dark:text-slate-300">
+          ${q.options ? q.options.map((opt, oIdx) => `
+            <div><b>${String.fromCharCode(65 + oIdx)}.</b> ${escapeHtml(opt)}</div>
+          `).join('') : ''}
+        </div>
+      </div>
+    `).join('');
+
+    wrapper.scrollIntoView({ behavior: 'smooth' });
+  },
+
+  // Áp dụng danh sách câu hỏi vừa import làm đề thi cố định cho phòng này
+  applyImportedQuestionsToRoom() {
+    if (!this.importedQuestionsList || this.importedQuestionsList.length === 0) {
+      alert('Chưa có câu hỏi nào được trích xuất!');
+      return;
+    }
+
+    const countInput = document.getElementById('room-input-count');
+    const shouldSaveToBank = document.getElementById('checkbox-save-imported-to-bank')?.checked;
+
+    // Lưu vào selectedQuestionsMap
+    this.selectedQuestionsMap.clear();
+    this.importedQuestionsList.forEach((q, idx) => {
+      const qKey = q.id || `imp_${idx}`;
+      this.selectedQuestionsMap.set(qKey, q);
+
+      // Nếu giáo viên chọn lưu luôn vào ngân hàng câu hỏi
+      if (shouldSaveToBank) {
+        Storage.saveQuestion({
+          grade: q.grade || '12',
+          level: q.level || '2',
+          topic: q.topic || 'Đề thi phòng',
+          lesson: q.lesson || 'Tùy chỉnh',
+          question: q.question,
+          options: q.options || [],
+          answer: q.answer || 'A',
+          subItems: q.subItems || null,
+          note: q.note || ''
+        });
+      }
+    });
+
+    if (countInput) {
+      countInput.value = this.importedQuestionsList.length;
+    }
+
+    // Tự động chuyển sang chế độ "Đọc & Chọn Từng Câu" để Giáo viên duyệt lại
+    const btnScopeQuestions = document.getElementById('btn-scope-questions');
+    if (btnScopeQuestions) {
+      btnScopeQuestions.click();
+    }
+
+    alert(`🎉 Đã áp dụng thành công ${this.importedQuestionsList.length} câu hỏi vào đề thi của phòng này!\nThầy Cô hãy bấm Lưu Phòng Thi để kích hoạt cho học sinh.`);
   },
 
   populateModalTopicsAndLessons(grade, existingRoom = null) {
@@ -813,8 +1565,29 @@ export const ExamRooms = {
     // Populate Ma trận Bài học & Chủ đề
     this.populateModalTopicsAndLessons(targetGrade, existingRoom);
 
-    // Kích hoạt Scope Switcher (all vs custom)
-    const initialScope = (existingRoom && existingRoom.contentScope) ? existingRoom.contentScope : (existingRoom?.selectedLessons?.length ? 'custom' : 'all');
+    // Xử lý nạp các câu hỏi đã chọn sẵn nếu phòng thi có fixedQuestions
+    this.selectedQuestionsMap.clear();
+    this.onlyViewSelected = false;
+    const btnToggleOnlySel = document.getElementById('btn-qpick-toggle-view-selected');
+    if (btnToggleOnlySel) btnToggleOnlySel.textContent = 'Chỉ xem câu đã chọn';
+
+    if (existingRoom && existingRoom.fixedQuestions && Array.isArray(existingRoom.fixedQuestions) && existingRoom.fixedQuestions.length > 0) {
+      existingRoom.fixedQuestions.forEach((q, idx) => {
+        const qKey = q.id || `q_exist_${idx}`;
+        this.selectedQuestionsMap.set(qKey, q);
+      });
+    }
+
+    // Kích hoạt Scope Switcher (all vs custom vs questions vs import)
+    let initialScope = 'all';
+    if (existingRoom && existingRoom.fixedQuestions && existingRoom.fixedQuestions.length > 0) {
+      initialScope = 'questions';
+    } else if (existingRoom && existingRoom.contentScope) {
+      initialScope = existingRoom.contentScope;
+    } else if (existingRoom?.selectedLessons?.length) {
+      initialScope = 'custom';
+    }
+
     this.setupScopeSwitcher(initialScope);
 
     modal.classList.remove('hidden');
@@ -849,13 +1622,44 @@ export const ExamRooms = {
       };
     }
 
-    // Sự kiện đổi khối lớp -> nạp lại Lớp và nạp lại Ma trận bài học của khối mới
+    // Sự kiện đổi khối lớp -> nạp lại Lớp, nạp lại Ma trận và nạp lại Danh sách câu hỏi
     if (gradeSelect) {
-      gradeSelect.onchange = () => {
+      gradeSelect.onchange = async () => {
         const curGrade = gradeSelect.value;
         const curSchool = schoolSelect ? schoolSelect.value : 'all';
         this.populateModalClasses(curSchool, curGrade, 'all');
         this.populateModalTopicsAndLessons(curGrade);
+        if (this.currentScope === 'questions') {
+          await this.loadGradeQuestions(curGrade);
+          this.populateQuestionPickFilters(curGrade);
+          this.renderQuestionsPicker();
+          this.updateQuestionsPickSummary();
+        }
+      };
+    }
+
+    // Sự kiện bộ lọc trong khung Chọn từng câu
+    const qpickLevel = document.getElementById('room-qpick-filter-level');
+    const qpickSearch = document.getElementById('room-qpick-search');
+    const btnQpickAutoFill = document.getElementById('btn-qpick-auto-fill');
+    const btnQpickDeselect = document.getElementById('btn-qpick-deselect-all');
+    const btnQpickToggleView = document.getElementById('btn-qpick-toggle-view-selected');
+
+    if (qpickLevel) qpickLevel.onchange = () => this.renderQuestionsPicker();
+    if (qpickSearch) qpickSearch.oninput = () => this.renderQuestionsPicker();
+
+    if (btnQpickAutoFill) {
+      btnQpickAutoFill.onclick = () => this.autoFillQuestionsRandomly();
+    }
+    if (btnQpickDeselect) {
+      btnQpickDeselect.onclick = () => this.deselectAllQuestions();
+    }
+    if (btnQpickToggleView) {
+      btnQpickToggleView.onclick = () => {
+        this.onlyViewSelected = !this.onlyViewSelected;
+        btnQpickToggleView.textContent = this.onlyViewSelected ? 'Xem tất cả câu hỏi' : 'Chỉ xem câu đã chọn';
+        btnQpickToggleView.className = `px-2.5 py-1 rounded-lg text-[11px] font-bold transition ${this.onlyViewSelected ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'}`;
+        this.renderQuestionsPicker();
       };
     }
 
@@ -991,12 +1795,22 @@ export const ExamRooms = {
           return;
         }
 
-        // Xử lý Ma Trận Bài Học & Tỉ Lệ nếu chọn Scope Custom
+        // Xử lý Ma Trận Bài Học & Tỉ Lệ hoặc Danh Sách Câu Hỏi Đích Danh
         const isCustomScope = (this.currentScope === 'custom');
+        const isQuestionsScope = (this.currentScope === 'questions' || this.currentScope === 'import');
         let selectedLessons = [];
         let selectedTopics = [];
+        let fixedQuestions = [];
+        let finalQuestionCount = questionCount;
 
-        if (isCustomScope) {
+        if (isQuestionsScope) {
+          fixedQuestions = Array.from(this.selectedQuestionsMap.values());
+          if (fixedQuestions.length === 0) {
+            alert('⚠️ Bạn đang ở chế độ "Đọc & Chọn từng câu" nhưng chưa chọn câu hỏi nào!\nVui lòng tick chọn ít nhất 1 câu hỏi hoặc chuyển sang "Toàn khối".');
+            return;
+          }
+          finalQuestionCount = fixedQuestions.length;
+        } else if (isCustomScope) {
           const matrixList = document.getElementById('room-lessons-matrix-list');
           if (matrixList) {
             const checks = matrixList.querySelectorAll('[data-matrix-lesson-check]:checked');
@@ -1060,10 +1874,11 @@ export const ExamRooms = {
           startTime: startTime ? new Date(startTime).toISOString() : null,
           endTime: endTime ? new Date(endTime).toISOString() : null,
           type: examType,
-          contentScope: isCustomScope ? 'custom' : 'all',
+          contentScope: isQuestionsScope ? 'questions' : (isCustomScope ? 'custom' : 'all'),
           selectedTopics: isCustomScope ? selectedTopics : null,
           selectedLessons: isCustomScope ? selectedLessons : null,
-          questionCount,
+          fixedQuestions: isQuestionsScope ? fixedQuestions : null,
+          questionCount: finalQuestionCount,
           shuffleQuestions,
           shuffleOptions,
           randomExamCode,
@@ -1084,8 +1899,13 @@ export const ExamRooms = {
         Storage.saveExamRoom(roomData);
         modal.classList.add('hidden');
         this.render();
-        const scopeDesc = isCustomScope ? `${selectedLessons.length} bài học cụ thể` : 'Toàn bộ chương trình';
-        alert(`Tạo phòng thi [${id}] thành công!\n• Nội dung: ${scopeDesc}\n• Đối tượng: ${targetSchool === 'all' ? 'Mọi trường' : targetSchool} - Khối ${grade} (${targetClass === 'all' ? 'Tất cả các lớp' : targetClass}).\nThầy Cô hãy bấm nút "Copy thông báo lớp" để gửi thông tin cho học sinh.`);
+        let scopeDesc = 'Toàn bộ chương trình';
+        if (isQuestionsScope) {
+          scopeDesc = `Đề thi gồm ${fixedQuestions.length} câu hỏi được Giáo viên chọn đích danh`;
+        } else if (isCustomScope) {
+          scopeDesc = `${selectedLessons.length} bài học cụ thể (${finalQuestionCount} câu)`;
+        }
+        alert(`Tạo phòng thi [${id}] thành công!\n• Cấu trúc: ${scopeDesc}\n• Đối tượng: ${targetSchool === 'all' ? 'Mọi trường' : targetSchool} - Khối ${grade} (${targetClass === 'all' ? 'Tất cả các lớp' : targetClass}).\nThầy Cô hãy bấm nút "Copy thông báo lớp" để gửi thông tin cho học sinh.`);
       };
     }
   }

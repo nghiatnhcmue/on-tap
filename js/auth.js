@@ -4,8 +4,8 @@
  * Hỗ trợ: Đăng nhập Google Popup, Đồng bộ Firebase Realtime Database, Hồ sơ học sinh.
  */
 
-import { Storage } from './storage.js?v=20261030_47';
-import { CloudSync } from './cloud-sync.js?v=20261030_47';
+import { Storage } from './storage.js?v=20261030_48';
+import { CloudSync } from './cloud-sync.js?v=20261030_48';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
 
@@ -26,7 +26,7 @@ export const SCHOOLS_DATA = {
     classes: {
       '10': [],
       '11': [],
-      '12': ['12TOAN', '12LI', '12HOA', '12SINH', '12VAN']
+      '12': ['12TOAN', '12LI', '12HOA', '12SINH', '12VAN', '12ANH']
     }
   },
   'TT GDNN GDTX Chu Văn An': {

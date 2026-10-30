@@ -3,21 +3,21 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261030_47';
-import { Practice } from './practice.js?v=20261030_47';
-import { Exam } from './exam.js?v=20261030_47';
-import { Search } from './search.js?v=20261030_47';
-import { PrintManager } from './print.js?v=20261030_47';
-import { Auth } from './auth.js?v=20261030_47';
-import { escapeHtml } from './utils.js?v=20261030_47';
-import { Leaderboard } from './leaderboard.js?v=20261030_47';
-import { QuestionsManager } from './questions-manager.js?v=20261030_47';
-import { AdminManager } from './admin-manager.js?v=20261030_47';
-import { ExamRooms } from './exam-rooms.js?v=20261030_47';
-import { Proctor } from './proctor.js?v=20261030_47';
-import { Gradebook } from './gradebook.js?v=20261030_47';
-import { CloudSync } from './cloud-sync.js?v=20261030_47';
-import { InteractiveVideo } from './interactive-video.js?v=20261030_47';
+import { Storage } from './storage.js?v=20261030_48';
+import { Practice } from './practice.js?v=20261030_48';
+import { Exam } from './exam.js?v=20261030_48';
+import { Search } from './search.js?v=20261030_48';
+import { PrintManager } from './print.js?v=20261030_48';
+import { Auth } from './auth.js?v=20261030_48';
+import { escapeHtml } from './utils.js?v=20261030_48';
+import { Leaderboard } from './leaderboard.js?v=20261030_48';
+import { QuestionsManager } from './questions-manager.js?v=20261030_48';
+import { AdminManager } from './admin-manager.js?v=20261030_48';
+import { ExamRooms } from './exam-rooms.js?v=20261030_48';
+import { Proctor } from './proctor.js?v=20261030_48';
+import { Gradebook } from './gradebook.js?v=20261030_48';
+import { CloudSync } from './cloud-sync.js?v=20261030_48';
+import { InteractiveVideo } from './interactive-video.js?v=20261030_48';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -955,10 +955,11 @@ class App {
           roomTitle: room.title,
           topic: room.topic || null,
           lesson: room.lesson || null,
-          contentScope: room.contentScope || (room.selectedLessons?.length ? 'custom' : 'all'),
+          contentScope: room.contentScope || (room.fixedQuestions?.length ? 'questions' : (room.selectedLessons?.length ? 'custom' : 'all')),
           selectedTopics: room.selectedTopics || null,
           selectedLessons: room.selectedLessons || null,
-          count: room.questionCount || (room.type === 'bgd_2025' ? 28 : 30),
+          fixedQuestions: room.fixedQuestions || null,
+          count: room.questionCount || (room.fixedQuestions?.length || (room.type === 'bgd_2025' ? 28 : 30)),
           shuffleQuestions: room.shuffleQuestions ?? true,
           shuffleOptions: room.shuffleOptions ?? true,
           examCode: room.randomExamCode ? String(Math.floor(100 + Math.random() * 900)) : (room.examCode || '101'),

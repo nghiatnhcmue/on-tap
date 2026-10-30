@@ -5,10 +5,10 @@
  * Cơ sở dữ liệu đám mây, Tải lên Video bài giảng Archive.org S3, Dọn dẹp/Sao lưu.
  */
 
-import { Storage } from './storage.js?v=20261030_47';
-import { Auth } from './auth.js?v=20261030_47';
-import { escapeHtml } from './utils.js?v=20261030_47';
-import { CloudSync, DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261030_47';
+import { Storage } from './storage.js?v=20261030_48';
+import { Auth } from './auth.js?v=20261030_48';
+import { escapeHtml } from './utils.js?v=20261030_48';
+import { CloudSync, DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261030_48';
 
 export const AdminManager = {
   container: null,
@@ -37,12 +37,14 @@ export const AdminManager = {
         console.warn('AdminManager: Không thể tải manifest.json', e);
       }
     }
-    this.render();
-    // Đồng bộ tức thì Khóa S3 từ Cloud ngay khi mở trang Admin để máy mới luôn nhận khóa ngay lập tức
+    // Đồng bộ tức thì Khóa S3 từ Cloud TRƯỚC KHI render để máy mới luôn nhận khóa ngay lập tức
     if (CloudSync && typeof CloudSync.syncVideoConfig === 'function') {
-      await CloudSync.syncVideoConfig();
-      this.syncS3InputsFromStorage();
+      try {
+        await CloudSync.syncVideoConfig();
+      } catch (e) {}
     }
+    this.render();
+    this.syncS3InputsFromStorage();
   },
 
   syncS3InputsFromStorage() {
@@ -873,7 +875,7 @@ export const AdminManager = {
           archiveSecretKey: secretKey,
           archiveIdentifier: identifier,
           videoBaseUrl: baseUrl
-        });
+        }, false);
 
         const ok = await CloudSync.pushVideoConfigToCloud(updated);
 

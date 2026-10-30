@@ -3,10 +3,10 @@
  * Hỗ trợ đề chuẩn Bộ GD&ĐT 2025, kiểm tra định kỳ 15p, 45p và tùy biến đề thi
  */
 
-import { Storage } from './storage.js?v=20261030_47';
-import { Auth } from './auth.js?v=20261030_47';
-import { escapeHtml } from './utils.js?v=20261030_47';
-import { Proctor } from './proctor.js?v=20261030_47';
+import { Storage } from './storage.js?v=20261030_48';
+import { Auth } from './auth.js?v=20261030_48';
+import { escapeHtml } from './utils.js?v=20261030_48';
+import { Proctor } from './proctor.js?v=20261030_48';
 
 export const Exam = {
   questions: [],
@@ -108,7 +108,14 @@ export const Exam = {
 
     let selectedQuestions = [];
 
-    if (config.selectedLessons && Array.isArray(config.selectedLessons) && config.selectedLessons.length > 0) {
+    if (config.fixedQuestions && Array.isArray(config.fixedQuestions) && config.fixedQuestions.length > 0) {
+      // 📝 CHẾ ĐỘ ĐỀ THI DO GIÁO VIÊN ĐỌC VÀ CHỌN ĐÍCH DANH / NHẬP TỪ WORD, EXCEL
+      selectedQuestions = config.fixedQuestions.map(q => ({ ...q }));
+      if (shouldShuffleQuestions) {
+        selectedQuestions = selectedQuestions.sort(() => Math.random() - 0.5);
+      }
+      this.totalSeconds = (config.duration || 45) * 60;
+    } else if (config.selectedLessons && Array.isArray(config.selectedLessons) && config.selectedLessons.length > 0) {
       // 🎯 CHẾ ĐỘ MA TRẬN BÀI HỌC & TỈ LỆ ĐƯỢC THIẾT LẬP CỦA PHÒNG THI / GIÁO VIÊN
       const selectedLessons = config.selectedLessons;
       const targetTotal = config.count || (config.type === 'bgd_2025' ? 28 : 30);

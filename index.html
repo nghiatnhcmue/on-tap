@@ -44,8 +44,13 @@
   <!-- Google Identity Services (GIS - Fallback) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
+  <!-- SheetJS (Excel .xlsx, .xls, .csv Parser) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Mammoth (Word .docx Parser) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261030_47" />
+  <link rel="stylesheet" href="css/style.css?v=20261030_48" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -2074,12 +2079,18 @@
                 <span class="text-[11px] text-slate-400">Chọn các bài học cần kiểm tra và phân bổ tỉ lệ số câu</span>
               </div>
               
-              <div class="inline-flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl text-xs font-bold shrink-0">
+              <div class="inline-flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl text-xs font-bold shrink-0 flex-wrap gap-1">
                 <button type="button" id="btn-scope-all" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm transition">
-                  🌐 Toàn bộ khối
+                  🌐 Toàn khối
                 </button>
                 <button type="button" id="btn-scope-custom" class="px-3 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition">
-                  🎯 Chọn bài & Tỉ lệ
+                  🎯 Bài & Tỉ lệ
+                </button>
+                <button type="button" id="btn-scope-questions" class="px-3 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition flex items-center gap-1.5">
+                  📝 Đọc & Chọn Từng Câu <span id="badge-scope-q-count" class="px-1.5 py-0.5 rounded-full text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 font-mono hidden">0</span>
+                </button>
+                <button type="button" id="btn-scope-import" class="px-3 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition flex items-center gap-1.5">
+                  📥 Nhập Word / Excel
                 </button>
               </div>
             </div>
@@ -2134,6 +2145,184 @@
               <!-- Danh sách Topics & Lessons có thể scroll -->
               <div id="room-lessons-matrix-list" class="space-y-3 max-h-72 overflow-y-auto pr-1">
                 <!-- Nội dung được sinh động theo khối đã chọn -->
+              </div>
+            </div>
+
+            <!-- KHUNG 1: ĐỌC VÀ CHỌN TỪNG CÂU HỎI TRONG NGÂN HÀNG ĐỀ -->
+            <div id="room-specific-questions-panel" class="hidden space-y-3.5 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-700 text-xs">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                    <i class="fa-solid fa-list-check text-blue-600"></i> Đọc & Chọn Từng Câu:
+                  </span>
+                  <span id="room-qpick-summary-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                    Đã chọn: 0/28 câu (Thiếu 28c)
+                  </span>
+                </div>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <button type="button" id="btn-qpick-auto-fill" class="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 rounded-lg text-[11px] font-bold transition flex items-center gap-1">
+                    <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i> Chọn đủ ngẫu nhiên
+                  </button>
+                  <button type="button" id="btn-qpick-deselect-all" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 rounded-lg text-[11px] font-bold transition">
+                    Bỏ chọn hết
+                  </button>
+                  <button type="button" id="btn-qpick-toggle-view-selected" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 rounded-lg text-[11px] font-bold transition">
+                    Chỉ xem câu đã chọn
+                  </button>
+                </div>
+              </div>
+
+              <!-- Thanh bộ lọc & tìm kiếm câu hỏi -->
+              <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
+                <div>
+                  <select id="room-qpick-filter-topic" class="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium">
+                    <option value="all">Tất cả chủ đề</option>
+                  </select>
+                </div>
+                <div>
+                  <select id="room-qpick-filter-lesson" class="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium">
+                    <option value="all">Tất cả bài học</option>
+                  </select>
+                </div>
+                <div>
+                  <select id="room-qpick-filter-level" class="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium">
+                    <option value="all">Tất cả mức độ</option>
+                    <option value="1">Mức 1: Nhận biết</option>
+                    <option value="2">Mức 2: Thông hiểu</option>
+                    <option value="3">Mức 3: Vận dụng</option>
+                    <option value="4">Mức 4: Vận dụng cao</option>
+                    <option value="DS">Đúng / Sai (DS)</option>
+                  </select>
+                </div>
+                <div class="relative">
+                  <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-[10px] text-slate-400"></i>
+                  <input type="text" id="room-qpick-search" placeholder="Tìm nội dung câu hỏi..." class="w-full pl-7 pr-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium" />
+                </div>
+              </div>
+
+              <!-- Danh sách câu hỏi hiển thị chi tiết từng câu cho Giáo viên đọc -->
+              <div id="room-qpick-list" class="space-y-3 max-h-96 overflow-y-auto pr-1">
+                <!-- Được render động -->
+              </div>
+            </div>
+
+            <!-- KHUNG 2: NHẬP CÂU HỎI TỪ FILE EXCEL HOẶC WORD -->
+            <div id="room-import-panel" class="hidden space-y-4 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+              <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-700 text-xs flex-wrap">
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-import text-purple-600"></i> Thêm Đề Bằng File Excel / Word:
+                  </span>
+                </div>
+                <!-- Chuyển tab Word / Excel -->
+                <div class="inline-flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl text-xs font-bold shrink-0">
+                  <button type="button" id="btn-import-tab-word" class="px-3 py-1 rounded-lg bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-word text-blue-600"></i> File Word / Văn bản
+                  </button>
+                  <button type="button" id="btn-import-tab-excel" class="px-3 py-1 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-excel text-emerald-600"></i> File Excel (.xlsx)
+                  </button>
+                </div>
+              </div>
+
+              <!-- TAB 1: NHẬP TỪ WORD / DÁN VĂN BẢN -->
+              <div id="import-word-container" class="space-y-3 text-xs">
+                <div class="p-3 bg-blue-50/70 dark:bg-blue-950/30 rounded-xl border border-blue-200/70 dark:border-blue-900/40 text-[11px] text-blue-900 dark:text-blue-200 flex items-start gap-2">
+                  <i class="fa-solid fa-circle-info text-blue-600 mt-0.5 shrink-0"></i>
+                  <div>
+                    <span class="font-bold">Hỗ trợ nhận diện tự động định dạng đề thi Word chuẩn:</span><br/>
+                    <code>Câu 1: Nội dung câu hỏi...</code><br/>
+                    <code>A. Phương án 1 &nbsp;&nbsp; B. Phương án 2 &nbsp;&nbsp; C. Phương án 3 &nbsp;&nbsp; D. Phương án 4</code><br/>
+                    <code>Đáp án: B (hoặc gạch chân, in đậm đáp án đúng)</code><br/>
+                    <span>Hoặc câu Đúng/Sai: <code>a) Nội dung (Đúng/Sai)</code>...</span>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-3 flex-wrap">
+                  <label class="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold cursor-pointer transition flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Chọn file Word (.docx)
+                    <input type="file" id="input-room-import-word-file" accept=".docx" class="hidden" />
+                  </label>
+                  <span id="label-import-word-filename" class="text-slate-400 italic">hoặc dán nội dung văn bản đề thi vào khung bên dưới:</span>
+                </div>
+
+                <textarea id="textarea-room-import-word" rows="6" placeholder="Dán nội dung đề thi từ Word vào đây...
+Ví dụ:
+Câu 1: Thiết bị nào sau đây dùng để kết nối mạng Internet?
+A. Chuột
+B. Router
+C. Bàn phím
+D. Máy in
+Đáp án: B
+
+Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-xs focus:ring-2 focus:ring-blue-500"></textarea>
+
+                <div class="flex items-center justify-between gap-2">
+                  <button type="button" id="btn-parse-word-text" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-bolt"></i> Trích Xuất Câu Hỏi Từ Word
+                  </button>
+                  <button type="button" id="btn-clear-word-text" class="px-3 py-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                    Xóa trắng
+                  </button>
+                </div>
+              </div>
+
+              <!-- TAB 2: NHẬP TỪ EXCEL -->
+              <div id="import-excel-container" class="hidden space-y-3 text-xs">
+                <div class="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 rounded-xl border border-emerald-200/70 dark:border-emerald-900/40 text-[11px] text-emerald-900 dark:text-emerald-200 flex items-start gap-2">
+                  <i class="fa-solid fa-circle-info text-emerald-600 mt-0.5 shrink-0"></i>
+                  <div>
+                    <span class="font-bold">Định dạng các cột trong bảng Excel:</span><br/>
+                    <code>Cột 1: Câu hỏi | Cột 2: Phương án A | Cột 3: Phương án B | Cột 4: Phương án C | Cột 5: Phương án D | Cột 6: Đáp án (A/B/C/D) | Cột 7: Cấp độ (1, 2, 3, 4 hoặc DS)</code>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-3 flex-wrap">
+                  <label class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold cursor-pointer transition flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-file-excel"></i> Chọn file Excel (.xlsx / .csv)
+                    <input type="file" id="input-room-import-excel-file" accept=".xlsx,.xls,.csv" class="hidden" />
+                  </label>
+                  <button type="button" id="btn-download-excel-template" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-bold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-download"></i> Tải file Excel mẫu
+                  </button>
+                  <span id="label-import-excel-filename" class="text-slate-400 italic">hoặc sao chép các hàng từ Excel rồi dán vào ô bên dưới:</span>
+                </div>
+
+                <textarea id="textarea-room-import-excel" rows="6" placeholder="Dán các dòng copy từ bảng Excel vào đây (phân cách bằng dấu Tab)..." class="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-xs focus:ring-2 focus:ring-emerald-500"></textarea>
+
+                <div class="flex items-center justify-between gap-2">
+                  <button type="button" id="btn-parse-excel-text" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-bolt"></i> Trích Xuất Câu Hỏi Từ Excel
+                  </button>
+                  <button type="button" id="btn-clear-excel-text" class="px-3 py-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+                    Xóa trắng
+                  </button>
+                </div>
+              </div>
+
+              <!-- KHU VỰC PREVIEW CÁC CÂU HỎI TRÍCH XUẤT ĐƯỢC -->
+              <div id="room-import-preview-wrapper" class="hidden space-y-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-slate-800 dark:text-white">Kết quả nhận diện:</span>
+                    <span id="room-import-extracted-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                      0 câu hỏi hợp lệ
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <label class="flex items-center gap-1.5 text-xs cursor-pointer text-slate-600 dark:text-slate-300">
+                      <input type="checkbox" id="checkbox-save-imported-to-bank" checked class="w-4 h-4 rounded text-blue-600" />
+                      <span>Lưu vào Ngân hàng câu hỏi của trường</span>
+                    </label>
+                    <button type="button" id="btn-apply-imported-questions" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20">
+                      <i class="fa-solid fa-check-double"></i> Đặt Làm Đề Thi Của Phòng Này
+                    </button>
+                  </div>
+                </div>
+
+                <div id="room-import-preview-list" class="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                  <!-- Danh sách preview -->
+                </div>
               </div>
             </div>
           </div>
@@ -2590,7 +2779,7 @@
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261030_47"></script>
+  <script type="module" src="js/app.js?v=20261030_48"></script>
 </body>
 </html>
 

@@ -68,7 +68,7 @@ export const Storage = {
     }
   },
 
-  saveVideoConfig(config) {
+  saveVideoConfig(config, pushToCloud = true) {
     try {
       const current = this.getVideoConfig();
       const updated = {
@@ -92,9 +92,11 @@ export const Storage = {
         }
       }
       localStorage.setItem(STORAGE_KEYS.VIDEO_CONFIG, JSON.stringify(updated));
-      const cs = this.cloudSync || (typeof window !== 'undefined' ? window.CloudSync : null);
-      if (cs && typeof cs.pushVideoConfigToCloud === 'function') {
-        cs.pushVideoConfigToCloud(updated).catch(() => {});
+      if (pushToCloud) {
+        const cs = this.cloudSync || (typeof window !== 'undefined' ? window.CloudSync : null);
+        if (cs && typeof cs.pushVideoConfigToCloud === 'function') {
+          cs.pushVideoConfigToCloud(updated).catch(() => {});
+        }
       }
       return updated;
     } catch (e) {

@@ -93,7 +93,7 @@ Gồm 2 tab chuyển đổi:
   - Hỗ trợ nút **"Đăng ký nhanh với Google (Firebase)"** (`#google-signup-btn-container`) tự động lấy Email, Họ tên & Avatar qua Firebase Auth (bảo mật đa nhân tố của Google).
   - Form nhập thông tin dạng danh sách chuẩn hóa (`SCHOOLS_DATA` trong `js/auth.js`):
     - **EMASI**: Khối 10 (`10E`, `10I1`, `10I2`), Khối 11 (`11E`), Khối 12 (`12E`).
-    - **Phổ thông Năng khiếu**: Khối 12 (`12TOAN`, `12LI`, `12HOA`, `12SINH`, `12VAN`).
+    - **Phổ thông Năng khiếu**: Khối 12 (`12TOAN`, `12LI`, `12HOA`, `12SINH`, `12VAN`, `12ANH`).
     - **TT GDNN GDTX Chu Văn An**: Khối 10 (`10TN`, `10A1` đến `10A12`), Khối 11 (`11A1` đến `11A5`), Khối 12 (`12A1` đến `12A10`).
     - Hỗ trợ tùy chọn **"Trường khác (Tự nhập)..."** và **"Lớp khác (Tự nhập)..."** mở ô nhập liệu linh hoạt khi cần.
     - Cơ chế đồng bộ thông minh (`Auth.setupSchoolClassSync`): Chọn Lớp tự động nhận diện và chuyển Khối lớp tương ứng.

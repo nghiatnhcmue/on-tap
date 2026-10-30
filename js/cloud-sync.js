@@ -10,7 +10,7 @@
  * 5. Cơ chế Local-First an toàn: Mất mạng vẫn làm bài bình thường, khi có mạng tự động đẩy dữ liệu lên đám mây.
  */
 
-import { Storage } from './storage.js?v=20261030_47';
+import { Storage } from './storage.js?v=20261030_48';
 
 const CLOUD_CONFIG_KEY = 'tinhoc_cloud_config';
 export const DEFAULT_FIREBASE_DB_URL = 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -803,29 +803,47 @@ export const CloudSync = {
       if (cleanAccess) payload.archiveAccessKey = cleanAccess;
       if (cleanSecret) payload.archiveSecretKey = cleanSecret;
 
-      const reqs = [
-        fetch(`${url}/config/video.json`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).catch(() => null)
-      ];
-
-      // Lưu thêm vào nhánh chuyên biệt /config/s3_keys.json khi có khóa S3 để bảo toàn tuyệt đối
-      if (cleanAccess || cleanSecret) {
-        const s3Payload = {
-          archiveIdentifier: cleanId,
-          updatedAt: payload.updatedAt
-        };
-        if (cleanAccess) s3Payload.archiveAccessKey = cleanAccess;
-        if (cleanSecret) s3Payload.archiveSecretKey = cleanSecret;
-        reqs.push(
-          fetch(`${url}/config/s3_keys.json`, {
+      const sendRequests = async () => {
+        const reqs = [
+          fetch(`${url}/config/video.json`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(s3Payload)
-          }).catch(() => null)
-        );
+            body: JSON.stringify(payload)
+          }).catch(err => {
+            console.warn('Lỗi push /config/video.json:', err);
+            return null;
+          })
+        ];
+
+        // Lưu thêm vào nhánh chuyên biệt /config/s3_keys.json khi có khóa S3 để bảo toàn tuyệt đối
+        if (cleanAccess || cleanSecret) {
+          const s3Payload = {
+            archiveIdentifier: cleanId,
+            updatedAt: payload.updatedAt
+          };
+          if (cleanAccess) s3Payload.archiveAccessKey = cleanAccess;
+          if (cleanSecret) s3Payload.archiveSecretKey = cleanSecret;
+          reqs.push(
+            fetch(`${url}/config/s3_keys.json`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(s3Payload)
+            }).catch(err => {
+              console.warn('Lỗi push /config/s3_keys.json:', err);
+              return null;
+            })
+          );
+        }
+
+        const results = await Promise.all(reqs);
+        return results.some(r => r && (r.ok || r.status === 200));
+      };
+
+      let anyOk = await sendRequests();
+      // Nếu thất bại lần 1, thử lại lần 2 sau 350ms phòng trường hợp mạng chập chờn
+      if (!anyOk) {
+        await new Promise(res => setTimeout(res, 350));
+        anyOk = await sendRequests();
       }
 
       // Đồng bộ danh sách video đã tải lên ở nhánh con độc lập (đã làm sạch dấu chấm .mp4 -> _mp4)
@@ -841,8 +859,6 @@ export const CloudSync = {
         }).catch(() => null);
       }
 
-      const results = await Promise.all(reqs);
-      const anyOk = results.some(r => r && r.ok);
       if (anyOk) {
         console.log('✅ Đã lưu đồng bộ cấu hình S3 Video lên máy chủ đám mây thành công!');
       }

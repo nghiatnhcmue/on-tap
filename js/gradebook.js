@@ -4,9 +4,9 @@
  * đánh giá xu hướng tiến độ (Đang tiến bộ 🚀 / Cần cố gắng ⚠️ / Xuất sắc 🏆), và xuất file Excel chuẩn.
  */
 
-import { Storage } from './storage.js?v=20261030_47';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261030_47';
-import { escapeHtml } from './utils.js?v=20261030_47';
+import { Storage } from './storage.js?v=20261030_48';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261030_48';
+import { escapeHtml } from './utils.js?v=20261030_48';
 
 export const Gradebook = {
   container: null,
