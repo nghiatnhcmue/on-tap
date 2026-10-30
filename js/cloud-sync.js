@@ -16,6 +16,7 @@ const CLOUD_CONFIG_KEY = 'tinhoc_cloud_config';
 export const DEFAULT_FIREBASE_DB_URL = 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
 export const DEFAULT_FIREBASE_PROJECT_ID = 'on-tap-nghiaedu-tin-hoc';
 export const DEFAULT_FIREBASE_AUTH_DOMAIN = 'on-tap-nghiaedu-tin-hoc.firebaseapp.com';
+export const DEFAULT_FIREBASE_API_KEY = 'AIzaSyBOn_vHOZXDhRPpeOhjuZOiECpCRfhXPA0';
 
 export const CloudSync = {
   config: null,
@@ -52,14 +53,17 @@ export const CloudSync = {
         enabled: true,
         provider: 'firebase', // 'firebase' | 'custom'
         databaseUrl: DEFAULT_FIREBASE_DB_URL,
-        apiKey: '',
+        apiKey: DEFAULT_FIREBASE_API_KEY,
         autoSync: true,
         intervalMinutes: 1,
         lastSync: null,
         ...(parsed || {})
       };
-      // Luôn chuẩn hóa databaseUrl và ép buộc enabled = true (Cloud Sync mặc định của TinHocHub)
+      // Luôn chuẩn hóa databaseUrl, apiKey mặc định và ép buộc enabled = true (Cloud Sync mặc định của TinHocHub)
       this.config.databaseUrl = DEFAULT_FIREBASE_DB_URL;
+      if (!this.config.apiKey || !this.config.apiKey.startsWith('AIza')) {
+        this.config.apiKey = DEFAULT_FIREBASE_API_KEY;
+      }
       this.config.enabled = true;
       try {
         localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(this.config));
@@ -69,7 +73,7 @@ export const CloudSync = {
         enabled: true,
         provider: 'firebase',
         databaseUrl: DEFAULT_FIREBASE_DB_URL,
-        apiKey: '',
+        apiKey: DEFAULT_FIREBASE_API_KEY,
         autoSync: true,
         intervalMinutes: 1,
         lastSync: null

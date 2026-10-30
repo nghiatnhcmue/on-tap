@@ -45,7 +45,7 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261029_38" />
+  <link rel="stylesheet" href="css/style.css?v=20261030_40" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -221,81 +221,85 @@
 
   <!-- ==================== HEADER & NAVBAR ==================== -->
   <header id="app-header" class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 no-print transition-colors">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
       
       <!-- Brand Logo -->
-      <a href="#" data-tab-target="home" class="flex items-center gap-3 group shrink-0">
-        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-lg shadow-md shadow-blue-500/20 group-hover:scale-105 transition">
+      <a href="#" data-tab-target="home" class="flex items-center gap-2 sm:gap-3 group shrink-0">
+        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-base sm:text-lg shadow-md shadow-blue-500/20 group-hover:scale-105 transition">
           <i class="fa-solid fa-laptop-code"></i>
         </div>
         <div>
-          <span class="text-lg font-black tracking-tight text-slate-900 dark:text-white block leading-none">
+          <span class="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white block leading-none">
             TinHoc<span class="text-blue-600 dark:text-blue-400">Hub</span>
           </span>
-          <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mt-0.5">
+          <span class="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider text-slate-400 hidden sm:block mt-0.5">
             Học tập & Luyện thi
           </span>
         </div>
       </a>
 
-      <!-- Desktop Navigation Menu -->
-      <nav class="hidden md:flex items-center gap-1 text-sm">
-        <button data-tab-target="home" class="px-3 py-2 rounded-xl text-blue-600 dark:text-blue-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+      <!-- Desktop Navigation Menu (1024px+ Laptops & Desktops) -->
+      <nav class="hidden lg:flex items-center gap-1 text-sm font-medium">
+        <button data-tab-target="home" class="px-3 py-2 rounded-xl text-blue-600 dark:text-blue-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
           <i class="fa-solid fa-house text-xs"></i> Trang chủ
         </button>
-        <button data-tab-target="practice" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+        <button data-tab-target="practice" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
           <i class="fa-solid fa-book-open-reader text-xs"></i> Ôn tập
         </button>
-        <button data-tab-target="exam-setup" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+        <button data-tab-target="exam-setup" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
           <i class="fa-solid fa-pen-clip text-xs"></i> Thi thử
         </button>
-        <button data-tab-target="interactive-video" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+        <button data-tab-target="interactive-video" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
           <i class="fa-solid fa-circle-play text-xs text-rose-500"></i> Video tương tác
         </button>
-        <button data-tab-target="leaderboard" class="px-3 py-2 rounded-xl text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-50 dark:hover:bg-amber-950/30 transition flex items-center gap-1.5">
+        <button data-tab-target="leaderboard" class="px-3 py-2 rounded-xl text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-50 dark:hover:bg-amber-950/30 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
           <i class="fa-solid fa-crown text-xs"></i> Vinh danh
         </button>
-        <!-- Tab dành cho Giáo viên (GV) & Admin -->
-        <button data-tab-target="exam-rooms" data-role-req="teacher" class="hidden px-3 py-2 rounded-xl text-emerald-600 dark:text-emerald-400 font-bold hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition flex items-center gap-1.5">
-          <i class="fa-solid fa-chalkboard-user text-xs"></i> Giao đề thi
-        </button>
-        <button data-tab-target="questions-manage" data-role-req="teacher" class="hidden px-3 py-2 rounded-xl text-purple-600 dark:text-purple-400 font-bold hover:bg-purple-50 dark:hover:bg-purple-950/30 transition flex items-center gap-1.5">
-          <i class="fa-solid fa-database text-xs"></i> Quản lý đề
-        </button>
-        <button data-tab-target="gradebook" data-role-req="teacher" class="hidden px-3 py-2 rounded-xl text-indigo-600 dark:text-indigo-400 font-bold hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition flex items-center gap-1.5">
-          <i class="fa-solid fa-graduation-cap text-xs"></i> Bảng điểm
-        </button>
-        <!-- Tab chỉ dành cho Admin -->
-        <button data-tab-target="admin-system" data-role-req="admin" class="hidden px-3 py-2 rounded-xl text-rose-600 dark:text-rose-400 font-bold hover:bg-rose-50 dark:hover:bg-rose-950/30 transition flex items-center gap-1.5">
-          <i class="fa-solid fa-shield-halved text-xs"></i> Quản trị
-        </button>
-        <button data-tab-target="search" data-role-req="teacher" class="hidden px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
-          <i class="fa-solid fa-magnifying-glass text-xs"></i> Tra cứu
-        </button>
-        <button data-tab-target="bookmarks" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
-          <i class="fa-regular fa-bookmark text-xs"></i> Đã lưu
-        </button>
-        <button data-tab-target="history" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
-          <i class="fa-regular fa-clock text-xs"></i> Lịch sử
-        </button>
-        <button data-tab-target="print" data-role-req="teacher" class="hidden px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
-          <i class="fa-solid fa-print text-xs"></i> In đề
-        </button>
+
+        <!-- Menu Nghiệp vụ Giáo viên & Quản trị (Dành riêng cho GV & Admin dạng Dropdown không bao giờ vỡ khung hình) -->
+        <div data-role-req="teacher" class="hidden relative group/teacher-nav">
+          <button type="button" class="px-3 py-2 rounded-xl text-purple-600 dark:text-purple-400 font-bold hover:bg-purple-50 dark:hover:bg-purple-950/30 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+            <i class="fa-solid fa-chalkboard-user text-xs"></i> Nghiệp vụ GV <i class="fa-solid fa-chevron-down text-[10px] opacity-60 group-hover/teacher-nav:rotate-180 transition-transform"></i>
+          </button>
+          
+          <div class="hidden group-hover/teacher-nav:block hover:block absolute left-0 mt-1 w-56 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-2 z-50 text-xs animate-fadeIn">
+            <button data-tab-target="exam-rooms" class="w-full text-left px-3 py-2.5 rounded-xl font-bold text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center gap-2.5 transition">
+              <i class="fa-solid fa-door-open w-4"></i> Giao đề thi & Phòng thi
+            </button>
+            <button data-tab-target="gradebook" class="w-full text-left px-3 py-2.5 rounded-xl font-bold text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 flex items-center gap-2.5 transition">
+              <i class="fa-solid fa-graduation-cap w-4"></i> Sổ điểm & Báo cáo lớp
+            </button>
+            <button data-tab-target="questions-manage" class="w-full text-left px-3 py-2.5 rounded-xl font-bold text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 flex items-center gap-2.5 transition">
+              <i class="fa-solid fa-database w-4"></i> Quản lý ngân hàng đề
+            </button>
+            <button data-tab-target="print" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2.5 transition">
+              <i class="fa-solid fa-print text-amber-500 w-4"></i> In đề thi chuẩn A4
+            </button>
+            <button data-tab-target="search" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2.5 transition">
+              <i class="fa-solid fa-magnifying-glass text-blue-500 w-4"></i> Tra cứu 4.098 câu hỏi
+            </button>
+            <div data-role-req="admin" class="hidden border-t border-slate-100 dark:border-slate-700 my-1 pt-1">
+              <button data-tab-target="admin-system" class="w-full text-left px-3 py-2.5 rounded-xl font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2.5 transition">
+                <i class="fa-solid fa-shield-halved w-4"></i> Trung tâm Quản trị Admin
+              </button>
+            </div>
+          </div>
+        </div>
       </nav>
 
       <!-- Right Controls: Auth Profile, Grade Pill & Theme Toggle -->
-      <div class="flex items-center gap-2 sm:gap-3">
+      <div class="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
         
         <!-- Google Auth Button (When NOT logged in) -->
-        <button id="auth-btn-login" data-open-login-modal onclick="window.openLoginModal('login'); return false;" class="px-3.5 py-1.5 rounded-2xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold hover:border-blue-500 hover:text-blue-600 transition flex items-center gap-2 shadow-sm">
+        <button id="auth-btn-login" data-open-login-modal onclick="window.openLoginModal('login'); return false;" class="px-2.5 sm:px-3.5 py-1.5 rounded-2xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold hover:border-blue-500 hover:text-blue-600 transition flex items-center gap-1.5 sm:gap-2 shadow-sm shrink-0">
           <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
           </svg>
-          <span class="hidden sm:inline">Đăng nhập Google</span>
-          <span class="sm:hidden">Đăng nhập</span>
+          <span class="hidden md:inline">Đăng nhập</span>
+          <span class="md:hidden text-[11px]">Vào học</span>
         </button>
 
         <!-- User Profile Pill & Dropdown (When Logged in) -->
@@ -364,27 +368,27 @@
         </div>
 
         <!-- Cloud Sync Status Pill -->
-        <button id="btn-cloud-sync-status" class="px-2.5 py-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-300 border border-slate-200 dark:border-slate-700 transition flex items-center gap-1.5" title="Trạng thái Cơ sở dữ liệu Đám mây (Bấm để đồng bộ)">
+        <button id="btn-cloud-sync-status" class="px-2.5 py-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-300 border border-slate-200 dark:border-slate-700 transition flex items-center gap-1.5 shrink-0" title="Trạng thái Cơ sở dữ liệu Đám mây (Bấm để đồng bộ)">
           <i class="fa-solid fa-cloud text-xs"></i>
-          <span id="cloud-sync-status-text">Local</span>
+          <span id="cloud-sync-status-text" class="hidden sm:inline">Local</span>
         </button>
 
         <!-- Dark/Light Mode -->
-        <button id="btn-toggle-theme" class="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700 transition" title="Đổi giao diện Sáng / Tối">
+        <button id="btn-toggle-theme" class="p-2 sm:p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700 transition shrink-0" title="Đổi giao diện Sáng / Tối">
           <i class="fa-regular fa-sun hidden dark:inline-block"></i>
           <i class="fa-regular fa-moon dark:hidden"></i>
         </button>
 
         <!-- Mobile Menu Hamburger -->
-        <button id="btn-mobile-menu" class="md:hidden p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+        <button id="btn-mobile-menu" class="lg:hidden p-2 sm:p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
           <i class="fa-solid fa-bars"></i>
         </button>
       </div>
 
     </div>
 
-    <!-- Mobile Navigation Drawer -->
-    <div id="mobile-nav-drawer" class="hidden md:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-4 space-y-2">
+    <!-- Mobile Navigation Drawer (Phones & Tablets < 1024px) -->
+    <div id="mobile-nav-drawer" class="hidden lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-4 space-y-2">
       <!-- Mobile Grade Pills -->
       <div class="flex items-center justify-around bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl mb-3">
         <button data-nav-grade="10" class="flex-1 py-1.5 text-center text-xs font-semibold rounded-lg">Khối 10</button>
@@ -955,7 +959,7 @@
         </div>
 
         <!-- Mode Selector Cards Grid (Dễ nhìn, trực quan, không bị co cụm) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
           
           <!-- Card 1: Chuẩn Bộ GD 2025 -->
           <button type="button" id="tab-exam-mode-bgd" data-exam-tab="bgd" class="exam-mode-card group relative p-4 rounded-2xl border-2 text-left transition-all duration-200 border-blue-600 bg-blue-50/60 dark:bg-blue-950/40 ring-2 ring-blue-500/20 shadow-sm cursor-pointer">
@@ -1380,8 +1384,8 @@
   </main>
 
   <!-- ==================== MOBILE BOTTOM NAVIGATION BAR ==================== -->
-  <!-- Dành cho điện thoại thông minh (16:9, 18:9, 19.5:9, 20:9, 21:9) & Foldables gập ngoài -->
-  <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 mobile-bottom-bar no-print shadow-lg">
+  <!-- Dành cho điện thoại thông minh (16:9, 18:9, 19.5:9, 20:9, 21:9) & Foldables & Tablets < 1024px -->
+  <nav id="mobile-bottom-nav" class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 mobile-bottom-bar no-print shadow-lg">
     <div class="grid grid-cols-5 h-14 items-center">
       <button data-tab-target="home" class="flex flex-col items-center justify-center gap-1 text-blue-600 dark:text-blue-400 font-bold transition">
         <i class="fa-solid fa-house text-base"></i>
@@ -2575,7 +2579,7 @@
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261029_38"></script>
+  <script type="module" src="js/app.js?v=20261030_40"></script>
 </body>
 </html>
 

@@ -24,6 +24,8 @@ const STORAGE_KEYS = {
   CUSTOM_VIDEO_URLS: 'tinhoc_custom_video_urls'
 };
 
+export const DEFAULT_FIREBASE_API_KEY = 'AIzaSyBOn_vHOZXDhRPpeOhjuZOiECpCRfhXPA0';
+
 export const Storage = {
   cloudSync: null,
 
@@ -260,7 +262,7 @@ export const Storage = {
     }
 
     if (!result.apiKey) {
-      result.apiKey = cloudCfg.apiKey || adminCfg.firebaseApiKey || '';
+      result.apiKey = cloudCfg.apiKey || adminCfg.firebaseApiKey || DEFAULT_FIREBASE_API_KEY;
     }
     if (!result.authDomain) {
       result.authDomain = cloudCfg.authDomain || (derivedProjectId ? `${derivedProjectId}.firebaseapp.com` : 'on-tap-nghiaedu-tin-hoc.firebaseapp.com');
@@ -273,18 +275,13 @@ export const Storage = {
     }
 
     // Kiểm tra và chuẩn hóa Firebase Web API Key: Bắt đầu bằng 'AIza'
-    if (result.apiKey) {
-      let cleanKey = String(result.apiKey).trim().replace(/['";,\s]/g, '');
-      const m = cleanKey.match(/AIza[A-Za-z0-9_-]{30,}/);
-      if (m) cleanKey = m[0];
-      if (!cleanKey.startsWith('AIza') || cleanKey.length < 25) {
-        result.apiKey = '';
-        try {
-          localStorage.setItem('tinhoc_firebase_auth_config', JSON.stringify({ ...result, apiKey: '' }));
-        } catch (e) {}
-      } else {
-        result.apiKey = cleanKey;
-      }
+    let cleanKey = String(result.apiKey || DEFAULT_FIREBASE_API_KEY).trim().replace(/['";,\s]/g, '');
+    const m = cleanKey.match(/AIza[A-Za-z0-9_-]{30,}/);
+    if (m) cleanKey = m[0];
+    if (!cleanKey.startsWith('AIza') || cleanKey.length < 25) {
+      result.apiKey = DEFAULT_FIREBASE_API_KEY;
+    } else {
+      result.apiKey = cleanKey;
     }
 
     return result;

@@ -235,7 +235,7 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 /* =========================================================
-   6. SMARTPHONE (16:9 ĐẾN 21:9), NOTCH, DYNAMIC ISLAND & THUMB ZONE
+   6. SMARTPHONE (16:9 ĐẾN 21:9), NOTCH, DYNAMIC ISLAND & TABLETS (< 1024px)
    ========================================================= */
 .min-h-screen-adaptive {
   min-height: var(--vh-actual);
@@ -251,16 +251,60 @@ body.in-exam .mobile-bottom-bar {
   display: none !important;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1023px) {
   body:not(.in-exam) {
     padding-bottom: calc(var(--sab) + 4.75rem);
   }
 }
 
-/* Cuộn mượt trên màn hình cảm ứng */
-.smooth-scroll-touch {
+/* Chế độ xoay ngang điện thoại (Phone Landscape Mode: height <= 520px) */
+@media (max-height: 520px) and (orientation: landscape) {
+  #app-header .h-16 {
+    height: 3rem !important;
+  }
+  #mobile-bottom-nav {
+    display: none !important;
+  }
+  body:not(.in-exam) {
+    padding-bottom: 1rem !important;
+  }
+  .modal-box-adaptive {
+    max-height: 94dvh !important;
+    padding: 1rem !important;
+  }
+}
+
+/* Ngăn iOS Safari tự động zoom vào ô nhập liệu khi font-size < 16px */
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="password"],
+  input[type="email"],
+  input[type="number"],
+  input[type="url"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Cuộn mượt trên màn hình cảm ứng & Ẩn thanh cuộn khi cần */
+.smooth-scroll-touch,
+.overflow-x-auto {
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.modal-box-adaptive {
+  width: min(94vw, 560px);
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
 }
 
 /* =========================================================

@@ -504,18 +504,12 @@ export const Auth = {
       }
 
       // TUYỆT ĐỐI KHÔNG BẮT HỌC SINH ĐIỀN API KEY!
-      if (this.isAdmin()) {
-        this.openFirebaseConfigModal(
-          'Dành cho Admin: Firebase Web API Key chưa có trên máy chủ. Thầy vui lòng dán Web API Key từ Firebase Console để lưu lên máy chủ cho toàn bộ học sinh.'
-        );
-      } else {
-        alert('Hệ thống đang hoàn tất kết nối đăng nhập Google từ máy chủ.\n\n👉 Em có thể đăng nhập bằng Email/Tài khoản và Mật khẩu ở khung bên dưới để vào học ngay nhé!');
-        const inputId = document.getElementById('login-input-identity');
-        if (inputId) {
-          inputId.focus();
-          inputId.classList.add('ring-2', 'ring-blue-500');
-          setTimeout(() => inputId.classList.remove('ring-2', 'ring-blue-500'), 2500);
-        }
+      alert('Đăng nhập Google tạm thời gián đoạn. Bạn có thể đăng nhập bằng Email/Tài khoản và Mật khẩu ở bên dưới để vào học ngay nhé!');
+      const inputId = document.getElementById('login-input-identity');
+      if (inputId) {
+        inputId.focus();
+        inputId.classList.add('ring-2', 'ring-blue-500');
+        setTimeout(() => inputId.classList.remove('ring-2', 'ring-blue-500'), 2500);
       }
       return;
     }
@@ -523,14 +517,8 @@ export const Auth = {
     if (!this.firebaseAuth) {
       const ok = this.initFirebaseAuth();
       if (!ok || !this.firebaseAuth) {
-        if (this.isAdmin()) {
-          this.openFirebaseConfigModal(
-            '⚠️ Không thể khởi tạo Firebase Auth với API Key hiện tại. Vui lòng kiểm tra lại cấu hình Web API Key.'
-          );
-        } else {
-          alert('Đang kết nối xác thực Google. Em hãy đăng nhập bằng Email/Tài khoản và Mật khẩu bên dưới để vào học ngay nhé!');
-          document.getElementById('login-input-identity')?.focus();
-        }
+        alert('Đang kết nối xác thực Google. Bạn hãy đăng nhập bằng Email/Tài khoản và Mật khẩu bên dưới để vào học ngay nhé!');
+        document.getElementById('login-input-identity')?.focus();
         return;
       }
     }
@@ -558,20 +546,8 @@ export const Auth = {
                           (err.message && String(err.message).includes('api-key-not-valid'));
 
       if (isApiKeyErr) {
-        if (this.isAdmin()) {
-          // Tự động xóa API key hỏng
-          Storage.saveFirebaseAuthConfig({ apiKey: '' });
-          if (this.firebaseAuth) {
-            try { firebase.app().delete(); } catch (e) {}
-            this.firebaseAuth = null;
-            this.isFirebaseInitialized = false;
-          }
-          alert('⚠️ Khóa Firebase Web API Key hiện tại chưa được kích hoạt hoặc bị Google từ chối!\n\nThầy hãy kiểm tra lại Web API Key trong Firebase Console (Project Settings -> General).');
-          this.openFirebaseConfigModal('⚠️ Firebase Web API Key chưa hợp lệ. Vui lòng kiểm tra lại.');
-        } else {
-          alert('Đăng nhập Google tạm thời gián đoạn. Em vui lòng đăng nhập bằng Email/Tài khoản và Mật khẩu ở bên dưới nhé!');
-          document.getElementById('login-input-identity')?.focus();
-        }
+        alert('Đăng nhập Google tạm thời gián đoạn. Bạn vui lòng đăng nhập bằng Email/Tài khoản và Mật khẩu ở bên dưới nhé!');
+        document.getElementById('login-input-identity')?.focus();
       } else if (err.code === 'auth/popup-blocked') {
         alert('Trình duyệt đã chặn cửa sổ đăng nhập Google (Pop-up blocked)!\nVui lòng nhấp vào biểu tượng Pop-up trên thanh địa chỉ của trình duyệt để "Cho phép Pop-up", sau đó thử lại.');
       } else if (err.code === 'auth/unauthorized-domain' || err.code === 'auth/invalid-continue-uri' || (err.message && err.message.includes('invalid-continue-uri'))) {

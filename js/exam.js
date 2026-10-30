@@ -466,58 +466,58 @@ export const Exam = {
 
     this.container.innerHTML = `
       <!-- Thanh công cụ phòng thi -->
-      <div class="sticky top-16 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-4 mb-6">
-        <div class="flex flex-wrap items-center justify-between gap-4">
-          <div class="flex items-center gap-3">
-            <span class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-sm">
+      <div class="sticky top-16 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-2.5 sm:p-4 mb-3 sm:mb-6">
+        <div class="flex items-center justify-between gap-2 sm:gap-4">
+          <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            <span class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-xs sm:text-sm shrink-0">
               TIN
             </span>
-            <div>
-              <h2 class="text-sm font-bold text-slate-800 dark:text-white leading-tight">
+            <div class="min-w-0 flex-1">
+              <h2 class="text-xs sm:text-sm font-bold text-slate-800 dark:text-white leading-tight truncate">
                 ${escapeHtml(this.examConfig.title || 'Đề thi thử Tin học THPT')}
               </h2>
-              <p class="text-xs text-slate-500 dark:text-slate-400">
-                Khối ${escapeHtml(this.examConfig.grade)} • Tổng số ${total} câu hỏi
+              <p class="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
+                Khối ${escapeHtml(this.examConfig.grade)} • ${total} câu hỏi
               </p>
-              <div class="flex items-center gap-1.5 flex-wrap mt-1">
-                <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 font-mono">
-                  <i class="fa-solid fa-barcode text-[9px]"></i> Mã đề: ${escapeHtml(this.examCode || '101')}
+              <div class="flex items-center gap-1 sm:gap-1.5 flex-wrap mt-1">
+                <span class="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 font-mono">
+                  <i class="fa-solid fa-barcode text-[8px] sm:text-[9px]"></i> Mã đề: ${escapeHtml(this.examCode || '101')}
                 </span>
                 ${this.examConfig.topic && this.examConfig.topic !== 'all' ? `
-                  <span class="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
-                    <i class="fa-solid fa-folder text-[9px]"></i> ${escapeHtml(this.examConfig.topic)}
+                  <span class="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-medium px-1.5 sm:px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 truncate max-w-[140px] sm:max-w-none">
+                    <i class="fa-solid fa-folder text-[8px] sm:text-[9px]"></i> ${escapeHtml(this.examConfig.topic)}
                   </span>
                 ` : ''}
                 ${this.examConfig.lesson && this.examConfig.lesson !== 'all' ? `
-                  <span class="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300">
-                    <i class="fa-solid fa-book-bookmark text-[9px]"></i> ${escapeHtml(this.examConfig.lesson)}
+                  <span class="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-medium px-1.5 sm:px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300 truncate max-w-[140px] sm:max-w-none">
+                    <i class="fa-solid fa-book-bookmark text-[8px] sm:text-[9px]"></i> ${escapeHtml(this.examConfig.lesson)}
                   </span>
                 ` : ''}
-                <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${this.examConfig.shuffleQuestions ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}">
+                <span class="hidden md:inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${this.examConfig.shuffleQuestions ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}">
                   <i class="fa-solid fa-shuffle text-[9px]"></i> Đảo câu: ${this.examConfig.shuffleQuestions ? 'Bật' : 'Tắt'}
                 </span>
-                <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${this.examConfig.shuffleOptions ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}">
+                <span class="hidden md:inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${this.examConfig.shuffleOptions ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}">
                   <i class="fa-solid fa-list-check text-[9px]"></i> Đảo phương án: ${this.examConfig.shuffleOptions ? 'Bật' : 'Tắt'}
                 </span>
               </div>
             </div>
           </div>
 
-          <div class="flex items-center gap-2 sm:gap-4">
+          <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <!-- Nút mở bảng câu hỏi trên điện thoại -->
-            <button id="btn-open-mobile-palette" class="lg:hidden px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs font-bold flex items-center gap-1.5 shadow-sm">
+            <button id="btn-open-mobile-palette" class="lg:hidden px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[11px] sm:text-xs font-bold flex items-center gap-1 sm:gap-1.5 shadow-sm">
               <i class="fa-solid fa-table-cells"></i>
               <span>${Object.keys(this.userAnswers).length}/${total}</span>
             </button>
 
             <!-- Đồng hồ bấm giờ -->
-            <div class="flex items-center gap-1.5 sm:gap-2 bg-slate-100 dark:bg-slate-800 px-3 sm:px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700">
+            <div class="flex items-center gap-1 sm:gap-2 bg-slate-100 dark:bg-slate-800 px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl border border-slate-200 dark:border-slate-700">
               <i class="fa-regular fa-clock text-slate-400 text-xs sm:text-sm"></i>
-              <span id="exam-timer" class="text-blue-600 dark:text-blue-400 font-bold text-base sm:text-xl font-mono">00:00</span>
+              <span id="exam-timer" class="text-blue-600 dark:text-blue-400 font-bold text-sm sm:text-xl font-mono">00:00</span>
             </div>
 
             <!-- Nút nộp bài -->
-            <button id="btn-submit-exam" class="px-3.5 sm:px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 transition flex items-center gap-1.5">
+            <button id="btn-submit-exam" class="px-3 sm:px-5 py-1.5 sm:py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 transition flex items-center gap-1 sm:gap-1.5">
               <i class="fa-solid fa-cloud-arrow-up"></i> <span class="hidden sm:inline">Nộp bài</span>
             </button>
           </div>
@@ -604,8 +604,8 @@ export const Exam = {
           </div>
         </div>
 
-        <!-- Cột 2: Ma trận điều hướng câu hỏi (Palette) -->
-        <div class="lg:col-span-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 sticky top-36">
+        <!-- Cột 2: Ma trận điều hướng câu hỏi (Palette trên Desktop/Laptop >= 1024px) -->
+        <div class="hidden lg:block lg:col-span-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 sticky top-36">
           <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
             <span>Danh sách câu hỏi</span>
             <span class="text-blue-600 font-mono">${Object.keys(this.userAnswers).length}/${total}</span>
