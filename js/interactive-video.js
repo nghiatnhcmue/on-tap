@@ -2636,7 +2636,11 @@ export const InteractiveVideo = {
   // 8. TẢI VIDEO LÊN ARCHIVE.ORG S3 TRỰC TIẾP TỪ APP (ADMIN)
   // ==========================================
   async uploadVideoToArchive(lesson, file) {
-    const config = Storage.getVideoConfig();
+    let config = Storage.getVideoConfig();
+    if ((!config.archiveAccessKey || !config.archiveSecretKey) && window.CloudSync && typeof window.CloudSync.syncVideoConfig === 'function') {
+      await window.CloudSync.syncVideoConfig();
+      config = Storage.getVideoConfig();
+    }
     if (!config.archiveAccessKey || !config.archiveSecretKey) {
       alert('Vui lòng nhập Archive.org Access Key và Secret Key trong tab "Quản Trị" trước khi tải lên!');
       return;

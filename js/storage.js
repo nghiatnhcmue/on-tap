@@ -63,7 +63,16 @@ export const Storage = {
   saveVideoConfig(config) {
     try {
       const current = this.getVideoConfig();
-      const updated = { ...current, ...config };
+      const updated = {
+        ...current,
+        ...config,
+        archiveAccessKey: (config.archiveAccessKey && String(config.archiveAccessKey).trim())
+          ? String(config.archiveAccessKey).trim()
+          : (current.archiveAccessKey || ''),
+        archiveSecretKey: (config.archiveSecretKey && String(config.archiveSecretKey).trim())
+          ? String(config.archiveSecretKey).trim()
+          : (current.archiveSecretKey || '')
+      };
       // Chuẩn hóa videoBaseUrl kết thúc bằng dấu gạch chéo & dùng cors/
       if (updated.videoBaseUrl) {
         updated.videoBaseUrl = updated.videoBaseUrl.trim();

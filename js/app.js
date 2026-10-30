@@ -66,6 +66,10 @@ class App {
         this.renderHistory();
       } else if (this.currentTab === 'questions-manage') {
         if (typeof QuestionsManager !== 'undefined') QuestionsManager.render();
+      } else if (this.currentTab === 'admin-system') {
+        if (typeof AdminManager !== 'undefined' && typeof AdminManager.syncS3InputsFromStorage === 'function') {
+          AdminManager.syncS3InputsFromStorage();
+        }
       }
       this.renderSavedAccountsInLoginModal();
     });

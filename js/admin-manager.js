@@ -38,6 +38,42 @@ export const AdminManager = {
       }
     }
     this.render();
+    // Đồng bộ tức thì Khóa S3 từ Cloud ngay khi mở trang Admin để máy mới luôn nhận khóa ngay lập tức
+    if (CloudSync && typeof CloudSync.syncVideoConfig === 'function') {
+      await CloudSync.syncVideoConfig();
+      this.syncS3InputsFromStorage();
+    }
+  },
+
+  syncS3InputsFromStorage() {
+    const cfg = Storage.getVideoConfig();
+    if (!cfg) return;
+    const elAccess = document.getElementById('archive-cfg-access-key');
+    if (elAccess && document.activeElement !== elAccess && cfg.archiveAccessKey) {
+      elAccess.value = cfg.archiveAccessKey;
+    }
+    const elSecret = document.getElementById('archive-cfg-secret-key');
+    if (elSecret && document.activeElement !== elSecret && cfg.archiveSecretKey) {
+      elSecret.value = cfg.archiveSecretKey;
+    }
+    const elId = document.getElementById('archive-cfg-identifier');
+    if (elId && document.activeElement !== elId && cfg.archiveIdentifier) {
+      elId.value = cfg.archiveIdentifier;
+    }
+    const elBase = document.getElementById('archive-cfg-base-url');
+    if (elBase && document.activeElement !== elBase && cfg.videoBaseUrl) {
+      elBase.value = cfg.videoBaseUrl;
+    }
+    const statusBadge = document.getElementById('s3-cloud-sync-badge');
+    if (statusBadge) {
+      if (cfg.archiveAccessKey && cfg.archiveSecretKey) {
+        statusBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300';
+        statusBadge.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Đã đồng bộ Khóa S3 trên Cloud';
+      } else {
+        statusBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300';
+        statusBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Chưa có Khóa S3 trên Cloud';
+      }
+    }
   },
 
   getManifestVideos() {
@@ -362,9 +398,16 @@ export const AdminManager = {
           <!-- A. Form Cấu hình Archive.org S3 Keys -->
           <form id="form-archive-config" class="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700">
             <div class="flex items-center justify-between flex-wrap gap-2">
-              <h4 class="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                <i class="fa-solid fa-key text-amber-500"></i> Cấu Hình Khóa S3 API Archive.org
-              </h4>
+              <div class="flex items-center gap-2.5 flex-wrap">
+                <h4 class="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                  <i class="fa-solid fa-key text-amber-500"></i> Cấu Hình Khóa S3 API Archive.org
+                </h4>
+                <span id="s3-cloud-sync-badge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${videoConfig.archiveAccessKey && videoConfig.archiveSecretKey ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'}">
+                  ${videoConfig.archiveAccessKey && videoConfig.archiveSecretKey
+                    ? '<i class="fa-solid fa-cloud-arrow-up"></i> Đã đồng bộ Khóa S3 trên Cloud'
+                    : '<i class="fa-solid fa-triangle-exclamation"></i> Chưa có Khóa S3 trên Cloud'}
+                </span>
+              </div>
               <a href="https://archive.org/account/s3.php" target="_blank" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5">
                 <i class="fa-solid fa-arrow-up-right-from-square"></i> Lấy mã S3 Access/Secret Key miễn phí tại đây
               </a>
@@ -408,8 +451,11 @@ export const AdminManager = {
             </div>
 
             <div class="flex items-center gap-3 pt-2 flex-wrap">
-              <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-blue-500/20 flex items-center gap-2">
-                <i class="fa-solid fa-floppy-disk"></i> Lưu Cấu Hình S3 & Base URL
+              <button type="submit" id="btn-save-archive-s3" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-blue-500/20 flex items-center gap-2">
+                <i class="fa-solid fa-floppy-disk"></i> Lưu & Đồng Bộ Khóa S3 Lên Cloud
+              </button>
+              <button type="button" id="btn-pull-s3-cloud" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-500/20 flex items-center gap-2">
+                <i class="fa-solid fa-cloud-arrow-down"></i> Tải Khóa S3 Từ Cloud
               </button>
               <button type="button" id="btn-test-archive-s3" class="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-amber-500/20 flex items-center gap-2">
                 <i class="fa-solid fa-key"></i> Kiểm Tra Khóa S3
@@ -816,6 +862,12 @@ export const AdminManager = {
         }
         if (!baseUrl.endsWith('/')) baseUrl += '/';
 
+        const btnSave = document.getElementById('btn-save-archive-s3');
+        if (btnSave) {
+          btnSave.disabled = true;
+          btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang đồng bộ lên Cloud...';
+        }
+
         const updated = Storage.saveVideoConfig({
           archiveAccessKey: accessKey,
           archiveSecretKey: secretKey,
@@ -823,11 +875,38 @@ export const AdminManager = {
           videoBaseUrl: baseUrl
         });
 
-        await CloudSync.pushVideoConfigToCloud(updated);
+        const ok = await CloudSync.pushVideoConfigToCloud(updated);
 
-        alert(`✅ Đã lưu cấu hình Archive.org S3 lên máy chủ đám mây thành công!\n(Đã đồng bộ tại ${CloudSync.getBaseUrl()})`);
+        if (btnSave) {
+          btnSave.disabled = false;
+          btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Lưu & Đồng Bộ Khóa S3 Lên Cloud';
+        }
+
+        if (ok) {
+          alert(`✅ Đã lưu và đồng bộ Khóa S3 Archive.org lên máy chủ đám mây thành công!\n\nMọi máy tính và trình duyệt khác khi mở trang Quản trị sẽ tự động nhận được khóa này ngay lập tức.`);
+        } else {
+          alert(`⚠️ Đã lưu cục bộ trên máy này nhưng chưa kết nối được tới máy chủ Cloud. Hệ thống sẽ tự động đẩy lên ngay khi có mạng.`);
+        }
         this.render();
       };
+
+      // Nút Tải Khóa S3 từ Cloud tức thì
+      const btnPullS3 = document.getElementById('btn-pull-s3-cloud');
+      if (btnPullS3) {
+        btnPullS3.onclick = async () => {
+          btnPullS3.disabled = true;
+          btnPullS3.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tải từ Cloud...';
+          const merged = await CloudSync.syncVideoConfig();
+          btnPullS3.disabled = false;
+          btnPullS3.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> Tải Khóa S3 Từ Cloud';
+          this.syncS3InputsFromStorage();
+          if (merged && (merged.archiveAccessKey || merged.archiveSecretKey)) {
+            alert(`✅ Đã tải thành công Khóa S3 từ máy chủ đám mây về máy này!\n• Bucket: ${merged.archiveIdentifier}\n• Access Key: ${merged.archiveAccessKey.slice(0, 4)}***`);
+          } else {
+            alert('ℹ️ Hiện trên máy chủ Cloud chưa có Khóa S3 nào được lưu. Bạn hãy nhập Access Key & Secret Key trên máy chính rồi bấm "Lưu & Đồng Bộ Khóa S3 Lên Cloud" nhé!');
+          }
+        };
+      }
 
       // Tự động lưu ngầm khi Admin nhập xong từng ô (tránh mất dữ liệu khi chuyển tab hoặc chưa kịp bấm Lưu)
       const saveS3InputsSilently = () => {
@@ -1225,6 +1304,19 @@ export const AdminManager = {
       }
     });
 
+    // Giữ nguyên và tự động lưu khóa S3 nếu Admin vừa nhập xong rồi bấm Chọn thư mục luôn
+    const inputAccess = document.getElementById('archive-cfg-access-key')?.value.trim();
+    const inputSecret = document.getElementById('archive-cfg-secret-key')?.value.trim();
+    const inputId = document.getElementById('archive-cfg-identifier')?.value.trim();
+    if (inputAccess || inputSecret) {
+      const saved = Storage.saveVideoConfig({
+        archiveAccessKey: inputAccess,
+        archiveSecretKey: inputSecret,
+        archiveIdentifier: inputId || 'tinhoc-hub-thpt'
+      });
+      CloudSync.pushVideoConfigToCloud(saved);
+    }
+
     alert(`📁 Đã duyệt ${fileList.length} tệp tin.\n✅ Đã ghép khớp thành công: ${matched} / ${manifestVideos.length} video bài giảng chuẩn!`);
     this.render();
   },
@@ -1241,6 +1333,12 @@ export const AdminManager = {
         archiveSecretKey: inputSecret || config.archiveSecretKey,
         archiveIdentifier: inputId || config.archiveIdentifier || 'tinhoc-hub-thpt'
       });
+      await CloudSync.pushVideoConfigToCloud(config);
+    }
+
+    if (!config.archiveAccessKey || !config.archiveSecretKey) {
+      await CloudSync.syncVideoConfig();
+      config = Storage.getVideoConfig();
     }
 
     if (!config.archiveAccessKey || !config.archiveSecretKey) {

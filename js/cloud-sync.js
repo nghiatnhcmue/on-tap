@@ -30,8 +30,9 @@ export const CloudSync = {
     this.setupAutoSync();
     this.setupVisibilitySync();
 
-    // Đồng bộ tức thì cấu hình xác thực Auth từ máy chủ để sẵn sàng cho Google Sign-In
+    // Đồng bộ tức thì cấu hình xác thực Auth & Khóa S3 Video từ máy chủ ngay khi khởi động
     this.syncAuthConfig();
+    this.syncVideoConfig();
 
     // Đồng bộ toàn bộ dữ liệu từ Cloud NGAY LẬP TỨC để người dùng nhận dữ liệu mới nhất
     this.syncAll(false);
@@ -212,8 +213,9 @@ export const CloudSync = {
     try {
       const baseUrl = this.getBaseUrl();
 
-      // 0. Đồng bộ Cấu hình Xác thực Google (API Key do Admin cấu hình lưu trên Máy chủ)
+      // 0. Đồng bộ tức thì Cấu hình Xác thực Google & Khóa Lưu Trữ Video S3 ngay đầu tiên
       await this.syncAuthConfig(baseUrl);
+      await this.syncVideoConfig(baseUrl);
 
       // 1. Đồng bộ Tài khoản (Accounts)
       await this.syncAccounts(baseUrl);
@@ -224,10 +226,7 @@ export const CloudSync = {
       // 3. Đồng bộ Kết quả thi (Exam History)
       await this.syncHistory(baseUrl);
 
-      // 4. Đồng bộ Cấu hình Video Bài Giảng (Video Base URL & Archive Bucket)
-      await this.syncVideoConfig(baseUrl);
-
-      // 5. Đồng bộ Câu hỏi dừng tùy biến & URL Video trực tiếp
+      // 4. Đồng bộ Câu hỏi dừng tùy biến & URL Video trực tiếp
       await this.syncCustomVideoQuestions(baseUrl);
       await this.syncCustomVideoUrls(baseUrl);
 
@@ -591,72 +590,160 @@ export const CloudSync = {
     }
   },
 
-  // --- ĐỒNG BỘ CẤU HÌNH VIDEO ARCHIVE.ORG & BÀI GIẢNG ---
+  restoreVideoFileName(cleanKey) {
+    if (!cleanKey) return '';
+    return String(cleanKey).replace(/_(mp4|webm|ogg|mov|mkv)$/i, '.$1');
+  },
+
+  // --- ĐỒNG BỘ CẤU HÌNH VIDEO ARCHIVE.ORG & KHÓA S3 ĐA THIẾT BỊ ---
   async syncVideoConfig(baseUrl) {
     const url = baseUrl || this.getBaseUrl();
     try {
-      const res = await fetch(`${url}/config/video.json`, { cache: 'no-cache' });
-      if (!res.ok) return;
-      const remoteConfig = await res.json();
+      const [resVideo, resS3] = await Promise.all([
+        fetch(`${url}/config/video.json`, { cache: 'no-cache' }).catch(() => null),
+        fetch(`${url}/config/s3_keys.json`, { cache: 'no-cache' }).catch(() => null)
+      ]);
+
+      const remoteConfig = (resVideo && resVideo.ok) ? await resVideo.json() : null;
+      const remoteS3 = (resS3 && resS3.ok) ? await resS3.json() : null;
       const localConfig = Storage.getVideoConfig();
 
-      if (remoteConfig && (remoteConfig.videoBaseUrl || remoteConfig.archiveIdentifier || remoteConfig.archiveAccessKey)) {
-        // Cập nhật cấu hình video từ Cloud xuống máy học sinh/giáo viên
-        let cleanBaseUrl = (remoteConfig.videoBaseUrl || localConfig.videoBaseUrl || '').trim();
-        if (cleanBaseUrl.includes('archive.org/download/')) {
-          cleanBaseUrl = cleanBaseUrl.replace('archive.org/download/', 'archive.org/cors/');
-        }
-        const merged = {
-          ...localConfig,
-          ...remoteConfig,
-          videoBaseUrl: cleanBaseUrl,
-          // Đồng bộ khóa S3 Access Key và Secret Key giữa máy Admin và Server
-          archiveAccessKey: remoteConfig.archiveAccessKey || localConfig.archiveAccessKey || '',
-          archiveSecretKey: remoteConfig.archiveSecretKey || localConfig.archiveSecretKey || ''
-        };
-        localStorage.setItem('tinhoc_video_config', JSON.stringify(merged));
+      const remoteAccess = String(remoteS3?.archiveAccessKey || remoteConfig?.archiveAccessKey || '').trim();
+      const remoteSecret = String(remoteS3?.archiveSecretKey || remoteConfig?.archiveSecretKey || '').trim();
+      const localAccess = String(localConfig?.archiveAccessKey || '').trim();
+      const localSecret = String(localConfig?.archiveSecretKey || '').trim();
 
-        // Nếu máy Admin local đã có khóa S3 mà trên máy chủ chưa có -> tự động đẩy lên server luôn!
-        if (localConfig.archiveAccessKey && (!remoteConfig.archiveAccessKey || !remoteConfig.archiveSecretKey)) {
-          await this.pushVideoConfigToCloud(merged);
-        }
-      } else if (localConfig.videoBaseUrl || localConfig.archiveIdentifier || localConfig.archiveAccessKey) {
-        // Nếu Cloud chưa có mà máy này có, đẩy lên Cloud
-        await this.pushVideoConfigToCloud(localConfig);
+      const finalAccessKey = remoteAccess || localAccess || '';
+      const finalSecretKey = remoteSecret || localSecret || '';
+      const finalIdentifier = String(remoteConfig?.archiveIdentifier || remoteS3?.archiveIdentifier || localConfig?.archiveIdentifier || 'tinhoc-hub-thpt').trim();
+
+      let cleanBaseUrl = String(remoteConfig?.videoBaseUrl || localConfig?.videoBaseUrl || `https://archive.org/cors/${finalIdentifier}/`).trim();
+      if (cleanBaseUrl.includes('archive.org/download/')) {
+        cleanBaseUrl = cleanBaseUrl.replace('archive.org/download/', 'archive.org/cors/');
       }
+      if (!cleanBaseUrl.endsWith('/')) cleanBaseUrl += '/';
+
+      const merged = {
+        ...localConfig,
+        ...(remoteConfig || {}),
+        archiveIdentifier: finalIdentifier,
+        videoBaseUrl: cleanBaseUrl,
+        archiveAccessKey: finalAccessKey,
+        archiveSecretKey: finalSecretKey,
+        uploadedVideos: {
+          ...(localConfig?.uploadedVideos || {}),
+          ...(remoteConfig?.uploadedVideos || {})
+        }
+      };
+
+      localStorage.setItem('tinhoc_video_config', JSON.stringify(merged));
+
+      // Tự động cập nhật ngay các ô nhập liệu trên giao diện Admin nếu đang mở (và người dùng không đang gõ)
+      if (typeof document !== 'undefined') {
+        const elAccess = document.getElementById('archive-cfg-access-key');
+        if (elAccess && document.activeElement !== elAccess && finalAccessKey) {
+          elAccess.value = finalAccessKey;
+        }
+        const elSecret = document.getElementById('archive-cfg-secret-key');
+        if (elSecret && document.activeElement !== elSecret && finalSecretKey) {
+          elSecret.value = finalSecretKey;
+        }
+        const elId = document.getElementById('archive-cfg-identifier');
+        if (elId && document.activeElement !== elId && finalIdentifier) {
+          elId.value = finalIdentifier;
+        }
+        const elBase = document.getElementById('archive-cfg-base-url');
+        if (elBase && document.activeElement !== elBase && cleanBaseUrl) {
+          elBase.value = cleanBaseUrl;
+        }
+        const statusBadge = document.getElementById('s3-cloud-sync-badge');
+        if (statusBadge) {
+          if (finalAccessKey && finalSecretKey) {
+            statusBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300';
+            statusBadge.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Đã đồng bộ Khóa S3 trên Cloud';
+          } else {
+            statusBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300';
+            statusBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Chưa có Khóa S3 trên Cloud';
+          }
+        }
+      }
+
+      // Nếu máy này đã có khóa S3 mà trên Cloud chưa có -> tự động đẩy lên Cloud lưu vĩnh viễn!
+      if ((localAccess && !remoteAccess) || (localSecret && !remoteSecret)) {
+        await this.pushVideoConfigToCloud(merged);
+      }
+
+      return merged;
     } catch (e) {
       console.warn('Lỗi đồng bộ cấu hình video từ Cloud:', e);
+      return null;
     }
   },
 
   async pushVideoConfigToCloud(config) {
-    if (!config) return;
+    if (!config) return false;
     const url = this.getBaseUrl();
     try {
-      // Đẩy toàn bộ cấu hình S3 lên Cloud Server để Admin dùng đồng bộ trên mọi thiết bị
+      const cleanId = String(config.archiveIdentifier || 'tinhoc-hub-thpt').trim();
+      const cleanAccess = String(config.archiveAccessKey || '').trim();
+      const cleanSecret = String(config.archiveSecretKey || '').trim();
+      let cleanBaseUrl = String(config.videoBaseUrl || `https://archive.org/cors/${cleanId}/`).trim().replace('archive.org/download/', 'archive.org/cors/');
+      if (!cleanBaseUrl.endsWith('/')) cleanBaseUrl += '/';
+
+      // Dùng PATCH thay vì PUT và CHỈ ghi đè khóa S3 khi có giá trị thực (ngăn máy khác chưa có khóa ghi đè rỗng làm mất khóa trên Cloud)
       const payload = {
-        archiveIdentifier: config.archiveIdentifier || 'tinhoc-hub-thpt',
-        archiveAccessKey: config.archiveAccessKey || '',
-        archiveSecretKey: config.archiveSecretKey || '',
-        videoBaseUrl: (config.videoBaseUrl || `https://archive.org/cors/${config.archiveIdentifier || 'tinhoc-hub-thpt'}/`).replace('archive.org/download/', 'archive.org/cors/'),
-        uploadedVideos: config.uploadedVideos || {},
+        archiveIdentifier: cleanId,
+        videoBaseUrl: cleanBaseUrl,
         updatedAt: new Date().toISOString()
       };
-      await fetch(`${url}/config/video.json`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      console.log('✅ Đã lưu cấu hình S3 Video lên máy chủ đám mây thành công!');
+      if (config.uploadedVideos && Object.keys(config.uploadedVideos).length > 0) {
+        payload.uploadedVideos = config.uploadedVideos;
+      }
+      if (cleanAccess) payload.archiveAccessKey = cleanAccess;
+      if (cleanSecret) payload.archiveSecretKey = cleanSecret;
+
+      const reqs = [
+        fetch(`${url}/config/video.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+      ];
+
+      // Lưu thêm vào nhánh chuyên biệt /config/s3_keys.json khi có khóa S3 để bảo toàn tuyệt đối
+      if (cleanAccess || cleanSecret) {
+        const s3Payload = {
+          archiveIdentifier: cleanId,
+          updatedAt: payload.updatedAt
+        };
+        if (cleanAccess) s3Payload.archiveAccessKey = cleanAccess;
+        if (cleanSecret) s3Payload.archiveSecretKey = cleanSecret;
+        reqs.push(
+          fetch(`${url}/config/s3_keys.json`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(s3Payload)
+          })
+        );
+      }
+
+      const results = await Promise.all(reqs);
+      const allOk = results.every(r => r && r.ok);
+      if (allOk) {
+        console.log('✅ Đã lưu đồng bộ cấu hình S3 Video lên máy chủ đám mây thành công!');
+      }
+      return allOk;
     } catch (e) {
       console.warn('Lỗi đẩy cấu hình video lên cloud:', e);
+      return false;
     }
   },
 
   // --- ĐỒNG BỘ CÂU HỎI DỪNG VIDEO TÙY BIẾN CHO GIÁO VIÊN ---
   async syncCustomVideoQuestions(baseUrl) {
+    const url = baseUrl || this.getBaseUrl();
     try {
-      const res = await fetch(`${baseUrl}/custom_video_questions.json`);
+      const res = await fetch(`${url}/custom_video_questions.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const remoteData = await res.json();
       if (!remoteData || typeof remoteData !== 'object') return;
@@ -669,8 +756,11 @@ export const CloudSync = {
         if (!localAll[grade]) localAll[grade] = {};
         Object.entries(videoMap).forEach(([vKey, questions]) => {
           if (Array.isArray(questions)) {
-            // Chuẩn hóa tên tệp video (phục hồi tên từ clean key nếu cần)
+            const restoredName = this.restoreVideoFileName(vKey);
             localAll[grade][vKey] = questions;
+            if (restoredName && restoredName !== vKey) {
+              localAll[grade][restoredName] = questions;
+            }
             changed = true;
           }
         });
@@ -718,7 +808,7 @@ export const CloudSync = {
   async syncCustomVideoUrls(baseUrl) {
     const url = baseUrl || this.getBaseUrl();
     try {
-      const res = await fetch(`${url}/config/custom_video_urls.json`);
+      const res = await fetch(`${url}/config/custom_video_urls.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const remoteData = await res.json();
       if (!remoteData || typeof remoteData !== 'object') return;
@@ -727,7 +817,11 @@ export const CloudSync = {
       let changed = false;
       Object.entries(remoteData).forEach(([vKey, u]) => {
         if (u && typeof u === 'string') {
+          const restoredName = this.restoreVideoFileName(vKey);
           localUrls[vKey] = u;
+          if (restoredName && restoredName !== vKey) {
+            localUrls[restoredName] = u;
+          }
           changed = true;
         }
       });
