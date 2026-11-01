@@ -50,7 +50,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261101_65" />
+  <link rel="stylesheet" href="css/style.css?v=20261101_66" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -120,26 +120,26 @@
           b.setAttribute('data-prev-text', b.innerHTML);
           b.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang mở xác thực Google...';
         });
-        var checks = 0;
-        var t = setInterval(function() {
-          checks++;
-          if (window.Auth && typeof window.Auth.signInWithGoogleFirebase === 'function') {
-            clearInterval(t);
-            window.Auth.signInWithGoogleFirebase();
-          } else if (checks > 40) {
-            clearInterval(t);
-            btns.forEach(function(b) {
-              b.disabled = false;
-              if (b.getAttribute('data-prev-text')) {
-                b.innerHTML = b.getAttribute('data-prev-text');
-                b.removeAttribute('data-prev-text');
-              }
-            });
-            alert('Đang kết nối hệ thống. Em hãy đăng nhập bằng Email/Tài khoản và Mật khẩu ở bên dưới để vào học ngay nhé!');
-            var inp = document.getElementById('login-input-identity');
-            if (inp) inp.focus();
+
+        // Nạp động module Auth để mở Google Popup ngay lập tức
+        import('./js/auth.js?v=20261101_66').then(function(mod) {
+          if (mod && mod.Auth) {
+            window.Auth = mod.Auth;
+            mod.Auth.signInWithGoogleFirebase();
           }
-        }, 50);
+        }).catch(function(err) {
+          console.error('Lỗi nạp Auth module:', err);
+          btns.forEach(function(b) {
+            b.disabled = false;
+            if (b.getAttribute('data-prev-text')) {
+              b.innerHTML = b.getAttribute('data-prev-text');
+              b.removeAttribute('data-prev-text');
+            }
+          });
+          alert('Không thể kết nối xác thực Google. Em hãy đăng nhập bằng Email/Tài khoản và Mật khẩu ở bên dưới để vào học ngay nhé!');
+          var inp = document.getElementById('login-input-identity');
+          if (inp) inp.focus();
+        });
       };
 
       // Global event delegation dự phòng bắt mọi cú click vào nút Google
@@ -2823,7 +2823,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261101_65"></script>
+  <script type="module" src="js/app.js?v=20261101_66"></script>
 </body>
 </html>
 

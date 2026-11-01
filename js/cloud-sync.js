@@ -10,7 +10,7 @@
  * 5. Cơ chế Local-First an toàn: Mất mạng vẫn làm bài bình thường, khi có mạng tự động đẩy dữ liệu lên đám mây.
  */
 
-import { Storage } from './storage.js?v=20261101_65';
+import { Storage } from './storage.js?v=20261101_66';
 
 const CLOUD_CONFIG_KEY = 'tinhoc_cloud_config';
 export const DEFAULT_FIREBASE_DB_URL = 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -1150,7 +1150,7 @@ export const CloudSync = {
 
     const ok = await this.syncAll(true);
     return ok;
-  }
+  },
 
   // --- 8. ĐỒNG BỘ CẤU TRÚC TRƯỜNG - LỚP, MÔN HỌC & PHÂN CÔNG GIÁO VIÊN ---
   async syncSchoolsData(baseUrl = null) {
