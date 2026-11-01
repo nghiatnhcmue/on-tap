@@ -3,22 +3,22 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261101_55';
-import { Practice } from './practice.js?v=20261101_55';
-import { Exam } from './exam.js?v=20261101_55';
-import { Search } from './search.js?v=20261101_55';
-import { PrintManager } from './print.js?v=20261101_55';
-import { Auth } from './auth.js?v=20261101_55';
-import { escapeHtml } from './utils.js?v=20261101_55';
-import { Leaderboard } from './leaderboard.js?v=20261101_55';
-import { QuestionsManager } from './questions-manager.js?v=20261101_55';
-import { AdminManager } from './admin-manager.js?v=20261101_55';
-import { ExamRooms } from './exam-rooms.js?v=20261101_55';
-import { Proctor } from './proctor.js?v=20261101_55';
-import { Gradebook } from './gradebook.js?v=20261101_55';
-import { CloudSync } from './cloud-sync.js?v=20261101_55';
-import { InteractiveVideo } from './interactive-video.js?v=20261101_55';
-import { LiveVideo } from './live-video.js?v=20261101_55';
+import { Storage } from './storage.js?v=20261101_56';
+import { Practice } from './practice.js?v=20261101_56';
+import { Exam } from './exam.js?v=20261101_56';
+import { Search } from './search.js?v=20261101_56';
+import { PrintManager } from './print.js?v=20261101_56';
+import { Auth } from './auth.js?v=20261101_56';
+import { escapeHtml } from './utils.js?v=20261101_56';
+import { Leaderboard } from './leaderboard.js?v=20261101_56';
+import { QuestionsManager } from './questions-manager.js?v=20261101_56';
+import { AdminManager } from './admin-manager.js?v=20261101_56';
+import { ExamRooms } from './exam-rooms.js?v=20261101_56';
+import { Proctor } from './proctor.js?v=20261101_56';
+import { Gradebook } from './gradebook.js?v=20261101_56';
+import { CloudSync } from './cloud-sync.js?v=20261101_56';
+import { InteractiveVideo } from './interactive-video.js?v=20261101_56';
+import { LiveVideo } from './live-video.js?v=20261101_56';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;

@@ -50,7 +50,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261101_55" />
+  <link rel="stylesheet" href="css/style.css?v=20261101_56" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -735,81 +735,6 @@
         <div class="absolute -right-8 -bottom-8 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
       </div>
 
-      <!-- 3 Grade Cards -->
-      <div>
-        <div class="flex items-center justify-between mb-6">
-          <div>
-            <h2 class="text-xl font-extrabold text-slate-800 dark:text-white">
-              Chương Trình Học Theo Khối Lớp
-            </h2>
-            <p class="text-xs text-slate-400 mt-0.5">Lựa chọn khối lớp để bắt đầu học tập và làm bài tập</p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
-          <!-- Card K10 -->
-          <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition group flex flex-col justify-between">
-            <div>
-              <div class="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition">
-                <i class="fa-brands fa-python"></i>
-              </div>
-              <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-2">Tin Học Lớp 10</h3>
-              <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
-                Máy tính & Xã hội tri thức, Mạng máy tính, An toàn số, Thiết kế đồ họa Inkscape, Lập trình Python căn bản.
-              </p>
-            </div>
-            <div class="pt-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
-              <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400"><span id="stat-k10-q">1.700</span> câu hỏi</span>
-              <button data-nav-grade="10" onclick="window.AppInstance.switchTab('practice')" class="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold rounded-xl text-xs transition">
-                Học Khối 10
-              </button>
-            </div>
-          </div>
-
-          <!-- Card K11 -->
-          <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition group flex flex-col justify-between">
-            <div>
-              <div class="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition">
-                <i class="fa-solid fa-database"></i>
-              </div>
-              <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-2">Tin Học Lớp 11</h3>
-              <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
-                Hệ điều hành & Phần mềm nguồn mở, Mạng & Lưu trữ đám mây, Cơ sở dữ liệu quan hệ, SQL & GIMP/Video.
-              </p>
-            </div>
-            <div class="pt-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
-              <span class="text-xs font-bold text-blue-600 dark:text-blue-400"><span id="stat-k11-q">1.240</span> câu hỏi</span>
-              <button data-nav-grade="11" onclick="window.AppInstance.switchTab('practice')" class="px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold rounded-xl text-xs transition">
-                Học Khối 11
-              </button>
-            </div>
-          </div>
-
-          <!-- Card K12 -->
-          <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition group flex flex-col justify-between border-blue-300 dark:border-blue-700 ring-2 ring-blue-500/10">
-            <div>
-              <div class="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition">
-                <i class="fa-solid fa-brain"></i>
-              </div>
-              <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-2 flex items-center justify-between">
-                <span>Tin Học Lớp 12</span>
-                <span class="px-2 py-0.5 rounded text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 uppercase">Trọng tâm</span>
-              </h3>
-              <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
-                Trí tuệ nhân tạo (AI), Giao thức mạng & thiết bị kết nối, Lập trình trang web HTML/CSS, Định hướng nghề nghiệp CNTT.
-              </p>
-            </div>
-            <div class="pt-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
-              <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400"><span id="stat-k12-q">1.509</span> câu hỏi</span>
-              <button data-nav-grade="12" onclick="window.AppInstance.switchTab('practice')" class="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl text-xs transition shadow-md shadow-indigo-500/20">
-                Học Khối 12
-              </button>
-            </div>
-          </div>
-
-        </div>
-      </div>
 
       <!-- Featured Topics Grid for Current Grade -->
       <div>
@@ -2890,7 +2815,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261101_55"></script>
+  <script type="module" src="js/app.js?v=20261101_56"></script>
 </body>
 </html>
 
