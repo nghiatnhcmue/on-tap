@@ -50,7 +50,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261101_69" />
+  <link rel="stylesheet" href="css/style.css?v=20261101_70" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -122,7 +122,7 @@
         });
 
         // Nạp động module Auth để mở Google Popup ngay lập tức
-        import('./js/auth.js?v=20261101_69').then(function(mod) {
+        import('./js/auth.js?v=20261101_70').then(function(mod) {
           if (mod && mod.Auth) {
             window.Auth = mod.Auth;
             mod.Auth.signInWithGoogleFirebase();
@@ -2413,6 +2413,49 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
           </div>
         </div>
 
+        <!-- Cấu hình Công Bố Điểm Số & Đáp Án Cho Học Sinh -->
+        <div class="p-4 bg-purple-50/60 dark:bg-purple-950/30 rounded-2xl border border-purple-200/70 dark:border-purple-800/60 space-y-3">
+          <div class="flex items-center gap-2 pb-2 border-b border-purple-100 dark:border-purple-900/60">
+            <i class="fa-solid fa-square-poll-vertical text-purple-600 dark:text-purple-400 text-sm"></i>
+            <span class="font-bold text-slate-800 dark:text-white">Quy Định Công Bố Điểm Số & Đáp Án Cho Học Sinh</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+            <!-- Chế độ 1: Xem điểm & đáp án (Mặc định) -->
+            <label class="relative flex flex-col p-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 cursor-pointer hover:border-purple-500 transition has-[:checked]:border-purple-600 has-[:checked]:bg-purple-50/60 dark:has-[:checked]:bg-purple-950/40">
+              <div class="flex items-center gap-2 mb-1.5">
+                <input type="radio" name="room-result-display-mode" value="both" checked class="w-4 h-4 text-purple-600 focus:ring-purple-500 cursor-pointer" />
+                <span class="font-bold text-slate-800 dark:text-white">Xem điểm & Đáp án</span>
+              </div>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                HS biết điểm ngay sau nộp và xem lại chi tiết từng câu hỏi, đáp án đúng & giải thích.
+              </p>
+            </label>
+
+            <!-- Chế độ 2: Chỉ xem điểm, ẩn đáp án -->
+            <label class="relative flex flex-col p-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 cursor-pointer hover:border-blue-500 transition has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50/60 dark:has-[:checked]:bg-blue-950/40">
+              <div class="flex items-center gap-2 mb-1.5">
+                <input type="radio" name="room-result-display-mode" value="score_only" class="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                <span class="font-bold text-slate-800 dark:text-white">Chỉ xem điểm</span>
+              </div>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                HS biết điểm tổng kết và xếp loại. Phần đáp án chi tiết bị khóa để bảo mật đề thi.
+              </p>
+            </label>
+
+            <!-- Chế độ 3: Không xem điểm & đáp án -->
+            <label class="relative flex flex-col p-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 cursor-pointer hover:border-rose-500 transition has-[:checked]:border-rose-600 has-[:checked]:bg-rose-50/60 dark:has-[:checked]:bg-rose-950/40">
+              <div class="flex items-center gap-2 mb-1.5">
+                <input type="radio" name="room-result-display-mode" value="hidden" class="w-4 h-4 text-rose-600 focus:ring-rose-500 cursor-pointer" />
+                <span class="font-bold text-slate-800 dark:text-white">Không xem điểm & đáp án</span>
+              </div>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                Bảo mật tuyệt đối sau nộp: HS chỉ nhận biên nhận nộp bài. Điểm số chỉ GV xem trong Sổ điểm.
+              </p>
+            </label>
+          </div>
+        </div>
+
         <!-- Cấu hình Chống Gian Lận (Proctoring) -->
         <div class="p-4 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-2xl border border-indigo-200 dark:border-indigo-800/80 space-y-3">
           <div class="flex items-center justify-between">
@@ -2823,7 +2866,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261101_69"></script>
+  <script type="module" src="js/app.js?v=20261101_70"></script>
 </body>
 </html>
 

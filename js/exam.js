@@ -3,10 +3,10 @@
  * Hỗ trợ đề chuẩn Bộ GD&ĐT 2025, kiểm tra định kỳ 15p, 45p và tùy biến đề thi
  */
 
-import { Storage } from './storage.js?v=20261101_69';
-import { Auth } from './auth.js?v=20261101_69';
-import { escapeHtml } from './utils.js?v=20261101_69';
-import { Proctor } from './proctor.js?v=20261101_69';
+import { Storage } from './storage.js?v=20261101_70';
+import { Auth } from './auth.js?v=20261101_70';
+import { escapeHtml } from './utils.js?v=20261101_70';
+import { Proctor } from './proctor.js?v=20261101_70';
 
 export const Exam = {
   questions: [],
@@ -1043,6 +1043,7 @@ export const Exam = {
       contentScope: this.examConfig.contentScope || null,
       selectedLessons: this.examConfig.selectedLessons || null,
       selectedTopics: this.examConfig.selectedTopics || null,
+      resultDisplayMode: this.examConfig.resultDisplayMode || 'both',
       score: isDisqualified ? 0.0 : totalScore,
       rawScore: totalScore,
       part1Score: Math.round(part1Score * 100) / 100,
@@ -1087,7 +1088,8 @@ export const Exam = {
       count: savedItem.totalQuestions || 28,
       examCode: savedItem.examCode || '101',
       topic: savedItem.topic || null,
-      lesson: savedItem.lesson || null
+      lesson: savedItem.lesson || null,
+      resultDisplayMode: savedItem.resultDisplayMode || 'both'
     };
     this.examCode = savedItem.examCode || '101';
     this.examResult = {
@@ -1096,6 +1098,7 @@ export const Exam = {
       examCode: savedItem.examCode || '101',
       topic: savedItem.topic || null,
       lesson: savedItem.lesson || null,
+      resultDisplayMode: savedItem.resultDisplayMode || 'both',
       details: savedItem.details || []
     };
     this.renderResultView();
@@ -1107,6 +1110,97 @@ export const Exam = {
     const mins = Math.floor(res.timeSpentSeconds / 60);
     const secs = res.timeSpentSeconds % 60;
     const timeFormatted = `${mins} phút ${secs} giây`;
+
+    const isTeacher = typeof Auth !== 'undefined' && Auth.isTeacher();
+    const isAdmin = typeof Auth !== 'undefined' && Auth.isAdmin();
+    const isPrivileged = isTeacher || isAdmin;
+    const displayMode = res.resultDisplayMode || 'both';
+
+    // CHẾ ĐỘ 1: KHÔNG XEM ĐIỂM & ĐÁP ÁN (Dành cho Học sinh)
+    if (!isPrivileged && displayMode === 'hidden') {
+      this.container.innerHTML = `
+        <div class="max-w-2xl mx-auto space-y-6 animate-fadeIn py-6">
+          <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-8 sm:p-10 text-center relative overflow-hidden space-y-6">
+            <div class="absolute -top-24 -right-24 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-4xl mx-auto shadow-lg shadow-emerald-500/20">
+              <i class="fa-solid fa-circle-check"></i>
+            </div>
+
+            <div>
+              <span class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300 mb-3">
+                <i class="fa-solid fa-lock text-[11px]"></i> Bảo Mật Kết Quả Phòng Thi
+              </span>
+              <h2 class="text-2xl sm:text-3xl font-black text-slate-800 dark:text-white">
+                Đã Nộp Bài Thi Thành Công!
+              </h2>
+              <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-md mx-auto leading-relaxed">
+                Bài làm của bạn đã được ghi nhận và lưu trữ an toàn trong Sổ điểm của Thầy/Cô phụ trách.
+              </p>
+            </div>
+
+            <!-- Thông tin biên bản chi tiết -->
+            <div class="p-5 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-700 text-left text-xs space-y-3">
+              <div class="flex items-center justify-between pb-2.5 border-b border-slate-200/70 dark:border-slate-800">
+                <span class="text-slate-400">Tên bài kiểm tra:</span>
+                <span class="font-bold text-slate-800 dark:text-white text-right">${escapeHtml(res.title)}</span>
+              </div>
+              <div class="flex items-center justify-between pb-2.5 border-b border-slate-200/70 dark:border-slate-800">
+                <span class="text-slate-400">Thí sinh:</span>
+                <span class="font-bold text-slate-800 dark:text-white">${escapeHtml(res.studentName)} (${escapeHtml(res.studentClass || 'Tự do')})</span>
+              </div>
+              <div class="flex items-center justify-between pb-2.5 border-b border-slate-200/70 dark:border-slate-800">
+                <span class="text-slate-400">Trường học:</span>
+                <span class="font-bold text-slate-800 dark:text-white">${escapeHtml(res.studentSchool || '---')}</span>
+              </div>
+              <div class="flex items-center justify-between pb-2.5 border-b border-slate-200/70 dark:border-slate-800">
+                <span class="text-slate-400">Mã đề / Phòng thi:</span>
+                <span class="font-mono font-bold text-purple-600 dark:text-purple-400">Mã đề: ${escapeHtml(res.examCode || '101')} ${res.roomId ? `• Phòng: ${escapeHtml(res.roomId)}` : ''}</span>
+              </div>
+              <div class="flex items-center justify-between pb-2.5 border-b border-slate-200/70 dark:border-slate-800">
+                <span class="text-slate-400">Thời gian làm bài:</span>
+                <span class="font-bold text-slate-800 dark:text-white">${timeFormatted}</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400">Trạng thái ghi nhận:</span>
+                <span class="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                  <i class="fa-solid fa-cloud-arrow-up"></i> Đã đồng bộ an toàn vào hệ thống
+                </span>
+              </div>
+            </div>
+
+            <!-- Hộp lưu ý sư phạm -->
+            <div class="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-left text-xs text-amber-800 dark:text-amber-300 flex items-start gap-3">
+              <i class="fa-solid fa-circle-info text-amber-600 text-base mt-0.5 shrink-0"></i>
+              <div class="space-y-1">
+                <strong>Quy định bảo mật phòng thi:</strong>
+                <p class="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
+                  Thầy/Cô đã kích hoạt chế độ <b>"Không xem điểm & đáp án"</b> cho đợt kiểm tra này. Điểm số và lời giải chi tiết sẽ được Thầy/Cô thông báo đến lớp sau khi kết thúc đợt thi.
+                </p>
+              </div>
+            </div>
+
+            <!-- Các nút điều hướng -->
+            <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <button id="btn-back-home" class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-2xl text-xs transition shadow-lg shadow-blue-500/20 flex items-center gap-2">
+                <i class="fa-solid fa-house"></i> Về Trang Chủ
+              </button>
+              <button id="btn-back-tasks" class="px-6 py-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-xs transition flex items-center gap-2">
+                <i class="fa-solid fa-list-check"></i> Xem Nhiệm Vụ Khác
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      this.container.querySelector('#btn-back-home')?.addEventListener('click', () => {
+        window.dispatchEvent(new CustomEvent('nav-to-tab', { detail: 'home' }));
+      });
+      this.container.querySelector('#btn-back-tasks')?.addEventListener('click', () => {
+        window.dispatchEvent(new CustomEvent('nav-to-tab', { detail: 'exam-setup' }));
+      });
+      return;
+    }
 
     let rankBadge = { text: 'Xuất sắc', cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' };
     if (res.score < 5.0) {
@@ -1126,6 +1220,12 @@ export const Exam = {
         <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-8 text-center relative overflow-hidden">
           <div class="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl"></div>
           
+          ${(isPrivileged && displayMode !== 'both') ? `
+            <div class="mb-3 inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+              <i class="fa-solid fa-user-tie"></i> Chế độ xem của Thầy/Cô: Học sinh được cài đặt [${displayMode === 'hidden' ? 'Không xem điểm & đáp án' : 'Chỉ xem điểm, ẩn đáp án'}]
+            </div>
+          ` : ''}
+
           <span class="inline-block px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-widest ${rankBadge.cls} mb-3">
             Xếp loại: ${rankBadge.text}
           </span>
@@ -1243,31 +1343,49 @@ export const Exam = {
           </div>
         </div>
 
-        <!-- Chi tiết đáp án và lời giải -->
-        <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 sm:p-8">
-          <div class="flex flex-wrap items-center justify-between gap-4 pb-6 mb-6 border-b border-slate-100 dark:border-slate-700">
-            <div>
-              <h3 class="text-lg font-bold text-slate-800 dark:text-white">
-                Xem Lại Chi Tiết Toàn Bộ Bài Thi
-              </h3>
-              <p class="text-xs text-slate-400">
-                Đối chiếu câu trả lời của bạn với đáp án chuẩn
-              </p>
+        ${(!isPrivileged && displayMode === 'score_only') ? `
+          <!-- Thông báo Khóa Đáp Án Bảo Mật -->
+          <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-8 sm:p-10 text-center space-y-4">
+            <div class="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center text-2xl mx-auto shadow-inner">
+              <i class="fa-solid fa-shield-halved"></i>
             </div>
-
-            <!-- Bộ lọc xem lại -->
-            <div class="flex items-center gap-2 text-xs">
-              <button data-review-filter="all" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-bold">Tất cả</button>
-              <button data-review-filter="wrong" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium hover:text-rose-500">Chỉ câu sai</button>
-              <button data-review-filter="correct" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium hover:text-emerald-500">Chỉ câu đúng</button>
+            <h3 class="text-base sm:text-lg font-bold text-slate-800 dark:text-white">
+              Đáp Án & Lời Giải Chi Tiết Đang Được Khóa Bảo Mật
+            </h3>
+            <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-lg mx-auto leading-relaxed">
+              Theo quy định của Thầy/Cô phụ trách phòng thi, phần đối chiếu đáp án chi tiết từng câu hỏi hiện đang được khóa bảo mật để đảm bảo tính công bằng và nghiêm túc cho toàn bộ các lớp tham gia đợt thi.
+            </p>
+            <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-xs font-semibold">
+              <i class="fa-solid fa-circle-check text-emerald-500"></i> Điểm số của bạn đã được công bố chính xác ở bảng tổng kết trên.
             </div>
           </div>
+        ` : `
+          <!-- Chi tiết đáp án và lời giải -->
+          <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 sm:p-8">
+            <div class="flex flex-wrap items-center justify-between gap-4 pb-6 mb-6 border-b border-slate-100 dark:border-slate-700">
+              <div>
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white">
+                  Xem Lại Chi Tiết Toàn Bộ Bài Thi
+                </h3>
+                <p class="text-xs text-slate-400">
+                  Đối chiếu câu trả lời của bạn với đáp án chuẩn
+                </p>
+              </div>
 
-          <!-- Danh sách câu hỏi xem lại -->
-          <div id="review-list" class="space-y-6">
-            ${this.renderReviewItems(res.details, 'all')}
+              <!-- Bộ lọc xem lại -->
+              <div class="flex items-center gap-2 text-xs">
+                <button data-review-filter="all" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-bold">Tất cả</button>
+                <button data-review-filter="wrong" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium hover:text-rose-500">Chỉ câu sai</button>
+                <button data-review-filter="correct" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium hover:text-emerald-500">Chỉ câu đúng</button>
+              </div>
+            </div>
+
+            <!-- Danh sách câu hỏi xem lại -->
+            <div id="review-list" class="space-y-6">
+              ${this.renderReviewItems(res.details, 'all')}
+            </div>
           </div>
-        </div>
+        ` }
 
       </div>
     `;

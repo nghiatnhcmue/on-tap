@@ -3,9 +3,9 @@
  * Quản lý giao đề thi theo khung giờ, trường học, lớp học, mật khẩu và chống gian lận cho Giáo viên & Admin
  */
 
-import { Storage } from './storage.js?v=20261101_69';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_69';
-import { escapeHtml } from './utils.js?v=20261101_69';
+import { Storage } from './storage.js?v=20261101_70';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_70';
+import { escapeHtml } from './utils.js?v=20261101_70';
 
 export const ExamRooms = {
   container: null,
@@ -316,6 +316,28 @@ export const ExamRooms = {
                           </span>
                         </div>
                       </div>
+
+                      <!-- Công bố kết quả & đáp án -->
+                      <div class="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800 text-[11px]">
+                        <span class="text-slate-400 flex items-center gap-1.5">
+                          <i class="fa-solid fa-square-poll-vertical text-purple-500"></i> Công bố kết quả:
+                        </span>
+                        <span class="px-2 py-0.5 rounded font-bold ${
+                          room.resultDisplayMode === 'hidden'
+                            ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                            : (room.resultDisplayMode === 'score_only'
+                              ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                              : 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300')
+                        }">
+                          ${
+                            room.resultDisplayMode === 'hidden'
+                              ? '🔒 Không xem điểm & đáp án'
+                              : (room.resultDisplayMode === 'score_only'
+                                ? '📊 Chỉ xem điểm (Ẩn đáp án)'
+                                : '👁️ Xem điểm & Đáp án')
+                          }
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -453,6 +475,7 @@ export const ExamRooms = {
 🔒 MẬT KHẨU: ${room.password || 'Không có (vào tự do)'}
 🛡 Giám sát chống gian lận: ${room.antiCheat?.enabled ? 'BẬT (Khóa chuyển tab/thoát toàn màn hình)' : 'Không'}
 🎲 Chống liếc bài: ${room.randomExamCode ? 'Cấp mã đề riêng cho mỗi học sinh' : 'Mã đề tiêu chuẩn'}
+📊 Công bố kết quả: ${room.resultDisplayMode === 'hidden' ? 'Bảo mật điểm số & đáp án (Chỉ Giáo viên xem)' : (room.resultDisplayMode === 'score_only' ? 'Biết điểm ngay, ẩn đáp án chi tiết' : 'Xem điểm & đáp án giải thích chi tiết')}
 👉 Link vào thi trực tiếp: ${directUrl}
 (Hoặc vào https://on-tap.nghiaedu.workers.dev/ -> Chọn mục "Thi Thử" -> Nhập Mã phòng & Mật khẩu)`;
 
@@ -1761,6 +1784,10 @@ Trí tuệ nhân tạo (AI) thường được ứng dụng phổ biến trong l
       if (shuffleQCheckbox) shuffleQCheckbox.checked = existingRoom.shuffleQuestions ?? true;
       if (shuffleOptCheckbox) shuffleOptCheckbox.checked = existingRoom.shuffleOptions ?? true;
       if (randomCodeCheckbox) randomCodeCheckbox.checked = existingRoom.randomExamCode ?? true;
+
+      const existingMode = existingRoom.resultDisplayMode || 'both';
+      const radioExistingMode = document.querySelector(`input[name="room-result-display-mode"][value="${existingMode}"]`);
+      if (radioExistingMode) radioExistingMode.checked = true;
     } else {
       if (titleInput) titleInput.value = 'Kiểm tra Tin học ' + targetGrade;
       if (idInput) idInput.value = 'TIN' + targetGrade + '-' + Math.floor(1000 + Math.random() * 9000);
@@ -1778,6 +1805,9 @@ Trí tuệ nhân tạo (AI) thường được ứng dụng phổ biến trong l
       if (endInput) endInput.value = toInputVal(nextWeek);
       if (antiCheatToggle) antiCheatToggle.checked = true;
       if (maxViolationsInput) maxViolationsInput.value = '3';
+
+      const defaultModeRadio = document.querySelector('input[name="room-result-display-mode"][value="both"]');
+      if (defaultModeRadio) defaultModeRadio.checked = true;
     }
 
     // Populate Ma trận Bài học & Chủ đề
@@ -1992,6 +2022,7 @@ Trí tuệ nhân tạo (AI) thường được ứng dụng phổ biến trong l
         const shuffleQuestions = document.getElementById('room-input-shuffle-q')?.checked ?? true;
         const shuffleOptions = document.getElementById('room-input-shuffle-opt')?.checked ?? true;
         const randomExamCode = document.getElementById('room-input-random-code')?.checked ?? true;
+        const resultDisplayMode = document.querySelector('input[name="room-result-display-mode"]:checked')?.value || 'both';
 
         // Lấy thông tin Trường & Lớp
         let targetSchool = document.getElementById('room-input-target-school')?.value || 'all';
@@ -2100,6 +2131,7 @@ Trí tuệ nhân tạo (AI) thường được ứng dụng phổ biến trong l
           shuffleQuestions,
           shuffleOptions,
           randomExamCode,
+          resultDisplayMode,
           createdBy: user?.email || '',
           creatorName: user?.fullName || 'Giáo viên',
           antiCheat: {

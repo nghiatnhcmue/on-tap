@@ -3,22 +3,22 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261101_69';
-import { Practice } from './practice.js?v=20261101_69';
-import { Exam } from './exam.js?v=20261101_69';
-import { Search } from './search.js?v=20261101_69';
-import { PrintManager } from './print.js?v=20261101_69';
-import { Auth } from './auth.js?v=20261101_69';
-import { escapeHtml } from './utils.js?v=20261101_69';
-import { Leaderboard } from './leaderboard.js?v=20261101_69';
-import { QuestionsManager } from './questions-manager.js?v=20261101_69';
-import { AdminManager } from './admin-manager.js?v=20261101_69';
-import { ExamRooms } from './exam-rooms.js?v=20261101_69';
-import { Proctor } from './proctor.js?v=20261101_69';
-import { Gradebook } from './gradebook.js?v=20261101_69';
-import { CloudSync } from './cloud-sync.js?v=20261101_69';
-import { InteractiveVideo } from './interactive-video.js?v=20261101_69';
-import { LiveVideo } from './live-video.js?v=20261101_69';
+import { Storage } from './storage.js?v=20261101_70';
+import { Practice } from './practice.js?v=20261101_70';
+import { Exam } from './exam.js?v=20261101_70';
+import { Search } from './search.js?v=20261101_70';
+import { PrintManager } from './print.js?v=20261101_70';
+import { Auth } from './auth.js?v=20261101_70';
+import { escapeHtml } from './utils.js?v=20261101_70';
+import { Leaderboard } from './leaderboard.js?v=20261101_70';
+import { QuestionsManager } from './questions-manager.js?v=20261101_70';
+import { AdminManager } from './admin-manager.js?v=20261101_70';
+import { ExamRooms } from './exam-rooms.js?v=20261101_70';
+import { Proctor } from './proctor.js?v=20261101_70';
+import { Gradebook } from './gradebook.js?v=20261101_70';
+import { CloudSync } from './cloud-sync.js?v=20261101_70';
+import { InteractiveVideo } from './interactive-video.js?v=20261101_70';
+import { LiveVideo } from './live-video.js?v=20261101_70';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -187,7 +187,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261101_69');
+      const res = await fetch('data/manifest.json?v=20261101_70');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
@@ -929,6 +929,11 @@ class App {
     if (isCompleted) {
       const score = Number(record.score) || 0;
       const scoreColor = score >= 8.0 ? 'text-emerald-600 dark:text-emerald-400' : (score >= 5.0 ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400');
+      const displayMode = record.resultDisplayMode || room.resultDisplayMode || 'both';
+      const isPrivileged = Auth.isTeacher() || Auth.isAdmin();
+      const isHidden = !isPrivileged && displayMode === 'hidden';
+      const isScoreOnly = !isPrivileged && displayMode === 'score_only';
+
       return `
         <div class="p-5 rounded-2xl border border-emerald-500/30 bg-emerald-50/20 dark:bg-emerald-950/10 shadow-sm flex flex-col justify-between space-y-4">
           <div class="space-y-2.5">
@@ -936,9 +941,15 @@ class App {
               <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold flex items-center gap-1">
                 <i class="fa-solid fa-circle-check text-emerald-500"></i> ĐÃ HOÀN THÀNH
               </span>
-              <span class="text-sm font-black font-mono ${scoreColor}">
-                ${score.toFixed(1)} / 10đ
-              </span>
+              ${isHidden ? `
+                <span class="text-xs font-bold font-mono px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
+                  <i class="fa-solid fa-lock text-[10px] mr-1"></i>ĐÃ NỘP BÀI
+                </span>
+              ` : `
+                <span class="text-sm font-black font-mono ${scoreColor}">
+                  ${score.toFixed(1)} / 10đ
+                </span>
+              `}
             </div>
 
             <div>
@@ -946,7 +957,11 @@ class App {
                 ${escapeHtml(room.title)}
               </h4>
               <p class="text-[11px] text-slate-400 mt-1 flex items-center gap-2">
-                <span>Đúng ${record.correctCount || 0}/${record.totalQuestions || 0} câu</span>
+                ${isHidden ? `
+                  <span>Đã lưu vào Sổ điểm</span>
+                ` : `
+                  <span>Đúng ${record.correctCount || 0}/${record.totalQuestions || 0} câu</span>
+                `}
                 <span>•</span>
                 <span>${record.submittedAt ? new Date(record.submittedAt).toLocaleDateString('vi-VN') : ''}</span>
               </p>
@@ -955,7 +970,13 @@ class App {
 
           <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
             <button type="button" data-view-assigned-result="${escapeHtml(record.id || room.id)}" class="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition flex items-center justify-center gap-1.5">
-              <i class="fa-solid fa-eye text-blue-500"></i> Xem Lại Kết Quả & Đáp Án
+              ${isHidden ? `
+                <i class="fa-solid fa-receipt text-purple-500"></i> Xem Biên Bản Nộp Bài
+              ` : (isScoreOnly ? `
+                <i class="fa-solid fa-chart-simple text-blue-500"></i> Xem Điểm Số Của Bạn
+              ` : `
+                <i class="fa-solid fa-eye text-blue-500"></i> Xem Lại Kết Quả & Đáp Án
+              `)}
             </button>
           </div>
         </div>
@@ -1536,7 +1557,8 @@ class App {
           shuffleQuestions: room.shuffleQuestions ?? true,
           shuffleOptions: room.shuffleOptions ?? true,
           examCode: room.randomExamCode ? String(Math.floor(100 + Math.random() * 900)) : (room.examCode || '101'),
-          antiCheat: room.antiCheat || { enabled: false }
+          antiCheat: room.antiCheat || { enabled: false },
+          resultDisplayMode: room.resultDisplayMode || 'both'
         });
       };
     }
@@ -1817,8 +1839,11 @@ class App {
       return;
     }
 
+    const isStudentUser = Auth.isStudent();
+    const isPrivilegedUser = Auth.isTeacher() || Auth.isAdmin();
     const validHistory = history.filter(h => !h.isDisqualified);
-    const validScores = validHistory.map(h => Number(h.score) || 0);
+    const visibleScoresHistory = isStudentUser ? validHistory.filter(h => h.resultDisplayMode !== 'hidden') : validHistory;
+    const validScores = visibleScoresHistory.map(h => Number(h.score) || 0);
     const maxScore = validScores.length > 0 ? Math.max(...validScores).toFixed(1) : '0.0';
     const avgScore = validScores.length > 0 ? (validScores.reduce((a, b) => a + b, 0) / validScores.length).toFixed(2) : '0.00';
     const latestScore = validScores[0] ?? 0;
@@ -1959,6 +1984,8 @@ class App {
               const date = new Date(item.date).toLocaleString('vi-VN');
               const mins = Math.floor(item.timeSpentSeconds / 60);
               const secs = item.timeSpentSeconds % 60;
+              const isItemHidden = !isPrivilegedUser && item.resultDisplayMode === 'hidden';
+              const isItemScoreOnly = !isPrivilegedUser && item.resultDisplayMode === 'score_only';
 
               return `
                 <div class="bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-blue-400 dark:hover:border-blue-500 transition">
@@ -1971,7 +1998,11 @@ class App {
                       ${item.examCode ? `<span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Mã đề: ${escapeHtml(item.examCode)}</span>` : ''}
                       ${item.roomId ? `<span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">Phòng: ${escapeHtml(item.roomId)}</span>` : ''}
                       <span><i class="fa-regular fa-clock mr-1"></i>${mins}p ${secs}s</span>
-                      <span><i class="fa-solid fa-check mr-1 text-emerald-500"></i>${item.correctCount}/${item.totalQuestions} câu đúng</span>
+                      ${isItemHidden ? `
+                        <span><i class="fa-solid fa-lock text-purple-500 mr-1"></i>Điểm số bảo mật theo quy định</span>
+                      ` : `
+                        <span><i class="fa-solid fa-check mr-1 text-emerald-500"></i>${item.correctCount}/${item.totalQuestions} câu đúng</span>
+                      `}
                       ${item.isDisqualified ? `
                         <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
                           <i class="fa-solid fa-ban mr-1"></i>Đình chỉ (${item.violationCount || 0} lần vi phạm)
@@ -1986,13 +2017,24 @@ class App {
 
                   <div class="flex items-center gap-4 self-end sm:self-center">
                     ${item.details && item.details.length > 0 ? `
-                      <button data-review-history="${escapeHtml(item.id)}" class="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
-                        <i class="fa-solid fa-eye"></i> Xem bài làm
+                      <button data-review-history="${escapeHtml(item.id)}" class="px-3.5 py-2 ${isItemHidden ? 'bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-600 dark:text-purple-400' : 'bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400'} rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                        ${isItemHidden ? `
+                          <i class="fa-solid fa-receipt"></i> Xem biên nhận
+                        ` : (isItemScoreOnly ? `
+                          <i class="fa-solid fa-chart-simple"></i> Xem điểm số
+                        ` : `
+                          <i class="fa-solid fa-eye"></i> Xem bài làm
+                        `)}
                       </button>
                     ` : ''}
                     <div class="text-right shrink-0">
-                      <span class="text-2xl font-black ${item.score >= 8 ? 'text-emerald-600 dark:text-emerald-400' : (item.score < 5 ? 'text-rose-600 dark:text-rose-400' : 'text-blue-600 dark:text-blue-400')} font-mono">${item.score}</span>
-                      <span class="text-[10px] text-slate-400 block font-bold uppercase">Điểm số</span>
+                      ${isItemHidden ? `
+                        <span class="text-xs font-bold font-mono px-2.5 py-1 rounded-lg bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 block"><i class="fa-solid fa-lock mr-1"></i>ĐÃ NỘP</span>
+                        <span class="text-[10px] text-slate-400 block font-bold uppercase mt-1">Trạng thái</span>
+                      ` : `
+                        <span class="text-2xl font-black ${item.score >= 8 ? 'text-emerald-600 dark:text-emerald-400' : (item.score < 5 ? 'text-rose-600 dark:text-rose-400' : 'text-blue-600 dark:text-blue-400')} font-mono">${item.score}</span>
+                        <span class="text-[10px] text-slate-400 block font-bold uppercase">Điểm số</span>
+                      `}
                     </div>
                   </div>
                 </div>

@@ -954,9 +954,10 @@ export const Storage = {
         startTime = new Date(0); // Tất cả
       }
 
-      // Lọc theo mốc thời gian và khối (loại bỏ bài thi bị đình chỉ gian lận)
+      // Lọc theo mốc thời gian và khối (loại bỏ bài thi bị đình chỉ gian lận hoặc bài thi cài đặt bảo mật ẩn điểm)
       const filtered = history.filter(item => {
         if (item.isDisqualified) return false;
+        if (item.resultDisplayMode === 'hidden') return false;
         const itemDate = new Date(item.date);
         if (itemDate < startTime) return false;
         if (grade !== 'all' && String(item.grade) !== String(grade)) return false;
