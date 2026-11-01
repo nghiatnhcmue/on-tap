@@ -10,12 +10,12 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_68';
-import { Storage } from './storage.js?v=20261101_68';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_68';
-import { escapeHtml } from './utils.js?v=20261101_68';
-import { Proctor } from './proctor.js?v=20261101_68';
-import { Gradebook } from './gradebook.js?v=20261101_68';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_69';
+import { Storage } from './storage.js?v=20261101_69';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_69';
+import { escapeHtml } from './utils.js?v=20261101_69';
+import { Proctor } from './proctor.js?v=20261101_69';
+import { Gradebook } from './gradebook.js?v=20261101_69';
 
 export const LiveVideo = {
   manifest: null,
@@ -38,6 +38,7 @@ export const LiveVideo = {
   lastSyncedTime: 0,
   countdownInterval: null,
   remainingSeconds: 0,
+  lastBroadcastTime: 0,
 
   init(manifest = null) {
     this.manifest = manifest;
@@ -865,7 +866,7 @@ export const LiveVideo = {
   },
 
   // =========================================================================
-  // 6. THUẬT TOÁN ĐỒNG BỘ THỜI GIAN THỰC (REAL-TIME ENGINE)
+  // 6. THUẬT TOÁN ĐỒNG BỘ THỜI GIAN THỰC ĐA THIẾT BỊ (REAL-TIME ENGINE)
   // =========================================================================
   startRealtimeSync(roomId) {
     this.cleanupSync();
@@ -873,53 +874,53 @@ export const LiveVideo = {
     const dbUrl = this.getBaseDbUrl();
     const roomUrl = `${dbUrl}/live_video_rooms/${roomId}.json`;
 
-    // 1. Kết nối Server-Sent Events (SSE) để nhận thay đổi tức thời từ Firebase
-    let isSseActive = false;
+    // Nạp trạng thái ban đầu tức thì
+    fetch(roomUrl, { cache: 'no-cache' })
+      .then(res => res.json())
+      .then(remote => {
+        if (remote && remote.roomId) {
+          this.handleRemoteStateUpdate(remote);
+        }
+      })
+      .catch(() => {});
+
+    // 1. Kết nối Server-Sent Events (SSE) để nhận thay đổi tức thời từng mili-giây từ Firebase
     try {
       this.eventSource = new EventSource(roomUrl);
-      this.eventSource.onopen = () => { isSseActive = true; };
       this.eventSource.addEventListener('put', (e) => {
-        isSseActive = true;
         try {
           const payload = JSON.parse(e.data);
-          if (payload && payload.data) {
-            this.handleRemoteStateUpdate(payload.data);
-          } else if (payload && payload.path === '/') {
-            this.handleRemoteStateUpdate(payload.data);
+          if (payload) {
+            this.applyFirebaseStreamUpdate(payload.path, payload.data);
           }
         } catch (err) {}
       });
       this.eventSource.addEventListener('patch', (e) => {
-        isSseActive = true;
         try {
           const payload = JSON.parse(e.data);
-          if (payload && payload.data) {
-            this.handleRemotePatchUpdate(payload.data);
+          if (payload) {
+            this.applyFirebaseStreamUpdate(payload.path, payload.data);
           }
         } catch (err) {}
       });
-      this.eventSource.onerror = () => {
-        isSseActive = false;
-      };
     } catch (e) {
-      isSseActive = false;
-      console.warn('LiveVideo: SSE không được hỗ trợ, sử dụng short polling dự phòng:', e);
+      console.warn('LiveVideo: SSE không được hỗ trợ, sử dụng short polling:', e);
     }
 
-    // 2. Polling dự phòng thông minh (Tiết kiệm 90% băng thông khi SSE đang hoạt động tốt)
+    // 2. Short Polling liên tục (1.5s) đảm bảo 100% không bao giờ mất tín hiệu đồng bộ
     this.pollTimer = setInterval(async () => {
-      // Nếu Server-Sent Events đang kết nối thời gian thực ổn định, bỏ qua hầu hết vòng lặp để tiết kiệm băng thông
-      if (isSseActive && Math.random() > 0.2) return;
       try {
         const res = await fetch(roomUrl, { cache: 'no-cache' });
         if (res.ok) {
           const remote = await res.json();
-          if (remote) this.handleRemoteStateUpdate(remote);
+          if (remote && remote.roomId) {
+            this.handleRemoteStateUpdate(remote);
+          }
         }
       } catch (err) {}
-    }, 2000);
+    }, 1500);
 
-    // 3. Heartbeat điểm danh học sinh online mỗi 10 giây (vừa đủ giữ trạng thái online mà tiết kiệm tài nguyên)
+    // 3. Heartbeat điểm danh học sinh online mỗi 8 giây
     if (!this.isHost && this.studentInfo) {
       this.heartbeatTimer = setInterval(async () => {
         try {
@@ -930,7 +931,42 @@ export const LiveVideo = {
             body: JSON.stringify(Date.now())
           });
         } catch (e) {}
-      }, 10000);
+      }, 8000);
+    }
+  },
+
+  // Phân tích và ghép nối cây dữ liệu Firebase Stream thời gian thực
+  applyFirebaseStreamUpdate(path, data) {
+    if (!this.remoteState) this.remoteState = {};
+
+    if (!path || path === '/') {
+      if (data && typeof data === 'object') {
+        this.remoteState = { ...this.remoteState, ...data };
+      }
+    } else {
+      const parts = path.replace(/^\//, '').split('/');
+      let curr = this.remoteState;
+      for (let i = 0; i < parts.length - 1; i++) {
+        const p = parts[i];
+        if (!curr[p] || typeof curr[p] !== 'object') {
+          curr[p] = {};
+        }
+        curr = curr[p];
+      }
+      const lastKey = parts[parts.length - 1];
+      if (data === null) {
+        delete curr[lastKey];
+      } else if (typeof data === 'object' && !Array.isArray(data) && typeof curr[lastKey] === 'object' && !Array.isArray(curr[lastKey])) {
+        curr[lastKey] = { ...curr[lastKey], ...data };
+      } else {
+        curr[lastKey] = data;
+      }
+    }
+
+    if (this.isHost) {
+      this.updateMasterUI(this.remoteState);
+    } else {
+      this.updateStudentUI(this.remoteState);
     }
   },
 
@@ -942,16 +978,6 @@ export const LiveVideo = {
       this.updateMasterUI(remote);
     } else {
       this.updateStudentUI(remote);
-    }
-  },
-
-  handleRemotePatchUpdate(patch) {
-    if (!patch) return;
-    this.remoteState = { ...(this.remoteState || {}), ...patch };
-    if (this.isHost) {
-      this.updateMasterUI(this.remoteState);
-    } else {
-      this.updateStudentUI(this.remoteState);
     }
   },
 
@@ -1003,11 +1029,20 @@ export const LiveVideo = {
       const tapOverlay = document.getElementById('student-tap-play-overlay');
       if (tapOverlay && !video.paused) tapOverlay.remove();
 
-      // Bù độ lệch thời gian (time delta sync)
-      const targetTime = Number(remote.currentTime || 0);
-      if (Math.abs(video.currentTime - targetTime) > 1.8) {
-        video.currentTime = targetTime;
+      // Tính toán mốc thời gian phát kỳ vọng theo thời gian thực (bù độ trôi mạng)
+      let expectedTime = Number(remote.currentTime || 0);
+      if (remote.updatedAt) {
+        const elapsedSec = (Date.now() - remote.updatedAt) / 1000;
+        if (elapsedSec > 0 && elapsedSec < 1800) {
+          expectedTime += elapsedSec;
+        }
       }
+
+      // Chỉ bù độ lệch nếu lệch quá 2.5 giây để tránh giật lag hoặc giật lùi vô cớ
+      if (Math.abs(video.currentTime - expectedTime) > 2.5) {
+        video.currentTime = expectedTime;
+      }
+
       if (video.paused) {
         const playPromise = video.play();
         if (playPromise !== undefined) {
@@ -1026,7 +1061,7 @@ export const LiveVideo = {
     } else if (remote.state === 'paused') {
       if (!video.paused) video.pause();
       const targetTime = Number(remote.currentTime || 0);
-      if (Math.abs(video.currentTime - targetTime) > 1.5) {
+      if (Math.abs(video.currentTime - targetTime) > 1.2) {
         video.currentTime = targetTime;
       }
     }
@@ -1681,6 +1716,17 @@ export const LiveVideo = {
         if (curTimeText) curTimeText.textContent = this.formatTime(cur);
         if (durTimeText) durTimeText.textContent = this.formatTime(dur);
 
+        // Phát định kỳ mốc thời gian mỗi 4 giây lên Firebase để học sinh vào sau bắt kịp tức thì
+        const now = Date.now();
+        if (!video.paused && (!this.lastBroadcastTime || now - this.lastBroadcastTime > 4000)) {
+          this.lastBroadcastTime = now;
+          fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ currentTime: cur, updatedAt: now })
+          }).catch(() => {});
+        }
+
         // Bắt mốc dừng tự động nếu video chạy qua checkpoint
         const nextQ = this.questionsList.find(q => Math.abs(cur - q.sec) < 0.6 && !q.triggered);
         if (nextQ && !video.paused) {
@@ -2151,8 +2197,20 @@ export const LiveVideo = {
 
     const btnLeave = document.getElementById('btn-student-leave-room');
     if (btnLeave) {
-      btnLeave.onclick = () => {
+      btnLeave.onclick = async () => {
         if (confirm('Em có chắc chắn muốn rời khỏi phòng học trực tuyến của Thầy/Cô không?')) {
+          try {
+            const uid = this.studentInfo?.uid;
+            const dbUrl = this.getBaseDbUrl();
+            if (uid && this.activeRoom?.roomId) {
+              await fetch(`${dbUrl}/live_video_rooms/${this.activeRoom.roomId}/students/${uid}.json`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ online: false, lastSeen: 0 })
+              });
+            }
+          } catch (e) {}
+
           this.cleanupSession();
           if (window.App && typeof window.App.switchTab === 'function') {
             window.App.switchTab('interactive-video');
