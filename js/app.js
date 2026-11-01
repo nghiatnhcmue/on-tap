@@ -3,22 +3,22 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261101_57';
-import { Practice } from './practice.js?v=20261101_57';
-import { Exam } from './exam.js?v=20261101_57';
-import { Search } from './search.js?v=20261101_57';
-import { PrintManager } from './print.js?v=20261101_57';
-import { Auth } from './auth.js?v=20261101_57';
-import { escapeHtml } from './utils.js?v=20261101_57';
-import { Leaderboard } from './leaderboard.js?v=20261101_57';
-import { QuestionsManager } from './questions-manager.js?v=20261101_57';
-import { AdminManager } from './admin-manager.js?v=20261101_57';
-import { ExamRooms } from './exam-rooms.js?v=20261101_57';
-import { Proctor } from './proctor.js?v=20261101_57';
-import { Gradebook } from './gradebook.js?v=20261101_57';
-import { CloudSync } from './cloud-sync.js?v=20261101_57';
-import { InteractiveVideo } from './interactive-video.js?v=20261101_57';
-import { LiveVideo } from './live-video.js?v=20261101_57';
+import { Storage } from './storage.js?v=20261101_58';
+import { Practice } from './practice.js?v=20261101_58';
+import { Exam } from './exam.js?v=20261101_58';
+import { Search } from './search.js?v=20261101_58';
+import { PrintManager } from './print.js?v=20261101_58';
+import { Auth } from './auth.js?v=20261101_58';
+import { escapeHtml } from './utils.js?v=20261101_58';
+import { Leaderboard } from './leaderboard.js?v=20261101_58';
+import { QuestionsManager } from './questions-manager.js?v=20261101_58';
+import { AdminManager } from './admin-manager.js?v=20261101_58';
+import { ExamRooms } from './exam-rooms.js?v=20261101_58';
+import { Proctor } from './proctor.js?v=20261101_58';
+import { Gradebook } from './gradebook.js?v=20261101_58';
+import { CloudSync } from './cloud-sync.js?v=20261101_58';
+import { InteractiveVideo } from './interactive-video.js?v=20261101_58';
+import { LiveVideo } from './live-video.js?v=20261101_58';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -1192,34 +1192,13 @@ class App {
       this.bindActiveSessionBannerEvents(recoveryBannerEl);
     }
 
-    // Thiết lập trạng thái toggle theo Storage
-    const settings = Storage.getSettings();
-    const shuffleQCheckbox = document.getElementById('exam-cfg-shuffle-questions');
-    const shuffleOptCheckbox = document.getElementById('exam-cfg-shuffle-options');
-    const antiCheatCheckbox = document.getElementById('exam-cfg-anticheat');
-    if (shuffleQCheckbox) shuffleQCheckbox.checked = settings.shuffleQuestions ?? true;
-    if (shuffleOptCheckbox) shuffleOptCheckbox.checked = settings.shuffleOptions ?? true;
-    if (antiCheatCheckbox) antiCheatCheckbox.checked = settings.proctorPracticeExam ?? true;
-
-    // Ẩn bảng cấu hình đảo đề & giám sát đối với Học sinh (mặc định luôn bật cả 3 tính năng)
-    const shuffleConfigPanel = document.getElementById('exam-shuffle-config-panel');
-    if (shuffleConfigPanel) {
-      const isTeacherOrAdmin = Auth.isTeacher() || Auth.isAdmin();
-      shuffleConfigPanel.classList.toggle('hidden', !isTeacherOrAdmin);
-    }
-
+    // Cấu hình đề thi & chống gian lận: Mặc định luôn tự động bật cho học sinh (Auto bật)
     const getExamShuffleConfig = () => {
-      // Học sinh mặc định luôn bật cả 3 tính năng: Đảo câu hỏi, Đảo phương án, Giám sát chống gian lận
-      const isTeacherOrAdmin = Auth.isTeacher() || Auth.isAdmin();
-      const shuffleQuestions = (shuffleQCheckbox && isTeacherOrAdmin) ? shuffleQCheckbox.checked : true;
-      const shuffleOptions = (shuffleOptCheckbox && isTeacherOrAdmin) ? shuffleOptCheckbox.checked : true;
-      const proctorPracticeExam = (antiCheatCheckbox && isTeacherOrAdmin) ? antiCheatCheckbox.checked : true;
-      Storage.saveSettings({ shuffleQuestions, shuffleOptions, proctorPracticeExam });
       return {
-        shuffleQuestions,
-        shuffleOptions,
+        shuffleQuestions: true,
+        shuffleOptions: true,
         antiCheat: {
-          enabled: proctorPracticeExam,
+          enabled: true,
           maxViolations: 3,
           enforceFullscreen: true,
           preventTabSwitch: true,

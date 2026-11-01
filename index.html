@@ -50,7 +50,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261101_57" />
+  <link rel="stylesheet" href="css/style.css?v=20261101_58" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -916,59 +916,6 @@
         </select>
       </div>
 
-      <!-- Cấu hình Trộn đề: Đảo câu hỏi & Đảo phương án (Ẩn ở giao diện học sinh - Mặc định luôn bật) -->
-      <div id="exam-shuffle-config-panel" data-role-req="teacher" class="hidden bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
-        <div class="flex items-center gap-2.5 pb-2 border-b border-slate-100 dark:border-slate-700">
-          <div class="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-sm">
-            <i class="fa-solid fa-shuffle"></i>
-          </div>
-          <div>
-            <h3 class="text-sm font-bold text-slate-800 dark:text-white">Cấu Hình Trộn Đề & Đảo Phương Án</h3>
-            <p class="text-[11px] text-slate-400">Tùy chỉnh xáo trộn giúp học sinh rèn luyện tư duy thực chất và chống học vẹt</p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <!-- Toggle 1: Đảo thứ tự câu hỏi -->
-          <label class="flex items-start gap-3 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 bg-slate-50/50 dark:bg-slate-900/40 cursor-pointer transition group">
-            <input type="checkbox" id="exam-cfg-shuffle-questions" checked class="w-5 h-5 mt-0.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer" />
-            <div class="flex-1">
-              <span class="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
-                <i class="fa-solid fa-shuffle text-blue-600"></i> Đảo thứ tự câu hỏi
-              </span>
-              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                Xáo trộn ngẫu nhiên vị trí các câu hỏi trong đề ở mỗi lượt thi mới.
-              </p>
-            </div>
-          </label>
-
-          <!-- Toggle 2: Đảo thứ tự phương án A, B, C, D -->
-          <label class="flex items-start gap-3 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-purple-400 dark:hover:border-purple-500 bg-slate-50/50 dark:bg-slate-900/40 cursor-pointer transition group">
-            <input type="checkbox" id="exam-cfg-shuffle-options" checked class="w-5 h-5 mt-0.5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer" />
-            <div class="flex-1">
-              <span class="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
-                <i class="fa-solid fa-list-ol text-purple-600"></i> Đảo phương án (A, B, C, D)
-              </span>
-              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                Đảo ngẫu nhiên vị trí 4 đáp án trong từng câu (đáp án đúng tự cập nhật theo).
-              </p>
-            </div>
-          </label>
-
-          <!-- Toggle 3: Giám sát chống gian lận đa nền tảng -->
-          <label class="flex items-start gap-3 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-emerald-400 dark:hover:border-emerald-500 bg-slate-50/50 dark:bg-slate-900/40 cursor-pointer transition group">
-            <input type="checkbox" id="exam-cfg-anticheat" checked class="w-5 h-5 mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer" />
-            <div class="flex-1">
-              <span class="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
-                <i class="fa-solid fa-shield-halved text-emerald-600"></i> Giám sát chống gian lận
-              </span>
-              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                Chống chuyển tab/app, chống Split-Screen & chụp màn hình trên Windows, macOS, Android, iOS.
-              </p>
-            </div>
-          </label>
-        </div>
-      </div>
 
       <!-- BỘ CÔNG CỤ TRỘN ĐỀ THEO BÀI, THEO CHỦ ĐỀ, THEO KHỐI -->
       <div class="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
@@ -2806,7 +2753,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261101_57"></script>
+  <script type="module" src="js/app.js?v=20261101_58"></script>
 </body>
 </html>
 
