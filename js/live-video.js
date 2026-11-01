@@ -10,12 +10,12 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_63';
-import { Storage } from './storage.js?v=20261101_63';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_63';
-import { escapeHtml } from './utils.js?v=20261101_63';
-import { Proctor } from './proctor.js?v=20261101_63';
-import { Gradebook } from './gradebook.js?v=20261101_63';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_64';
+import { Storage } from './storage.js?v=20261101_64';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_64';
+import { escapeHtml } from './utils.js?v=20261101_64';
+import { Proctor } from './proctor.js?v=20261101_64';
+import { Gradebook } from './gradebook.js?v=20261101_64';
 
 export const LiveVideo = {
   manifest: null,
@@ -861,9 +861,12 @@ export const LiveVideo = {
     const roomUrl = `${dbUrl}/live_video_rooms/${roomId}.json`;
 
     // 1. Kết nối Server-Sent Events (SSE) để nhận thay đổi tức thời từ Firebase
+    let isSseActive = false;
     try {
       this.eventSource = new EventSource(roomUrl);
+      this.eventSource.onopen = () => { isSseActive = true; };
       this.eventSource.addEventListener('put', (e) => {
+        isSseActive = true;
         try {
           const payload = JSON.parse(e.data);
           if (payload && payload.data) {
@@ -874,6 +877,7 @@ export const LiveVideo = {
         } catch (err) {}
       });
       this.eventSource.addEventListener('patch', (e) => {
+        isSseActive = true;
         try {
           const payload = JSON.parse(e.data);
           if (payload && payload.data) {
@@ -882,14 +886,17 @@ export const LiveVideo = {
         } catch (err) {}
       });
       this.eventSource.onerror = () => {
-        // Nếu SSE ngắt quãng, polling dự phòng sẽ tự động đảm nhiệm
+        isSseActive = false;
       };
     } catch (e) {
-      console.warn('LiveVideo: SSE không được hỗ trợ, sử dụng short polling 1.2s:', e);
+      isSseActive = false;
+      console.warn('LiveVideo: SSE không được hỗ trợ, sử dụng short polling dự phòng:', e);
     }
 
-    // 2. Short Polling dự phòng 1.2 giây (Bảo đảm không bao giờ mất kết nối)
+    // 2. Polling dự phòng thông minh (Tiết kiệm 90% băng thông khi SSE đang hoạt động tốt)
     this.pollTimer = setInterval(async () => {
+      // Nếu Server-Sent Events đang kết nối thời gian thực ổn định, bỏ qua hầu hết vòng lặp để tiết kiệm băng thông
+      if (isSseActive && Math.random() > 0.2) return;
       try {
         const res = await fetch(roomUrl, { cache: 'no-cache' });
         if (res.ok) {
@@ -897,9 +904,9 @@ export const LiveVideo = {
           if (remote) this.handleRemoteStateUpdate(remote);
         }
       } catch (err) {}
-    }, 1200);
+    }, 2000);
 
-    // 3. Heartbeat điểm danh học sinh online mỗi 5 giây
+    // 3. Heartbeat điểm danh học sinh online mỗi 10 giây (vừa đủ giữ trạng thái online mà tiết kiệm tài nguyên)
     if (!this.isHost && this.studentInfo) {
       this.heartbeatTimer = setInterval(async () => {
         try {
@@ -910,7 +917,7 @@ export const LiveVideo = {
             body: JSON.stringify(Date.now())
           });
         } catch (e) {}
-      }, 5000);
+      }, 10000);
     }
   },
 

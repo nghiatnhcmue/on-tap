@@ -3,9 +3,9 @@
  * Quản lý giao đề thi theo khung giờ, trường học, lớp học, mật khẩu và chống gian lận cho Giáo viên & Admin
  */
 
-import { Storage } from './storage.js?v=20261101_63';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_63';
-import { escapeHtml } from './utils.js?v=20261101_63';
+import { Storage } from './storage.js?v=20261101_64';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_64';
+import { escapeHtml } from './utils.js?v=20261101_64';
 
 export const ExamRooms = {
   container: null,
