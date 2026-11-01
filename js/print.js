@@ -3,7 +3,7 @@
  * Tạo đề thi in ấn chuẩn A4 kèm phiếu đáp án dành cho giáo viên và học sinh
  */
 
-import { escapeHtml } from './utils.js?v=20261101_76';
+import { escapeHtml } from './utils.js?v=20261101_77';
 
 export const PrintManager = {
   generatePrintView(options) {

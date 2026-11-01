@@ -50,7 +50,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261101_76" />
+  <link rel="stylesheet" href="css/style.css?v=20261101_77" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -68,7 +68,11 @@
       } catch(e) {}
 
       window.openLoginModal = function(tab) {
-        document.documentElement.classList.remove('is-authenticated');
+        var uStr = null;
+        try { uStr = localStorage.getItem('tinhoc_user'); } catch(e){}
+        if (!uStr) {
+          document.documentElement.classList.remove('is-authenticated');
+        }
         var m = document.getElementById('modal-login');
         if (m) {
           m.classList.remove('hidden');
@@ -92,18 +96,31 @@
       };
 
       window.closeLoginModal = function() {
-        try {
-          var uStr = localStorage.getItem('tinhoc_user');
-          if (!uStr) {
-            alert('Hệ thống yêu cầu Đăng ký hoặc Đăng nhập để sử dụng TinHocHub!');
-            return;
-          }
-        } catch(e) {}
         document.documentElement.classList.add('is-authenticated');
+        document.documentElement.classList.remove('has-incomplete-profile');
         var m = document.getElementById('modal-login');
         if (m) {
           m.classList.add('hidden');
           m.style.setProperty('display', 'none', 'important');
+        }
+        var mp = document.getElementById('modal-required-profile');
+        if (mp) {
+          mp.classList.add('hidden');
+          mp.style.setProperty('display', 'none', 'important');
+        }
+        var overlay = document.getElementById('auth-gatekeeper-overlay');
+        if (overlay) {
+          overlay.classList.add('hidden');
+        }
+        var mainEl = document.getElementById('app-main');
+        if (mainEl) {
+          mainEl.classList.remove('pointer-events-none', 'select-none', 'filter', 'blur-sm');
+        }
+        var desktopNav = document.getElementById('desktop-nav');
+        if (desktopNav) {
+          desktopNav.querySelectorAll('button').forEach(function(b) {
+            b.classList.remove('pointer-events-none', 'opacity-40');
+          });
         }
       };
 
@@ -122,7 +139,7 @@
         });
 
         // Nạp động module Auth để mở Google Popup ngay lập tức
-        import('./js/auth.js?v=20261101_76').then(function(mod) {
+        import('./js/auth.js?v=20261101_77').then(function(mod) {
           if (mod && mod.Auth) {
             window.Auth = mod.Auth;
             mod.Auth.signInWithGoogleFirebase();
@@ -142,14 +159,7 @@
         });
       };
 
-      // Global event delegation dự phòng bắt mọi cú click vào nút Google
-      document.addEventListener('click', function(e) {
-        var btn = e.target.closest && e.target.closest('#btn-firebase-google-signin, #btn-firebase-google-signup, [data-trigger-google-firebase]');
-        if (btn) {
-          e.preventDefault();
-          window.triggerGoogleSignIn(e);
-        }
-      });
+      // Nút Google được gắn sự kiện qua onclick và bindGoogleAuthButtons()
 
       window.switchAuthTab = function(tab) {
         var panelLogin = document.getElementById('auth-panel-login');
@@ -240,6 +250,12 @@
 
     // Bắt mọi tương tác click khi chưa đăng nhập và mở modal ngay lập tức
     document.addEventListener('click', function(e) {
+      var hasUser = false;
+      try { hasUser = !!localStorage.getItem('tinhoc_user'); } catch(err){}
+      if (hasUser) {
+        document.documentElement.classList.add('is-authenticated');
+        return;
+      }
       if (!document.documentElement.classList.contains('is-authenticated')) {
         var t = e.target;
         if (!t.closest('#modal-login') && !t.closest('#modal-required-profile') && !t.closest('#modal-google-quick-prompt') && !t.closest('#modal-firebase-config') && !t.closest('#modal-google-config')) {
@@ -1660,30 +1676,6 @@
             </button>
           </div>
           <p class="text-[10px] text-slate-400 mt-2">Hỗ trợ đăng nhập một chạm thuận tiện và bảo mật</p>
-        </div>
-
-        <!-- Đăng nhập trải nghiệm nhanh 1-chạm (HS / GV / Admin) -->
-        <div class="p-3.5 bg-blue-50/60 dark:bg-blue-950/30 rounded-2xl border border-blue-200/80 dark:border-blue-800/60">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
-              <i class="fa-solid fa-bolt text-amber-500"></i> Vào nhanh không cần mật khẩu
-            </span>
-            <span class="text-[10px] text-slate-400 font-medium">1 chạm vào học</span>
-          </div>
-          <div class="grid grid-cols-3 gap-2">
-            <button type="button" onclick="window.Auth && window.Auth.switchRoleDemo('student')" class="py-2 px-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/40 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex flex-col items-center gap-1 shadow-sm hover:scale-[1.02] cursor-pointer">
-              <span class="text-base">🎓</span>
-              <span class="text-[11px]">Học Sinh</span>
-            </button>
-            <button type="button" onclick="window.Auth && window.Auth.switchRoleDemo('teacher')" class="py-2 px-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-900/40 border border-slate-200 dark:border-slate-700 text-purple-700 dark:text-purple-300 text-xs font-bold transition flex flex-col items-center gap-1 shadow-sm hover:scale-[1.02] cursor-pointer">
-              <span class="text-base">👨‍🏫</span>
-              <span class="text-[11px]">Giáo Viên</span>
-            </button>
-            <button type="button" onclick="window.Auth && window.Auth.switchRoleDemo('admin')" class="py-2 px-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-900/40 border border-slate-200 dark:border-slate-700 text-rose-700 dark:text-rose-300 text-xs font-bold transition flex flex-col items-center gap-1 shadow-sm hover:scale-[1.02] cursor-pointer">
-              <span class="text-base">🛡️</span>
-              <span class="text-[11px]">Admin</span>
-            </button>
-          </div>
         </div>
 
         <!-- Form Đăng nhập bảo mật bằng Email/Tài khoản + Mật khẩu -->
@@ -3236,7 +3228,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261101_76"></script>
+  <script type="module" src="js/app.js?v=20261101_77"></script>
 </body>
 </html>
 

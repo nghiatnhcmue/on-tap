@@ -4,8 +4,8 @@
  * Hỗ trợ: Đăng nhập Google Popup, Đồng bộ Firebase Realtime Database, Hồ sơ học sinh.
  */
 
-import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261101_76';
-import { CloudSync } from './cloud-sync.js?v=20261101_76';
+import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261101_77';
+import { CloudSync } from './cloud-sync.js?v=20261101_77';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
 
@@ -164,8 +164,12 @@ export const Auth = {
 
   isProfileComplete() {
     if (!this.currentUser) return false;
-    const { fullName, className, school } = this.currentUser;
-    return !!(fullName && fullName.trim() && className && className.trim() && school && school.trim());
+    // Bất kỳ tài khoản nào đã đăng nhập đều được vào học ngay, tự động chuẩn hóa nếu thiếu
+    if (!this.currentUser.fullName) this.currentUser.fullName = 'Người dùng TinHocHub';
+    if (!this.currentUser.school) this.currentUser.school = (this.currentUser.role === 'admin' ? 'Ban Quản Trị TinHocHub' : 'TT GDNN GDTX Chu Văn An');
+    if (!this.currentUser.className) this.currentUser.className = (this.currentUser.role === 'admin' ? 'Quản trị hệ thống' : '12A1');
+    if (!this.currentUser.grade) this.currentUser.grade = '12';
+    return true;
   },
 
   // ==================== FIREBASE AUTHENTICATION (GOOGLE SIGN-IN) ====================
@@ -569,6 +573,24 @@ export const Auth = {
       const result = await this.firebaseAuth.signInWithPopup(provider);
       if (result && result.user) {
         this.handleFirebaseUser(result.user);
+        document.documentElement.classList.add('is-authenticated');
+        document.documentElement.classList.remove('has-incomplete-profile');
+        if (typeof window.closeLoginModal === 'function') {
+          window.closeLoginModal();
+        }
+        const m = document.getElementById('modal-login');
+        if (m) {
+          m.classList.add('hidden');
+          m.style.setProperty('display', 'none', 'important');
+        }
+        if (window.AppInstance) {
+          if (typeof window.AppInstance.renderHome === 'function') {
+            window.AppInstance.renderHome();
+          }
+          if (typeof window.AppInstance.enforceAuthentication === 'function') {
+            window.AppInstance.enforceAuthentication();
+          }
+        }
       }
     } catch (err) {
       console.error('Lỗi đăng nhập Google Firebase:', err);
@@ -614,7 +636,7 @@ export const Auth = {
   handleFirebaseUser(firebaseUser) {
     if (!firebaseUser) return null;
     const email = (firebaseUser.email || '').trim().toLowerCase();
-    const fullName = firebaseUser.displayName || 'Người dùng Google';
+    const fullName = (firebaseUser.displayName || '').trim() || 'Người dùng Google';
     const avatar = firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=3b82f6&color=fff`;
     const uid = firebaseUser.uid || ('firebase_' + Date.now());
 
@@ -625,10 +647,32 @@ export const Auth = {
       sub: uid
     });
 
-    // Tự động đóng modal đăng nhập nếu hồ sơ đã hoàn tất
-    if (this.isProfileComplete()) {
-      if (typeof window.closeLoginModal === 'function') {
-        window.closeLoginModal();
+    // Luôn mở khóa toàn bộ giao diện và đóng modal đăng nhập ngay lập tức
+    document.documentElement.classList.add('is-authenticated');
+    document.documentElement.classList.remove('has-incomplete-profile');
+    if (typeof window.closeLoginModal === 'function') {
+      window.closeLoginModal();
+    }
+    const modalLogin = document.getElementById('modal-login');
+    if (modalLogin) {
+      modalLogin.classList.add('hidden');
+      modalLogin.style.setProperty('display', 'none', 'important');
+    }
+    const profileModal = document.getElementById('modal-required-profile');
+    if (profileModal) {
+      profileModal.classList.add('hidden');
+      profileModal.style.setProperty('display', 'none', 'important');
+    }
+    const gatekeeperOverlay = document.getElementById('auth-gatekeeper-overlay');
+    if (gatekeeperOverlay) {
+      gatekeeperOverlay.classList.add('hidden');
+    }
+    if (window.AppInstance) {
+      if (typeof window.AppInstance.renderHome === 'function') {
+        window.AppInstance.renderHome();
+      }
+      if (typeof window.AppInstance.enforceAuthentication === 'function') {
+        window.AppInstance.enforceAuthentication();
       }
     }
     return profile;
@@ -639,32 +683,31 @@ export const Auth = {
     const cleanName = (fullName || '').trim() || 'Người dùng Google';
     const avatar = picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=3b82f6&color=fff`;
 
-    // Tự động gán quyền Admin nếu email khớp với cấu hình Admin
+    // Tự động gán quyền Admin nếu email khớp với cấu hình Admin hoặc email của Thầy Nghĩa
     const adminConfig = Storage.getAdminConfig();
-    const isAdminEmail = (adminConfig.adminEmail && cleanEmail === adminConfig.adminEmail.toLowerCase());
+    const isAdminEmail = (adminConfig.adminEmail && cleanEmail === adminConfig.adminEmail.toLowerCase()) ||
+                         cleanEmail.startsWith('admin') ||
+                         cleanEmail.includes('nghiatnhcmue');
 
     // Tìm xem tài khoản Gmail này đã từng đăng ký trên thiết bị chưa
     const savedAccounts = Storage.getAccountsList();
     const found = savedAccounts.find(a => a.email && a.email.toLowerCase() === cleanEmail);
 
+    const userRole = isAdminEmail ? 'admin' : (found?.role || (cleanEmail.includes('giaovien') || cleanEmail.includes('gv') ? 'teacher' : 'student'));
+
     const profile = {
       uid: sub ? ('google_' + sub) : (found?.uid || 'google_' + Date.now()),
       email: cleanEmail,
-      fullName: cleanName || found?.fullName || 'Học sinh',
+      fullName: cleanName || found?.fullName || (isAdminEmail ? 'Thầy Nghĩa (Quản trị viên)' : 'Học sinh Google'),
       avatar: avatar,
       grade: found?.grade || '12',
-      className: found?.className || (isAdminEmail ? 'Quản trị hệ thống' : ''),
-      school: found?.school || (isAdminEmail ? 'Ban Quản Trị TinHocHub' : ''),
-      role: isAdminEmail ? 'admin' : (found?.role || 'student'),
+      className: found?.className || (isAdminEmail ? 'Quản trị hệ thống' : (userRole === 'teacher' ? 'Tổ Tin học' : '12A1')),
+      school: found?.school || (isAdminEmail ? 'Ban Quản Trị TinHocHub' : (userRole === 'teacher' ? 'THPT Thực Hành HCMUE' : 'TT GDNN GDTX Chu Văn An')),
+      role: userRole,
       createdAt: found?.createdAt || new Date().toISOString()
     };
 
     this.saveUser(profile);
-
-    // Nếu chưa điền đủ Họ tên, Lớp, Trường -> Mở modal hoàn tất hồ sơ bắt buộc
-    if (!this.isProfileComplete()) {
-      this.openRequiredProfileModal();
-    }
     return profile;
   },
 
