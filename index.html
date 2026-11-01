@@ -50,7 +50,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261101_64" />
+  <link rel="stylesheet" href="css/style.css?v=20261101_65" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -86,6 +86,9 @@
         if (window.Auth && typeof window.Auth.initGoogleIdentity === 'function') {
           window.Auth.initGoogleIdentity();
         }
+        if (window.Auth && typeof window.Auth.bindGoogleAuthButtons === 'function') {
+          window.Auth.bindGoogleAuthButtons();
+        }
       };
 
       window.closeLoginModal = function() {
@@ -103,6 +106,50 @@
           m.style.setProperty('display', 'none', 'important');
         }
       };
+
+      // Xử lý sự kiện đăng nhập một chạm với Google ngay lập tức trên toàn cục
+      window.triggerGoogleSignIn = function(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        if (window.Auth && typeof window.Auth.signInWithGoogleFirebase === 'function') {
+          window.Auth.signInWithGoogleFirebase();
+          return;
+        }
+        var btns = document.querySelectorAll('#btn-firebase-google-signin, #btn-firebase-google-signup, [data-trigger-google-firebase]');
+        btns.forEach(function(b) {
+          b.disabled = true;
+          b.setAttribute('data-prev-text', b.innerHTML);
+          b.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang mở xác thực Google...';
+        });
+        var checks = 0;
+        var t = setInterval(function() {
+          checks++;
+          if (window.Auth && typeof window.Auth.signInWithGoogleFirebase === 'function') {
+            clearInterval(t);
+            window.Auth.signInWithGoogleFirebase();
+          } else if (checks > 40) {
+            clearInterval(t);
+            btns.forEach(function(b) {
+              b.disabled = false;
+              if (b.getAttribute('data-prev-text')) {
+                b.innerHTML = b.getAttribute('data-prev-text');
+                b.removeAttribute('data-prev-text');
+              }
+            });
+            alert('Đang kết nối hệ thống. Em hãy đăng nhập bằng Email/Tài khoản và Mật khẩu ở bên dưới để vào học ngay nhé!');
+            var inp = document.getElementById('login-input-identity');
+            if (inp) inp.focus();
+          }
+        }, 50);
+      };
+
+      // Global event delegation dự phòng bắt mọi cú click vào nút Google
+      document.addEventListener('click', function(e) {
+        var btn = e.target.closest && e.target.closest('#btn-firebase-google-signin, #btn-firebase-google-signup, [data-trigger-google-firebase]');
+        if (btn) {
+          e.preventDefault();
+          window.triggerGoogleSignIn(e);
+        }
+      });
 
       window.switchAuthTab = function(tab) {
         var panelLogin = document.getElementById('auth-panel-login');
@@ -1398,7 +1445,7 @@
       </button>
 
       <button data-tab-target="exam-setup" class="flex flex-col items-center justify-center gap-1 text-slate-600 dark:text-slate-300 font-medium transition">
-        <i class="fa-solid fa-stopwatch text-base"></i>
+        <i class="fa-solid fa-pen-clip text-base"></i>
         <span class="text-[10px]">Kiểm tra</span>
       </button>
 
@@ -1425,7 +1472,7 @@
           <i class="fa-solid fa-shield-halved text-blue-400 text-xs"></i> Yêu Cầu Đăng Nhập
         </h4>
         <p class="text-xs text-slate-300 mt-0.5">
-          Vui lòng đăng nhập hoặc đăng ký tài khoản để ôn tập ngân hàng 4.449 câu hỏi và thi thử.
+          Vui lòng đăng nhập hoặc đăng ký tài khoản để ôn tập, làm bài kiểm tra và theo dõi tiến trình của bạn.
         </p>
       </div>
       <button data-open-login-modal onclick="window.openLoginModal('login'); return false;" class="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shrink-0 transition shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2">
@@ -1475,7 +1522,7 @@
         <div class="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700/80 text-center">
           <span class="text-xs font-bold text-slate-600 dark:text-slate-300 block mb-3">Đăng nhập nhanh với Google</span>
           <div id="google-signin-btn-container" class="flex justify-center min-h-[44px]">
-            <button type="button" id="btn-firebase-google-signin" data-trigger-google-firebase="signin" class="w-full max-w-xs px-5 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
+            <button type="button" id="btn-firebase-google-signin" onclick="window.triggerGoogleSignIn && window.triggerGoogleSignIn(event)" data-trigger-google-firebase="signin" class="w-full max-w-xs px-5 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
               <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
                 <path fill="#34A853" d="M12 24c3.3 0 6.08-1.09 8.11-2.96l-3.88-3.05c-1.08.72-2.45 1.16-4.23 1.16-3.26 0-6.02-2.2-7-5.15H1.01v3.14C3.03 21.16 7.21 24 12 24z"/>
@@ -1546,7 +1593,7 @@
         <div class="p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700/80 text-center">
           <span class="text-xs font-bold text-slate-600 dark:text-slate-300 block mb-2.5">Đăng ký nhanh bằng tài khoản Google (Firebase)</span>
           <div id="google-signup-btn-container" class="flex justify-center min-h-[42px]">
-            <button type="button" id="btn-firebase-google-signup" data-trigger-google-firebase="signup" class="w-full max-w-xs px-5 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
+            <button type="button" id="btn-firebase-google-signup" onclick="window.triggerGoogleSignIn && window.triggerGoogleSignIn(event)" data-trigger-google-firebase="signup" class="w-full max-w-xs px-5 py-2.5 rounded-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2.5 transition hover:scale-[1.01]">
               <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
                 <path fill="#34A853" d="M12 24c3.3 0 6.08-1.09 8.11-2.96l-3.88-3.05c-1.08.72-2.45 1.16-4.23 1.16-3.26 0-6.02-2.2-7-5.15H1.01v3.14C3.03 21.16 7.21 24 12 24z"/>
@@ -2776,7 +2823,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261101_64"></script>
+  <script type="module" src="js/app.js?v=20261101_65"></script>
 </body>
 </html>
 

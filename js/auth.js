@@ -4,8 +4,8 @@
  * Hỗ trợ: Đăng nhập Google Popup, Đồng bộ Firebase Realtime Database, Hồ sơ học sinh.
  */
 
-import { Storage } from './storage.js?v=20261101_64';
-import { CloudSync } from './cloud-sync.js?v=20261101_64';
+import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261101_65';
+import { CloudSync } from './cloud-sync.js?v=20261101_65';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
 
@@ -42,8 +42,29 @@ export const Auth = {
 
   init() {
     this.loadUserFromStorage();
-    this.initFirebaseAuth();
+    this.ensureFirebaseInitialized();
     this.setupFirebaseAuthUI();
+    this.bindGoogleAuthButtons();
+
+    // Lắng nghe sự kiện click toàn cục trên document dự phòng
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest && e.target.closest('#btn-firebase-google-signin, #btn-firebase-google-signup, [data-trigger-google-firebase]');
+      if (btn) {
+        e.preventDefault();
+        this.signInWithGoogleFirebase();
+      }
+    });
+
+    // Nếu Firebase SDK tải chậm từ CDN, đợi và khởi tạo ngay khi sẵn sàng
+    if (typeof firebase === 'undefined' || !this.firebaseAuth) {
+      this.waitForFirebaseSDK(3000).then(ready => {
+        if (ready) {
+          this.ensureFirebaseInitialized();
+          this.bindGoogleAuthButtons();
+        }
+      });
+    }
+
     this.setupSchoolClassSync({
       schoolSelectId: 'reg-input-school',
       customSchoolInputId: 'reg-input-school-custom',
@@ -204,17 +225,35 @@ export const Auth = {
     }
   },
 
-  initFirebaseAuth() {
-    if (typeof firebase === 'undefined') {
-      console.warn('Firebase SDK chưa được tải.');
+  waitForFirebaseSDK(timeoutMs = 3000) {
+    if (typeof firebase !== 'undefined' && typeof firebase.auth === 'function') {
+      return Promise.resolve(true);
+    }
+    return new Promise(resolve => {
+      const start = Date.now();
+      const timer = setInterval(() => {
+        if (typeof firebase !== 'undefined' && typeof firebase.auth === 'function') {
+          clearInterval(timer);
+          resolve(true);
+        } else if (Date.now() - start >= timeoutMs) {
+          clearInterval(timer);
+          resolve(false);
+        }
+      }, 50);
+    });
+  },
+
+  ensureFirebaseInitialized() {
+    if (this.firebaseAuth && this.isFirebaseInitialized) return true;
+
+    if (typeof firebase === 'undefined' || typeof firebase.auth !== 'function') {
       return false;
     }
 
     const cfg = Storage.getFirebaseAuthConfig ? Storage.getFirebaseAuthConfig() : {};
-    const cleanKey = this.cleanFirebaseApiKey(cfg.apiKey);
+    let cleanKey = this.cleanFirebaseApiKey(cfg.apiKey);
     if (!cleanKey || !this.isFirebaseApiKey(cleanKey)) {
-      this.renderFallbackGoogleButtons();
-      return false;
+      cleanKey = DEFAULT_FIREBASE_API_KEY;
     }
 
     try {
@@ -223,7 +262,7 @@ export const Auth = {
           apiKey: cleanKey,
           authDomain: cfg.authDomain || (cfg.projectId ? `${cfg.projectId}.firebaseapp.com` : 'on-tap-nghiaedu-tin-hoc.firebaseapp.com'),
           projectId: cfg.projectId || 'on-tap-nghiaedu-tin-hoc',
-          databaseURL: cfg.databaseURL || 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.firebaseio.com'
+          databaseURL: cfg.databaseURL || 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app'
         });
       }
 
@@ -237,13 +276,27 @@ export const Auth = {
         }
       });
 
-      this.renderFallbackGoogleButtons();
       return true;
     } catch (err) {
       console.warn('Lỗi khởi tạo Firebase Auth:', err);
-      this.renderFallbackGoogleButtons();
       return false;
     }
+  },
+
+  initFirebaseAuth() {
+    const ok = this.ensureFirebaseInitialized();
+    this.bindGoogleAuthButtons();
+    return ok;
+  },
+
+  bindGoogleAuthButtons() {
+    const selector = '#btn-firebase-google-signin, #btn-firebase-google-signup, [data-trigger-google-firebase]';
+    document.querySelectorAll(selector).forEach(btn => {
+      btn.onclick = (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        this.signInWithGoogleFirebase();
+      };
+    });
   },
 
   // Tương thích ngược với các lệnh gọi cũ
@@ -472,55 +525,35 @@ export const Auth = {
   },
 
   async signInWithGoogleFirebase() {
-    let cfg = Storage.getFirebaseAuthConfig ? Storage.getFirebaseAuthConfig() : {};
-
-    // 1. Nếu chưa có API Key ở client, tự động kéo tức thì từ máy chủ về trước
-    if (!cfg.apiKey || !this.isFirebaseApiKey(cfg.apiKey)) {
-      if (CloudSync && typeof CloudSync.fetchAuthConfigFromServer === 'function') {
-        const remote = await CloudSync.fetchAuthConfigFromServer();
-        if (remote && remote.apiKey && this.isFirebaseApiKey(remote.apiKey)) {
-          cfg = Storage.getFirebaseAuthConfig();
-        }
-      }
-    }
-
-    // 2. Nếu VẪN chưa có API Key hợp lệ:
-    if (!cfg.apiKey || !this.isFirebaseApiKey(cfg.apiKey)) {
-      if (cfg.apiKey && !this.isFirebaseApiKey(cfg.apiKey)) {
-        Storage.saveFirebaseAuthConfig({ apiKey: '' });
-      }
-
-      // TUYỆT ĐỐI KHÔNG BẮT HỌC SINH ĐIỀN API KEY!
-      alert('Đăng nhập Google tạm thời gián đoạn. Bạn có thể đăng nhập bằng Email/Tài khoản và Mật khẩu ở bên dưới để vào học ngay nhé!');
-      const inputId = document.getElementById('login-input-identity');
-      if (inputId) {
-        inputId.focus();
-        inputId.classList.add('ring-2', 'ring-blue-500');
-        setTimeout(() => inputId.classList.remove('ring-2', 'ring-blue-500'), 2500);
-      }
-      return;
-    }
-
-    if (!this.firebaseAuth) {
-      const ok = this.initFirebaseAuth();
-      if (!ok || !this.firebaseAuth) {
-        alert('Đang kết nối xác thực Google. Bạn hãy đăng nhập bằng Email/Tài khoản và Mật khẩu bên dưới để vào học ngay nhé!');
-        document.getElementById('login-input-identity')?.focus();
-        return;
-      }
-    }
-
-    const btns = document.querySelectorAll('[data-trigger-google-firebase]');
+    const btns = document.querySelectorAll('#btn-firebase-google-signin, #btn-firebase-google-signup, [data-trigger-google-firebase]');
     btns.forEach(b => {
       b.disabled = true;
-      b.dataset.prevHtml = b.innerHTML;
+      if (!b.dataset.prevHtml) b.dataset.prevHtml = b.innerHTML;
       b.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang mở xác thực Google...';
     });
 
     try {
+      // Đảm bảo Firebase SDK đã sẵn sàng
+      if (typeof firebase === 'undefined' || typeof firebase.auth !== 'function') {
+        const ready = await this.waitForFirebaseSDK(3000);
+        if (!ready) {
+          alert('Không thể kết nối đến thư viện Google Firebase (có thể do đường truyền hoặc trình duyệt chặn kết nối).\n\nEm vui lòng đăng nhập bằng Email/Tài khoản và Mật khẩu ở bên dưới để vào học ngay nhé!');
+          document.getElementById('login-input-identity')?.focus();
+          return;
+        }
+      }
+
+      const ok = this.ensureFirebaseInitialized();
+      if (!ok || !this.firebaseAuth) {
+        alert('Đang kết nối xác thực Google. Em hãy đăng nhập bằng Email/Tài khoản và Mật khẩu ở bên dưới để vào học ngay nhé!');
+        document.getElementById('login-input-identity')?.focus();
+        return;
+      }
+
       const provider = new firebase.auth.GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
 
+      // Gọi popup trực tiếp
       const result = await this.firebaseAuth.signInWithPopup(provider);
       if (result && result.user) {
         this.handleFirebaseUser(result.user);
@@ -536,7 +569,7 @@ export const Auth = {
         alert('Đăng nhập Google tạm thời gián đoạn. Bạn vui lòng đăng nhập bằng Email/Tài khoản và Mật khẩu ở bên dưới nhé!');
         document.getElementById('login-input-identity')?.focus();
       } else if (err.code === 'auth/popup-blocked') {
-        alert('Trình duyệt đã chặn cửa sổ đăng nhập Google (Pop-up blocked)!\nVui lòng nhấp vào biểu tượng Pop-up trên thanh địa chỉ của trình duyệt để "Cho phép Pop-up", sau đó thử lại.');
+        alert('Trình duyệt đã chặn cửa sổ đăng nhập Google (Pop-up blocked)!\n\nVui lòng nhấp vào biểu tượng Pop-up trên thanh địa chỉ của trình duyệt để "Cho phép Pop-up từ trang này", sau đó bấm lại nút Tiếp tục với Google.');
       } else if (err.code === 'auth/unauthorized-domain' || err.code === 'auth/invalid-continue-uri' || (err.message && err.message.includes('invalid-continue-uri'))) {
         const domain = window.location.hostname;
         alert(`⚠️ TÊN MIỀN CHƯA ĐƯỢC ỦY QUYỀN TRONG FIREBASE!\n\nLỗi: (auth/invalid-continue-uri / unauthorized-domain)\n\n👉 Cách kích hoạt để Google cho phép đăng nhập (chỉ mất 30 giây):\n1. Mở Firebase Console (dự án on-tap-nghiaedu-tin-hoc)\n2. Chọn Authentication -> tab Settings (hoặc Sign-in method)\n3. Cuộn xuống mục [Authorized domains] (Miền được ủy quyền)\n4. Bấm "Add domain" và nhập chính xác: ${domain}\n5. Bấm Lưu và bấm lại nút Đăng nhập Google!`);
@@ -544,13 +577,19 @@ export const Auth = {
         alert('Phương thức Google Sign-In chưa được bật trong Firebase!\n\nVào Firebase Console -> Authentication -> Sign-in method -> Bật Google (Enable) rồi bấm Lưu.');
       } else if (err.code === 'auth/popup-closed-by-user') {
         // Người dùng chủ động đóng popup
+      } else if (err.code === 'auth/cancelled-popup-request') {
+        // Đã có một popup khác đang mở
       } else {
-        alert(`Xác thực Firebase: ${err.message || err.code}`);
+        alert(`Xác thực Firebase: ${err.message || err.code || 'Có lỗi xảy ra'}\nBạn có thể đăng nhập bằng Email/Tài khoản và Mật khẩu ở bên dưới để vào học ngay nhé!`);
+        document.getElementById('login-input-identity')?.focus();
       }
     } finally {
       btns.forEach(b => {
         b.disabled = false;
-        if (b.dataset.prevHtml) b.innerHTML = b.dataset.prevHtml;
+        if (b.dataset.prevHtml) {
+          b.innerHTML = b.dataset.prevHtml;
+          delete b.dataset.prevHtml;
+        }
       });
     }
   },
