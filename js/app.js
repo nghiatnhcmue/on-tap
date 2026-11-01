@@ -3,22 +3,22 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261101_71';
-import { Practice } from './practice.js?v=20261101_71';
-import { Exam } from './exam.js?v=20261101_71';
-import { Search } from './search.js?v=20261101_71';
-import { PrintManager } from './print.js?v=20261101_71';
-import { Auth } from './auth.js?v=20261101_71';
-import { escapeHtml } from './utils.js?v=20261101_71';
-import { Leaderboard } from './leaderboard.js?v=20261101_71';
-import { QuestionsManager } from './questions-manager.js?v=20261101_71';
-import { AdminManager } from './admin-manager.js?v=20261101_71';
-import { ExamRooms } from './exam-rooms.js?v=20261101_71';
-import { Proctor } from './proctor.js?v=20261101_71';
-import { Gradebook } from './gradebook.js?v=20261101_71';
-import { CloudSync } from './cloud-sync.js?v=20261101_71';
-import { InteractiveVideo } from './interactive-video.js?v=20261101_71';
-import { LiveVideo } from './live-video.js?v=20261101_71';
+import { Storage } from './storage.js?v=20261101_72';
+import { Practice } from './practice.js?v=20261101_72';
+import { Exam } from './exam.js?v=20261101_72';
+import { Search } from './search.js?v=20261101_72';
+import { PrintManager } from './print.js?v=20261101_72';
+import { Auth } from './auth.js?v=20261101_72';
+import { escapeHtml } from './utils.js?v=20261101_72';
+import { Leaderboard } from './leaderboard.js?v=20261101_72';
+import { QuestionsManager } from './questions-manager.js?v=20261101_72';
+import { AdminManager } from './admin-manager.js?v=20261101_72';
+import { ExamRooms } from './exam-rooms.js?v=20261101_72';
+import { Proctor } from './proctor.js?v=20261101_72';
+import { Gradebook } from './gradebook.js?v=20261101_72';
+import { CloudSync } from './cloud-sync.js?v=20261101_72';
+import { InteractiveVideo } from './interactive-video.js?v=20261101_72';
+import { LiveVideo } from './live-video.js?v=20261101_72';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -187,7 +187,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261101_71');
+      const res = await fetch('data/manifest.json?v=20261101_72');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
@@ -311,7 +311,17 @@ class App {
       alert('Chức năng Quản Trị Hệ Thống chỉ dành riêng cho Quản trị viên (Admin)!');
       return false;
     }
-    if ((tab === 'questions-manage' || tab === 'gradebook' || tab === 'exam-rooms' || tab === 'print') && !Auth.isTeacher()) {
+    if (tab === 'gradebook' && !Auth.isTeacher()) {
+      // Học sinh không xem được sổ điểm lớp -> Tự động chuyển hướng sang Lịch sử làm bài của chính học sinh
+      this.switchTab('history');
+      return false;
+    }
+    if (tab === 'exam-rooms' && !Auth.isTeacher()) {
+      // Học sinh không quản lý phòng thi -> Tự động chuyển hướng sang màn hình Kiểm tra trực tuyến
+      this.switchTab('exam-setup');
+      return false;
+    }
+    if ((tab === 'questions-manage' || tab === 'print') && !Auth.isTeacher()) {
       alert('Chức năng này dành cho Giáo viên (GV) & Quản trị viên (Admin)!\nHọc sinh vui lòng tham gia thi thử và xem bảng vinh danh.');
       return false;
     }
@@ -3155,17 +3165,35 @@ class App {
     const isAdmin = Auth.isAdmin();
     const isStudent = Auth.isStudent();
 
-    // Ẩn/hiển thị các tab & nút theo quyền yêu cầu
+    // Ẩn/hiển thị các tab & nút theo quyền yêu cầu triệt để (ngăn chặn mọi class responsive như xl:flex override display)
     document.querySelectorAll('[data-role-req="teacher"]').forEach(el => {
-      el.classList.toggle('hidden', !isTeacher);
+      if (isTeacher) {
+        el.classList.remove('hidden');
+        el.style.removeProperty('display');
+      } else {
+        el.classList.add('hidden');
+        el.style.setProperty('display', 'none', 'important');
+      }
     });
 
     document.querySelectorAll('[data-role-req="admin"]').forEach(el => {
-      el.classList.toggle('hidden', !isAdmin);
+      if (isAdmin) {
+        el.classList.remove('hidden');
+        el.style.removeProperty('display');
+      } else {
+        el.classList.add('hidden');
+        el.style.setProperty('display', 'none', 'important');
+      }
     });
 
     document.querySelectorAll('[data-role-req="student"]').forEach(el => {
-      el.classList.toggle('hidden', !isStudent);
+      if (isStudent) {
+        el.classList.remove('hidden');
+        el.style.removeProperty('display');
+      } else {
+        el.classList.add('hidden');
+        el.style.setProperty('display', 'none', 'important');
+      }
     });
 
     // Cập nhật nhãn vai trò tại Hub Giáo viên trên Home (nếu có)
