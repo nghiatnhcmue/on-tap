@@ -177,6 +177,14 @@ Hệ thống tự động nhận diện nền tảng (`Proctor.detectPlatform()`
 - **Bộ lọc & Điều phối cho Giáo viên:**
   - Thanh bộ lọc nhanh theo Khối, theo Trường và ô tìm kiếm tức thì theo tên/mã phòng.
   - Nút **"Copy thông báo lớp"** tự động định dạng mẫu tin nhắn chuyên nghiệp (gồm Tên bài, Trường, Lớp, Hình thức đề, Thời lượng, Khung giờ, Mật khẩu, Link trực tiếp `${origin}?room=${roomId}`) để Thầy Cô gửi ngay vào Zalo/Facebook của lớp.
+- **Bảng Nhiệm Vụ & Bài Tập Học Sinh Được Giao Trên Trang Chủ (`#home-student-assigned-tasks`):**
+  - Hiển thị trực quan ngay đầu trang chủ cho học sinh, tự động lọc bài tập/đề thi theo đúng **Trường (`user.school`)**, **Khối (`user.grade`)** và **Lớp (`user.className`)**.
+  - **Phân loại 4 trạng thái nhiệm vụ rõ ràng:**
+    - 🔴 **Cần làm ngay (`pending`):** Bài thi đang mở và học sinh chưa làm (viền phát sáng, nhấp nháy, kèm hạn chót và nút **`[ 🚀 Vào Làm Bài Ngay ]`** 1 chạm tự điền mã phòng và mật khẩu).
+    - 🟢 **Đã hoàn thành (`completed`):** Bài thi học sinh đã nộp (hiển thị điểm số, số câu đúng/tổng câu và nút **`[ 👁️ Xem Lại Kết Quả & Đáp Án ]`**).
+    - 🟡 **Sắp mở đề (`upcoming`):** Chưa đến khung giờ làm bài (hiển thị thời gian mở đề).
+    - ⚫ **Đã hết hạn (`expired`):** Quá hạn nộp bài.
+  - **Tích hợp thông báo Tiết học Live Video trực tuyến:** Tự động phát hiện nếu có phòng Live Video của lớp đang mở, hiển thị banner động **`🔴 Đang phát trực tiếp`** kèm nút **`[ 🎟️ Vào Lớp Trực Tuyến Ngay ]`**.
 
 ### 4.5. Sổ Điểm Điện Tử & Theo Dõi Tiến Trình Học Sinh Toàn Diện (`js/gradebook.js`)
 Phục vụ nhu cầu theo dõi tiến độ, đánh giá năng lực học tập và xuất báo cáo kết quả thi của Giáo viên và Học sinh:

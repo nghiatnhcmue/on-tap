@@ -3,22 +3,22 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261101_52';
-import { Practice } from './practice.js?v=20261101_52';
-import { Exam } from './exam.js?v=20261101_52';
-import { Search } from './search.js?v=20261101_52';
-import { PrintManager } from './print.js?v=20261101_52';
-import { Auth } from './auth.js?v=20261101_52';
-import { escapeHtml } from './utils.js?v=20261101_52';
-import { Leaderboard } from './leaderboard.js?v=20261101_52';
-import { QuestionsManager } from './questions-manager.js?v=20261101_52';
-import { AdminManager } from './admin-manager.js?v=20261101_52';
-import { ExamRooms } from './exam-rooms.js?v=20261101_52';
-import { Proctor } from './proctor.js?v=20261101_52';
-import { Gradebook } from './gradebook.js?v=20261101_52';
-import { CloudSync } from './cloud-sync.js?v=20261101_52';
-import { InteractiveVideo } from './interactive-video.js?v=20261101_52';
-import { LiveVideo } from './live-video.js?v=20261101_52';
+import { Storage } from './storage.js?v=20261101_53';
+import { Practice } from './practice.js?v=20261101_53';
+import { Exam } from './exam.js?v=20261101_53';
+import { Search } from './search.js?v=20261101_53';
+import { PrintManager } from './print.js?v=20261101_53';
+import { Auth } from './auth.js?v=20261101_53';
+import { escapeHtml } from './utils.js?v=20261101_53';
+import { Leaderboard } from './leaderboard.js?v=20261101_53';
+import { QuestionsManager } from './questions-manager.js?v=20261101_53';
+import { AdminManager } from './admin-manager.js?v=20261101_53';
+import { ExamRooms } from './exam-rooms.js?v=20261101_53';
+import { Proctor } from './proctor.js?v=20261101_53';
+import { Gradebook } from './gradebook.js?v=20261101_53';
+import { CloudSync } from './cloud-sync.js?v=20261101_53';
+import { InteractiveVideo } from './interactive-video.js?v=20261101_53';
+import { LiveVideo } from './live-video.js?v=20261101_53';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -456,6 +456,9 @@ class App {
       homeTrendBadge = `<div class="mt-1"><span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">Mới bắt đầu 🔄</span></div>`;
     }
 
+    // Hiển thị danh sách nhiệm vụ & bài tập Thầy/Cô đã giao cho lớp của học sinh này
+    this.renderStudentAssignedTasks();
+
     const homeStatsContainer = document.getElementById('home-user-stats');
     if (homeStatsContainer) {
       homeStatsContainer.innerHTML = `
@@ -667,6 +670,423 @@ class App {
         }
       };
     }
+  }
+
+  // --- NHIỆM VỤ & BÀI THI THẦY/CÔ GIAO CHO HỌC SINH (STUDENT ASSIGNED TASKS DASHBOARD) ---
+  async renderStudentAssignedTasks() {
+    const container = document.getElementById('home-student-assigned-tasks');
+    if (!container) return;
+
+    const user = Auth.getCurrentUser();
+    const isStudent = Auth.isStudent();
+    const isTeacher = Auth.isTeacher() || Auth.isAdmin();
+
+    // 1. Nếu chưa đăng nhập: Hiển thị banner khuyến khích đăng nhập
+    if (!Auth.isLoggedIn()) {
+      container.innerHTML = `
+        <div class="p-6 rounded-3xl bg-gradient-to-r from-blue-900/40 via-indigo-900/30 to-purple-900/40 border border-blue-500/30 text-white flex flex-col sm:flex-row items-center justify-between gap-4 animate-fadeIn">
+          <div class="flex items-center gap-3.5 text-center sm:text-left">
+            <div class="w-12 h-12 rounded-2xl bg-blue-500/20 text-blue-300 flex items-center justify-center text-xl shrink-0 mx-auto sm:mx-0 shadow-inner">
+              <i class="fa-solid fa-user-graduate"></i>
+            </div>
+            <div>
+              <h4 class="text-sm sm:text-base font-bold">Xem bài tập & đề thi Thầy/Cô giao cho lớp em</h4>
+              <p class="text-xs text-slate-300 mt-0.5">Đăng nhập tài khoản để nhận ngay các bài kiểm tra do Giáo viên trường em phân công.</p>
+            </div>
+          </div>
+          <button type="button" id="btn-home-task-login" class="px-5 py-2.5 rounded-xl bg-white text-slate-900 hover:bg-blue-50 text-xs font-black transition shadow-lg shrink-0 hover:scale-[1.02] active:scale-[0.98]">
+            <i class="fa-solid fa-arrow-right-to-bracket text-blue-600"></i> Đăng Nhập Ngay
+          </button>
+        </div>
+      `;
+      container.querySelector('#btn-home-task-login')?.addEventListener('click', () => {
+        Auth.openLoginModal();
+      });
+      return;
+    }
+
+    // 2. Kéo danh sách phòng thi mới nhất
+    const rooms = Storage.getExamRooms();
+    const history = isStudent ? Storage.getUserExamHistory(user) : Storage.getExamHistory();
+    const now = new Date();
+
+    // Lọc các phòng thi khớp với học sinh (theo Trường, Khối, Lớp)
+    const matchingRooms = rooms.filter(room => {
+      // Nếu là Giáo viên/Admin đang xem trang chủ, hiển thị tất cả bài thi đang mở
+      if (isTeacher) return true;
+
+      // Khớp Khối lớp
+      const matchGrade = (!room.grade || room.grade === user?.grade);
+
+      // Khớp Trường
+      const matchSchool = (room.targetSchool === 'all' || !room.targetSchool || (user?.school && room.targetSchool.toLowerCase() === user.school.toLowerCase()));
+
+      // Khớp Lớp
+      const matchClass = (room.targetClass === 'all' || !room.targetClass || (user?.className && room.targetClass.toLowerCase() === user.className.toLowerCase()));
+
+      return matchGrade && matchSchool && matchClass;
+    });
+
+    // 3. Kiểm tra tiết học Live Video đang diễn ra trên Firebase RTDB
+    let activeLiveRoom = null;
+    try {
+      const dbUrl = CloudSync.getBaseUrl();
+      const res = await fetch(`${dbUrl}/live_video_rooms.json`, { cache: 'no-cache' });
+      if (res.ok) {
+        const liveData = await res.json();
+        if (liveData) {
+          const list = Object.values(liveData);
+          activeLiveRoom = list.find(r => {
+            if (!r || r.state === 'finished') return false;
+            if (isTeacher) return true;
+            const matchGrade = (!r.grade || r.grade === user?.grade);
+            const matchSchool = (r.school === 'all' || !r.school || (user?.school && r.school.toLowerCase() === user.school.toLowerCase()));
+            const matchClass = (r.className === 'all' || !r.className || (user?.className && r.className.toLowerCase() === user.className.toLowerCase()));
+            return matchGrade && matchSchool && matchClass;
+          });
+        }
+      }
+    } catch (e) {}
+
+    // Phân loại phòng thi theo trạng thái đối với học sinh này
+    const categorized = matchingRooms.map(room => {
+      // Kiểm tra xem đã nộp bài chưa
+      const record = history.find(h => (h.roomId && h.roomId.toUpperCase() === room.id.toUpperCase()) || (h.examTitle && h.examTitle.includes(room.id)));
+      
+      const start = room.startTime ? new Date(room.startTime) : null;
+      const end = room.endTime ? new Date(room.endTime) : null;
+
+      let status = 'pending'; // 'pending' | 'completed' | 'upcoming' | 'expired'
+      if (record) {
+        status = 'completed';
+      } else if (start && now < start) {
+        status = 'upcoming';
+      } else if (end && now > end) {
+        status = 'expired';
+      } else {
+        status = 'pending';
+      }
+
+      return { room, record, status, start, end };
+    });
+
+    // Sắp xếp: Cần làm ngay lên đầu -> Sắp mở -> Đã nộp -> Quá hạn
+    const statusOrder = { pending: 1, upcoming: 2, completed: 3, expired: 4 };
+    categorized.sort((a, b) => (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99));
+
+    const pendingCount = categorized.filter(c => c.status === 'pending').length;
+    const completedCount = categorized.filter(c => c.status === 'completed').length;
+
+    let html = `
+      <div class="space-y-4 animate-fadeIn">
+        
+        <!-- BANNER TIẾT HỌC TRỰC TUYẾN LIVE VIDEO (NẾU CÓ PHÒNG ĐANG MỞ) -->
+        ${activeLiveRoom ? `
+          <div class="p-5 rounded-3xl bg-gradient-to-r from-rose-600 via-rose-700 to-indigo-800 text-white shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-rose-400/40 relative overflow-hidden group">
+            <div class="relative z-10 flex items-center gap-4">
+              <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl shrink-0 shadow-inner group-hover:scale-110 transition animate-pulse">
+                <i class="fa-solid fa-tower-broadcast text-white"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="px-2.5 py-0.5 rounded-full bg-white text-rose-700 text-[10px] font-black uppercase tracking-wider shadow-sm animate-pulse">
+                    🔴 Đang phát trực tiếp
+                  </span>
+                  <span class="text-xs font-mono text-rose-200">Mã: <strong>${escapeHtml(activeLiveRoom.roomId)}</strong></span>
+                </div>
+                <h4 class="text-sm sm:text-base font-black text-white leading-snug">
+                  ${escapeHtml(activeLiveRoom.title || activeLiveRoom.lessonTitle)}
+                </h4>
+                <p class="text-xs text-rose-100 mt-0.5">
+                  Thầy/Cô: <strong>${escapeHtml(activeLiveRoom.hostName || 'Giáo viên')}</strong> • Lớp: <strong>${escapeHtml(activeLiveRoom.className)}</strong>
+                </p>
+              </div>
+            </div>
+
+            <button type="button" data-home-join-live="${escapeHtml(activeLiveRoom.roomId)}" class="relative z-10 w-full sm:w-auto px-6 py-3 rounded-2xl bg-white text-rose-700 hover:bg-slate-100 font-black text-xs sm:text-sm shadow-xl transition flex items-center justify-center gap-2 shrink-0 hover:scale-[1.02] active:scale-[0.98]">
+              <i class="fa-solid fa-ticket"></i> Vào Lớp Trực Tuyến Ngay
+            </button>
+            <div class="absolute -right-8 -bottom-8 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+          </div>
+        ` : ''}
+
+        <!-- KHUNG NHIỆM VỤ CHÍNH -->
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
+          
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+            <div>
+              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 text-xs font-bold uppercase tracking-wider mb-1.5 border border-rose-200/60 dark:border-rose-900/60">
+                <i class="fa-solid fa-list-check"></i> Nhiệm vụ & Bài tập Thầy / Cô giao
+              </div>
+              <h3 class="text-lg sm:text-xl font-black text-slate-800 dark:text-white">
+                Bài Kiểm Tra Của Lớp ${escapeHtml(user?.className || 'Của Em')} ${user?.school ? `• ${escapeHtml(user.school)}` : ''}
+              </h3>
+              <p class="text-xs text-slate-400 mt-0.5">
+                Các đề kiểm tra định kỳ, 15 phút và bài tập do Giáo viên phân công cho lớp
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              ${pendingCount > 0 ? `
+                <span class="px-3.5 py-1.5 rounded-full bg-rose-500 text-white font-black text-xs shadow-md shadow-rose-500/30 flex items-center gap-1.5 animate-pulse">
+                  <span class="w-2 h-2 rounded-full bg-white"></span> ${pendingCount} bài cần làm ngay
+                </span>
+              ` : `
+                <span class="px-3.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 font-bold text-xs border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5">
+                  <i class="fa-solid fa-circle-check"></i> ${completedCount > 0 ? `Đã hoàn thành ${completedCount} bài` : 'Chưa có bài tồn đọng'}
+                </span>
+              `}
+            </div>
+          </div>
+
+          <!-- Danh sách thẻ bài tập -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            ${categorized.length === 0 ? `
+              <div class="col-span-full py-8 text-center space-y-3">
+                <div class="w-14 h-14 rounded-3xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-2xl mx-auto shadow-inner">
+                  <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <div class="space-y-1">
+                  <h4 class="text-sm font-bold text-slate-800 dark:text-white">Tuyệt vời! Lớp ${escapeHtml(user?.className || '')} không có bài tập nào tồn đọng</h4>
+                  <p class="text-xs text-slate-400 max-w-md mx-auto">Em có thể luyện tập thêm các câu hỏi hay sai hoặc làm bài thi thử tự do để chuẩn bị tốt cho kỳ thi nhé.</p>
+                </div>
+                <div class="flex items-center justify-center gap-3 pt-2">
+                  <button type="button" data-tab-target="exam-setup" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-sm">
+                    <i class="fa-solid fa-pen-clip"></i> Thi thử tự chọn
+                  </button>
+                  <button type="button" data-tab-target="practice" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition">
+                    <i class="fa-solid fa-book-open"></i> Ôn tập câu hỏi
+                  </button>
+                </div>
+              </div>
+            ` : categorized.map(item => this.renderAssignedTaskCard(item)).join('')}
+          </div>
+
+        </div>
+
+      </div>
+    `;
+
+    container.innerHTML = html;
+    this.bindStudentAssignedTasksEvents(container);
+  }
+
+  renderAssignedTaskCard({ room, record, status, start, end }) {
+    const isPending = (status === 'pending');
+    const isCompleted = (status === 'completed');
+    const isUpcoming = (status === 'upcoming');
+    const isExpired = (status === 'expired');
+
+    const durationText = `${room.duration || 50} phút`;
+    const questionCountText = `${room.questionCount || 28} câu`;
+    const teacherName = room.creatorName || 'Thầy/Cô Giáo viên';
+
+    let timeLabel = '';
+    if (end) {
+      const diffMs = end - new Date();
+      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      if (diffDays > 0) timeLabel = `Còn ${diffDays} ngày (Hạn: ${end.toLocaleDateString('vi-VN')})`;
+      else if (diffMs > 0) timeLabel = `Hạn chót: Hôm nay ${end.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`;
+      else timeLabel = `Hết hạn: ${end.toLocaleDateString('vi-VN')}`;
+    }
+
+    if (isPending) {
+      return `
+        <div class="p-5 rounded-2xl border-2 border-rose-500/50 bg-rose-50/30 dark:bg-rose-950/20 shadow-md hover:shadow-lg transition flex flex-col justify-between space-y-4 relative group">
+          <div class="space-y-2.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="px-2.5 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-black uppercase tracking-wider animate-pulse flex items-center gap-1 shadow-sm">
+                <i class="fa-solid fa-circle-exclamation"></i> CẦN LÀM NGAY
+              </span>
+              <span class="text-xs font-mono font-bold text-rose-600 dark:text-rose-400">
+                ${durationText} • ${questionCountText}
+              </span>
+            </div>
+
+            <div>
+              <h4 class="text-sm font-black text-slate-800 dark:text-white line-clamp-2 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition">
+                ${escapeHtml(room.title)}
+              </h4>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
+                <span><i class="fa-solid fa-chalkboard-user text-blue-500"></i> ${escapeHtml(teacherName)}</span>
+                <span>•</span>
+                <span class="font-mono text-slate-400">Mã: ${escapeHtml(room.id)}</span>
+              </p>
+            </div>
+          </div>
+
+          <div class="space-y-2 pt-2 border-t border-rose-200/40 dark:border-rose-900/40">
+            ${timeLabel ? `<div class="text-[11px] text-rose-700 dark:text-rose-300 font-semibold flex items-center gap-1"><i class="fa-regular fa-clock"></i> ${timeLabel}</div>` : ''}
+            <button type="button" data-enter-assigned-room="${escapeHtml(room.id)}" data-room-pwd="${escapeHtml(room.password || '')}" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white text-xs font-black transition shadow-lg shadow-rose-600/25 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.98]">
+              <i class="fa-solid fa-rocket"></i> Vào Làm Bài Ngay
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    if (isCompleted) {
+      const score = Number(record.score) || 0;
+      const scoreColor = score >= 8.0 ? 'text-emerald-600 dark:text-emerald-400' : (score >= 5.0 ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400');
+      return `
+        <div class="p-5 rounded-2xl border border-emerald-500/30 bg-emerald-50/20 dark:bg-emerald-950/10 shadow-sm flex flex-col justify-between space-y-4">
+          <div class="space-y-2.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold flex items-center gap-1">
+                <i class="fa-solid fa-circle-check text-emerald-500"></i> ĐÃ HOÀN THÀNH
+              </span>
+              <span class="text-sm font-black font-mono ${scoreColor}">
+                ${score.toFixed(1)} / 10đ
+              </span>
+            </div>
+
+            <div>
+              <h4 class="text-sm font-bold text-slate-800 dark:text-white line-clamp-2">
+                ${escapeHtml(room.title)}
+              </h4>
+              <p class="text-[11px] text-slate-400 mt-1 flex items-center gap-2">
+                <span>Đúng ${record.correctCount || 0}/${record.totalQuestions || 0} câu</span>
+                <span>•</span>
+                <span>${record.submittedAt ? new Date(record.submittedAt).toLocaleDateString('vi-VN') : ''}</span>
+              </p>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
+            <button type="button" data-view-assigned-result="${escapeHtml(record.id || room.id)}" class="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-eye text-blue-500"></i> Xem Lại Kết Quả & Đáp Án
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    if (isUpcoming) {
+      return `
+        <div class="p-5 rounded-2xl border border-amber-500/30 bg-amber-50/20 dark:bg-amber-950/10 shadow-sm flex flex-col justify-between space-y-4 opacity-90">
+          <div class="space-y-2.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 text-[10px] font-bold flex items-center gap-1">
+                <i class="fa-solid fa-clock"></i> SẮP MỞ ĐỀ
+              </span>
+              <span class="text-xs font-mono text-slate-400">${durationText}</span>
+            </div>
+
+            <div>
+              <h4 class="text-sm font-bold text-slate-800 dark:text-white line-clamp-2">
+                ${escapeHtml(room.title)}
+              </h4>
+              <p class="text-[11px] text-slate-400 mt-1">
+                Thầy/Cô: ${escapeHtml(teacherName)}
+              </p>
+            </div>
+          </div>
+
+          <div class="space-y-2 pt-2 border-t border-amber-200/40 dark:border-amber-900/40">
+            <div class="text-[11px] text-amber-700 dark:text-amber-300 font-medium">
+              Mở lúc: ${start ? start.toLocaleString('vi-VN') : 'Đang cập nhật'}
+            </div>
+            <button type="button" disabled class="w-full py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 text-xs font-medium cursor-not-allowed">
+              Chưa Đến Giờ Mở Thi
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    // isExpired
+    return `
+      <div class="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 shadow-sm flex flex-col justify-between space-y-4 opacity-60">
+        <div class="space-y-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold">
+              ĐÃ HẾT HẠN
+            </span>
+            <span class="text-xs font-mono text-slate-400">Mã: ${escapeHtml(room.id)}</span>
+          </div>
+
+          <div>
+            <h4 class="text-sm font-bold text-slate-700 dark:text-slate-300 line-clamp-2">
+              ${escapeHtml(room.title)}
+            </h4>
+            <p class="text-[11px] text-slate-400 mt-1">Đã đóng đề lúc: ${end ? end.toLocaleDateString('vi-VN') : ''}</p>
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-slate-200 dark:border-slate-700">
+          <button type="button" disabled class="w-full py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 text-xs font-medium cursor-not-allowed">
+            Đã Kết Thúc Đợt Thi
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  bindStudentAssignedTasksEvents(container) {
+    // 1. Vào làm bài ngay 1 chạm
+    container.querySelectorAll('[data-enter-assigned-room]').forEach(btn => {
+      btn.onclick = () => {
+        const roomId = btn.getAttribute('data-enter-assigned-room');
+        const pwd = btn.getAttribute('data-room-pwd') || '';
+        this.enterRoomDirectly(roomId, pwd);
+      };
+    });
+
+    // 2. Xem lại kết quả bài đã thi
+    container.querySelectorAll('[data-view-assigned-result]').forEach(btn => {
+      btn.onclick = async () => {
+        const targetId = btn.getAttribute('data-view-assigned-result');
+        const history = Storage.getExamHistory();
+        const record = history.find(h => h.id === targetId || h.roomId === targetId);
+        if (record) {
+          const grade = record.grade || this.currentGrade || '12';
+          await this.loadGradeData(grade);
+          const questions = [...(this.gradeCache[grade] || [])];
+          await this.switchTab('exam-room');
+          const roomEl = document.getElementById('view-exam-room');
+          Exam.init(roomEl, questions, this.manifest);
+          Exam.viewSavedResult(record);
+        } else {
+          this.switchTab('history');
+        }
+      };
+    });
+
+    // 3. Vào lớp Live Video trực tuyến
+    container.querySelectorAll('[data-home-join-live]').forEach(btn => {
+      btn.onclick = async () => {
+        const liveId = btn.getAttribute('data-home-join-live');
+        await this.switchTab('interactive-video');
+        if (window.LiveVideo) {
+          window.LiveVideo.handleJoinRoomSubmit(liveId);
+        }
+      };
+    });
+  }
+
+  async enterRoomDirectly(roomId, defaultPassword = '') {
+    if (!roomId) return;
+    await this.switchTab('exam-setup');
+
+    setTimeout(async () => {
+      const idInput = document.getElementById('input-enter-room-id');
+      const pwdInput = document.getElementById('input-enter-room-pwd');
+      const btnEnter = document.getElementById('btn-enter-room-exam');
+
+      if (idInput) idInput.value = roomId.trim().toUpperCase();
+      if (pwdInput && defaultPassword) pwdInput.value = defaultPassword;
+
+      // Kéo phòng từ Cloud
+      if (CloudSync.isConfigured()) {
+        try {
+          await CloudSync.fetchRoomFromCloud(roomId);
+        } catch (e) {}
+      }
+
+      if (btnEnter) {
+        btnEnter.click();
+      }
+    }, 150);
   }
 
   // --- PRACTICE VIEW ---
