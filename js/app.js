@@ -3,21 +3,22 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261101_51';
-import { Practice } from './practice.js?v=20261101_51';
-import { Exam } from './exam.js?v=20261101_51';
-import { Search } from './search.js?v=20261101_51';
-import { PrintManager } from './print.js?v=20261101_51';
-import { Auth } from './auth.js?v=20261101_51';
-import { escapeHtml } from './utils.js?v=20261101_51';
-import { Leaderboard } from './leaderboard.js?v=20261101_51';
-import { QuestionsManager } from './questions-manager.js?v=20261101_51';
-import { AdminManager } from './admin-manager.js?v=20261101_51';
-import { ExamRooms } from './exam-rooms.js?v=20261101_51';
-import { Proctor } from './proctor.js?v=20261101_51';
-import { Gradebook } from './gradebook.js?v=20261101_51';
-import { CloudSync } from './cloud-sync.js?v=20261101_51';
-import { InteractiveVideo } from './interactive-video.js?v=20261101_51';
+import { Storage } from './storage.js?v=20261101_52';
+import { Practice } from './practice.js?v=20261101_52';
+import { Exam } from './exam.js?v=20261101_52';
+import { Search } from './search.js?v=20261101_52';
+import { PrintManager } from './print.js?v=20261101_52';
+import { Auth } from './auth.js?v=20261101_52';
+import { escapeHtml } from './utils.js?v=20261101_52';
+import { Leaderboard } from './leaderboard.js?v=20261101_52';
+import { QuestionsManager } from './questions-manager.js?v=20261101_52';
+import { AdminManager } from './admin-manager.js?v=20261101_52';
+import { ExamRooms } from './exam-rooms.js?v=20261101_52';
+import { Proctor } from './proctor.js?v=20261101_52';
+import { Gradebook } from './gradebook.js?v=20261101_52';
+import { CloudSync } from './cloud-sync.js?v=20261101_52';
+import { InteractiveVideo } from './interactive-video.js?v=20261101_52';
+import { LiveVideo } from './live-video.js?v=20261101_52';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -28,6 +29,7 @@ if (typeof window !== 'undefined') {
   window.Gradebook = Gradebook;
   window.CloudSync = CloudSync;
   window.InteractiveVideo = InteractiveVideo;
+  window.LiveVideo = LiveVideo;
 }
 
 class App {
@@ -106,6 +108,11 @@ class App {
     const roomParam = urlParams.get('room') || urlParams.get('phong');
     if (roomParam) {
       this.pendingRoomParam = roomParam.trim().toUpperCase();
+    }
+
+    const liveParam = urlParams.get('live_video') || urlParams.get('live_room');
+    if (liveParam) {
+      this.pendingLiveVideoParam = liveParam.trim().toUpperCase();
     }
 
     // Bắt buộc đăng ký / đăng nhập trước khi vào trang (đồng thời xử lý pendingRoomParam nếu đã đăng nhập)
@@ -2155,6 +2162,18 @@ class App {
       if (gatekeeperOverlay) gatekeeperOverlay.classList.add('hidden');
       Auth.closeRequiredProfileModal();
 
+      // Nếu học sinh truy cập qua link phòng live video (?live_video=XYZ)
+      if (this.pendingLiveVideoParam) {
+        const liveCode = this.pendingLiveVideoParam;
+        this.pendingLiveVideoParam = null;
+        setTimeout(async () => {
+          await this.switchTab('interactive-video');
+          if (window.LiveVideo) {
+            window.LiveVideo.handleJoinRoomSubmit(liveCode);
+          }
+        }, 300);
+      }
+
       // Nếu học sinh truy cập qua link phòng thi trực tiếp (?room=XYZ), tự động kéo phòng từ Cloud và mở màn hình vào phòng thi
       if (this.pendingRoomParam) {
         const roomCode = this.pendingRoomParam;
@@ -2277,6 +2296,14 @@ class App {
     window.addEventListener('nav-to-tab', (e) => {
       if (e.detail) this.switchTab(e.detail);
     });
+
+    // Nút tạo phòng live video tại Hub Giáo Viên ở trang chủ
+    const homeLiveBtn = document.getElementById('btn-home-teacher-live-video');
+    if (homeLiveBtn) {
+      homeLiveBtn.addEventListener('click', () => {
+        if (window.LiveVideo) window.LiveVideo.openCreateModal();
+      });
+    }
 
     // Mobile menu toggle
     const mobileMenuBtn = document.getElementById('btn-mobile-menu');

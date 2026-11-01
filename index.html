@@ -50,7 +50,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261101_51" />
+  <link rel="stylesheet" href="css/style.css?v=20261101_52" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -634,7 +634,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <!-- Card 1: Giao đề & Phòng thi -->
           <button type="button" data-tab-target="exam-rooms" class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 transition text-left group flex flex-col justify-between space-y-3">
             <div class="flex items-center justify-between">
@@ -660,6 +660,20 @@
             <div>
               <h4 class="text-sm font-bold text-white group-hover:text-indigo-300 transition">Sổ Điểm Điện Tử & Quản Lý Lớp</h4>
               <p class="text-[11px] text-slate-300 mt-1">Phổ điểm lớp, phân tích tiến độ học sinh, xuất file Excel UTF-8 BOM.</p>
+            </div>
+          </button>
+
+          <!-- Card Live Video: Lớp Học Video Trực Tuyến Thời Gian Thực -->
+          <button type="button" id="btn-home-teacher-live-video" class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 transition text-left group flex flex-col justify-between space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-300 flex items-center justify-center text-lg group-hover:scale-110 transition shadow-inner">
+                <i class="fa-solid fa-tower-broadcast"></i>
+              </div>
+              <span class="px-2 py-0.5 rounded-full bg-rose-500 text-[10px] font-black uppercase text-white shadow-sm animate-pulse">Live</span>
+            </div>
+            <div>
+              <h4 class="text-sm font-bold text-white group-hover:text-rose-300 transition">Video Live Trực Tuyến</h4>
+              <p class="text-[11px] text-slate-300 mt-1">Chiếu phim bài giảng đồng bộ, cả lớp cùng trả lời trắc nghiệm realtime.</p>
             </div>
           </button>
 
@@ -692,7 +706,7 @@
           </button>
 
           <!-- Card 5 (Chỉ Admin): Quản trị hệ thống -->
-          <button type="button" data-tab-target="admin-system" data-role-req="admin" class="hidden sm:col-span-2 lg:col-span-4 p-4 rounded-2xl bg-rose-950/40 hover:bg-rose-900/50 backdrop-blur-md border border-rose-500/30 transition text-left group flex items-center justify-between">
+          <button type="button" data-tab-target="admin-system" data-role-req="admin" class="hidden sm:col-span-2 lg:col-span-5 p-4 rounded-2xl bg-rose-950/40 hover:bg-rose-900/50 backdrop-blur-md border border-rose-500/30 transition text-left group flex items-center justify-between">
             <div class="flex items-center gap-3.5">
               <div class="w-10 h-10 rounded-xl bg-rose-500/30 text-rose-300 flex items-center justify-center text-lg shrink-0 shadow-inner">
                 <i class="fa-solid fa-shield-halved"></i>
@@ -823,7 +837,7 @@
       
       <!-- Thanh bộ lọc chuyên đề -->
       <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 sm:p-6">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           
           <div>
             <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">
@@ -2884,7 +2898,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261101_51"></script>
+  <script type="module" src="js/app.js?v=20261101_52"></script>
 </body>
 </html>
 

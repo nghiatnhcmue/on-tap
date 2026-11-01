@@ -231,6 +231,29 @@ Phục vụ nhu cầu theo dõi tiến độ, đánh giá năng lực học tậ
   - Thao tác Thêm, Sửa, Xóa và Khôi phục mặc định từ ngân hàng đề gốc.
   - Tự động lưu vào `Storage` và đồng bộ thời gian thực lên Firebase Cloud Database (`/custom_video_questions`) qua `CloudSync`.
 
+### 4.7. Lớp Học Video Tương Tác Thời Gian Thực (Live Interactive Classroom Video - Kahoot/Edpuzzle Style) (`js/live-video.js`)
+- **Kiến trúc Đồng bộ Thời gian thực Đám mây (Firebase RTDB + SSE + Short Polling):**
+  - Node đám mây: `/live_video_rooms/{roomId}`.
+  - Hỗ trợ luồng dữ liệu hai chiều: Server-Sent Events (`EventSource`) kết hợp heartbeat và short-polling 1.2s đảm bảo hoạt động ổn định trên 100% mạng trường học, WiFi, 4G/5G mà không bị chặn tường lửa WebSocket.
+- **Bảng Điều Khiển Master Của Giáo Viên (Teacher Master Cockpit):**
+  - **Tạo phòng:** Phân quyền theo Trường, Khối (10, 11, 12), Lớp cụ thể (vd: EMASI 12E, PTNK 12TOAN, Chu Văn An 10A1...) và chọn bài giảng video từ ngân hàng 93 bài học.
+  - Cấp mã phòng ngắn gọn (vd: `LIVE-892`) và link mời trực tiếp (`${origin}?live_video=LIVE-892`).
+  - **Sĩ số & Điểm danh trực tiếp:** Badge nhấp nháy đèn xanh hiển thị số lượng học sinh đang online, danh sách từng em kèm lớp và điểm số.
+  - **Điều khiển phát đồng bộ (Master Sync):** Nút `▶ Bắt đầu phát (Cả lớp cùng xem)` và `⏸ Tạm dừng cả lớp (Để giảng bài)` phát lệnh đồng loạt lên toàn bộ màn hình học sinh.
+  - **Chuyển mốc & Bắt mốc tự động:** Tự động bắt dừng khi video đến checkpoint hoặc bấm nút `❓ Đặt câu hỏi ngay` / `⏩ Mốc kế tiếp`.
+  - **Khảo sát Trực tiếp (Live Polling Chart):** Cập nhật từng giây biểu đồ 4 cột A, B, C, D tỉ lệ học sinh chọn theo thời gian thực và số em đã nộp bài (`28/30 HS`).
+  - **Công bố đáp án:** Nút `📢 Mở đáp án cho cả lớp` khóa nộp bài, tô xanh đáp án đúng và phân tích tỉ lệ đúng của lớp. Nút `▶ Tiếp tục bài giảng` đưa cả lớp xem tiếp đoạn sau.
+- **Màn Hình Rạp Chiếu Phim Của Học Sinh (Student Cinema Stage):**
+  - Tự động chuyển chế độ **Toàn Màn Hình (Fullscreen)** / iOS Focus Mode.
+  - **Khóa tua tự do (Locked Controls):** Học sinh không tự ý tua hay play/pause; video chạy hoàn toàn theo điều phối của Giáo viên.
+  - **Giao diện Câu hỏi Trực quan (Kahoot-Style):** 4 thẻ phương án A (Đỏ), B (Xanh dương), C (Vàng), D (Xanh lục) to rõ ràng, dễ bấm trên cả điện thoại và máy tính.
+  - **Phản hồi Tức thời:** Khi Thầy/Cô mở đáp án, nếu đúng nhận ngay chuông reo và pháo hoa Confetti 🎉 (`+100 điểm`), nếu sai nhận giải thích và xem phổ bình chọn của cả lớp.
+- **Tổng Kết Cuối Buổi Học & Xuất Báo Cáo:**
+  - **Bục Vinh Danh 3D (Podium Top 1 - 2 - 3):** Xếp hạng 3 học sinh xuất sắc nhất tiết học với Cúp Vàng, Bạc, Đồng và hiệu ứng Confetti rực rỡ.
+  - **Học bạ cá nhân:** Mỗi học sinh xem được thứ hạng, số câu đúng và tổng điểm của bản thân.
+  - **Lưu Sổ Điểm:** Nút `💾 Lưu vào Sổ Điểm Lớp` tự động ghi nhận kết quả vào `Gradebook` và `CloudSync`.
+  - **Xuất Báo Cáo Excel Chuẩn Quốc Tế:** Nút `📥 Xuất Báo Cáo Excel` tải file `.csv` có byte order mark UTF-8 (`\uFEFF`), mở trực tiếp trên Excel tiếng Việt không lỗi font.
+
 ---
 
 ## 5. Kiến trúc Bố cục Lỏng Thích Ứng Toàn Diện (Fluid & Adaptive Architecture)

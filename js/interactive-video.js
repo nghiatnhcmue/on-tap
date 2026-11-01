@@ -10,10 +10,10 @@
  * - HỖ TRỢ THIẾT LẬP CÂU HỎI & MỐC DỪNG (Question & Checkpoint Editor): Cho phép Giáo viên & Admin tạo, sửa, xóa mốc dừng và câu hỏi trực tiếp trên web, tự động đồng bộ đám mây realtime!
  */
 
-import { Storage } from './storage.js?v=20261101_51';
-import { Auth } from './auth.js?v=20261101_51';
-import { escapeHtml } from './utils.js?v=20261101_51';
-import { Proctor } from './proctor.js?v=20261101_51';
+import { Storage } from './storage.js?v=20261101_52';
+import { Auth } from './auth.js?v=20261101_52';
+import { escapeHtml } from './utils.js?v=20261101_52';
+import { Proctor } from './proctor.js?v=20261101_52';
 
 export const InteractiveVideo = {
   container: null,
@@ -263,26 +263,36 @@ export const InteractiveVideo = {
               Vừa theo dõi bài giảng vừa trả lời các câu hỏi mốc dừng, giúp ghi nhớ trọng tâm và rèn luyện tư duy thực hành hiệu quả.
             </p>
 
-            <!-- Bộ công cụ tải/nạp video offline (Dành cho GV & Admin) -->
-            ${isTeacher ? `
-              <div class="pt-4 flex items-center gap-2 flex-wrap">
-                <label class="cursor-pointer px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-xs font-bold transition flex items-center gap-2 border border-white/20">
-                  <i class="fa-solid fa-folder-open text-amber-300"></i> Nạp Thư Mục Video Từ Máy
+            <!-- Bộ công cụ Lớp Học Video Trực Tuyến & Nạp Video Máy Tính -->
+            <div class="pt-4 flex items-center gap-2 flex-wrap">
+              ${isTeacher ? `
+                <button type="button" id="btn-open-create-live-room" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-black/20 border border-white/20 hover:scale-[1.02] active:scale-[0.98]">
+                  <i class="fa-solid fa-tower-broadcast"></i> Tạo Phòng Video Live (Real-Time)
+                </button>
+              ` : ''}
+              
+              <button type="button" id="btn-open-join-live-room" class="px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-xs font-bold transition flex items-center gap-2 border border-white/20 hover:scale-[1.02] active:scale-[0.98]">
+                <i class="fa-solid fa-ticket text-amber-300"></i> Vào Lớp Trực Tuyến Bằng Mã
+              </button>
+
+              ${isTeacher ? `
+                <label class="cursor-pointer px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-md text-white text-xs font-bold transition flex items-center gap-2 border border-white/20">
+                  <i class="fa-solid fa-folder-open text-amber-300"></i> Nạp Thư Mục Video
                   <input type="file" id="video-batch-folder-input" webkitdirectory directory multiple accept="video/mp4,video/*" class="hidden" />
                 </label>
 
-                <label class="cursor-pointer px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-md text-white text-xs font-bold transition flex items-center gap-2 border border-white/20">
-                  <i class="fa-solid fa-file-video"></i> Chọn Từng File MP4
+                <label class="cursor-pointer px-3 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-md text-white text-xs font-bold transition flex items-center gap-1.5 border border-white/20">
+                  <i class="fa-solid fa-file-video"></i> Chọn File MP4
                   <input type="file" id="video-batch-files-input" multiple accept="video/mp4,video/*" class="hidden" />
                 </label>
 
                 ${localCount > 0 ? `
                   <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/30 text-emerald-200 text-xs font-bold border border-emerald-400/40">
-                    <i class="fa-solid fa-circle-check text-emerald-300"></i> Đã nạp sẵn ${localCount} file từ máy tính
+                    <i class="fa-solid fa-circle-check text-emerald-300"></i> Đã nạp ${localCount} file từ máy
                   </span>
                 ` : ''}
-              </div>
-            ` : ''}
+              ` : ''}
+            </div>
           </div>
 
           <!-- Nút chuyển khối lớp -->
@@ -468,6 +478,21 @@ export const InteractiveVideo = {
       searchInput.oninput = (e) => {
         this.searchQuery = e.target.value;
         this.renderListView();
+      };
+    }
+
+    // Nút Tạo / Vào Phòng Live Video Thời Gian Thực
+    const btnCreateLive = document.getElementById('btn-open-create-live-room');
+    if (btnCreateLive) {
+      btnCreateLive.onclick = () => {
+        if (window.LiveVideo) window.LiveVideo.openCreateModal();
+      };
+    }
+
+    const btnJoinLive = document.getElementById('btn-open-join-live-room');
+    if (btnJoinLive) {
+      btnJoinLive.onclick = () => {
+        if (window.LiveVideo) window.LiveVideo.openJoinModal();
       };
     }
 
