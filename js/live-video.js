@@ -10,12 +10,12 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_67';
-import { Storage } from './storage.js?v=20261101_67';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_67';
-import { escapeHtml } from './utils.js?v=20261101_67';
-import { Proctor } from './proctor.js?v=20261101_67';
-import { Gradebook } from './gradebook.js?v=20261101_67';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_68';
+import { Storage } from './storage.js?v=20261101_68';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_68';
+import { escapeHtml } from './utils.js?v=20261101_68';
+import { Proctor } from './proctor.js?v=20261101_68';
+import { Gradebook } from './gradebook.js?v=20261101_68';
 
 export const LiveVideo = {
   manifest: null,
@@ -32,6 +32,8 @@ export const LiveVideo = {
   sortedCheckpoints: [],
   selectedAnswer: null,
   hasSubmittedCurrentQuestion: false,
+  activeQuestionIdx: null,
+  confettiPlayedForQ: false,
   remoteState: null,
   lastSyncedTime: 0,
   countdownInterval: null,
@@ -511,6 +513,10 @@ export const LiveVideo = {
     const container = document.getElementById('view-interactive-video');
     if (!container) return;
 
+    this.isHost = true;
+    this.activeRoom = room;
+    this.questionsList = room.checkpoints || [];
+
     if (window.App && typeof window.App.switchTab === 'function') {
       window.App.switchTab('interactive-video');
     }
@@ -984,6 +990,11 @@ export const LiveVideo = {
       if (questionModal) questionModal.classList.add('hidden');
       this.hasSubmittedCurrentQuestion = false;
       this.selectedAnswer = null;
+      this.activeQuestionIdx = null;
+      if (this.countdownInterval) {
+        clearInterval(this.countdownInterval);
+        this.countdownInterval = null;
+      }
     }
 
     // 4. Đồng bộ video phát / tạm dừng
@@ -1034,19 +1045,33 @@ export const LiveVideo = {
     modal.classList.remove('hidden');
     qText.textContent = q.question;
 
-    // Gán nhãn cho 4 phương án A, B, C, D
+    // Khởi động đồng hồ đếm ngược nếu chưa chạy cho câu hỏi này
+    if (this.activeQuestionIdx !== q.index || !this.countdownInterval) {
+      this.activeQuestionIdx = q.index;
+      this.startQuestionCountdown(q);
+    }
+
     const optionBtns = optionsGrid.querySelectorAll('.student-opt-btn');
     const opts = q.options || [];
+
+    // Kiểm tra xem học sinh này đã nộp bài trước đó chưa
+    const myUid = this.studentInfo?.uid;
+    const prevSub = responsesForQ?.[myUid];
+    if (prevSub && prevSub.selected) {
+      this.hasSubmittedCurrentQuestion = true;
+      this.selectedAnswer = prevSub.selected;
+    }
 
     optionBtns.forEach((btn, idx) => {
       const letter = btn.getAttribute('data-student-option');
       const label = btn.querySelector('.student-opt-label');
       let text = opts[idx] || '';
-      // Loại bỏ tiền tố A., B., C., D. nếu có
       text = text.replace(/^[A-Da-d][\.\:\)\s]+/, '').trim();
       if (label) label.textContent = text || `Phương án ${letter}`;
 
-      // Xử lý click chọn phương án
+      // Reset trạng thái ban đầu của nút
+      btn.disabled = !!(q.revealed || this.hasSubmittedCurrentQuestion);
+
       btn.onclick = () => {
         if (q.revealed || this.hasSubmittedCurrentQuestion) return;
         this.submitStudentAnswer(q.index, letter, q.answer);
@@ -1055,30 +1080,48 @@ export const LiveVideo = {
 
     // Nếu Giáo viên đã công bố kết quả (Revealed)
     if (q.revealed) {
-      if (countdownEl) countdownEl.textContent = 'HẾT GIỜ';
+      if (this.countdownInterval) {
+        clearInterval(this.countdownInterval);
+        this.countdownInterval = null;
+      }
+      if (countdownEl) {
+        countdownEl.textContent = 'HẾT GIỜ';
+        countdownEl.className = 'px-4 py-1.5 rounded-full bg-slate-700 text-white text-base font-black font-mono shadow-lg';
+      }
       if (submittedBanner) submittedBanner.classList.add('hidden');
       if (resultBanner) resultBanner.classList.remove('hidden');
 
-      const myUid = this.studentInfo?.uid;
-      const myAnswer = responsesForQ?.[myUid]?.selected;
-      const isCorrect = (myAnswer === q.answer);
+      const myAnswer = this.selectedAnswer || prevSub?.selected;
+      const normAns = String(q.answer || '').trim().toUpperCase();
+      const normMy = String(myAnswer || '').trim().toUpperCase();
+      let isCorrect = (normMy === normAns);
+      if (!isCorrect && ['A', 'B', 'C', 'D'].includes(normMy)) {
+        const mapIdx = { 'A': '1', 'B': '2', 'C': '3', 'D': '4' };
+        if (normAns === mapIdx[normMy]) isCorrect = true;
+      }
 
       if (resultBadge) {
         if (isCorrect) {
           resultBadge.className = 'p-4 rounded-2xl text-center font-black text-base sm:text-lg bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 shadow-xl';
           resultBadge.innerHTML = `
             <div class="text-2xl mb-1">🎉 CHÍNH XÁC! (+100 ĐIỂM)</div>
-            <div class="text-xs font-medium text-emerald-200">Em đã chọn đúng đáp án <strong>${q.answer}</strong>. Giỏi lắm!</div>
+            <div class="text-xs font-medium text-emerald-200">Em đã chọn đúng đáp án <strong>${escapeHtml(q.answer)}</strong>. Giỏi lắm!</div>
           `;
-          // Kích hoạt Confetti pháo hoa
-          if (typeof window.confetti === 'function') {
+          if (typeof window.confetti === 'function' && !this.confettiPlayedForQ) {
+            this.confettiPlayedForQ = true;
             window.confetti({ particleCount: 60, spread: 60, origin: { y: 0.6 } });
           }
-        } else {
+        } else if (myAnswer) {
           resultBadge.className = 'p-4 rounded-2xl text-center font-black text-base sm:text-lg bg-rose-600/30 text-rose-300 border border-rose-500/40 shadow-xl';
           resultBadge.innerHTML = `
             <div class="text-2xl mb-1">❌ CHƯA CHÍNH XÁC</div>
-            <div class="text-xs font-medium text-rose-200">Đáp án chính xác là <strong>${q.answer}</strong>. Cố gắng ở câu tiếp theo nhé!</div>
+            <div class="text-xs font-medium text-rose-200">Đáp án chính xác là <strong>${escapeHtml(q.answer)}</strong>. Cố gắng ở câu tiếp theo nhé!</div>
+          `;
+        } else {
+          resultBadge.className = 'p-4 rounded-2xl text-center font-black text-base sm:text-lg bg-amber-500/30 text-amber-300 border border-amber-500/40 shadow-xl';
+          resultBadge.innerHTML = `
+            <div class="text-2xl mb-1">⏰ ĐÃ HẾT GIỜ LÀM BÀI</div>
+            <div class="text-xs font-medium text-amber-200">Đáp án chính xác là <strong>${escapeHtml(q.answer)}</strong>. Hãy nhanh tay hơn ở câu sau nhé!</div>
           `;
         }
       }
@@ -1086,10 +1129,13 @@ export const LiveVideo = {
       // Tô sáng nút đúng và mờ nút sai
       optionBtns.forEach(btn => {
         const letter = btn.getAttribute('data-student-option');
-        if (letter === q.answer) {
-          btn.classList.add('ring-4', 'ring-emerald-400', 'scale-[1.02]');
+        btn.disabled = true;
+        if (letter === normAns || (letter === 'A' && normAns === '1') || (letter === 'B' && normAns === '2') || (letter === 'C' && normAns === '3') || (letter === 'D' && normAns === '4')) {
+          btn.className = 'student-opt-btn p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-bold text-sm sm:text-base flex items-center gap-3.5 border-4 border-emerald-300 shadow-2xl scale-[1.02]';
+        } else if (letter === normMy) {
+          btn.className = 'student-opt-btn p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 text-white font-bold text-sm sm:text-base flex items-center gap-3.5 border-2 border-rose-400 opacity-60';
         } else {
-          btn.classList.add('opacity-40');
+          btn.className = 'student-opt-btn p-4 sm:p-5 rounded-2xl bg-slate-800 text-slate-400 font-bold text-sm sm:text-base flex items-center gap-3.5 opacity-30';
         }
       });
 
@@ -1097,15 +1143,32 @@ export const LiveVideo = {
       this.renderLivePollChart('student-poll-bars-class', responsesForQ, q.answer);
     } else {
       // Chưa công bố kết quả
+      this.confettiPlayedForQ = false;
       if (resultBanner) resultBanner.classList.add('hidden');
-      optionBtns.forEach(btn => {
-        btn.classList.remove('ring-4', 'ring-emerald-400', 'scale-[1.02]', 'opacity-40');
-      });
 
       if (this.hasSubmittedCurrentQuestion) {
-        if (submittedBanner) submittedBanner.classList.remove('hidden');
+        if (submittedBanner) {
+          submittedBanner.classList.remove('hidden');
+          submittedBanner.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i> Đã ghi nhận đáp án của em! Đang chờ Thầy/Cô công bố kết quả...';
+          submittedBanner.className = 'p-3 rounded-2xl bg-white/10 text-emerald-400 font-bold text-xs sm:text-sm animate-pulse border border-emerald-500/30';
+        }
+        optionBtns.forEach(btn => {
+          const letter = btn.getAttribute('data-student-option');
+          btn.disabled = true;
+          if (letter === this.selectedAnswer) {
+            btn.classList.add('ring-4', 'ring-white', 'shadow-2xl');
+            btn.classList.remove('opacity-40');
+          } else {
+            btn.classList.add('opacity-40');
+            btn.classList.remove('ring-4', 'ring-white', 'shadow-2xl');
+          }
+        });
       } else {
         if (submittedBanner) submittedBanner.classList.add('hidden');
+        optionBtns.forEach(btn => {
+          btn.disabled = false;
+          btn.classList.remove('ring-4', 'ring-white', 'ring-emerald-400', 'scale-[1.02]', 'opacity-40', 'opacity-50', 'opacity-60', 'opacity-30', 'border-4');
+        });
       }
     }
   },
@@ -1116,25 +1179,39 @@ export const LiveVideo = {
     this.hasSubmittedCurrentQuestion = true;
     this.selectedAnswer = selectedOption;
 
-    const isCorrect = (selectedOption === correctAnswer);
+    const normAns = String(correctAnswer || '').trim().toUpperCase();
+    const normSel = String(selectedOption || '').trim().toUpperCase();
+    let isCorrect = (normSel === normAns);
+    if (!isCorrect && ['A', 'B', 'C', 'D'].includes(normSel)) {
+      const mapIdx = { 'A': '1', 'B': '2', 'C': '3', 'D': '4' };
+      if (normAns === mapIdx[normSel]) isCorrect = true;
+    }
+
     const dbUrl = this.getBaseDbUrl();
     const roomId = this.activeRoom.roomId;
     const uid = this.studentInfo.uid;
 
-    // Highlight nút vừa chọn
+    // Highlight nút vừa chọn và khóa tất cả các nút
     const optionsGrid = document.getElementById('student-options-grid');
     if (optionsGrid) {
       optionsGrid.querySelectorAll('.student-opt-btn').forEach(btn => {
+        btn.disabled = true;
         if (btn.getAttribute('data-student-option') === selectedOption) {
           btn.classList.add('ring-4', 'ring-white', 'shadow-2xl');
+          btn.classList.remove('opacity-40', 'opacity-50');
         } else {
-          btn.classList.add('opacity-50');
+          btn.classList.add('opacity-40');
+          btn.classList.remove('ring-4', 'ring-white', 'shadow-2xl');
         }
       });
     }
 
     const banner = document.getElementById('student-submitted-banner');
-    if (banner) banner.classList.remove('hidden');
+    if (banner) {
+      banner.classList.remove('hidden');
+      banner.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i> Đã ghi nhận đáp án của em! Đang chờ Thầy/Cô công bố kết quả...';
+      banner.className = 'p-3 rounded-2xl bg-white/10 text-emerald-400 font-bold text-xs sm:text-sm animate-pulse border border-emerald-500/30';
+    }
 
     try {
       const responsePayload = {
@@ -1250,6 +1327,12 @@ export const LiveVideo = {
       document.getElementById('master-q-submitted-count').textContent = submittedCount;
       document.getElementById('master-q-total-students').textContent = activeStudents.length;
 
+      // Khởi động đồng hồ đếm ngược trên máy Thầy Cô nếu chưa chạy
+      if (this.activeQuestionIdx !== q.index || !this.countdownInterval) {
+        this.activeQuestionIdx = q.index;
+        this.startQuestionCountdown(q);
+      }
+
       // Render biểu đồ 4 cột Live Poll
       this.renderLivePollChart('master-poll-bars', responses, q.revealed ? q.answer : null);
 
@@ -1265,6 +1348,10 @@ export const LiveVideo = {
       }
     } else {
       if (questionOverlay) questionOverlay.classList.add('hidden');
+      if (this.isHost && this.countdownInterval && remote.state !== 'question') {
+        clearInterval(this.countdownInterval);
+        this.countdownInterval = null;
+      }
     }
 
     // 4. Cập nhật nút Play/Pause
@@ -1631,13 +1718,16 @@ export const LiveVideo = {
     const btnTriggerQ = document.getElementById('btn-master-trigger-current-q');
     if (btnTriggerQ && video) {
       btnTriggerQ.onclick = () => {
-        const cur = video.currentTime;
-        // Tìm câu hỏi gần nhất hoặc câu đầu tiên
-        let targetQ = this.questionsList.find(q => Math.abs(cur - q.sec) < 5) || this.questionsList[0];
+        const cur = Number(video.currentTime || 0);
+        let targetQ = this.questionsList.find(q => q.sec >= cur - 2 && !q.triggered);
+        if (!targetQ) {
+          targetQ = this.questionsList.find(q => !q.triggered) || this.questionsList[0];
+        }
         if (!targetQ) {
           alert('Không tìm thấy câu hỏi tương tác nào trong bài học này!');
           return;
         }
+        targetQ.triggered = true;
         this.triggerMasterQuestion(targetQ);
       };
     }
@@ -1646,10 +1736,11 @@ export const LiveVideo = {
     const btnNextCp = document.getElementById('btn-master-next-checkpoint');
     if (btnNextCp && video) {
       btnNextCp.onclick = () => {
-        const cur = video.currentTime;
-        const next = this.questionsList.find(q => q.sec > cur + 1);
+        const cur = Number(video.currentTime || 0);
+        const next = this.questionsList.find(q => q.sec > cur + 1 && !q.triggered) || this.questionsList.find(q => q.sec > cur + 1);
         if (next) {
           video.currentTime = next.sec;
+          next.triggered = true;
           this.triggerMasterQuestion(next);
         } else {
           alert('Đã xem đến mốc câu hỏi cuối cùng của bài giảng!');
@@ -1659,21 +1750,53 @@ export const LiveVideo = {
 
     // 6. Nút Mở Đáp Án Cho Cả Lớp
     const btnReveal = document.getElementById('btn-master-reveal-answer');
+    const btnResume = document.getElementById('btn-master-resume-video');
     if (btnReveal) {
       btnReveal.onclick = () => {
+        btnReveal.classList.add('hidden');
+        if (btnResume) btnResume.classList.remove('hidden');
+
+        if (this.countdownInterval) {
+          clearInterval(this.countdownInterval);
+          this.countdownInterval = null;
+        }
+        const masterCountdown = document.getElementById('master-q-countdown');
+        if (masterCountdown) {
+          masterCountdown.textContent = 'ĐÃ MỞ ĐÁP ÁN';
+          masterCountdown.className = 'px-3 py-1 rounded-full bg-emerald-700 text-white text-xs font-black font-mono';
+        }
+
         fetch(`${dbUrl}/live_video_rooms/${roomId}/currentQuestion/revealed.json`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(true)
-        });
+        }).catch(err => console.warn('Lỗi công bố đáp án:', err));
+
+        const currentQ = this.remoteState?.currentQuestion || this.activeRoom?.currentQuestion;
+        if (currentQ) {
+          currentQ.revealed = true;
+          const responses = this.remoteState?.responses?.[currentQ.index] || {};
+          this.renderLivePollChart('master-poll-bars', responses, currentQ.answer);
+        }
       };
     }
 
     // 7. Nút Tiếp Tục Bài Giảng Sau Câu Hỏi
-    const btnResume = document.getElementById('btn-master-resume-video');
     if (btnResume && video) {
       btnResume.onclick = async () => {
         const curTime = Number(video.currentTime || 0);
+        // Tua nhẹ qua mốc để không bị kích hoạt lại
+        const nextTime = Math.min(video.duration || 9999, curTime + 0.8);
+        video.currentTime = nextTime;
+
+        if (this.countdownInterval) {
+          clearInterval(this.countdownInterval);
+          this.countdownInterval = null;
+        }
+        this.activeQuestionIdx = null;
+
+        const qOverlay = document.getElementById('master-question-active-overlay');
+        if (qOverlay) qOverlay.classList.add('hidden');
 
         fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
           method: 'PATCH',
@@ -1681,13 +1804,10 @@ export const LiveVideo = {
           body: JSON.stringify({
             state: 'playing',
             currentQuestion: null,
-            currentTime: curTime,
+            currentTime: nextTime,
             updatedAt: Date.now()
           })
         }).catch(err => console.warn('Lỗi tiếp tục bài giảng:', err));
-
-        const qOverlay = document.getElementById('master-question-active-overlay');
-        if (qOverlay) qOverlay.classList.add('hidden');
 
         try {
           await video.play();
@@ -1736,35 +1856,129 @@ export const LiveVideo = {
   },
 
   triggerMasterQuestion(q) {
-    const video = this.videoElem;
+    const video = this.videoElem || document.getElementById('live-master-video');
     const dbUrl = this.getBaseDbUrl();
     const roomId = this.activeRoom?.roomId;
     if (!roomId) return;
 
     if (video && !video.paused) video.pause();
 
+    const totalSec = parseInt(q.timeLimit || q.countdown || this.activeRoom?.countdownSec || '20', 10);
+    const now = Date.now();
     const questionPayload = {
-      index: q.index,
-      id: q.id,
-      sec: q.sec,
+      index: q.index !== undefined ? q.index : 0,
+      id: q.id || `q_${q.index || 0}`,
+      sec: q.sec || 0,
       question: q.question,
       options: q.options || [],
       answer: q.answer,
       revealed: false,
-      countdown: q.timeLimit || 20,
-      timestamp: Date.now()
+      countdown: totalSec,
+      startTimestamp: now,
+      timestamp: now
     };
+
+    // Bắt đầu đếm ngược thời gian ngay lập tức
+    this.activeQuestionIdx = questionPayload.index;
+    this.startQuestionCountdown(questionPayload);
 
     fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         state: 'question',
-        currentTime: video?.currentTime || q.sec,
+        currentTime: Number(video?.currentTime || q.sec || 0),
         currentQuestion: questionPayload,
-        updatedAt: Date.now()
+        updatedAt: now
       })
-    });
+    }).catch(err => console.warn('Lỗi gửi câu hỏi lên Firebase:', err));
+  },
+
+  startQuestionCountdown(q) {
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+      this.countdownInterval = null;
+    }
+
+    const startTs = Number(q.startTimestamp || q.timestamp || Date.now());
+    const totalSec = Number(q.countdown || q.timeLimit || 20);
+
+    const tick = () => {
+      // Nếu câu hỏi đã được giáo viên công bố đáp án
+      if (q.revealed || this.remoteState?.currentQuestion?.revealed) {
+        if (this.countdownInterval) {
+          clearInterval(this.countdownInterval);
+          this.countdownInterval = null;
+        }
+        const masterEl = document.getElementById('master-q-countdown');
+        if (masterEl) {
+          masterEl.textContent = 'ĐÃ MỞ ĐÁP ÁN';
+          masterEl.className = 'px-3 py-1 rounded-full bg-emerald-700 text-white text-xs font-black font-mono';
+        }
+        const studentEl = document.getElementById('student-q-countdown');
+        if (studentEl) {
+          studentEl.textContent = 'HẾT GIỜ';
+          studentEl.className = 'px-4 py-1.5 rounded-full bg-slate-700 text-white text-base font-black font-mono shadow-lg';
+        }
+        return;
+      }
+
+      const elapsed = Math.floor((Date.now() - startTs) / 1000);
+      const remaining = Math.max(0, totalSec - elapsed);
+
+      // Cập nhật phía Thầy Cô (Master)
+      const masterEl = document.getElementById('master-q-countdown');
+      if (masterEl) {
+        if (remaining > 0) {
+          masterEl.textContent = `${remaining}s`;
+          masterEl.className = remaining <= 5
+            ? 'px-3 py-1 rounded-full bg-rose-600 text-white text-sm font-black font-mono animate-ping'
+            : 'px-3 py-1 rounded-full bg-rose-600 text-white text-sm font-black font-mono';
+        } else {
+          masterEl.textContent = 'HẾT GIỜ';
+          masterEl.className = 'px-3 py-1 rounded-full bg-slate-700 text-white text-sm font-black font-mono';
+        }
+      }
+
+      // Cập nhật phía Học sinh (Student)
+      const studentEl = document.getElementById('student-q-countdown');
+      if (studentEl) {
+        if (remaining > 0) {
+          studentEl.textContent = `${remaining}s`;
+          studentEl.className = remaining <= 5
+            ? 'px-4 py-1.5 rounded-full bg-rose-500 text-white text-base font-black font-mono shadow-lg shadow-rose-500/50 animate-pulse'
+            : 'px-4 py-1.5 rounded-full bg-amber-500 text-slate-950 text-base font-black font-mono shadow-lg shadow-amber-500/30';
+        } else {
+          studentEl.textContent = 'HẾT GIỜ';
+          studentEl.className = 'px-4 py-1.5 rounded-full bg-slate-700 text-white text-base font-black font-mono';
+
+          // Khi hết giờ mà chưa nộp bài: tự động khóa nút và hiện cảnh báo
+          if (!this.hasSubmittedCurrentQuestion && !q.revealed) {
+            const banner = document.getElementById('student-submitted-banner');
+            if (banner) {
+              banner.classList.remove('hidden');
+              banner.innerHTML = '<i class="fa-solid fa-hourglass-end text-amber-400"></i> Đã hết thời gian trả lời! Đang chờ Thầy/Cô công bố đáp án...';
+              banner.className = 'p-3 rounded-2xl bg-amber-500/20 text-amber-300 font-bold text-xs sm:text-sm border border-amber-500/30';
+            }
+            const optionBtns = document.querySelectorAll('.student-opt-btn');
+            optionBtns.forEach(b => {
+              b.disabled = true;
+              b.classList.add('opacity-40', 'cursor-not-allowed');
+            });
+          }
+        }
+      }
+
+      if (remaining <= 0) {
+        if (this.countdownInterval) {
+          clearInterval(this.countdownInterval);
+          this.countdownInterval = null;
+        }
+      }
+    };
+
+    tick();
+    this.countdownInterval = setInterval(tick, 1000);
   },
 
   // =========================================================================
