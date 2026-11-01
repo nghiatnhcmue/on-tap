@@ -5,10 +5,10 @@
  * Cơ sở dữ liệu đám mây, Tải lên Video bài giảng Archive.org S3, Dọn dẹp/Sao lưu.
  */
 
-import { Storage } from './storage.js?v=20261101_50';
-import { Auth } from './auth.js?v=20261101_50';
-import { escapeHtml } from './utils.js?v=20261101_50';
-import { CloudSync, DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_50';
+import { Storage } from './storage.js?v=20261101_51';
+import { Auth } from './auth.js?v=20261101_51';
+import { escapeHtml } from './utils.js?v=20261101_51';
+import { CloudSync, DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_51';
 
 export const AdminManager = {
   container: null,

@@ -3,9 +3,9 @@
  * Quản lý giao đề thi theo khung giờ, trường học, lớp học, mật khẩu và chống gian lận cho Giáo viên & Admin
  */
 
-import { Storage } from './storage.js?v=20261101_50';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_50';
-import { escapeHtml } from './utils.js?v=20261101_50';
+import { Storage } from './storage.js?v=20261101_51';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_51';
+import { escapeHtml } from './utils.js?v=20261101_51';
 
 export const ExamRooms = {
   container: null,
@@ -1011,10 +1011,76 @@ export const ExamRooms = {
       };
     }
 
-    // Nút Tải file mẫu Excel
+    // Nút Tải file mẫu Excel & Word
     const btnDownloadTpl = document.getElementById('btn-download-excel-template');
     if (btnDownloadTpl) {
       btnDownloadTpl.onclick = () => this.downloadExcelTemplate();
+    }
+    const btnDownloadWordTpl = document.getElementById('btn-download-word-template');
+    if (btnDownloadWordTpl) {
+      btnDownloadWordTpl.onclick = () => this.downloadWordTemplate();
+    }
+
+    // Nút Dán mẫu Word thử nghiệm ngay
+    const btnPasteSampleWord = document.getElementById('btn-paste-sample-word');
+    if (btnPasteSampleWord) {
+      btnPasteSampleWord.onclick = () => {
+        const t = document.getElementById('textarea-room-import-word');
+        if (t) {
+          t.value = `Câu 1: Thiết bị mạng nào sau đây có chức năng định tuyến các gói tin giữa các mạng khác nhau trên Internet?
+A. Chuột quang
+B. Router
+C. Bàn phím không dây
+D. Máy in màu
+Đáp án: B
+
+Câu 2: Ngôn ngữ nào sau đây được sử dụng phổ biến nhất để xây dựng cấu trúc của một trang web?
+A. HTML
+B. MP3
+C. SQL
+D. BIOS
+Đáp án: A
+
+Câu 3: Bộ xử lý trung tâm của máy tính thường được viết tắt là gì?
+A. RAM
+B. GPU
+C. CPU
+D. SSD
+Đáp án: C
+
+Câu 4: Trí tuệ nhân tạo (AI) thường được ứng dụng phổ biến trong lĩnh vực nào sau đây?
+A. Nhận dạng khuôn mặt và giọng nói
+B. Tăng dung lượng vật lý ổ cứng
+C. Nạp điện nhanh cho pin
+D. Lau bụi bàn phím
+Đáp án: A
+
+Câu 5: Cho các nhận định sau về an toàn thông tin và bảo mật trên không gian mạng:
+a) Mật khẩu mạnh nên chứa cả chữ hoa, chữ thường, chữ số và ký tự đặc biệt. (Đúng)
+b) Có thể sử dụng chung một mật khẩu đơn giản cho tất cả các tài khoản trực tuyến. (Sai)
+c) Không nên bấm vào các đường liên kết lạ hoặc tải tệp đính kèm từ người gửi không xác định. (Đúng)
+d) Tường lửa (Firewall) không có khả năng bảo vệ máy tính trước các xâm nhập trái phép. (Sai)`;
+          const parseBtn = document.getElementById('btn-parse-word-text');
+          if (parseBtn) parseBtn.click();
+        }
+      };
+    }
+
+    // Nút Dán mẫu Excel thử nghiệm ngay
+    const btnPasteSampleExcel = document.getElementById('btn-paste-sample-excel');
+    if (btnPasteSampleExcel) {
+      btnPasteSampleExcel.onclick = () => {
+        const t = document.getElementById('textarea-room-import-excel');
+        if (t) {
+          t.value = `Câu hỏi	Phương án A	Phương án B	Phương án C	Phương án D	Đáp án	Mức độ	Chủ đề	Bài học
+Thiết bị mạng nào sau đây có chức năng định tuyến các gói tin giữa các mạng khác nhau trên Internet?	Chuột quang	Router	Bàn phím không dây	Máy in màu	B	2	Mạng máy tính và Internet	Bài 03. Một số thiết bị mạng thông dụng
+Ngôn ngữ nào sau đây được sử dụng phổ biến nhất để xây dựng cấu trúc của một trang web?	HTML	MP3	SQL	BIOS	A	1	Lập trình Web	Bài 01. Nhập môn HTML
+Bộ xử lý trung tâm của máy tính thường được viết tắt là gì?	RAM	GPU	CPU	SSD	C	1	Máy tính và Xã hội tri thức	Bài 01. Hệ thống máy tính
+Trí tuệ nhân tạo (AI) thường được ứng dụng phổ biến trong lĩnh vực nào sau đây?	Nhận dạng khuôn mặt và giọng nói	Tăng dung lượng vật lý ổ cứng	Nạp điện nhanh cho pin	Lau bụi bàn phím	A	2	Trí tuệ nhân tạo	Bài 01. Làm quen với AI`;
+          const parseBtn = document.getElementById('btn-parse-excel-text');
+          if (parseBtn) parseBtn.click();
+        }
+      };
     }
 
     // Nút Áp dụng câu hỏi đã nhập vào đề thi phòng này
@@ -1185,17 +1251,83 @@ export const ExamRooms = {
     return questions;
   },
 
-  // Tải file mẫu Excel chuẩn CSV có BOM UTF-8
-  downloadExcelTemplate() {
-    const csvContent = '\uFEFFCâu hỏi\tPhương án A\tPhương án B\tPhương án C\tPhương án D\tĐáp án (A/B/C/D)\tMức độ (1-4 hoặc DS)\tChủ đề\tBài học\r\n' +
-      'Thiết bị nào sau đây dùng để định tuyến gói tin trên Internet?\tChuột máy tính\tRouter\tBàn phím\tMáy in\tB\t2\tMạng máy tính\tBài 03. Thiết bị mạng\r\n' +
-      'Định dạng tệp nào sau đây phổ biến nhất cho trang web?\tHTML\tMP3\tEXE\tAVI\tA\t1\tLập trình Web\tBài 01. Nhập môn HTML\r\n';
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  // Tải file mẫu Word (.docx) chuẩn
+  downloadWordTemplate() {
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'Mau_De_Thi_Tin_Hoc_THPT.csv';
+    link.href = 'data/Mau_De_Thi_Tin_Hoc_THPT.docx';
+    link.download = 'Mau_De_Thi_Tin_Hoc_THPT.docx';
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
+  },
+
+  // Tải file mẫu Excel (.xlsx) chuẩn
+  downloadExcelTemplate() {
+    if (window.XLSX) {
+      try {
+        const headers = ['Câu hỏi', 'Phương án A', 'Phương án B', 'Phương án C', 'Phương án D', 'Đáp án (A/B/C/D)', 'Mức độ (1-4 hoặc DS)', 'Chủ đề', 'Bài học'];
+        const rows = [
+          headers,
+          [
+            'Thiết bị mạng nào sau đây có chức năng định tuyến các gói tin giữa các mạng khác nhau trên Internet?',
+            'Chuột quang',
+            'Router',
+            'Bàn phím không dây',
+            'Máy in màu',
+            'B',
+            '2',
+            'Mạng máy tính và Internet',
+            'Bài 03. Một số thiết bị mạng thông dụng'
+          ],
+          [
+            'Ngôn ngữ nào sau đây được sử dụng phổ biến nhất để xây dựng cấu trúc của một trang web?',
+            'HTML',
+            'MP3',
+            'SQL',
+            'BIOS',
+            'A',
+            '1',
+            'Lập trình Web',
+            'Bài 01. Nhập môn HTML'
+          ],
+          [
+            'Bộ xử lý trung tâm của máy tính thường được viết tắt là gì?',
+            'RAM',
+            'GPU',
+            'CPU',
+            'SSD',
+            'C',
+            '1',
+            'Máy tính và Xã hội tri thức',
+            'Bài 01. Hệ thống máy tính'
+          ],
+          [
+            'Trí tuệ nhân tạo (AI) thường được ứng dụng phổ biến trong lĩnh vực nào sau đây?',
+            'Nhận dạng khuôn mặt và giọng nói',
+            'Tăng dung lượng vật lý ổ cứng',
+            'Nạp điện nhanh cho pin',
+            'Lau bụi bàn phím',
+            'A',
+            '2',
+            'Trí tuệ nhân tạo',
+            'Bài 01. Làm quen với AI'
+          ]
+        ];
+        const ws = window.XLSX.utils.aoa_to_sheet(rows);
+        const wb = window.XLSX.utils.book_new();
+        window.XLSX.utils.book_append_sheet(wb, ws, 'De_Thi_Mau');
+        window.XLSX.writeFile(wb, 'Mau_De_Thi_Tin_Hoc_THPT.xlsx');
+        return;
+      } catch (e) {
+        console.warn('Lỗi xuất qua SheetJS, dùng liên kết tải trực tiếp:', e);
+      }
+    }
+    const link = document.createElement('a');
+    link.href = 'data/Mau_De_Thi_Tin_Hoc_THPT.xlsx';
+    link.download = 'Mau_De_Thi_Tin_Hoc_THPT.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   },
 
   // Hiển thị danh sách câu hỏi trích xuất từ Word / Excel để GV xem trước

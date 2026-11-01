@@ -50,7 +50,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261101_50" />
+  <link rel="stylesheet" href="css/style.css?v=20261101_51" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -2334,11 +2334,17 @@
                   </div>
                 </div>
 
-                <div class="flex items-center gap-3 flex-wrap">
+                <div class="flex items-center gap-2.5 flex-wrap">
                   <label class="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold cursor-pointer transition flex items-center gap-1.5 shadow-sm">
                     <i class="fa-solid fa-cloud-arrow-up"></i> Chọn file Word (.docx)
                     <input type="file" id="input-room-import-word-file" accept=".docx" class="hidden" />
                   </label>
+                  <a href="data/Mau_De_Thi_Tin_Hoc_THPT.docx" download="Mau_De_Thi_Tin_Hoc_THPT.docx" id="btn-download-word-template" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-bold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-download text-blue-600"></i> Tải file Word mẫu (.docx)
+                  </a>
+                  <button type="button" id="btn-paste-sample-word" class="px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded-xl font-bold transition flex items-center gap-1.5 border border-blue-200 dark:border-blue-800">
+                    <i class="fa-solid fa-paste"></i> Dán mẫu Word thử ngay
+                  </button>
                   <span id="label-import-word-filename" class="text-slate-400 italic">hoặc dán nội dung văn bản đề thi vào khung bên dưới:</span>
                 </div>
 
@@ -2373,13 +2379,16 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
                   </div>
                 </div>
 
-                <div class="flex items-center gap-3 flex-wrap">
+                <div class="flex items-center gap-2.5 flex-wrap">
                   <label class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold cursor-pointer transition flex items-center gap-1.5 shadow-sm">
                     <i class="fa-solid fa-file-excel"></i> Chọn file Excel (.xlsx / .csv)
                     <input type="file" id="input-room-import-excel-file" accept=".xlsx,.xls,.csv" class="hidden" />
                   </label>
-                  <button type="button" id="btn-download-excel-template" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-bold transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-download"></i> Tải file Excel mẫu
+                  <a href="data/Mau_De_Thi_Tin_Hoc_THPT.xlsx" download="Mau_De_Thi_Tin_Hoc_THPT.xlsx" id="btn-download-excel-template" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-bold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-download text-emerald-600"></i> Tải file Excel mẫu (.xlsx)
+                  </a>
+                  <button type="button" id="btn-paste-sample-excel" class="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded-xl font-bold transition flex items-center gap-1.5 border border-emerald-200 dark:border-emerald-800">
+                    <i class="fa-solid fa-paste"></i> Dán mẫu Excel thử ngay
                   </button>
                   <span id="label-import-excel-filename" class="text-slate-400 italic">hoặc sao chép các hàng từ Excel rồi dán vào ô bên dưới:</span>
                 </div>
@@ -2875,7 +2884,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261101_50"></script>
+  <script type="module" src="js/app.js?v=20261101_51"></script>
 </body>
 </html>
 
