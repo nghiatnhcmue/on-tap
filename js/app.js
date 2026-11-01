@@ -3,23 +3,23 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261101_75';
-import { Practice } from './practice.js?v=20261101_75';
-import { Exam } from './exam.js?v=20261101_75';
-import { Search } from './search.js?v=20261101_75';
-import { PrintManager } from './print.js?v=20261101_75';
-import { Auth } from './auth.js?v=20261101_75';
-import { escapeHtml } from './utils.js?v=20261101_75';
-import { Leaderboard } from './leaderboard.js?v=20261101_75';
-import { QuestionsManager } from './questions-manager.js?v=20261101_75';
-import { AdminManager } from './admin-manager.js?v=20261101_75';
-import { ExamRooms } from './exam-rooms.js?v=20261101_75';
-import { Proctor } from './proctor.js?v=20261101_75';
-import { Gradebook } from './gradebook.js?v=20261101_75';
-import { CloudSync } from './cloud-sync.js?v=20261101_75';
-import { InteractiveVideo } from './interactive-video.js?v=20261101_75';
-import { LiveVideo } from './live-video.js?v=20261101_75';
-import Arena from './arena.js?v=20261101_75';
+import { Storage } from './storage.js?v=20261101_76';
+import { Practice } from './practice.js?v=20261101_76';
+import { Exam } from './exam.js?v=20261101_76';
+import { Search } from './search.js?v=20261101_76';
+import { PrintManager } from './print.js?v=20261101_76';
+import { Auth } from './auth.js?v=20261101_76';
+import { escapeHtml } from './utils.js?v=20261101_76';
+import { Leaderboard } from './leaderboard.js?v=20261101_76';
+import { QuestionsManager } from './questions-manager.js?v=20261101_76';
+import { AdminManager } from './admin-manager.js?v=20261101_76';
+import { ExamRooms } from './exam-rooms.js?v=20261101_76';
+import { Proctor } from './proctor.js?v=20261101_76';
+import { Gradebook } from './gradebook.js?v=20261101_76';
+import { CloudSync } from './cloud-sync.js?v=20261101_76';
+import { InteractiveVideo } from './interactive-video.js?v=20261101_76';
+import { LiveVideo } from './live-video.js?v=20261101_76';
+import Arena from './arena.js?v=20261101_76';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -193,7 +193,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261101_75');
+      const res = await fetch('data/manifest.json?v=20261101_76');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
@@ -2975,7 +2975,24 @@ class App {
           this.renderHome();
           this.enforceAuthentication();
         } else {
-          alert(res.message || 'Email/Tài khoản hoặc mật khẩu không chính xác!');
+          if (res.code === 'NOT_FOUND') {
+            const wantReg = confirm(`${res.message || 'Tài khoản chưa tồn tại!'}\n\n👉 Bấm OK để chuyển sang tab "Đăng Ký Mới" tạo tài khoản.`);
+            if (wantReg) {
+              const tabRegBtn = document.getElementById('tab-btn-auth-register');
+              if (tabRegBtn) tabRegBtn.click();
+              const regEmail = document.getElementById('reg-input-email');
+              if (regEmail && identity) {
+                regEmail.value = identity;
+              }
+              const regName = document.getElementById('reg-input-fullname');
+              if (regName && identity && !identity.includes('@')) {
+                regName.value = identity;
+              }
+              document.getElementById('reg-input-fullname')?.focus();
+            }
+          } else {
+            alert(res.message || 'Email/Tài khoản hoặc mật khẩu không chính xác!');
+          }
         }
       });
     }

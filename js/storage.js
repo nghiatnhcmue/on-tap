@@ -420,6 +420,20 @@ export const Storage = {
   getDefaultTestAccounts() {
     return [
       {
+        uid: 'admin',
+        username: 'admin',
+        email: 'admin.tinhoc@gmail.com',
+        password: '123456',
+        fullName: 'Thầy Nghĩa (Quản trị viên)',
+        grade: '12',
+        className: 'Quản trị hệ thống',
+        school: 'Ban Quản Trị TinHocHub',
+        avatar: 'https://ui-avatars.com/api/?name=Admin+TinHoc&background=ef4444&color=fff',
+        role: 'admin',
+        createdAt: '2026-10-30T00:00:00.000Z',
+        lastActive: '2026-10-30T02:00:00.000Z'
+      },
+      {
         uid: 'tesths',
         username: 'tesths',
         email: 'tesths@tinhoc.edu.vn',

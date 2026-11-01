@@ -10,12 +10,12 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_75';
-import { Storage } from './storage.js?v=20261101_75';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_75';
-import { escapeHtml } from './utils.js?v=20261101_75';
-import { Proctor } from './proctor.js?v=20261101_75';
-import { Gradebook } from './gradebook.js?v=20261101_75';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_76';
+import { Storage } from './storage.js?v=20261101_76';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_76';
+import { escapeHtml } from './utils.js?v=20261101_76';
+import { Proctor } from './proctor.js?v=20261101_76';
+import { Gradebook } from './gradebook.js?v=20261101_76';
 
 export const LiveVideo = {
   manifest: null,

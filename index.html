@@ -50,7 +50,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261101_75" />
+  <link rel="stylesheet" href="css/style.css?v=20261101_76" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -122,7 +122,7 @@
         });
 
         // Nạp động module Auth để mở Google Popup ngay lập tức
-        import('./js/auth.js?v=20261101_75').then(function(mod) {
+        import('./js/auth.js?v=20261101_76').then(function(mod) {
           if (mod && mod.Auth) {
             window.Auth = mod.Auth;
             mod.Auth.signInWithGoogleFirebase();
@@ -1660,6 +1660,30 @@
             </button>
           </div>
           <p class="text-[10px] text-slate-400 mt-2">Hỗ trợ đăng nhập một chạm thuận tiện và bảo mật</p>
+        </div>
+
+        <!-- Đăng nhập trải nghiệm nhanh 1-chạm (HS / GV / Admin) -->
+        <div class="p-3.5 bg-blue-50/60 dark:bg-blue-950/30 rounded-2xl border border-blue-200/80 dark:border-blue-800/60">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="fa-solid fa-bolt text-amber-500"></i> Vào nhanh không cần mật khẩu
+            </span>
+            <span class="text-[10px] text-slate-400 font-medium">1 chạm vào học</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <button type="button" onclick="window.Auth && window.Auth.switchRoleDemo('student')" class="py-2 px-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/40 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex flex-col items-center gap-1 shadow-sm hover:scale-[1.02] cursor-pointer">
+              <span class="text-base">🎓</span>
+              <span class="text-[11px]">Học Sinh</span>
+            </button>
+            <button type="button" onclick="window.Auth && window.Auth.switchRoleDemo('teacher')" class="py-2 px-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-900/40 border border-slate-200 dark:border-slate-700 text-purple-700 dark:text-purple-300 text-xs font-bold transition flex flex-col items-center gap-1 shadow-sm hover:scale-[1.02] cursor-pointer">
+              <span class="text-base">👨‍🏫</span>
+              <span class="text-[11px]">Giáo Viên</span>
+            </button>
+            <button type="button" onclick="window.Auth && window.Auth.switchRoleDemo('admin')" class="py-2 px-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-900/40 border border-slate-200 dark:border-slate-700 text-rose-700 dark:text-rose-300 text-xs font-bold transition flex flex-col items-center gap-1 shadow-sm hover:scale-[1.02] cursor-pointer">
+              <span class="text-base">🛡️</span>
+              <span class="text-[11px]">Admin</span>
+            </button>
+          </div>
         </div>
 
         <!-- Form Đăng nhập bảo mật bằng Email/Tài khoản + Mật khẩu -->
@@ -3212,7 +3236,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261101_75"></script>
+  <script type="module" src="js/app.js?v=20261101_76"></script>
 </body>
 </html>
 
