@@ -3,22 +3,22 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261101_59';
-import { Practice } from './practice.js?v=20261101_59';
-import { Exam } from './exam.js?v=20261101_59';
-import { Search } from './search.js?v=20261101_59';
-import { PrintManager } from './print.js?v=20261101_59';
-import { Auth } from './auth.js?v=20261101_59';
-import { escapeHtml } from './utils.js?v=20261101_59';
-import { Leaderboard } from './leaderboard.js?v=20261101_59';
-import { QuestionsManager } from './questions-manager.js?v=20261101_59';
-import { AdminManager } from './admin-manager.js?v=20261101_59';
-import { ExamRooms } from './exam-rooms.js?v=20261101_59';
-import { Proctor } from './proctor.js?v=20261101_59';
-import { Gradebook } from './gradebook.js?v=20261101_59';
-import { CloudSync } from './cloud-sync.js?v=20261101_59';
-import { InteractiveVideo } from './interactive-video.js?v=20261101_59';
-import { LiveVideo } from './live-video.js?v=20261101_59';
+import { Storage } from './storage.js?v=20261101_60';
+import { Practice } from './practice.js?v=20261101_60';
+import { Exam } from './exam.js?v=20261101_60';
+import { Search } from './search.js?v=20261101_60';
+import { PrintManager } from './print.js?v=20261101_60';
+import { Auth } from './auth.js?v=20261101_60';
+import { escapeHtml } from './utils.js?v=20261101_60';
+import { Leaderboard } from './leaderboard.js?v=20261101_60';
+import { QuestionsManager } from './questions-manager.js?v=20261101_60';
+import { AdminManager } from './admin-manager.js?v=20261101_60';
+import { ExamRooms } from './exam-rooms.js?v=20261101_60';
+import { Proctor } from './proctor.js?v=20261101_60';
+import { Gradebook } from './gradebook.js?v=20261101_60';
+import { CloudSync } from './cloud-sync.js?v=20261101_60';
+import { InteractiveVideo } from './interactive-video.js?v=20261101_60';
+import { LiveVideo } from './live-video.js?v=20261101_60';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -266,7 +266,7 @@ class App {
   }
 
   // --- ROUTING / TABS ---
-  async switchTab(tab) {
+  async switchTab(tab, submode = null) {
     // Cảnh báo nếu thí sinh đang làm bài thi mà bấm chuyển sang tab khác
     if (this.currentTab === 'exam-room' && tab !== 'exam-room' && Exam.examState === 'taking') {
       const confirmLeave = confirm('Bạn đang trong quá trình làm bài thi thử. Nếu rời khỏi phòng thi lúc này, bài làm chưa nộp sẽ bị hủy.\nBạn có chắc chắn muốn thoát không?');
@@ -357,7 +357,7 @@ class App {
         break;
       case 'practice':
         document.getElementById('view-practice')?.classList.remove('hidden');
-        await this.initPracticeView();
+        await this.initPracticeView(submode || 'questions');
         break;
       case 'exam-setup':
         document.getElementById('view-exam-setup')?.classList.remove('hidden');
@@ -851,8 +851,8 @@ class App {
                   <p class="text-xs text-slate-400 max-w-md mx-auto">Em có thể luyện tập thêm các câu hỏi hay sai hoặc làm bài thi thử tự do để chuẩn bị tốt cho kỳ thi nhé.</p>
                 </div>
                 <div class="flex items-center justify-center gap-3 pt-2">
-                  <button type="button" data-tab-target="exam-setup" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-sm">
-                    <i class="fa-solid fa-pen-clip"></i> Thi thử tự chọn
+                  <button type="button" onclick="window.AppInstance.switchTab('practice', 'mockexam')" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-sm">
+                    <i class="fa-solid fa-stopwatch"></i> Tự thi thử
                   </button>
                   <button type="button" data-tab-target="practice" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition">
                     <i class="fa-solid fa-book-open"></i> Ôn tập câu hỏi
@@ -1089,8 +1089,54 @@ class App {
     }, 150);
   }
 
-  // --- PRACTICE VIEW ---
-  async initPracticeView() {
+  // --- PRACTICE & MOCK EXAMS VIEW ---
+  async initPracticeView(targetSubmode = 'questions') {
+    // 1. Chuyển đổi giữa 2 phân khu: Ôn tập câu hỏi vs Tự thi thử
+    const btnSubQuestions = document.getElementById('btn-practice-submode-questions');
+    const btnSubMockexam = document.getElementById('btn-practice-submode-mockexam');
+    const subviewQuestions = document.getElementById('practice-subview-questions');
+    const subviewMockexam = document.getElementById('practice-subview-mockexam');
+
+    const switchSubmode = (mode) => {
+      const isMock = (mode === 'mockexam');
+      if (subviewQuestions) subviewQuestions.classList.toggle('hidden', isMock);
+      if (subviewMockexam) subviewMockexam.classList.toggle('hidden', !isMock);
+
+      if (btnSubQuestions) {
+        btnSubQuestions.classList.toggle('bg-white', !isMock);
+        btnSubQuestions.classList.toggle('dark:bg-slate-800', !isMock);
+        btnSubQuestions.classList.toggle('text-blue-600', !isMock);
+        btnSubQuestions.classList.toggle('dark:text-blue-400', !isMock);
+        btnSubQuestions.classList.toggle('shadow-sm', !isMock);
+        btnSubQuestions.classList.toggle('text-slate-600', isMock);
+        btnSubQuestions.classList.toggle('dark:text-slate-400', isMock);
+      }
+
+      if (btnSubMockexam) {
+        btnSubMockexam.classList.toggle('bg-white', isMock);
+        btnSubMockexam.classList.toggle('dark:bg-slate-800', isMock);
+        btnSubMockexam.classList.toggle('text-blue-600', isMock);
+        btnSubMockexam.classList.toggle('dark:text-blue-400', isMock);
+        btnSubMockexam.classList.toggle('shadow-sm', isMock);
+        btnSubMockexam.classList.toggle('text-slate-600', !isMock);
+        btnSubMockexam.classList.toggle('dark:text-slate-400', !isMock);
+      }
+
+      if (isMock) {
+        this.renderMockExamSetup();
+      }
+    };
+
+    if (btnSubQuestions) btnSubQuestions.onclick = () => switchSubmode('questions');
+    if (btnSubMockexam) btnSubMockexam.onclick = () => switchSubmode('mockexam');
+
+    if (targetSubmode === 'mockexam') {
+      switchSubmode('mockexam');
+    } else {
+      switchSubmode('questions');
+    }
+
+    // 2. Khởi tạo dữ liệu câu hỏi luyện tập
     const questions = await this.loadGradeData(this.currentGrade);
     const container = document.getElementById('practice-question-area');
     Practice.init(container, questions, this.manifest);
@@ -1175,24 +1221,23 @@ class App {
       gradeSelect.onchange = async (e) => {
         await this.switchGrade(e.target.value);
         this.populatePracticeFilters();
+        if (typeof this.renderMockExamSetup === 'function') {
+          this.renderMockExamSetup();
+        }
       };
     }
   }
 
-  // --- EXAM SETUP VIEW ---
-  renderExamSetup() {
+  // --- MOCK EXAM SETUP (BỘ CÔNG CỤ TỰ THI THỬ TRONG PHÂN KHU ÔN TẬP) ---
+  renderMockExamSetup() {
     const gradeSelect = document.getElementById('exam-cfg-grade');
-    if (gradeSelect) gradeSelect.value = this.currentGrade;
-
-    // Hiển thị banner khôi phục bài thi đang làm dở (nếu có)
-    const recoveryBannerEl = document.getElementById('active-exam-recovery-banner');
-    if (recoveryBannerEl) {
-      const activeSession = Storage.getActiveExamSession();
-      recoveryBannerEl.innerHTML = activeSession ? this.getActiveSessionBannerHtml(activeSession) : '';
-      this.bindActiveSessionBannerEvents(recoveryBannerEl);
+    if (gradeSelect) {
+      gradeSelect.value = this.currentGrade;
+      gradeSelect.onchange = (e) => {
+        this.populateExamSetupDropdowns(e.target.value);
+      };
     }
 
-    // Cấu hình đề thi & chống gian lận: Mặc định luôn tự động bật cho học sinh (Auto bật)
     const getExamShuffleConfig = () => {
       return {
         shuffleQuestions: true,
@@ -1209,7 +1254,7 @@ class App {
       };
     };
 
-    // Chuyển đổi giữa 4 chế độ tạo đề thi (Tabs)
+    // Chuyển đổi giữa 4 chế độ tạo đề thi thử (Tabs)
     const modeTabs = document.querySelectorAll('[data-exam-tab]');
     const panels = {
       bgd: document.getElementById('panel-exam-bgd'),
@@ -1235,7 +1280,6 @@ class App {
           t.classList.toggle('bg-white', !isSelected);
           t.classList.toggle('dark:bg-slate-800/80', !isSelected);
 
-          // Cập nhật badge bên trong thẻ
           const badge = t.querySelector('.mode-badge');
           if (badge) {
             badge.classList.toggle('bg-blue-600', isSelected);
@@ -1255,103 +1299,225 @@ class App {
       };
     });
 
-    // Hàm điền dữ liệu Chủ đề & Bài học theo Khối
-    const populateExamSetupDropdowns = (grade) => {
-      if (!this.manifest || !this.manifest.grades[grade]) return;
-      const gradeData = this.manifest.grades[grade];
-      const topics = Object.keys(gradeData.topics || {});
+    const grade = gradeSelect ? gradeSelect.value : this.currentGrade;
+    this.populateExamSetupDropdowns(grade);
 
-      // 1. Panel Theo Chủ đề
-      const topicSelect = document.getElementById('exam-topic-select');
-      if (topicSelect) {
-        let tHtml = `<option value="all">-- Tất cả các chủ đề trong Khối ${grade} (${gradeData.total} câu) --</option>`;
-        topics.forEach(t => {
-          tHtml += `<option value="${escapeHtml(t)}">${escapeHtml(t)} (${gradeData.topics[t].total} câu)</option>`;
+    // 1. Nút thi Đề chuẩn Bộ GD&ĐT 2025
+    const btnStartBgd = document.getElementById('btn-start-bgd-exam');
+    if (btnStartBgd) {
+      btnStartBgd.onclick = async () => {
+        const curGrade = gradeSelect ? gradeSelect.value : this.currentGrade;
+        const { shuffleQuestions, shuffleOptions, antiCheat } = getExamShuffleConfig();
+        const examCode = String(Math.floor(100 + Math.random() * 900));
+        await this.startExam({
+          type: 'bgd_2025',
+          title: `Đề thi thử Tốt nghiệp THPT 2025 môn Tin học - Khối ${curGrade}`,
+          grade: curGrade,
+          duration: 50,
+          count: 28,
+          examCode,
+          shuffleQuestions,
+          shuffleOptions,
+          antiCheat
         });
-        topicSelect.innerHTML = tHtml;
-      }
-
-      // 2. Panel Theo Bài học
-      const lessonTopicSelect = document.getElementById('exam-lesson-topic-select');
-      const lessonSelect = document.getElementById('exam-lesson-select');
-      if (lessonTopicSelect) {
-        let ltHtml = `<option value="">-- Vui lòng chọn chủ đề --</option>`;
-        topics.forEach(t => {
-          ltHtml += `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`;
-        });
-        lessonTopicSelect.innerHTML = ltHtml;
-      }
-
-      const updateExamLessons = () => {
-        if (!lessonSelect) return;
-        const selTopic = lessonTopicSelect ? lessonTopicSelect.value : '';
-        if (!selTopic || !gradeData.topics[selTopic]) {
-          lessonSelect.innerHTML = `<option value="">-- Vui lòng chọn chủ đề trước --</option>`;
-        } else {
-          const lessons = Object.keys(gradeData.topics[selTopic].lessons || {});
-          let lHtml = `<option value="">-- Chọn bài học cụ thể (${lessons.length} bài) --</option>`;
-          lessons.forEach(l => {
-            const count = gradeData.topics[selTopic].lessons[l].total;
-            lHtml += `<option value="${escapeHtml(l)}">${escapeHtml(l)} (${count} câu)</option>`;
-          });
-          lessonSelect.innerHTML = lHtml;
-        }
-      };
-
-      if (lessonTopicSelect) {
-        lessonTopicSelect.onchange = updateExamLessons;
-      }
-      updateExamLessons();
-
-      // Cập nhật gợi ý mã đề chuẩn BGD
-      const bgdCodeEl = document.getElementById('bgd-suggested-code');
-      if (bgdCodeEl) {
-        bgdCodeEl.textContent = `Mã đề ${Math.floor(100 + Math.random() * 900)}`;
-      }
-    };
-
-    populateExamSetupDropdowns(gradeSelect ? gradeSelect.value : this.currentGrade);
-
-    if (gradeSelect) {
-      gradeSelect.onchange = async (e) => {
-        await this.switchGrade(e.target.value);
-        populateExamSetupDropdowns(e.target.value);
       };
     }
 
-    // Vào phòng thi theo mã & mật khẩu (Đợt thi được giao)
+    // 2. Nút thi Trộn theo Chủ đề
+    const btnStartTopic = document.getElementById('btn-start-topic-exam');
+    if (btnStartTopic) {
+      btnStartTopic.onclick = async () => {
+        const curGrade = gradeSelect ? gradeSelect.value : this.currentGrade;
+        const topic = document.getElementById('exam-topic-select')?.value || 'all';
+        const count = parseInt(document.getElementById('exam-topic-count')?.value || '20', 10);
+        const duration = parseInt(document.getElementById('exam-topic-duration')?.value || '30', 10);
+        const customTitle = document.getElementById('exam-topic-custom-title')?.value.trim();
+        const title = customTitle || (topic === 'all' ? `Thi thử tổng hợp các chủ đề - Khối ${curGrade}` : `Thi thử ${topic} - Khối ${curGrade}`);
+        const { shuffleQuestions, shuffleOptions, antiCheat } = getExamShuffleConfig();
+        const examCode = String(Math.floor(100 + Math.random() * 900));
+
+        await this.startExam({
+          type: 'by_topic',
+          title,
+          grade: curGrade,
+          topic: topic === 'all' ? null : topic,
+          count,
+          duration,
+          examCode,
+          shuffleQuestions,
+          shuffleOptions,
+          antiCheat
+        });
+      };
+    }
+
+    // 3. Nút thi Trộn theo Bài học (15 phút)
+    const btnStartLesson = document.getElementById('btn-start-lesson-exam');
+    if (btnStartLesson) {
+      btnStartLesson.onclick = async () => {
+        const curGrade = gradeSelect ? gradeSelect.value : this.currentGrade;
+        const topic = document.getElementById('exam-lesson-topic-select')?.value;
+        const lesson = document.getElementById('exam-lesson-select')?.value;
+
+        if (!topic) {
+          alert('Vui lòng chọn Chủ đề trước!');
+          document.getElementById('exam-lesson-topic-select')?.focus();
+          return;
+        }
+        if (!lesson) {
+          alert('Vui lòng chọn Bài học cụ thể cần thi thử!');
+          document.getElementById('exam-lesson-select')?.focus();
+          return;
+        }
+
+        const count = parseInt(document.getElementById('exam-lesson-count')?.value || '10', 10);
+        const duration = parseInt(document.getElementById('exam-lesson-duration')?.value || '15', 10);
+        const title = `Thi thử 15 phút: ${lesson} - Khối ${curGrade}`;
+        const { shuffleQuestions, shuffleOptions, antiCheat } = getExamShuffleConfig();
+        const examCode = String(Math.floor(100 + Math.random() * 900));
+
+        await this.startExam({
+          type: 'by_lesson',
+          title,
+          grade: curGrade,
+          topic,
+          lesson,
+          count,
+          duration,
+          examCode,
+          shuffleQuestions,
+          shuffleOptions,
+          antiCheat
+        });
+      };
+    }
+
+    // 4. Nút thi Ma trận tự do
+    const btnStartMatrix = document.getElementById('btn-start-matrix-exam');
+    if (btnStartMatrix) {
+      btnStartMatrix.onclick = async () => {
+        const curGrade = gradeSelect ? gradeSelect.value : this.currentGrade;
+        const level = document.getElementById('exam-matrix-level')?.value || 'all';
+        const count = parseInt(document.getElementById('exam-matrix-count')?.value || '30', 10);
+        const duration = parseInt(document.getElementById('exam-matrix-duration')?.value || '45', 10);
+
+        const levelNames = {
+          '1': 'Mức 1: Nhận biết',
+          '2': 'Mức 2: Thông hiểu',
+          '3': 'Mức 3: Vận dụng',
+          '4': 'Mức 4: Vận dụng cao',
+          'DS': 'Dạng Đúng / Sai'
+        };
+        const levelSuffix = levelNames[level] ? ` (${levelNames[level]})` : '';
+        const title = `Thi thử Tin học ${duration} phút - Khối ${curGrade}${levelSuffix}`;
+        const { shuffleQuestions, shuffleOptions, antiCheat } = getExamShuffleConfig();
+        const examCode = String(Math.floor(100 + Math.random() * 900));
+
+        await this.startExam({
+          type: 'custom',
+          title,
+          grade: curGrade,
+          level,
+          count,
+          duration,
+          examCode,
+          shuffleQuestions,
+          shuffleOptions,
+          antiCheat
+        });
+      };
+    }
+  }
+
+  // Hàm điền dữ liệu Chủ đề & Bài học theo Khối
+  populateExamSetupDropdowns(grade) {
+    if (!this.manifest || !this.manifest.grades[grade]) return;
+    const gradeData = this.manifest.grades[grade];
+    const topics = Object.keys(gradeData.topics || {});
+
+    // 1. Panel Theo Chủ đề
+    const topicSelect = document.getElementById('exam-topic-select');
+    if (topicSelect) {
+      let tHtml = `<option value="all">-- Tất cả các chủ đề trong Khối ${grade} (${gradeData.total} câu) --</option>`;
+      topics.forEach(t => {
+        tHtml += `<option value="${escapeHtml(t)}">${escapeHtml(t)} (${gradeData.topics[t].total} câu)</option>`;
+      });
+      topicSelect.innerHTML = tHtml;
+    }
+
+    // 2. Panel Theo Bài học
+    const lessonTopicSelect = document.getElementById('exam-lesson-topic-select');
+    const lessonSelect = document.getElementById('exam-lesson-select');
+    if (lessonTopicSelect) {
+      let ltHtml = `<option value="">-- Vui lòng chọn chủ đề --</option>`;
+      topics.forEach(t => {
+        ltHtml += `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`;
+      });
+      lessonTopicSelect.innerHTML = ltHtml;
+
+      lessonTopicSelect.onchange = () => {
+        const selTopic = lessonTopicSelect.value;
+        if (!selTopic || !gradeData.topics[selTopic]) {
+          lessonSelect.innerHTML = `<option value="">-- Vui lòng chọn chủ đề trước --</option>`;
+          lessonSelect.disabled = true;
+          return;
+        }
+        const lessons = Object.keys(gradeData.topics[selTopic].lessons || {});
+        let lHtml = `<option value="">-- Chọn bài học --</option>`;
+        lessons.forEach(l => {
+          lHtml += `<option value="${escapeHtml(l)}">${escapeHtml(l)} (${gradeData.topics[selTopic].lessons[l].total} câu)</option>`;
+        });
+        lessonSelect.innerHTML = lHtml;
+        lessonSelect.disabled = false;
+      };
+    }
+
+    // 3. Cập nhật mã đề thi ngẫu nhiên gợi ý
+    const bgdCodeEl = document.getElementById('bgd-suggested-code');
+    if (bgdCodeEl) {
+      bgdCodeEl.textContent = `Mã đề ${Math.floor(100 + Math.random() * 900)}`;
+    }
+  }
+
+  // --- EXAM SETUP VIEW (PHÒNG KIỂM TRA TRỰC TUYẾN - CHỈ HIỆN KIỂM TRA CHÍNH THỨC) ---
+  renderExamSetup() {
+    // 1. Hiển thị banner khôi phục bài thi đang làm dở (nếu có)
+    const recoveryBannerEl = document.getElementById('active-exam-recovery-banner');
+    if (recoveryBannerEl) {
+      const activeSession = Storage.getActiveExamSession();
+      recoveryBannerEl.innerHTML = activeSession ? this.getActiveSessionBannerHtml(activeSession) : '';
+      this.bindActiveSessionBannerEvents(recoveryBannerEl);
+    }
+
+    // 2. Nút Bắt đầu vào phòng kiểm tra của lớp
     const btnEnterRoom = document.getElementById('btn-enter-room-exam');
     if (btnEnterRoom) {
       btnEnterRoom.onclick = async () => {
         const roomIdInput = document.getElementById('input-enter-room-id');
-        const roomPwdInput = document.getElementById('input-enter-room-pwd');
-        const roomId = roomIdInput?.value.trim().toUpperCase();
-        const pwd = roomPwdInput?.value.trim() || '';
+        const pwdInput = document.getElementById('input-enter-room-pwd');
+        const roomId = roomIdInput ? roomIdInput.value.trim().toUpperCase() : '';
+        const pwd = pwdInput ? pwdInput.value.trim() : '';
 
         if (!roomId) {
-          alert('Vui lòng nhập Mã phòng thi do Giáo viên cấp!');
+          alert('Vui lòng nhập Mã bài kiểm tra do Giáo viên cấp!');
           roomIdInput?.focus();
           return;
         }
 
-        // Luôn luôn kéo phòng thi mới nhất trực tiếp từ Cloud về trước khi kiểm tra quyền
-        // để đảm bảo học sinh nhận được đề thi, mật khẩu và khung giờ mới nhất
         if (CloudSync.isConfigured()) {
           try {
             await CloudSync.fetchRoomFromCloud(roomId);
           } catch (e) {}
         }
 
-        // Xác thực đối tượng vào thi (Trường, Khối, Lớp, Mật khẩu, Khung giờ)
         const access = Storage.validateRoomAccess(roomId, pwd, Auth.currentUser);
         if (!access.valid) {
-          alert(`⚠️ KHÔNG THỂ VÀO THI:\n${access.message}`);
+          alert(`⚠️ KHÔNG THỂ VÀO KIỂM TRA:\n${access.message}`);
           return;
         }
 
         const room = access.room;
 
-        // Bắt đầu làm bài thi của phòng
         await this.startExam({
           type: room.type || 'bgd_2025',
           title: room.title,
@@ -1374,131 +1540,98 @@ class App {
       };
     }
 
-    // 1. Nút thi Đề chuẩn Bộ GD&ĐT 2025
-    const btnStartBgd = document.getElementById('btn-start-bgd-exam');
-    if (btnStartBgd) {
-      btnStartBgd.onclick = async () => {
-        const grade = gradeSelect ? gradeSelect.value : this.currentGrade;
-        const { shuffleQuestions, shuffleOptions, antiCheat } = getExamShuffleConfig();
-        const examCode = String(Math.floor(100 + Math.random() * 900));
-        await this.startExam({
-          type: 'bgd_2025',
-          title: `Đề thi thử Tốt nghiệp THPT 2025 môn Tin học - Khối ${grade}`,
-          grade,
-          duration: 50,
-          count: 28,
-          examCode,
-          shuffleQuestions,
-          shuffleOptions,
-          antiCheat
-        });
-      };
+    // 3. Hiển thị danh sách các bài kiểm tra được giao của lớp
+    this.renderExamSetupAssignedTasks();
+  }
+
+  // --- DANH SÁCH BÀI KIỂM TRA ĐƯỢC GIAO TẠI TAB KIỂM TRA ---
+  renderExamSetupAssignedTasks() {
+    const container = document.getElementById('exam-setup-assigned-tasks-container');
+    if (!container) return;
+
+    const user = Auth.getCurrentUser();
+    const isStudent = Auth.isStudent();
+    const isTeacher = Auth.isTeacher() || Auth.isAdmin();
+
+    if (!Auth.isLoggedIn()) {
+      container.innerHTML = `
+        <div class="p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-center">
+          <p class="text-xs text-slate-500 dark:text-slate-400">Đăng nhập tài khoản học sinh để xem các bài kiểm tra được Giáo viên giao cho lớp bạn.</p>
+        </div>
+      `;
+      return;
     }
 
-    // 2. Nút thi Trộn theo Chủ đề
-    const btnStartTopic = document.getElementById('btn-start-topic-exam');
-    if (btnStartTopic) {
-      btnStartTopic.onclick = async () => {
-        const grade = gradeSelect ? gradeSelect.value : this.currentGrade;
-        const topic = document.getElementById('exam-topic-select')?.value || 'all';
-        const count = parseInt(document.getElementById('exam-topic-count')?.value || '20', 10);
-        const duration = parseInt(document.getElementById('exam-topic-duration')?.value || '30', 10);
-        const customTitle = document.getElementById('exam-topic-custom-title')?.value.trim();
-        const title = customTitle || (topic === 'all' ? `Kiểm tra tổng hợp các chủ đề - Khối ${grade}` : `Kiểm tra ${topic} - Khối ${grade}`);
-        const { shuffleQuestions, shuffleOptions, antiCheat } = getExamShuffleConfig();
-        const examCode = String(Math.floor(100 + Math.random() * 900));
+    const rooms = Storage.getExamRooms();
+    const history = isStudent ? Storage.getUserExamHistory(user) : Storage.getExamHistory();
+    const now = new Date();
 
-        await this.startExam({
-          type: 'by_topic',
-          title,
-          grade,
-          topic: topic === 'all' ? null : topic,
-          count,
-          duration,
-          examCode,
-          shuffleQuestions,
-          shuffleOptions,
-          antiCheat
-        });
-      };
+    const matchingRooms = rooms.filter(room => {
+      if (isTeacher) return true;
+      const matchGrade = (!room.grade || room.grade === user?.grade);
+      const matchSchool = (room.targetSchool === 'all' || !room.targetSchool || (user?.school && room.targetSchool.toLowerCase() === user.school.toLowerCase()));
+      const matchClass = (room.targetClass === 'all' || !room.targetClass || (user?.className && room.targetClass.toLowerCase() === user.className.toLowerCase()));
+      return matchGrade && matchSchool && matchClass;
+    });
+
+    if (matchingRooms.length === 0) {
+      container.innerHTML = `
+        <div class="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center space-y-3">
+          <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl mx-auto shadow-sm">
+            <i class="fa-solid fa-clipboard-check"></i>
+          </div>
+          <h4 class="text-sm font-bold text-slate-800 dark:text-white">Hiện tại chưa có bài kiểm tra mới nào được giao cho lớp ${escapeHtml(user?.className || '')}</h4>
+          <p class="text-xs text-slate-400 max-w-md mx-auto">Khi Thầy/Cô tạo bài kiểm tra cho lớp, danh sách sẽ hiển thị ngay tại đây. Em có thể sang tab Ôn tập để tự ôn luyện kiến thức hoặc tự thi thử nhé!</p>
+          <div class="pt-2">
+            <button type="button" data-tab-target="practice" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-sm">
+              <i class="fa-solid fa-book-open mr-1"></i> Sang Tab Ôn Tập & Tự Thi Thử
+            </button>
+          </div>
+        </div>
+      `;
+      container.querySelector('[data-tab-target="practice"]')?.addEventListener('click', () => {
+        this.switchTab('practice');
+      });
+      return;
     }
 
-    // 3. Nút thi Trộn theo Bài học (15 phút)
-    const btnStartLesson = document.getElementById('btn-start-lesson-exam');
-    if (btnStartLesson) {
-      btnStartLesson.onclick = async () => {
-        const grade = gradeSelect ? gradeSelect.value : this.currentGrade;
-        const topic = document.getElementById('exam-lesson-topic-select')?.value;
-        const lesson = document.getElementById('exam-lesson-select')?.value;
+    const categorized = matchingRooms.map(room => {
+      const record = history.find(h => h.roomId === room.id);
+      let status = 'pending';
+      const start = room.startTime ? new Date(room.startTime) : null;
+      const end = room.endTime ? new Date(room.endTime) : null;
 
-        if (!topic) {
-          alert('Vui lòng chọn Chủ đề trước!');
-          document.getElementById('exam-lesson-topic-select')?.focus();
-          return;
-        }
-        if (!lesson) {
-          alert('Vui lòng chọn Bài học cụ thể cần kiểm tra!');
-          document.getElementById('exam-lesson-select')?.focus();
-          return;
-        }
+      if (record) {
+        status = 'completed';
+      } else if (start && now < start) {
+        status = 'upcoming';
+      } else if (end && now > end) {
+        status = 'expired';
+      } else {
+        status = 'pending';
+      }
 
-        const count = parseInt(document.getElementById('exam-lesson-count')?.value || '10', 10);
-        const duration = parseInt(document.getElementById('exam-lesson-duration')?.value || '15', 10);
-        const title = `Kiểm tra 15 phút: ${lesson} - Khối ${grade}`;
-        const { shuffleQuestions, shuffleOptions, antiCheat } = getExamShuffleConfig();
-        const examCode = String(Math.floor(100 + Math.random() * 900));
+      return { room, record, status, start, end };
+    });
 
-        await this.startExam({
-          type: 'by_lesson',
-          title,
-          grade,
-          topic,
-          lesson,
-          count,
-          duration,
-          examCode,
-          shuffleQuestions,
-          shuffleOptions,
-          antiCheat
-        });
-      };
-    }
+    const statusPriority = { pending: 1, upcoming: 2, completed: 3, expired: 4 };
+    categorized.sort((a, b) => statusPriority[a.status] - statusPriority[b.status]);
 
-    // 4. Nút thi Ma trận tự do
-    const btnStartMatrix = document.getElementById('btn-start-matrix-exam');
-    if (btnStartMatrix) {
-      btnStartMatrix.onclick = async () => {
-        const grade = gradeSelect ? gradeSelect.value : this.currentGrade;
-        const level = document.getElementById('exam-matrix-level')?.value || 'all';
-        const count = parseInt(document.getElementById('exam-matrix-count')?.value || '30', 10);
-        const duration = parseInt(document.getElementById('exam-matrix-duration')?.value || '45', 10);
+    container.innerHTML = `
+      <div class="space-y-4">
+        <div class="flex items-center justify-between pb-1">
+          <h3 class="text-sm sm:text-base font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-blue-600"></i> Bài Kiểm Tra Của Lớp Được Giao (${matchingRooms.length})
+          </h3>
+          <span class="text-xs text-slate-400">Đồng bộ theo Lớp ${escapeHtml(user?.className || '')}</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          ${categorized.map(item => this.renderAssignedTaskCard(item)).join('')}
+        </div>
+      </div>
+    `;
 
-        const levelNames = {
-          '1': 'Mức 1: Nhận biết',
-          '2': 'Mức 2: Thông hiểu',
-          '3': 'Mức 3: Vận dụng',
-          '4': 'Mức 4: Vận dụng cao',
-          'DS': 'Dạng Đúng / Sai'
-        };
-        const levelSuffix = levelNames[level] ? ` (${levelNames[level]})` : '';
-        const title = `Kiểm tra Tin học ${duration} phút - Khối ${grade}${levelSuffix}`;
-        const { shuffleQuestions, shuffleOptions, antiCheat } = getExamShuffleConfig();
-        const examCode = String(Math.floor(100 + Math.random() * 900));
-
-        await this.startExam({
-          type: 'custom',
-          title,
-          grade,
-          level,
-          count,
-          duration,
-          examCode,
-          shuffleQuestions,
-          shuffleOptions,
-          antiCheat
-        });
-      };
-    }
+    this.bindStudentAssignedTasksEvents(container);
   }
 
   async startExam(config) {

@@ -50,7 +50,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261101_59" />
+  <link rel="stylesheet" href="css/style.css?v=20261101_60" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -750,7 +750,30 @@
     </section>
 
     <!-- VIEW: ÔN TẬP CHUYÊN ĐỀ (PRACTICE) -->
+    <!-- VIEW: ÔN TẬP CHUYÊN ĐỀ & TỰ THI THỬ (PRACTICE & MOCK EXAMS) -->
     <section id="view-practice" class="hidden space-y-6">
+      
+      <!-- Thanh Chuyển Chế Độ: Ôn Tập Câu Hỏi vs Tự Thi Thử -->
+      <div class="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div>
+          <h2 class="text-lg sm:text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-book-open-reader text-blue-600"></i> Ôn Tập & Tự Thi Thử
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">Lựa chọn hình thức ôn luyện câu hỏi theo bài hoặc tự làm bài thi thử để rèn luyện kỹ năng</p>
+        </div>
+        
+        <div class="inline-flex p-1 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shrink-0">
+          <button type="button" id="btn-practice-submode-questions" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm">
+            <i class="fa-solid fa-list-check"></i> Ôn tập câu hỏi
+          </button>
+          <button type="button" id="btn-practice-submode-mockexam" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+            <i class="fa-solid fa-stopwatch text-amber-500"></i> Tự thi thử (Đề chuẩn, 15p)
+          </button>
+        </div>
+      </div>
+
+      <!-- PHÂN KHU 1: ÔN TẬP CÂU HỎI THEO CHUYÊN ĐỀ -->
+      <div id="practice-subview-questions" class="space-y-6">
       
       <!-- Thanh bộ lọc chuyên đề -->
       <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 sm:p-6">
@@ -824,86 +847,13 @@
       <!-- Khu vực hiển thị câu hỏi luyện tập -->
       <div id="practice-question-area" class="max-w-4xl mx-auto"></div>
 
-    </section>
 
-    <!-- VIEW: CẤU HÌNH THI THỬ (EXAM SETUP) -->
-    <section id="view-exam-setup" class="hidden space-y-8 max-w-4xl mx-auto">
-      
-      <div class="text-center">
-        <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-800 dark:text-white mb-2">
-          Phòng Thi & Luyện Đề Trực Tuyến
-        </h2>
-        <p class="text-sm text-slate-500 dark:text-slate-400">
-          Vào phòng thi do Thầy Cô giao hoặc tự do rèn luyện kỹ năng làm bài dưới áp lực thời gian
-        </p>
       </div>
 
-      <!-- Banner Khôi phục bài thi đang làm dở (nếu có) -->
-      <div id="active-exam-recovery-banner"></div>
-
-      <!-- Thẻ VÀO PHÒNG THI ĐƯỢC GIAO (Thời gian, Password, Chống gian lận) -->
-      <div class="bg-gradient-to-br from-indigo-900 via-blue-900 to-slate-900 text-white p-6 sm:p-8 rounded-3xl shadow-xl border border-indigo-700/60 relative overflow-hidden">
-        <div class="absolute -top-20 -right-20 w-60 h-60 bg-blue-500/20 rounded-full blur-3xl pointer-events-none"></div>
-
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-          <div class="max-w-xl">
-            <div class="flex items-center gap-2 mb-2 flex-wrap">
-              <span class="px-3 py-1 bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-sm">
-                Dành cho học sinh làm bài theo lớp
-              </span>
-              <span class="px-2.5 py-1 bg-white/10 text-slate-200 text-[10px] font-bold rounded-lg flex items-center gap-1">
-                <i class="fa-solid fa-shield-halved text-emerald-400"></i> Giám sát thi an toàn
-              </span>
-            </div>
-            <h3 class="text-xl sm:text-2xl font-black text-white leading-snug">
-              Vào Phòng Thi Của Lớp
-            </h3>
-            <p class="text-xs text-blue-200 mt-1 leading-relaxed">
-              Nhập mã phòng thi và mật khẩu do Giáo viên cấp để bắt đầu làm bài kiểm tra. Hệ thống tự động đồng bộ thời gian và lưu kết quả vào sổ điểm lớp.
-            </p>
-
-            <!-- Nút tắt dành cho Giáo viên tạo phòng thi -->
-            <div data-role-req="teacher" class="hidden pt-3 border-t border-white/10 mt-3 flex items-center justify-between gap-3 flex-wrap">
-              <span class="text-[11px] text-amber-300 font-semibold"><i class="fa-solid fa-chalkboard-user mr-1"></i>Dành cho Thầy/Cô:</span>
-              <button type="button" data-tab-target="exam-rooms" class="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-black transition flex items-center gap-1.5 shadow-sm">
-                <i class="fa-solid fa-plus-circle"></i> Quản Lý & Giao Đề Cho Lớp
-              </button>
-            </div>
-          </div>
-
-          <!-- Form nhập mã & mật khẩu -->
-          <div class="bg-white/10 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-white/20 w-full lg:w-auto lg:min-w-[360px] space-y-3 shrink-0">
-            <div>
-              <label class="block text-[11px] font-bold text-blue-200 uppercase tracking-wider mb-1">Mã phòng thi</label>
-              <div class="relative">
-                <i class="fa-solid fa-hashtag absolute left-3.5 top-3 text-blue-300 text-xs"></i>
-                <input type="text" id="input-enter-room-id" placeholder="Ví dụ: TIN12-HK1" class="w-full pl-9 pr-4 py-2.5 bg-black/30 border border-white/20 rounded-xl text-xs font-mono font-bold text-white uppercase placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400" />
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-[11px] font-bold text-blue-200 uppercase tracking-wider mb-1">Mật khẩu phòng thi (Password)</label>
-              <div class="relative">
-                <i class="fa-solid fa-key absolute left-3.5 top-3 text-amber-300 text-xs"></i>
-                <input type="password" id="input-enter-room-pwd" placeholder="Nhập mật khẩu vào thi..." class="w-full pl-9 pr-4 py-2.5 bg-black/30 border border-white/20 rounded-xl text-xs text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-amber-400" />
-              </div>
-            </div>
-
-            <button type="button" id="btn-enter-room-exam" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2">
-              <i class="fa-solid fa-right-to-bracket"></i> Bắt đầu vào thi
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Phân cách: Tự Luyện Đề Tự Do -->
-      <div class="flex items-center gap-4 my-2">
-        <div class="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
-        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Hoặc tự luyện đề tự do</span>
-        <div class="h-px bg-slate-200 dark:bg-slate-700 flex-1"></div>
-      </div>
-
+      <!-- PHÂN KHU 2: TỰ THI THỬ & LUYỆN ĐỀ (MOCK EXAMS) -->
+      <div id="practice-subview-mockexam" class="hidden space-y-6 max-w-4xl mx-auto">
       <!-- Chọn khối thi -->
+
       <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
           <h3 class="text-sm font-bold text-slate-800 dark:text-white">Lựa chọn Khối Lớp Kiểm Tra</h3>
@@ -1234,6 +1184,83 @@
 
       </div>
 
+
+      </div>
+
+    </section>
+
+    <!-- VIEW: CẤU HÌNH THI THỬ (EXAM SETUP) -->
+    <section id="view-exam-setup" class="hidden space-y-8 max-w-4xl mx-auto">
+      
+      <div class="text-center">
+        <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-800 dark:text-white mb-2">
+          Phòng Kiểm Tra Trực Tuyến
+        </h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400">
+          Tham gia làm bài kiểm tra chính thức do Thầy/Cô giao hoặc chọn bài kiểm tra của lớp bên dưới
+        </p>
+      </div>
+
+      <!-- Banner Khôi phục bài thi đang làm dở (nếu có) -->
+      <div id="active-exam-recovery-banner"></div>
+
+      <!-- Thẻ VÀO PHÒNG THI ĐƯỢC GIAO (Thời gian, Password, Chống gian lận) -->
+      <div class="bg-gradient-to-br from-indigo-900 via-blue-900 to-slate-900 text-white p-6 sm:p-8 rounded-3xl shadow-xl border border-indigo-700/60 relative overflow-hidden">
+        <div class="absolute -top-20 -right-20 w-60 h-60 bg-blue-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+          <div class="max-w-xl">
+            <div class="flex items-center gap-2 mb-2 flex-wrap">
+              <span class="px-3 py-1 bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-sm">
+                Dành cho học sinh làm bài theo lớp
+              </span>
+              <span class="px-2.5 py-1 bg-white/10 text-slate-200 text-[10px] font-bold rounded-lg flex items-center gap-1">
+                <i class="fa-solid fa-shield-halved text-emerald-400"></i> Giám sát thi an toàn
+              </span>
+            </div>
+            <h3 class="text-xl sm:text-2xl font-black text-white leading-snug">
+              Vào Phòng Thi Của Lớp
+            </h3>
+            <p class="text-xs text-blue-200 mt-1 leading-relaxed">
+              Nhập mã phòng thi và mật khẩu do Giáo viên cấp để bắt đầu làm bài kiểm tra. Hệ thống tự động đồng bộ thời gian và lưu kết quả vào sổ điểm lớp.
+            </p>
+
+            <!-- Nút tắt dành cho Giáo viên tạo phòng thi -->
+            <div data-role-req="teacher" class="hidden pt-3 border-t border-white/10 mt-3 flex items-center justify-between gap-3 flex-wrap">
+              <span class="text-[11px] text-amber-300 font-semibold"><i class="fa-solid fa-chalkboard-user mr-1"></i>Dành cho Thầy/Cô:</span>
+              <button type="button" data-tab-target="exam-rooms" class="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-black transition flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-plus-circle"></i> Quản Lý & Giao Đề Cho Lớp
+              </button>
+            </div>
+          </div>
+
+          <!-- Form nhập mã & mật khẩu -->
+          <div class="bg-white/10 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-white/20 w-full lg:w-auto lg:min-w-[360px] space-y-3 shrink-0">
+            <div>
+              <label class="block text-[11px] font-bold text-blue-200 uppercase tracking-wider mb-1">Mã phòng thi</label>
+              <div class="relative">
+                <i class="fa-solid fa-hashtag absolute left-3.5 top-3 text-blue-300 text-xs"></i>
+                <input type="text" id="input-enter-room-id" placeholder="Ví dụ: TIN12-HK1" class="w-full pl-9 pr-4 py-2.5 bg-black/30 border border-white/20 rounded-xl text-xs font-mono font-bold text-white uppercase placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-blue-200 uppercase tracking-wider mb-1">Mật khẩu phòng thi (Password)</label>
+              <div class="relative">
+                <i class="fa-solid fa-key absolute left-3.5 top-3 text-amber-300 text-xs"></i>
+                <input type="password" id="input-enter-room-pwd" placeholder="Nhập mật khẩu vào thi..." class="w-full pl-9 pr-4 py-2.5 bg-black/30 border border-white/20 rounded-xl text-xs text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              </div>
+            </div>
+
+            <button type="button" id="btn-enter-room-exam" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2">
+              <i class="fa-solid fa-right-to-bracket"></i> Bắt đầu vào thi
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Danh Sách Bài Kiểm Tra Được Giao Của Lớp -->
+      <div id="exam-setup-assigned-tasks-container" class="space-y-4 pt-2"></div>
     </section>
 
     <!-- VIEW: PHÒNG THI (EXAM ROOM) -->
@@ -2753,7 +2780,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261101_59"></script>
+  <script type="module" src="js/app.js?v=20261101_60"></script>
 </body>
 </html>
 
