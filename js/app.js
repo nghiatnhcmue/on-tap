@@ -3,22 +3,22 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261101_66';
-import { Practice } from './practice.js?v=20261101_66';
-import { Exam } from './exam.js?v=20261101_66';
-import { Search } from './search.js?v=20261101_66';
-import { PrintManager } from './print.js?v=20261101_66';
-import { Auth } from './auth.js?v=20261101_66';
-import { escapeHtml } from './utils.js?v=20261101_66';
-import { Leaderboard } from './leaderboard.js?v=20261101_66';
-import { QuestionsManager } from './questions-manager.js?v=20261101_66';
-import { AdminManager } from './admin-manager.js?v=20261101_66';
-import { ExamRooms } from './exam-rooms.js?v=20261101_66';
-import { Proctor } from './proctor.js?v=20261101_66';
-import { Gradebook } from './gradebook.js?v=20261101_66';
-import { CloudSync } from './cloud-sync.js?v=20261101_66';
-import { InteractiveVideo } from './interactive-video.js?v=20261101_66';
-import { LiveVideo } from './live-video.js?v=20261101_66';
+import { Storage } from './storage.js?v=20261101_67';
+import { Practice } from './practice.js?v=20261101_67';
+import { Exam } from './exam.js?v=20261101_67';
+import { Search } from './search.js?v=20261101_67';
+import { PrintManager } from './print.js?v=20261101_67';
+import { Auth } from './auth.js?v=20261101_67';
+import { escapeHtml } from './utils.js?v=20261101_67';
+import { Leaderboard } from './leaderboard.js?v=20261101_67';
+import { QuestionsManager } from './questions-manager.js?v=20261101_67';
+import { AdminManager } from './admin-manager.js?v=20261101_67';
+import { ExamRooms } from './exam-rooms.js?v=20261101_67';
+import { Proctor } from './proctor.js?v=20261101_67';
+import { Gradebook } from './gradebook.js?v=20261101_67';
+import { CloudSync } from './cloud-sync.js?v=20261101_67';
+import { InteractiveVideo } from './interactive-video.js?v=20261101_67';
+import { LiveVideo } from './live-video.js?v=20261101_67';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -187,7 +187,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261101_66');
+      const res = await fetch('data/manifest.json?v=20261101_67');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;

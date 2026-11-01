@@ -10,12 +10,12 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_66';
-import { Storage } from './storage.js?v=20261101_66';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_66';
-import { escapeHtml } from './utils.js?v=20261101_66';
-import { Proctor } from './proctor.js?v=20261101_66';
-import { Gradebook } from './gradebook.js?v=20261101_66';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_67';
+import { Storage } from './storage.js?v=20261101_67';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_67';
+import { escapeHtml } from './utils.js?v=20261101_67';
+import { Proctor } from './proctor.js?v=20261101_67';
+import { Gradebook } from './gradebook.js?v=20261101_67';
 
 export const LiveVideo = {
   manifest: null,
@@ -43,6 +43,10 @@ export const LiveVideo = {
   },
 
   getBaseDbUrl() {
+    if (typeof Storage !== 'undefined' && typeof Storage.getFirebaseDbUrl === 'function') {
+      const customUrl = Storage.getFirebaseDbUrl();
+      if (customUrl && customUrl.trim()) return customUrl.trim().replace(/\/+$/, '');
+    }
     return DEFAULT_FIREBASE_DB_URL.trim().replace(/\/+$/, '');
   },
 
@@ -463,7 +467,7 @@ export const LiveVideo = {
       const studentUid = (user.email || user.username || `hs_${Date.now()}`).replace(/[.#$\[\]\/]/g, '_');
       const studentRecord = {
         uid: studentUid,
-        name: user.name || 'Học sinh',
+        name: user.fullName || user.name || 'Học sinh',
         email: user.email || '',
         avatar: user.avatar || '',
         school: user.school || '',
@@ -741,7 +745,7 @@ export const LiveVideo = {
 
         <!-- Sân khấu Video chính (KHÔNG có thanh điều khiển tua cá nhân) -->
         <div class="relative w-full h-full flex items-center justify-center bg-black">
-          <video id="live-student-video" src="${videoUrl}" playsinline preload="auto" class="w-full h-full object-contain pointer-events-none"></video>
+          <video id="live-student-video" src="${videoUrl}" playsinline preload="auto" class="w-full h-full object-contain cursor-pointer"></video>
 
           <!-- Trạng thái chờ giáo viên bắt đầu -->
           <div id="student-waiting-overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-10 space-y-4">
@@ -759,6 +763,9 @@ export const LiveVideo = {
             <div class="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/10 text-xs font-bold text-emerald-400 border border-emerald-500/30 font-mono">
               <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> ĐÃ KẾT NỐI VỚI THẦY CÔ
             </div>
+            <button type="button" id="btn-student-ready-confirm" class="mt-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white font-black text-xs sm:text-sm shadow-xl shadow-rose-600/30 flex items-center gap-2 transition hover:scale-105 active:scale-95 cursor-pointer">
+              <i class="fa-solid fa-circle-check text-emerald-300"></i> EM ĐÃ SẴN SÀNG VÀO HỌC!
+            </button>
           </div>
 
           <!-- Popup Câu hỏi Tương tác Toàn màn hình (Kahoot Style) -->
@@ -981,13 +988,29 @@ export const LiveVideo = {
 
     // 4. Đồng bộ video phát / tạm dừng
     if (remote.state === 'playing') {
+      if (waitingOverlay) waitingOverlay.classList.add('hidden');
+      const tapOverlay = document.getElementById('student-tap-play-overlay');
+      if (tapOverlay && !video.paused) tapOverlay.remove();
+
       // Bù độ lệch thời gian (time delta sync)
       const targetTime = Number(remote.currentTime || 0);
       if (Math.abs(video.currentTime - targetTime) > 1.8) {
         video.currentTime = targetTime;
       }
       if (video.paused) {
-        video.play().catch(() => {});
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((err) => {
+            console.warn('Autoplay with sound prevented by browser policy, fallback to muted:', err);
+            video.muted = true;
+            video.play().then(() => {
+              this.showStudentUnmutePill();
+            }).catch((err2) => {
+              console.error('Even muted play failed, showing tap to play overlay:', err2);
+              this.showStudentTapToPlayOverlay();
+            });
+          });
+        }
       }
     } else if (remote.state === 'paused') {
       if (!video.paused) video.pause();
@@ -1249,6 +1272,9 @@ export const LiveVideo = {
       if (remote.state === 'playing') {
         btnPlay.className = 'px-5 py-2.5 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black transition shadow-lg shadow-amber-600/30 flex items-center gap-2';
         btnPlay.innerHTML = '<i class="fa-solid fa-pause"></i> TẠM DỪNG CẢ LỚP (ĐỂ GIẢNG BÀI)';
+      } else if (remote.state === 'paused') {
+        btnPlay.className = 'px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition shadow-lg shadow-emerald-600/30 flex items-center gap-2';
+        btnPlay.innerHTML = '<i class="fa-solid fa-play"></i> TIẾP TỤC PHÁT (CHO CẢ LỚP XEM)';
       } else {
         btnPlay.className = 'px-5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black transition shadow-lg shadow-rose-600/30 flex items-center gap-2';
         btnPlay.innerHTML = '<i class="fa-solid fa-play"></i> BẮT ĐẦU PHÁT (CẢ LỚP CÙNG XEM)';
@@ -1454,30 +1480,82 @@ export const LiveVideo = {
     const btnPlayPause = document.getElementById('btn-master-play-pause');
     if (btnPlayPause && video) {
       btnPlayPause.onclick = async () => {
-        if (video.paused) {
-          video.play().then(() => {
-            fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                state: 'playing',
-                currentTime: video.currentTime,
-                updatedAt: Date.now()
-              })
-            });
-          }).catch(() => {});
+        const isPaused = video.paused;
+        const curTime = Number(video.currentTime || 0);
+
+        if (isPaused) {
+          // Cập nhật giao diện nút ngay lập tức để giáo viên an tâm
+          btnPlayPause.innerHTML = '<i class="fa-solid fa-pause"></i> TẠM DỪNG CẢ LỚP (ĐỂ GIẢNG BÀI)';
+          btnPlayPause.className = 'px-5 py-2.5 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black transition shadow-lg shadow-amber-600/30 flex items-center gap-2';
+
+          // 1. Gửi lệnh phát đồng bộ cho cả lớp ngay lập tức lên Firebase
+          fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              state: 'playing',
+              currentTime: curTime,
+              updatedAt: Date.now()
+            })
+          }).catch(err => console.warn('Lỗi gửi lệnh phát lên Firebase:', err));
+
+          // 2. Kích hoạt phát video trên máy Thầy Cô
+          try {
+            await video.play();
+          } catch (playErr) {
+            console.warn('Browser policy blocked teacher video audio, attempting muted:', playErr);
+            video.muted = true;
+            try {
+              await video.play();
+            } catch (err2) {
+              console.error('Không thể phát video máy Thầy Cô:', err2);
+            }
+          }
         } else {
+          // Tạm dừng video
+          btnPlayPause.innerHTML = '<i class="fa-solid fa-play"></i> TIẾP TỤC PHÁT (CHO CẢ LỚP XEM)';
+          btnPlayPause.className = 'px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition shadow-lg shadow-emerald-600/30 flex items-center gap-2';
+
           video.pause();
+
           fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               state: 'paused',
-              currentTime: video.currentTime,
+              currentTime: curTime,
               updatedAt: Date.now()
             })
-          });
+          }).catch(err => console.warn('Lỗi gửi lệnh tạm dừng lên Firebase:', err));
         }
+      };
+    }
+
+    // Nút Tua -10s và +10s
+    const btnRewind10 = document.getElementById('btn-master-rewind-10');
+    if (btnRewind10 && video) {
+      btnRewind10.onclick = () => {
+        const target = Math.max(0, (video.currentTime || 0) - 10);
+        video.currentTime = target;
+        fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentTime: target, updatedAt: Date.now() })
+        }).catch(() => {});
+      };
+    }
+
+    const btnForward10 = document.getElementById('btn-master-forward-10');
+    if (btnForward10 && video) {
+      btnForward10.onclick = () => {
+        const dur = video.duration || 9999;
+        const target = Math.min(dur, (video.currentTime || 0) + 10);
+        video.currentTime = target;
+        fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentTime: target, updatedAt: Date.now() })
+        }).catch(() => {});
       };
     }
 
@@ -1502,7 +1580,7 @@ export const LiveVideo = {
       };
     }
 
-    // Cập nhật timeline fill và đồng hồ
+    // Cập nhật timeline fill, đồng hồ và sự kiện video
     if (video) {
       video.ontimeupdate = () => {
         const cur = video.currentTime;
@@ -1526,6 +1604,26 @@ export const LiveVideo = {
 
       video.onloadedmetadata = () => {
         this.renderMasterTimelinePins();
+      };
+
+      video.onended = () => {
+        fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ state: 'paused', currentTime: video.duration || video.currentTime, updatedAt: Date.now() })
+        }).catch(() => {});
+      };
+
+      video.onerror = () => {
+        console.warn('Live Master Video load error for:', video.src);
+        if (video.src && (video.src.includes('archive.org/download/') || video.src.includes('.us.archive.org/'))) {
+          const corsUrl = `https://archive.org/cors/tinhoc-hub-thpt/${room.videoFileName}`;
+          if (video.src !== corsUrl) {
+            console.log('Chuyển Master sang nguồn Archive CORS trực tiếp:', corsUrl);
+            video.src = corsUrl;
+            video.load();
+          }
+        }
       };
     }
 
@@ -1574,19 +1672,31 @@ export const LiveVideo = {
     // 7. Nút Tiếp Tục Bài Giảng Sau Câu Hỏi
     const btnResume = document.getElementById('btn-master-resume-video');
     if (btnResume && video) {
-      btnResume.onclick = () => {
-        video.play().then(() => {
-          fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              state: 'playing',
-              currentQuestion: null,
-              currentTime: video.currentTime,
-              updatedAt: Date.now()
-            })
-          });
-        }).catch(() => {});
+      btnResume.onclick = async () => {
+        const curTime = Number(video.currentTime || 0);
+
+        fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            state: 'playing',
+            currentQuestion: null,
+            currentTime: curTime,
+            updatedAt: Date.now()
+          })
+        }).catch(err => console.warn('Lỗi tiếp tục bài giảng:', err));
+
+        const qOverlay = document.getElementById('master-question-active-overlay');
+        if (qOverlay) qOverlay.classList.add('hidden');
+
+        try {
+          await video.play();
+        } catch (playErr) {
+          video.muted = true;
+          try {
+            await video.play();
+          } catch (e2) {}
+        }
       };
     }
 
@@ -1836,6 +1946,112 @@ export const LiveVideo = {
         }
       };
     }
+
+    const btnReady = document.getElementById('btn-student-ready-confirm');
+    const video = document.getElementById('live-student-video');
+    if (btnReady && video) {
+      btnReady.onclick = () => {
+        btnReady.disabled = true;
+        btnReady.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-300"></i> Đã sẵn sàng! Màn hình sẽ tự chiếu khi Thầy/Cô phát';
+        btnReady.className = 'mt-2 px-6 py-3 rounded-2xl bg-emerald-600/40 text-emerald-300 font-bold text-xs border border-emerald-500/30 flex items-center gap-2';
+
+        // Tương tác trước để kích hoạt quyền Autoplay âm thanh
+        video.play().then(() => {
+          if (this.remoteState?.state !== 'playing') {
+            video.pause();
+          }
+        }).catch(() => {
+          video.muted = true;
+          video.play().then(() => {
+            if (this.remoteState?.state !== 'playing') video.pause();
+          }).catch(() => {});
+        });
+      };
+    }
+
+    if (video) {
+      video.onclick = () => {
+        if (video.muted) {
+          video.muted = false;
+          video.volume = 1.0;
+          const pill = document.getElementById('student-unmute-pill');
+          if (pill) pill.remove();
+        } else if (this.remoteState?.state === 'playing' && video.paused) {
+          video.play().catch(() => {});
+        }
+      };
+
+      video.onerror = () => {
+        console.warn('Live Student Video load error for:', video.src);
+        if (video.src && (video.src.includes('archive.org/download/') || video.src.includes('.us.archive.org/'))) {
+          const corsUrl = `https://archive.org/cors/tinhoc-hub-thpt/${room.videoFileName}`;
+          if (video.src !== corsUrl) {
+            console.log('Chuyển Student sang nguồn Archive CORS trực tiếp:', corsUrl);
+            video.src = corsUrl;
+            video.load();
+            video.play().catch(() => {});
+          }
+        }
+      };
+    }
+  },
+
+  showStudentUnmutePill() {
+    if (document.getElementById('student-unmute-pill')) return;
+    const container = document.getElementById('live-student-cinema');
+    if (!container) return;
+
+    const pill = document.createElement('div');
+    pill.id = 'student-unmute-pill';
+    pill.className = 'absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-5 py-3 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs sm:text-sm shadow-2xl flex items-center gap-2.5 cursor-pointer transition animate-bounce border-2 border-white/40';
+    pill.innerHTML = '<i class="fa-solid fa-volume-xmark text-base"></i> <span>VIDEO ĐANG TẮT TIẾNG • CHẠM VÀO ĐÂY ĐỂ BẬT ÂM THANH</span> <i class="fa-solid fa-volume-high text-base"></i>';
+
+    const video = document.getElementById('live-student-video');
+    pill.onclick = () => {
+      if (video) {
+        video.muted = false;
+        video.volume = 1.0;
+      }
+      pill.remove();
+    };
+
+    container.appendChild(pill);
+
+    // Tự động ẩn sau 12 giây nếu học sinh không bấm
+    setTimeout(() => {
+      if (pill && pill.parentNode) pill.remove();
+    }, 12000);
+  },
+
+  showStudentTapToPlayOverlay() {
+    if (document.getElementById('student-tap-play-overlay')) return;
+    const container = document.getElementById('live-student-cinema');
+    if (!container) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'student-tap-play-overlay';
+    overlay.className = 'absolute inset-0 bg-black/70 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center z-25 cursor-pointer';
+    overlay.innerHTML = `
+      <div class="w-24 h-24 rounded-full bg-rose-600/90 text-white flex items-center justify-center text-4xl shadow-2xl shadow-rose-600/50 animate-pulse mb-4 hover:scale-110 transition">
+        <i class="fa-solid fa-play ml-1"></i>
+      </div>
+      <h3 class="text-lg font-black text-white">Thầy/Cô đang phát bài giảng</h3>
+      <p class="text-xs text-slate-300 mt-1">Chạm vào màn hình để bắt đầu xem cùng lớp</p>
+    `;
+
+    const video = document.getElementById('live-student-video');
+    overlay.onclick = () => {
+      if (video) {
+        video.muted = false;
+        video.play().catch(() => {
+          video.muted = true;
+          video.play().catch(() => {});
+        });
+      }
+      overlay.remove();
+    };
+
+    container.appendChild(overlay);
   },
 
   requestFullscreenSafe(elem) {
@@ -1862,14 +2078,42 @@ export const LiveVideo = {
 
   resolveVideoStreamingUrl(fileName) {
     if (!fileName) return '';
-    // Thử tìm trong kho video máy tính giáo viên đã nạp trước
+    const vTrim = String(fileName).trim();
+    if (vTrim.startsWith('http://') || vTrim.startsWith('https://') || vTrim.startsWith('blob:') || vTrim.startsWith('data:')) {
+      if (vTrim.includes('archive.org/download/')) {
+        return vTrim.replace('archive.org/download/', 'archive.org/cors/');
+      }
+      return vTrim;
+    }
+
+    // 1. Tệp video cục bộ chọn từ máy tính giáo viên nếu có
     if (window.InteractiveVideo && window.InteractiveVideo.localVideoMap) {
-      if (window.InteractiveVideo.localVideoMap[fileName]) {
-        return window.InteractiveVideo.localVideoMap[fileName];
+      const entry = window.InteractiveVideo.localVideoMap[vTrim] || window.InteractiveVideo.localVideoMap[vTrim.toLowerCase()];
+      if (entry) {
+        return typeof entry === 'string' ? entry : (entry.url || '');
       }
     }
-    // Mặc định stream qua Archive CORS trực tiếp chống chặn mạng
-    return `https://archive.org/cors/tinhoc-hub-thpt/${fileName}`;
+
+    // 2. Custom Video URL từ Storage nếu giáo viên/admin đã cấu hình
+    if (typeof Storage !== 'undefined' && typeof Storage.getCustomVideoUrl === 'function') {
+      const customUrl = Storage.getCustomVideoUrl(vTrim);
+      if (customUrl) {
+        if (customUrl.includes('archive.org/download/')) {
+          return customUrl.replace('archive.org/download/', 'archive.org/cors/');
+        }
+        return customUrl;
+      }
+    }
+
+    // 3. Mặc định stream qua Archive CORS trực tiếp chống chặn mạng
+    let baseUrl = 'https://archive.org/cors/tinhoc-hub-thpt/';
+    if (typeof Storage !== 'undefined' && typeof Storage.getVideoBaseUrl === 'function') {
+      baseUrl = Storage.getVideoBaseUrl();
+      if (baseUrl && baseUrl.includes('archive.org/download/')) {
+        baseUrl = baseUrl.replace('archive.org/download/', 'archive.org/cors/');
+      }
+    }
+    return `${baseUrl}${vTrim}`;
   },
 
   formatTime(seconds) {
