@@ -3,22 +3,22 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261101_60';
-import { Practice } from './practice.js?v=20261101_60';
-import { Exam } from './exam.js?v=20261101_60';
-import { Search } from './search.js?v=20261101_60';
-import { PrintManager } from './print.js?v=20261101_60';
-import { Auth } from './auth.js?v=20261101_60';
-import { escapeHtml } from './utils.js?v=20261101_60';
-import { Leaderboard } from './leaderboard.js?v=20261101_60';
-import { QuestionsManager } from './questions-manager.js?v=20261101_60';
-import { AdminManager } from './admin-manager.js?v=20261101_60';
-import { ExamRooms } from './exam-rooms.js?v=20261101_60';
-import { Proctor } from './proctor.js?v=20261101_60';
-import { Gradebook } from './gradebook.js?v=20261101_60';
-import { CloudSync } from './cloud-sync.js?v=20261101_60';
-import { InteractiveVideo } from './interactive-video.js?v=20261101_60';
-import { LiveVideo } from './live-video.js?v=20261101_60';
+import { Storage } from './storage.js?v=20261101_61';
+import { Practice } from './practice.js?v=20261101_61';
+import { Exam } from './exam.js?v=20261101_61';
+import { Search } from './search.js?v=20261101_61';
+import { PrintManager } from './print.js?v=20261101_61';
+import { Auth } from './auth.js?v=20261101_61';
+import { escapeHtml } from './utils.js?v=20261101_61';
+import { Leaderboard } from './leaderboard.js?v=20261101_61';
+import { QuestionsManager } from './questions-manager.js?v=20261101_61';
+import { AdminManager } from './admin-manager.js?v=20261101_61';
+import { ExamRooms } from './exam-rooms.js?v=20261101_61';
+import { Proctor } from './proctor.js?v=20261101_61';
+import { Gradebook } from './gradebook.js?v=20261101_61';
+import { CloudSync } from './cloud-sync.js?v=20261101_61';
+import { InteractiveVideo } from './interactive-video.js?v=20261101_61';
+import { LiveVideo } from './live-video.js?v=20261101_61';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -2833,6 +2833,10 @@ class App {
     const homeLiveBtn = document.getElementById('btn-home-teacher-live-video');
     if (homeLiveBtn) {
       homeLiveBtn.addEventListener('click', () => {
+        if (!Auth.isTeacher() && !Auth.isAdmin()) {
+          alert('Chức năng tạo phòng học video trực tuyến chỉ dành riêng cho Giáo viên (GV) và Quản trị viên (Admin)!\nHọc sinh chỉ có quyền tham gia phòng học do Thầy/Cô cung cấp.');
+          return;
+        }
         if (window.LiveVideo) window.LiveVideo.openCreateModal();
       });
     }

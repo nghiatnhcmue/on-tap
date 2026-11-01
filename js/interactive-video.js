@@ -10,10 +10,10 @@
  * - HỖ TRỢ THIẾT LẬP CÂU HỎI & MỐC DỪNG (Question & Checkpoint Editor): Cho phép Giáo viên & Admin tạo, sửa, xóa mốc dừng và câu hỏi trực tiếp trên web, tự động đồng bộ đám mây realtime!
  */
 
-import { Storage } from './storage.js?v=20261101_60';
-import { Auth } from './auth.js?v=20261101_60';
-import { escapeHtml } from './utils.js?v=20261101_60';
-import { Proctor } from './proctor.js?v=20261101_60';
+import { Storage } from './storage.js?v=20261101_61';
+import { Auth } from './auth.js?v=20261101_61';
+import { escapeHtml } from './utils.js?v=20261101_61';
+import { Proctor } from './proctor.js?v=20261101_61';
 
 export const InteractiveVideo = {
   container: null,
@@ -485,6 +485,10 @@ export const InteractiveVideo = {
     const btnCreateLive = document.getElementById('btn-open-create-live-room');
     if (btnCreateLive) {
       btnCreateLive.onclick = () => {
+        if (!Auth.isTeacher() && !Auth.isAdmin()) {
+          alert('Chức năng tạo phòng học video trực tuyến chỉ dành riêng cho Giáo viên (GV) và Quản trị viên (Admin)!\nHọc sinh chỉ có quyền tham gia phòng học do Thầy/Cô cung cấp.');
+          return;
+        }
         if (window.LiveVideo) window.LiveVideo.openCreateModal();
       };
     }

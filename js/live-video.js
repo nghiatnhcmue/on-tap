@@ -10,12 +10,12 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_60';
-import { Storage } from './storage.js?v=20261101_60';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_60';
-import { escapeHtml } from './utils.js?v=20261101_60';
-import { Proctor } from './proctor.js?v=20261101_60';
-import { Gradebook } from './gradebook.js?v=20261101_60';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_61';
+import { Storage } from './storage.js?v=20261101_61';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_61';
+import { escapeHtml } from './utils.js?v=20261101_61';
+import { Proctor } from './proctor.js?v=20261101_61';
+import { Gradebook } from './gradebook.js?v=20261101_61';
 
 export const LiveVideo = {
   manifest: null,
@@ -51,7 +51,7 @@ export const LiveVideo = {
   // =========================================================================
   async openCreateModal() {
     if (!Auth.isTeacher() && !Auth.isAdmin()) {
-      alert('Chức năng này dành riêng cho Giáo viên và Ban Quản Trị để điều phối tiết học trực tuyến!');
+      alert('Chức năng tạo phòng học video trực tuyến chỉ dành riêng cho Giáo viên (GV) và Quản trị viên (Admin)!\nHọc sinh chỉ có quyền tham gia phòng học do Thầy/Cô cung cấp.');
       return;
     }
 
@@ -192,6 +192,11 @@ export const LiveVideo = {
   // 2. TẠO PHÒNG TRÊN FIREBASE DATABASE
   // =========================================================================
   async handleCreateRoomSubmit() {
+    if (!Auth.isTeacher() && !Auth.isAdmin()) {
+      alert('Chức năng tạo phòng học video trực tuyến chỉ dành riêng cho Giáo viên (GV) và Quản trị viên (Admin)!\nHọc sinh chỉ có quyền tham gia phòng học do Thầy/Cô cung cấp.');
+      return;
+    }
+
     const codeInput = document.getElementById('live-input-room-code');
     const titleInput = document.getElementById('live-input-title');
     const schoolSel = document.getElementById('live-input-school');
@@ -1852,7 +1857,7 @@ export const LiveVideo = {
     const div = document.createElement('div');
     div.innerHTML = `
       <!-- MODAL TẠO PHÒNG LIVE VIDEO DÀNH CHO GIÁO VIÊN -->
-      <div id="modal-create-live-video-room" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+      <div id="modal-create-live-video-room" data-role-req="teacher" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 hidden">
         <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 animate-scaleUp max-h-[92vh] overflow-y-auto">
           
           <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
