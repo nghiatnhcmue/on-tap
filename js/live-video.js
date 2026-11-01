@@ -10,12 +10,12 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_53';
-import { Storage } from './storage.js?v=20261101_53';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_53';
-import { escapeHtml } from './utils.js?v=20261101_53';
-import { Proctor } from './proctor.js?v=20261101_53';
-import { Gradebook } from './gradebook.js?v=20261101_53';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_54';
+import { Storage } from './storage.js?v=20261101_54';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_54';
+import { escapeHtml } from './utils.js?v=20261101_54';
+import { Proctor } from './proctor.js?v=20261101_54';
+import { Gradebook } from './gradebook.js?v=20261101_54';
 
 export const LiveVideo = {
   manifest: null,
@@ -49,10 +49,24 @@ export const LiveVideo = {
   // =========================================================================
   // 1. DIALOG: TẠO PHÒNG LIVE VIDEO CHO GIÁO VIÊN
   // =========================================================================
-  openCreateModal() {
+  async openCreateModal() {
     if (!Auth.isTeacher() && !Auth.isAdmin()) {
       alert('Chức năng này dành riêng cho Giáo viên và Ban Quản Trị để điều phối tiết học trực tuyến!');
       return;
+    }
+
+    // Đảm bảo manifest đã được nạp
+    if (!this.manifest) {
+      if (window.App && window.App.manifest) {
+        this.manifest = window.App.manifest;
+      } else {
+        try {
+          const res = await fetch('data/manifest.json', { cache: 'no-cache' });
+          if (res.ok) this.manifest = await res.json();
+        } catch (e) {
+          console.warn('Lỗi nạp manifest trong LiveVideo:', e);
+        }
+      }
     }
 
     const modal = document.getElementById('modal-create-live-video-room');
@@ -114,33 +128,41 @@ export const LiveVideo = {
       }
     };
 
-    // Cập nhật danh sách bài học video theo Khối
+    // Tự động điền tiêu đề buổi học theo bài và lớp
+    const autoFillTitle = () => {
+      const titleInput = document.getElementById('live-input-title');
+      const selectedOption = lessonSel?.selectedOptions?.[0];
+      const lessonTitle = selectedOption?.getAttribute('data-lesson');
+      const curClass = classSel?.value;
+      const classText = (curClass && curClass !== 'all') ? ` (Lớp ${curClass})` : '';
+      if (titleInput && lessonTitle) {
+        titleInput.value = `Tiết học: ${lessonTitle}${classText}`;
+      }
+    };
+
+    // Cập nhật danh sách bài học video theo Khối (Đọc chính xác từ grade.interactive_videos)
     const updateLessons = () => {
       const curGrade = gradeSel?.value || '12';
-      if (!lessonSel || !this.manifest) return;
+      if (!lessonSel) return;
 
-      const gradeData = this.manifest.grades?.[curGrade];
-      if (!gradeData) {
-        lessonSel.innerHTML = `<option value="">Không tìm thấy bài học cho khối ${curGrade}</option>`;
-        return;
-      }
-
+      const manifest = this.manifest || window.App?.manifest;
+      const gData = manifest?.grades?.[curGrade]?.interactive_videos || {};
       const lessonsList = [];
-      Object.values(gradeData.topics || {}).forEach(t => {
-        Object.values(t.lessons || {}).forEach(l => {
-          if (l.video) {
-            lessonsList.push({
-              topic: t.name,
-              lesson: l.name,
-              video: l.video,
-              checkpoints: l.checkpoints || 0
-            });
-          }
+
+      Object.keys(gData).forEach(vname => {
+        const v = gData[vname];
+        const videoFileName = v.video || vname;
+        const cps = Array.isArray(v.checkpoints) ? v.checkpoints : [];
+        lessonsList.push({
+          topic: v.topic || '',
+          lesson: v.lesson || vname,
+          video: videoFileName,
+          checkpoints: cps.length
         });
       });
 
       if (lessonsList.length === 0) {
-        lessonSel.innerHTML = `<option value="">Không có bài giảng video nào trong khối này</option>`;
+        lessonSel.innerHTML = `<option value="">Không tìm thấy bài giảng video cho khối ${curGrade}</option>`;
       } else {
         lessonSel.innerHTML = lessonsList.map(l => `
           <option value="${escapeHtml(l.video)}" data-topic="${escapeHtml(l.topic)}" data-lesson="${escapeHtml(l.lesson)}">
@@ -148,7 +170,11 @@ export const LiveVideo = {
           </option>
         `).join('');
       }
+      autoFillTitle();
     };
+
+    if (lessonSel) lessonSel.onchange = autoFillTitle;
+    if (classSel) classSel.onchange = autoFillTitle;
 
     if (schoolSel) schoolSel.onchange = updateClasses;
     if (gradeSel) {
@@ -209,10 +235,24 @@ export const LiveVideo = {
       // Nạp danh sách câu hỏi dừng của video này
       let questions = [];
       try {
-        if (window.App && typeof window.App.loadGradeData === 'function') {
-          await window.App.loadGradeData(grade);
-          const allGradeQ = window.App.gradeCache?.[grade] || [];
-          questions = allGradeQ.filter(q => q.video && q.video.toLowerCase() === videoFileName.toLowerCase() && q.video_stop !== undefined);
+        // 1. Ưu tiên câu hỏi tùy biến của giáo viên nếu có
+        const customQ = Storage.getCustomVideoQuestions(grade, videoFileName);
+        if (customQ && Array.isArray(customQ) && customQ.length > 0) {
+          questions = customQ;
+        } else {
+          // 2. Nạp từ ngân hàng câu hỏi gốc của khối
+          if (window.App && typeof window.App.loadGradeData === 'function') {
+            await window.App.loadGradeData(grade);
+            const allGradeQ = window.App.gradeCache?.[grade] || [];
+            questions = allGradeQ.filter(q => q.video && q.video.toLowerCase() === videoFileName.toLowerCase() && q.video_stop !== undefined);
+          }
+          if (questions.length === 0) {
+            const gRes = await fetch(`data/grade_${grade}.json`);
+            if (gRes.ok) {
+              const gAll = await gRes.json();
+              questions = gAll.filter(q => q.video && q.video.toLowerCase() === videoFileName.toLowerCase() && q.video_stop !== undefined);
+            }
+          }
         }
       } catch (e) {
         console.warn('Lỗi nạp câu hỏi cho Live Room:', e);
