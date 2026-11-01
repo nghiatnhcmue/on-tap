@@ -4,48 +4,35 @@
  * Hỗ trợ: Đăng nhập Google Popup, Đồng bộ Firebase Realtime Database, Hồ sơ học sinh.
  */
 
-import { Storage } from './storage.js?v=20261101_62';
-import { CloudSync } from './cloud-sync.js?v=20261101_62';
+import { Storage } from './storage.js?v=20261101_63';
+import { CloudSync } from './cloud-sync.js?v=20261101_63';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
 
-// Danh mục chuẩn các trường và danh sách lớp theo khối
-export const SCHOOLS_DATA = {
-  'EMASI': {
-    name: 'EMASI',
-    aliases: ['EMASI', 'Trường EMASI', 'Song ngữ EMASI', 'Trường Song ngữ Quốc tế EMASI'],
-    classes: {
-      '10': ['10E', '10I1', '10I2'],
-      '11': ['11E'],
-      '12': ['12E']
-    }
+// Danh mục chuẩn các trường và danh sách lớp theo khối (Đọc động thời gian thực từ Storage / Cloud)
+export const getSchoolsData = () => Storage.getSchoolsData();
+
+export const SCHOOLS_DATA = new Proxy({}, {
+  get(target, prop) {
+    if (prop === Symbol.iterator) return undefined;
+    const data = Storage.getSchoolsData();
+    return data[prop];
   },
-  'Phổ thông Năng khiếu': {
-    name: 'Phổ thông Năng khiếu',
-    aliases: ['PTNK', 'Phổ thông Năng khiếu', 'Phổ thông Năng Khiếu', 'Trường PTNK', 'THPT Năng Khiếu', 'Trường Phổ thông Năng khiếu'],
-    classes: {
-      '10': [],
-      '11': [],
-      '12': ['12TOAN', '12LI', '12HOA', '12SINH', '12VAN', '12ANH']
-    }
+  has(target, prop) {
+    const data = Storage.getSchoolsData();
+    return prop in data;
   },
-  'TT GDNN GDTX Chu Văn An': {
-    name: 'TT GDNN GDTX Chu Văn An',
-    aliases: [
-      'TT GDNN GDTX Chu Văn An',
-      'TT GDNN - GDTX Chu Văn An',
-      'THPT Chu Văn An',
-      'Chu Văn An',
-      'CVA',
-      'TT GDTX Chu Văn An'
-    ],
-    classes: {
-      '10': ['10TN', '10A1', '10A2', '10A3', '10A4', '10A5', '10A6', '10A7', '10A8', '10A9', '10A10', '10A11', '10A12'],
-      '11': ['11A1', '11A2', '11A3', '11A4', '11A5'],
-      '12': ['12A1', '12A2', '12A3', '12A4', '12A5', '12A6', '12A7', '12A8', '12A9', '12A10']
+  ownKeys() {
+    return Reflect.ownKeys(Storage.getSchoolsData());
+  },
+  getOwnPropertyDescriptor(target, prop) {
+    const data = Storage.getSchoolsData();
+    if (prop in data) {
+      return { configurable: true, enumerable: true, value: data[prop] };
     }
+    return undefined;
   }
-};
+});
 
 export const Auth = {
   currentUser: null,
@@ -1093,5 +1080,40 @@ export const Auth = {
   closeRequiredProfileModal() {
     const modal = document.getElementById('modal-required-profile');
     if (modal) modal.classList.add('hidden');
-  }
+  },
+  // --- PHÂN CÔNG GIẢNG DẠY & GIỚI HẠN PHẠM VI GIÁO VIÊN ---
+  getTeacherAssignments() {
+    if (!this.currentUser) return [];
+    return Storage.getTeacherAssignments(this.currentUser.email);
+  },
+
+  isTeacherAssigned(school, grade, className) {
+    return Storage.isTeacherAssignedToClass(this.currentUser, school, grade, className);
+  },
+
+  getAssignedSchools() {
+    if (!this.currentUser) return [];
+    if (this.isAdmin()) return Object.keys(Storage.getSchoolsData());
+    return Storage.getTeacherAssignedSchools(this.currentUser.email);
+  },
+
+  getAssignedGrades(school = null) {
+    if (!this.currentUser) return ['10', '11', '12'];
+    if (this.isAdmin()) return ['10', '11', '12'];
+    return Storage.getTeacherAssignedGrades(this.currentUser.email, school);
+  },
+
+  getAssignedClasses(school = null, grade = null) {
+    if (!this.currentUser) return [];
+    if (this.isAdmin()) {
+      const schools = Storage.getSchoolsData();
+      if (school && schools[school]) {
+        if (grade && schools[school].classes?.[grade]) return schools[school].classes[grade];
+        return Object.values(schools[school].classes || {}).flat();
+      }
+      return [];
+    }
+    return Storage.getTeacherAssignedClasses(this.currentUser.email, school, grade);
+  },
+
 };

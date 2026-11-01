@@ -3,9 +3,9 @@
  * Quản lý giao đề thi theo khung giờ, trường học, lớp học, mật khẩu và chống gian lận cho Giáo viên & Admin
  */
 
-import { Storage } from './storage.js?v=20261101_62';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_62';
-import { escapeHtml } from './utils.js?v=20261101_62';
+import { Storage } from './storage.js?v=20261101_63';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_63';
+import { escapeHtml } from './utils.js?v=20261101_63';
 
 export const ExamRooms = {
   container: null,
@@ -59,8 +59,23 @@ export const ExamRooms = {
     const allRooms = Storage.getExamRooms();
     const now = new Date();
 
+    // Phân quyền phạm vi giáo viên (Teacher Scoping)
+    const currentUser = Auth.getCurrentUser();
+    const isTeacher = Auth.isTeacher() && !Auth.isAdmin();
+    const assignedSchools = isTeacher ? Storage.getTeacherAssignedSchools(currentUser?.email) : [];
+    const hasAssignments = isTeacher && assignedSchools.length > 0;
+
+    let scopedRooms = allRooms;
+    if (hasAssignments) {
+      scopedRooms = allRooms.filter(r => {
+        const isCreator = r.createdBy && currentUser?.email && (r.createdBy.toLowerCase() === currentUser.email.toLowerCase());
+        const isAssigned = Storage.isTeacherAssignedToClass(currentUser, r.targetSchool, r.grade, r.targetClass);
+        return isCreator || isAssigned;
+      });
+    }
+
     // Lọc phòng thi theo bộ lọc của giáo viên
-    const filteredRooms = allRooms.filter(room => {
+    const filteredRooms = scopedRooms.filter(room => {
       if (this.filterGrade !== 'all' && room.grade !== this.filterGrade) {
         return false;
       }
@@ -121,9 +136,9 @@ export const ExamRooms = {
               <span class="text-slate-400 font-bold">Trường:</span>
               <select id="rooms-filter-school" class="px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-700 dark:text-slate-300">
                 <option value="all" ${this.filterSchool === 'all' ? 'selected' : ''}>Tất cả trường</option>
-                <option value="EMASI" ${this.filterSchool === 'EMASI' ? 'selected' : ''}>EMASI</option>
-                <option value="Phổ thông Năng khiếu" ${this.filterSchool === 'Phổ thông Năng khiếu' ? 'selected' : ''}>Phổ thông Năng khiếu</option>
-                <option value="TT GDNN GDTX Chu Văn An" ${this.filterSchool === 'TT GDNN GDTX Chu Văn An' ? 'selected' : ''}>TT GDNN GDTX Chu Văn An</option>
+                ${(hasAssignments ? assignedSchools : Object.keys(Storage.getSchoolsData())).map(s => `
+                  <option value="${escapeHtml(s)}" ${this.filterSchool === s ? 'selected' : ''}>${escapeHtml(s)}</option>
+                `).join('')}
               </select>
             </div>
 
@@ -481,20 +496,38 @@ export const ExamRooms = {
     const customClassInput = document.getElementById('room-input-target-class-custom');
     if (!classSelect) return;
 
+    const currentUser = Auth.getCurrentUser();
+    const isTeacher = Auth.isTeacher() && !Auth.isAdmin();
+    const assignedSchools = isTeacher ? Storage.getTeacherAssignedSchools(currentUser?.email) : [];
+    const hasAssignments = isTeacher && assignedSchools.length > 0;
+
     let availableClasses = [];
-    if (SCHOOLS_DATA[school] && SCHOOLS_DATA[school].classes[grade]) {
-      availableClasses = SCHOOLS_DATA[school].classes[grade];
+    if (hasAssignments) {
+      availableClasses = Storage.getTeacherAssignedClasses(currentUser?.email, school, grade);
+    } else {
+      const schoolsData = Storage.getSchoolsData();
+      if (schoolsData[school] && schoolsData[school].classes && schoolsData[school].classes[grade]) {
+        availableClasses = schoolsData[school].classes[grade];
+      }
     }
 
-    let html = `<option value="all">Tất cả các lớp thuộc Khối ${grade}</option>`;
+    let html = '';
+    if (!hasAssignments) {
+      html += `<option value="all">Tất cả các lớp thuộc Khối ${grade}</option>`;
+    }
     availableClasses.forEach(cls => {
-      html += `<option value="${cls}">${cls}</option>`;
+      html += `<option value="${escapeHtml(cls)}">${escapeHtml(cls)}</option>`;
     });
-    html += `<option value="__other__">Lớp khác (Tự nhập)...</option>`;
+    if (!hasAssignments) {
+      html += `<option value="__other__">Lớp khác (Tự nhập)...</option>`;
+    }
     classSelect.innerHTML = html;
 
     if (selectedClass && availableClasses.includes(selectedClass)) {
       classSelect.value = selectedClass;
+      if (customClassInput) customClassInput.classList.add('hidden');
+    } else if (hasAssignments) {
+      if (availableClasses.length > 0) classSelect.value = availableClasses[0];
       if (customClassInput) customClassInput.classList.add('hidden');
     } else if (selectedClass && selectedClass !== 'all') {
       classSelect.value = '__other__';
@@ -1670,17 +1703,41 @@ Trí tuệ nhân tạo (AI) thường được ứng dụng phổ biến trong l
     const targetSchool = existingRoom ? (existingRoom.targetSchool || 'all') : 'all';
     const targetClass = existingRoom ? (existingRoom.targetClass || 'all') : 'all';
 
-    // Populate Trường học
+    // Populate Trường học động & Phân quyền Giáo viên
+    const currentUser = Auth.getCurrentUser();
+    const isTeacher = Auth.isTeacher() && !Auth.isAdmin();
+    const assignedSchools = isTeacher ? Storage.getTeacherAssignedSchools(currentUser?.email) : [];
+    const hasAssignments = isTeacher && assignedSchools.length > 0;
+
     if (schoolSelect) {
-      if (['EMASI', 'Phổ thông Năng khiếu', 'TT GDNN GDTX Chu Văn An', 'all'].includes(targetSchool)) {
-        schoolSelect.value = targetSchool;
-        if (customSchoolInput) customSchoolInput.classList.add('hidden');
-      } else {
-        schoolSelect.value = '__other__';
-        if (customSchoolInput) {
-          customSchoolInput.classList.remove('hidden');
-          customSchoolInput.value = targetSchool;
+      const allSchools = Object.keys(Storage.getSchoolsData());
+      const schools = hasAssignments ? assignedSchools : allSchools;
+      let html = '';
+      if (!hasAssignments) {
+        html += `<option value="all">Mọi trường học (Công khai)</option>`;
+      }
+      schools.forEach(s => {
+        html += `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`;
+      });
+      if (!hasAssignments) {
+        html += `<option value="__other__">Trường khác (Tự nhập)...</option>`;
+      }
+      schoolSelect.innerHTML = html;
+
+      if (existingRoom && targetSchool) {
+        if (schools.includes(targetSchool)) {
+          schoolSelect.value = targetSchool;
+          if (customSchoolInput) customSchoolInput.classList.add('hidden');
+        } else if (!hasAssignments && targetSchool !== 'all') {
+          schoolSelect.value = '__other__';
+          if (customSchoolInput) {
+            customSchoolInput.classList.remove('hidden');
+            customSchoolInput.value = targetSchool;
+          }
         }
+      } else {
+        const defaultSchool = hasAssignments ? (schools[0] || 'all') : (currentUser?.school && schools.includes(currentUser.school) ? currentUser.school : 'all');
+        schoolSelect.value = defaultSchool;
       }
     }
 

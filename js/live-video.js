@@ -10,12 +10,12 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_62';
-import { Storage } from './storage.js?v=20261101_62';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_62';
-import { escapeHtml } from './utils.js?v=20261101_62';
-import { Proctor } from './proctor.js?v=20261101_62';
-import { Gradebook } from './gradebook.js?v=20261101_62';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_63';
+import { Storage } from './storage.js?v=20261101_63';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_63';
+import { escapeHtml } from './utils.js?v=20261101_63';
+import { Proctor } from './proctor.js?v=20261101_63';
+import { Gradebook } from './gradebook.js?v=20261101_63';
 
 export const LiveVideo = {
   manifest: null,
@@ -56,16 +56,19 @@ export const LiveVideo = {
     }
 
     // Đảm bảo manifest đã được nạp
-    if (!this.manifest) {
-      if (window.App && window.App.manifest) {
-        this.manifest = window.App.manifest;
-      } else {
-        try {
-          const res = await fetch('data/manifest.json', { cache: 'no-cache' });
-          if (res.ok) this.manifest = await res.json();
-        } catch (e) {
-          console.warn('Lỗi nạp manifest trong LiveVideo:', e);
+    if (!this.manifest || !this.manifest.grades) {
+      this.manifest = window.App?.manifest || window.AppInstance?.manifest;
+    }
+    if (!this.manifest || !this.manifest.grades) {
+      try {
+        const res = await fetch(`data/manifest.json?v=${Date.now()}`, { cache: 'no-cache' });
+        if (res.ok) {
+          this.manifest = await res.json();
+          if (window.App) window.App.manifest = this.manifest;
+          if (window.AppInstance) window.AppInstance.manifest = this.manifest;
         }
+      } catch (e) {
+        console.warn('Lỗi nạp manifest trong LiveVideo:', e);
       }
     }
 
@@ -94,37 +97,71 @@ export const LiveVideo = {
       codeInput.value = `LIVE-${rnd}`;
     }
 
+    // Lấy thông tin phân công của Giáo viên (nếu là GV)
+    const currentUser = Auth.getCurrentUser();
+    const isTeacher = Auth.isTeacher() && !Auth.isAdmin();
+    const assignedSchools = isTeacher ? Storage.getTeacherAssignedSchools(currentUser?.email) : [];
+    const hasAssignments = isTeacher && assignedSchools.length > 0;
+
     // Trường học
     if (schoolSel) {
-      const schools = Object.keys(SCHOOLS_DATA);
-      schoolSel.innerHTML = `
-        <option value="all">🌐 Tất cả các trường (Mở tự do)</option>
-        ${schools.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
-      `;
-      schoolSel.value = Auth.getCurrentUser()?.school || 'all';
+      const allSchools = Object.keys(SCHOOLS_DATA);
+      const schools = hasAssignments ? assignedSchools : allSchools;
+      let schoolHtml = '';
+      if (!hasAssignments) {
+        schoolHtml += `<option value="all">🌐 Tất cả các trường (Mở tự do)</option>`;
+      }
+      schools.forEach(s => {
+        schoolHtml += `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`;
+      });
+      schoolSel.innerHTML = schoolHtml;
+      
+      const defaultSchool = (hasAssignments && schools[0]) ? schools[0] : (currentUser?.school || 'all');
+      schoolSel.value = schools.includes(defaultSchool) ? defaultSchool : (schools[0] || 'all');
     }
 
-    // Cập nhật lớp học đồng bộ theo Trường & Khối
+    // Cập nhật Khối lớp theo phân công của GV
+    const updateGrades = () => {
+      if (!gradeSel) return;
+      const curSchool = schoolSel?.value || 'all';
+      let availableGrades = ['12', '11', '10'];
+      if (hasAssignments) {
+        const assignedGrades = Storage.getTeacherAssignedGrades(currentUser?.email, curSchool);
+        if (assignedGrades.length > 0) availableGrades = assignedGrades;
+      }
+      gradeSel.innerHTML = availableGrades.map(g => `<option value="${g}">Khối ${g}</option>`).join('');
+      if (availableGrades.length > 0) gradeSel.value = availableGrades[0];
+    };
+
+    // Cập nhật lớp học đồng bộ theo Trường & Khối & Phân công
     const updateClasses = () => {
       const curSchool = schoolSel?.value || 'all';
       const curGrade = gradeSel?.value || '12';
       if (!classSel) return;
 
-      if (curSchool === 'all' || !SCHOOLS_DATA[curSchool]) {
-        classSel.innerHTML = `<option value="all">Tất cả các lớp trong khối ${curGrade}</option>`;
-        return;
+      let classesForGrade = [];
+      if (hasAssignments) {
+        classesForGrade = Storage.getTeacherAssignedClasses(currentUser?.email, curSchool, curGrade);
+      } else if (curSchool !== 'all' && SCHOOLS_DATA[curSchool]) {
+        classesForGrade = SCHOOLS_DATA[curSchool].classes?.[curGrade] || [];
       }
 
-      const schoolInfo = SCHOOLS_DATA[curSchool];
-      const classesForGrade = schoolInfo.classes?.[curGrade] || [];
-
       if (classesForGrade.length === 0) {
-        classSel.innerHTML = `<option value="all">Tất cả các lớp (Không giới hạn)</option>`;
+        if (!hasAssignments) {
+          classSel.innerHTML = `<option value="all">Tất cả các lớp trong khối ${curGrade}</option>`;
+        } else {
+          classSel.innerHTML = `<option value="">Chưa có lớp nào được phân công</option>`;
+        }
       } else {
-        classSel.innerHTML = `
-          <option value="all">Tất cả các lớp (Toàn khối ${curGrade})</option>
-          ${classesForGrade.map(c => `<option value="${escapeHtml(c)}">Lớp ${escapeHtml(c)}</option>`).join('')}
-        `;
+        let html = '';
+        if (!hasAssignments) {
+          html += `<option value="all">Tất cả các lớp (Toàn khối ${curGrade})</option>`;
+        }
+        classesForGrade.forEach(c => {
+          html += `<option value="${escapeHtml(c)}">Lớp ${escapeHtml(c)}</option>`;
+        });
+        classSel.innerHTML = html;
+        if (classesForGrade.length > 0) classSel.value = classesForGrade[0];
       }
     };
 
@@ -145,7 +182,7 @@ export const LiveVideo = {
       const curGrade = gradeSel?.value || '12';
       if (!lessonSel) return;
 
-      const manifest = this.manifest || window.App?.manifest;
+      const manifest = this.manifest || window.App?.manifest || window.AppInstance?.manifest;
       const gData = manifest?.grades?.[curGrade]?.interactive_videos || {};
       const lessonsList = [];
 
@@ -162,13 +199,27 @@ export const LiveVideo = {
       });
 
       if (lessonsList.length === 0) {
-        lessonSel.innerHTML = `<option value="">Không tìm thấy bài giảng video cho khối ${curGrade}</option>`;
+        lessonSel.innerHTML = `<option value="">⚠️ Không tìm thấy bài giảng video cho khối ${curGrade}</option>`;
       } else {
-        lessonSel.innerHTML = lessonsList.map(l => `
-          <option value="${escapeHtml(l.video)}" data-topic="${escapeHtml(l.topic)}" data-lesson="${escapeHtml(l.lesson)}">
-            ${escapeHtml(l.lesson)} (${l.checkpoints} câu hỏi dừng)
-          </option>
-        `).join('');
+        let html = `<option value="">-- Chọn bài giảng video sẵn có (${lessonsList.length} bài) --</option>`;
+        let curTopic = '';
+        lessonsList.forEach(l => {
+          if (l.topic && l.topic !== curTopic) {
+            if (curTopic) html += `</optgroup>`;
+            curTopic = l.topic;
+            html += `<optgroup label="${escapeHtml(curTopic)}">`;
+          }
+          html += `
+            <option value="${escapeHtml(l.video)}" data-topic="${escapeHtml(l.topic)}" data-lesson="${escapeHtml(l.lesson)}">
+              ${escapeHtml(l.lesson)} (${l.checkpoints} câu hỏi dừng)
+            </option>
+          `;
+        });
+        if (curTopic) html += `</optgroup>`;
+        lessonSel.innerHTML = html;
+        if (lessonsList.length > 0) {
+          lessonSel.value = lessonsList[0].video;
+        }
       }
       autoFillTitle();
     };
@@ -176,7 +227,11 @@ export const LiveVideo = {
     if (lessonSel) lessonSel.onchange = autoFillTitle;
     if (classSel) classSel.onchange = autoFillTitle;
 
-    if (schoolSel) schoolSel.onchange = updateClasses;
+    if (schoolSel) schoolSel.onchange = () => {
+      updateGrades();
+      updateClasses();
+      updateLessons();
+    };
     if (gradeSel) {
       gradeSel.onchange = () => {
         updateClasses();
@@ -184,6 +239,7 @@ export const LiveVideo = {
       };
     }
 
+    updateGrades();
     updateClasses();
     updateLessons();
   },

@@ -10,7 +10,7 @@
  * 5. Cơ chế Local-First an toàn: Mất mạng vẫn làm bài bình thường, khi có mạng tự động đẩy dữ liệu lên đám mây.
  */
 
-import { Storage } from './storage.js?v=20261101_62';
+import { Storage } from './storage.js?v=20261101_63';
 
 const CLOUD_CONFIG_KEY = 'tinhoc_cloud_config';
 export const DEFAULT_FIREBASE_DB_URL = 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -235,6 +235,11 @@ export const CloudSync = {
 
       // 6. Đồng bộ Ngân hàng Câu hỏi Tùy biến (Custom Questions do GV/Admin tạo & chỉnh sửa)
       await this.syncCustomQuestions(baseUrl);
+
+      // 7. Đồng bộ Cấu trúc Trường - Lớp, Danh mục Môn học & Phân công Giảng dạy Giáo viên
+      await this.syncSchoolsData(baseUrl);
+      await this.syncSubjects(baseUrl);
+      await this.syncTeacherAssignments(baseUrl);
 
       this.config.lastSync = new Date().toISOString();
       try {
@@ -1118,6 +1123,9 @@ export const CloudSync = {
 
       await this.pushCustomQuestionsToCloud();
       await this.pushVideoConfigToCloud(Storage.getVideoConfig());
+      await this.pushSchoolsDataToCloud(Storage.getSchoolsData());
+      await this.pushSubjectsToCloud(Storage.getSubjectsList());
+      await this.pushTeacherAssignmentsToCloud(Storage.getAllTeacherAssignments());
 
       alert(`✅ Tải lên Đám mây thành công!\n• ${accSuccess} Tài khoản\n• ${roomSuccess} Phòng thi\n• ${histSuccess} Lượt thi\n• Ngân hàng câu hỏi tùy biến`);
       return true;
@@ -1143,4 +1151,122 @@ export const CloudSync = {
     const ok = await this.syncAll(true);
     return ok;
   }
+
+  // --- 8. ĐỒNG BỘ CẤU TRÚC TRƯỜNG - LỚP, MÔN HỌC & PHÂN CÔNG GIÁO VIÊN ---
+  async syncSchoolsData(baseUrl = null) {
+    const url = (baseUrl || this.getBaseUrl()).trim().replace(/\/+$/, '');
+    if (!url || !url.startsWith('http')) return;
+
+    try {
+      const res = await fetch(`${url}/school_structure.json`, { cache: 'no-cache' });
+      if (!res.ok) return;
+      const remote = await res.json();
+      if (remote && typeof remote === 'object' && Object.keys(remote).length > 0) {
+        const local = Storage.getSchoolsData();
+        const merged = { ...local, ...remote };
+        localStorage.setItem('tinhoc_schools_data', JSON.stringify(merged));
+      } else {
+        const local = Storage.getSchoolsData();
+        await this.pushSchoolsDataToCloud(local);
+      }
+    } catch (e) {
+      console.warn('Lỗi syncSchoolsData:', e);
+    }
+  },
+
+  async pushSchoolsDataToCloud(schoolsData = null) {
+    const url = this.getBaseUrl();
+    if (!url || !url.startsWith('http')) return false;
+
+    try {
+      const data = schoolsData || Storage.getSchoolsData();
+      await fetch(`${url}/school_structure.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return true;
+    } catch (e) {
+      console.warn('Lỗi pushSchoolsDataToCloud:', e);
+      return false;
+    }
+  },
+
+  async syncSubjects(baseUrl = null) {
+    const url = (baseUrl || this.getBaseUrl()).trim().replace(/\/+$/, '');
+    if (!url || !url.startsWith('http')) return;
+
+    try {
+      const res = await fetch(`${url}/subjects_list.json`, { cache: 'no-cache' });
+      if (!res.ok) return;
+      const remote = await res.json();
+      if (Array.isArray(remote) && remote.length > 0) {
+        localStorage.setItem('tinhoc_subjects_list', JSON.stringify(remote));
+      } else {
+        const local = Storage.getSubjectsList();
+        await this.pushSubjectsToCloud(local);
+      }
+    } catch (e) {
+      console.warn('Lỗi syncSubjects:', e);
+    }
+  },
+
+  async pushSubjectsToCloud(subjects = null) {
+    const url = this.getBaseUrl();
+    if (!url || !url.startsWith('http')) return false;
+
+    try {
+      const data = subjects || Storage.getSubjectsList();
+      await fetch(`${url}/subjects_list.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return true;
+    } catch (e) {
+      console.warn('Lỗi pushSubjectsToCloud:', e);
+      return false;
+    }
+  },
+
+  async syncTeacherAssignments(baseUrl = null) {
+    const url = (baseUrl || this.getBaseUrl()).trim().replace(/\/+$/, '');
+    if (!url || !url.startsWith('http')) return;
+
+    try {
+      const res = await fetch(`${url}/teacher_assignments.json`, { cache: 'no-cache' });
+      if (!res.ok) return;
+      const remote = await res.json();
+      if (remote && typeof remote === 'object' && Object.keys(remote).length > 0) {
+        const local = Storage.getAllTeacherAssignments();
+        const merged = { ...local, ...remote };
+        localStorage.setItem('tinhoc_teacher_assignments', JSON.stringify(merged));
+      } else {
+        const local = Storage.getAllTeacherAssignments();
+        if (Object.keys(local).length > 0) {
+          await this.pushTeacherAssignmentsToCloud(local);
+        }
+      }
+    } catch (e) {
+      console.warn('Lỗi syncTeacherAssignments:', e);
+    }
+  },
+
+  async pushTeacherAssignmentsToCloud(assignments = null) {
+    const url = this.getBaseUrl();
+    if (!url || !url.startsWith('http')) return false;
+
+    try {
+      const data = assignments || Storage.getAllTeacherAssignments();
+      await fetch(`${url}/teacher_assignments.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return true;
+    } catch (e) {
+      console.warn('Lỗi pushTeacherAssignmentsToCloud:', e);
+      return false;
+    }
+  },
 };

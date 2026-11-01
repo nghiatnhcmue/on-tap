@@ -4,9 +4,9 @@
  * đánh giá xu hướng tiến độ (Đang tiến bộ 🚀 / Cần cố gắng ⚠️ / Xuất sắc 🏆), và xuất file Excel chuẩn.
  */
 
-import { Storage } from './storage.js?v=20261101_62';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_62';
-import { escapeHtml } from './utils.js?v=20261101_62';
+import { Storage } from './storage.js?v=20261101_63';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_63';
+import { escapeHtml } from './utils.js?v=20261101_63';
 
 export const Gradebook = {
   container: null,
@@ -260,13 +260,32 @@ export const Gradebook = {
       return;
     }
 
-    // Danh sách các lớp, trường, phòng duy nhất
-    const schools = [...new Set(history.map(item => item.studentSchool).filter(Boolean))];
-    const classes = [...new Set(history.map(item => item.studentClass).filter(Boolean))];
-    const roomsList = [...new Set(history.map(item => item.roomId).filter(Boolean))];
+    // Phân quyền phạm vi giáo viên (Teacher Scoping trong Sổ điểm)
+    const currentUser = Auth.getCurrentUser();
+    const isTeacher = Auth.isTeacher() && !Auth.isAdmin();
+    const assignedSchools = isTeacher ? Storage.getTeacherAssignedSchools(currentUser?.email) : [];
+    const hasAssignments = isTeacher && assignedSchools.length > 0;
+
+    let scopedHistory = history;
+    if (hasAssignments) {
+      scopedHistory = history.filter(item => {
+        return Storage.isTeacherAssignedToClass(currentUser, item.studentSchool, item.grade, item.studentClass);
+      });
+    }
+
+    // Danh sách các lớp, trường, phòng duy nhất trong phạm vi phân quyền
+    let schools = [...new Set(scopedHistory.map(item => item.studentSchool).filter(Boolean))];
+    if (hasAssignments && assignedSchools.length > 0) {
+      schools = assignedSchools;
+    }
+    let classes = [...new Set(scopedHistory.map(item => item.studentClass).filter(Boolean))];
+    if (hasAssignments) {
+      classes = Storage.getTeacherAssignedClasses(currentUser?.email, this.filterSchool, this.filterGrade);
+    }
+    const roomsList = [...new Set(scopedHistory.map(item => item.roomId).filter(Boolean))];
 
     // Lọc theo bộ lọc
-    const filteredHistory = history.filter(item => {
+    const filteredHistory = scopedHistory.filter(item => {
       if (this.filterSchool !== 'all' && item.studentSchool !== this.filterSchool) return false;
       if (this.filterGrade !== 'all' && item.grade !== this.filterGrade) return false;
       if (this.filterClass !== 'all' && item.studentClass !== this.filterClass) return false;

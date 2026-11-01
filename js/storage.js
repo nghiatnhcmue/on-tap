@@ -21,12 +21,54 @@ const STORAGE_KEYS = {
   VIDEO_CONFIG: 'tinhoc_video_config',
   VIDEO_PROGRESS: 'tinhoc_video_progress',
   CUSTOM_VIDEO_QUESTIONS: 'tinhoc_custom_video_questions',
-  CUSTOM_VIDEO_URLS: 'tinhoc_custom_video_urls'
+  CUSTOM_VIDEO_URLS: 'tinhoc_custom_video_urls',
+  SCHOOLS_DATA: 'tinhoc_schools_data',
+  SUBJECTS: 'tinhoc_subjects_list',
+  TEACHER_ASSIGNMENTS: 'tinhoc_teacher_assignments'
 };
 
 export const DEFAULT_FIREBASE_API_KEY = 'AIzaSyBOn_vHOZXDhRPpeOhjuZOiECpCRfhXPA0';
 export const DEFAULT_ARCHIVE_ACCESS_KEY = 'JoOq2I9q1IHAC5Uu';
 export const DEFAULT_ARCHIVE_SECRET_KEY = 'BMsIv0RQ4X0O3Qqa';
+export const DEFAULT_SCHOOLS_DATA = {
+  'EMASI': {
+    name: 'Hệ thống Trường Song ngữ Quốc tế EMASI',
+    aliases: ['EMASI', 'Trường EMASI', 'Song ngữ EMASI', 'Trường Song ngữ Quốc tế EMASI'],
+    classes: {
+      '10': ['10E', '10I1', '10I2'],
+      '11': ['11E'],
+      '12': ['12E']
+    }
+  },
+  'Phổ thông Năng khiếu': {
+    name: 'Trường Phổ thông Năng khiếu - ĐHQG TP.HCM',
+    aliases: ['PTNK', 'Phổ thông Năng khiếu', 'Phổ thông Năng Khiếu', 'Trường PTNK', 'THPT Năng Khiếu', 'Trường Phổ thông Năng khiếu'],
+    classes: {
+      '10': ['10TOAN', '10TIN', '10LI', '10HOA', '10SINH', '10VAN', '10ANH'],
+      '11': ['11TOAN', '11TIN', '11LI', '11HOA', '11SINH', '11VAN', '11ANH'],
+      '12': ['12TOAN', '12LI', '12HOA', '12SINH', '12VAN', '12ANH']
+    }
+  },
+  'TT GDNN GDTX Chu Văn An': {
+    name: 'Trung tâm GDNN - GDTX Chu Văn An',
+    aliases: [
+      'TT GDNN GDTX Chu Văn An',
+      'TT GDNN - GDTX Chu Văn An',
+      'THPT Chu Văn An',
+      'Chu Văn An',
+      'CVA',
+      'TT GDTX Chu Văn An'
+    ],
+    classes: {
+      '10': ['10TN', '10A1', '10A2', '10A3', '10A4', '10A5', '10A6', '10A7', '10A8', '10A9', '10A10', '10A11', '10A12'],
+      '11': ['11A1', '11A2', '11A3', '11A4', '11A5'],
+      '12': ['12A1', '12A2', '12A3', '12A4', '12A5', '12A6', '12A7', '12A8', '12A9', '12A10']
+    }
+  }
+};
+
+export const DEFAULT_SUBJECTS = ['Tin học', 'Chuyên đề Tin học', 'Công nghệ'];
+
 
 export const Storage = {
   cloudSync: null,
@@ -1407,6 +1449,259 @@ export const Storage = {
     }
   },
 
+
+  // --- QUẢN LÝ CẤU TRÚC TRƯỜNG HỌC & LỚP THEO KHỐI ---
+  getSchoolsData() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.SCHOOLS_DATA);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          for (const key of Object.keys(parsed)) {
+            if (!parsed[key].classes) parsed[key].classes = { '10': [], '11': [], '12': [] };
+            if (!parsed[key].classes['10']) parsed[key].classes['10'] = [];
+            if (!parsed[key].classes['11']) parsed[key].classes['11'] = [];
+            if (!parsed[key].classes['12']) parsed[key].classes['12'] = [];
+            if (!parsed[key].aliases) parsed[key].aliases = [key];
+            if (!parsed[key].name) parsed[key].name = key;
+          }
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Lỗi đọc schools data từ localStorage:', e);
+    }
+    return JSON.parse(JSON.stringify(DEFAULT_SCHOOLS_DATA));
+  },
+
+  saveSchoolsData(schools) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.SCHOOLS_DATA, JSON.stringify(schools));
+      const sync = this.getCloudSync();
+      if (sync && typeof sync.pushSchoolsDataToCloud === 'function') {
+        sync.pushSchoolsDataToCloud(schools).catch(() => {});
+      }
+      return true;
+    } catch (e) {
+      console.error('Lỗi lưu schools data:', e);
+      return false;
+    }
+  },
+
+  addSchool(schoolKey, schoolName, aliases = []) {
+    const key = (schoolKey || '').trim();
+    const name = (schoolName || key).trim();
+    if (!key) return { success: false, message: 'Mã trường không được để trống' };
+    const schools = this.getSchoolsData();
+    if (!schools[key]) {
+      schools[key] = {
+        name: name,
+        aliases: Array.from(new Set([key, name, ...(aliases || [])])).filter(Boolean),
+        classes: { '10': [], '11': [], '12': [] }
+      };
+    } else {
+      schools[key].name = name;
+      if (aliases && aliases.length > 0) {
+        schools[key].aliases = Array.from(new Set([...(schools[key].aliases || []), ...aliases])).filter(Boolean);
+      }
+    }
+    this.saveSchoolsData(schools);
+    return { success: true, message: `Đã lưu trường [${key}]` };
+  },
+
+  deleteSchool(schoolKey) {
+    const key = (schoolKey || '').trim();
+    const schools = this.getSchoolsData();
+    if (schools[key]) {
+      delete schools[key];
+      this.saveSchoolsData(schools);
+      return { success: true, message: `Đã xóa trường [${key}]` };
+    }
+    return { success: false, message: 'Trường không tồn tại' };
+  },
+
+  addClassToSchool(schoolKey, grade, className) {
+    const key = (schoolKey || '').trim();
+    const g = String(grade).trim();
+    const cls = (className || '').trim().toUpperCase();
+    if (!key || !g || !cls) return { success: false, message: 'Thông tin lớp không hợp lệ' };
+    const schools = this.getSchoolsData();
+    if (!schools[key]) return { success: false, message: 'Trường không tồn tại' };
+    if (!schools[key].classes) schools[key].classes = { '10': [], '11': [], '12': [] };
+    if (!schools[key].classes[g]) schools[key].classes[g] = [];
+    if (!schools[key].classes[g].includes(cls)) {
+      schools[key].classes[g].push(cls);
+      this.saveSchoolsData(schools);
+      return { success: true, message: `Đã thêm lớp ${cls} vào ${key} (Khối ${g})` };
+    }
+    return { success: false, message: `Lớp ${cls} đã tồn tại trong ${key}` };
+  },
+
+  deleteClassFromSchool(schoolKey, grade, className) {
+    const key = (schoolKey || '').trim();
+    const g = String(grade).trim();
+    const cls = (className || '').trim().toUpperCase();
+    const schools = this.getSchoolsData();
+    if (!schools[key] || !schools[key].classes || !schools[key].classes[g]) {
+      return { success: false, message: 'Không tìm thấy lớp' };
+    }
+    schools[key].classes[g] = schools[key].classes[g].filter(c => c !== cls);
+    this.saveSchoolsData(schools);
+    return { success: true, message: `Đã xóa lớp ${cls}` };
+  },
+
+  // --- QUẢN LÝ DANH MỤC MÔN HỌC ---
+  getSubjectsList() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.SUBJECTS);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn('Lỗi đọc subjects list:', e);
+    }
+    return [...DEFAULT_SUBJECTS];
+  },
+
+  saveSubjectsList(list) {
+    try {
+      const cleanList = Array.from(new Set((list || []).map(s => String(s).trim()).filter(Boolean)));
+      if (!cleanList.includes('Tin học')) cleanList.unshift('Tin học');
+      localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(cleanList));
+      const sync = this.getCloudSync();
+      if (sync && typeof sync.pushSubjectsToCloud === 'function') {
+        sync.pushSubjectsToCloud(cleanList).catch(() => {});
+      }
+      return true;
+    } catch (e) {
+      console.error('Lỗi lưu danh sách môn học:', e);
+      return false;
+    }
+  },
+
+  addSubject(subjectName) {
+    const name = (subjectName || '').trim();
+    if (!name) return { success: false, message: 'Tên môn học không được để trống' };
+    const list = this.getSubjectsList();
+    if (!list.includes(name)) {
+      list.push(name);
+      this.saveSubjectsList(list);
+      return { success: true, message: `Đã thêm môn [${name}]` };
+    }
+    return { success: false, message: 'Môn học đã tồn tại' };
+  },
+
+  deleteSubject(subjectName) {
+    const name = (subjectName || '').trim();
+    if (name === 'Tin học') return { success: false, message: 'Không thể xóa môn Tin học mặc định' };
+    const list = this.getSubjectsList();
+    const filtered = list.filter(s => s !== name);
+    this.saveSubjectsList(filtered);
+    return { success: true, message: `Đã xóa môn [${name}]` };
+  },
+
+  // --- QUẢN LÝ PHÂN CÔNG GIẢNG DẠY GIÁO VIÊN (TEACHER ASSIGNMENTS) ---
+  getAllTeacherAssignments() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.TEACHER_ASSIGNMENTS);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch (e) {
+      console.warn('Lỗi đọc teacher assignments:', e);
+    }
+    return {};
+  },
+
+  saveAllTeacherAssignments(assignments) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.TEACHER_ASSIGNMENTS, JSON.stringify(assignments || {}));
+      const sync = this.getCloudSync();
+      if (sync && typeof sync.pushTeacherAssignmentsToCloud === 'function') {
+        sync.pushTeacherAssignmentsToCloud(assignments).catch(() => {});
+      }
+      return true;
+    } catch (e) {
+      console.error('Lỗi lưu teacher assignments:', e);
+      return false;
+    }
+  },
+
+  getTeacherAssignments(teacherEmail) {
+    if (!teacherEmail) return [];
+    const emailKey = String(teacherEmail).trim().toLowerCase();
+    const all = this.getAllTeacherAssignments();
+    return Array.isArray(all[emailKey]) ? all[emailKey] : [];
+  },
+
+  saveTeacherAssignments(teacherEmail, assignmentsList) {
+    if (!teacherEmail) return false;
+    const emailKey = String(teacherEmail).trim().toLowerCase();
+    const all = this.getAllTeacherAssignments();
+    all[emailKey] = (assignmentsList || []).map(a => ({
+      school: String(a.school || '').trim(),
+      grade: String(a.grade || '').trim(),
+      className: String(a.className || '').trim().toUpperCase(),
+      subject: String(a.subject || 'Tin học').trim()
+    })).filter(a => a.school && a.grade && a.className);
+    return this.saveAllTeacherAssignments(all);
+  },
+
+  getTeacherAssignedSchools(teacherEmail) {
+    const assignments = this.getTeacherAssignments(teacherEmail);
+    return Array.from(new Set(assignments.map(a => a.school).filter(Boolean)));
+  },
+
+  getTeacherAssignedGrades(teacherEmail, school = null) {
+    let assignments = this.getTeacherAssignments(teacherEmail);
+    if (school && school !== 'all') {
+      assignments = assignments.filter(a => a.school === school);
+    }
+    return Array.from(new Set(assignments.map(a => String(a.grade)).filter(Boolean))).sort();
+  },
+
+  getTeacherAssignedClasses(teacherEmail, school = null, grade = null) {
+    let assignments = this.getTeacherAssignments(teacherEmail);
+    if (school && school !== 'all') {
+      assignments = assignments.filter(a => a.school === school);
+    }
+    if (grade && grade !== 'all') {
+      assignments = assignments.filter(a => String(a.grade) === String(grade));
+    }
+    return Array.from(new Set(assignments.map(a => a.className).filter(Boolean))).sort();
+  },
+
+  isTeacherAssignedToClass(userOrEmail, school, grade, className) {
+    let email = '';
+    if (typeof userOrEmail === 'object' && userOrEmail) {
+      if (userOrEmail.role === 'admin') return true;
+      email = userOrEmail.email;
+    } else {
+      email = String(userOrEmail || '');
+    }
+    if (!email) return false;
+
+    const all = this.getAllTeacherAssignments();
+    const emailKey = email.trim().toLowerCase();
+    if (!all[emailKey] || all[emailKey].length === 0) {
+      return true;
+    }
+
+    const assignments = all[emailKey];
+    const s = String(school || '').trim();
+    const g = String(grade || '').trim();
+    const c = String(className || '').trim().toUpperCase();
+
+    return assignments.some(a => {
+      const matchSchool = (a.school === 'all' || !s || s === 'all' || a.school === s);
+      const matchGrade = (a.grade === 'all' || !g || g === 'all' || String(a.grade) === g);
+      const matchClass = (a.className === 'all' || !c || c === 'all' || a.className === c);
+      return matchSchool && matchGrade && matchClass;
+    });
+  },
+
   // --- SAO LƯU & PHỤC HỒI DỮ LIỆU ---
   exportBackup() {
     return JSON.stringify({
@@ -1421,7 +1716,10 @@ export const Storage = {
       adminConfig: this.getAdminConfig(),
       customQuestions: this.getCustomQuestions(),
       modifiedQuestions: this.getModifiedQuestions(),
-      deletedQuestions: this.getDeletedQuestionIds()
+      deletedQuestions: this.getDeletedQuestionIds(),
+      schoolsData: this.getSchoolsData(),
+      subjectsList: this.getSubjectsList(),
+      teacherAssignments: this.getAllTeacherAssignments()
     }, null, 2);
   },
 
@@ -1438,6 +1736,9 @@ export const Storage = {
       if (data.customQuestions) localStorage.setItem(STORAGE_KEYS.CUSTOM_QUESTIONS, JSON.stringify(data.customQuestions));
       if (data.modifiedQuestions) localStorage.setItem(STORAGE_KEYS.MODIFIED_QUESTIONS, JSON.stringify(data.modifiedQuestions));
       if (data.deletedQuestions) localStorage.setItem(STORAGE_KEYS.DELETED_QUESTIONS, JSON.stringify(data.deletedQuestions));
+      if (data.schoolsData) this.saveSchoolsData(data.schoolsData);
+      if (data.subjectsList) this.saveSubjectsList(data.subjectsList);
+      if (data.teacherAssignments) this.saveAllTeacherAssignments(data.teacherAssignments);
       return true;
     } catch (e) {
       console.error('Invalid backup data', e);

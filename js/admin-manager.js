@@ -5,10 +5,10 @@
  * Cơ sở dữ liệu đám mây, Tải lên Video bài giảng Archive.org S3, Dọn dẹp/Sao lưu.
  */
 
-import { Storage } from './storage.js?v=20261101_62';
-import { Auth } from './auth.js?v=20261101_62';
-import { escapeHtml } from './utils.js?v=20261101_62';
-import { CloudSync, DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_62';
+import { Storage } from './storage.js?v=20261101_63';
+import { Auth } from './auth.js?v=20261101_63';
+import { escapeHtml } from './utils.js?v=20261101_63';
+import { CloudSync, DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_63';
 
 export const AdminManager = {
   container: null,
@@ -138,6 +138,10 @@ export const AdminManager = {
 
     const accounts = Storage.getAccountsList();
     const adminConfig = Storage.getAdminConfig();
+    const schoolsData = Storage.getSchoolsData();
+    const subjectsList = Storage.getSubjectsList();
+    const allAssignments = Storage.getAllTeacherAssignments();
+    const teachersList = accounts.filter(a => a.role === 'teacher' || a.role === 'admin');
     const videoConfig = Storage.getVideoConfig();
     const history = Storage.getExamHistory();
     const examRooms = Storage.getExamRooms();
@@ -271,6 +275,388 @@ export const AdminManager = {
             </table>
           </div>
         </div>
+
+        
+        <!-- 1B. QUẢN LÝ CẤU TRÚC TRƯỜNG - LỚP, MÔN HỌC & PHÂN CÔNG GIẢNG DẠY GIÁO VIÊN -->
+        <div id="admin-school-management-card" class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm space-y-8">
+          
+          <!-- Header Card -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 pb-4">
+            <div>
+              <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-xs font-bold uppercase tracking-wider mb-1.5">
+                <i class="fa-solid fa-sitemap"></i> Cấu Trúc Đào Tạo & Phân Quyền
+              </div>
+              <h3 class="text-base sm:text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-school text-indigo-600"></i> Quản Lý Trường - Lớp, Môn Học & Phân Công Giáo Viên
+              </h3>
+              <p class="text-xs text-slate-400 mt-0.5">
+                Admin toàn quyền tạo trường học, thêm/xóa lớp theo từng khối, quản lý danh mục môn học và phân công giáo viên phụ trách các lớp cụ thể.
+              </p>
+            </div>
+          </div>
+
+          <!-- PHẦN 1: DANH MỤC TRƯỜNG HỌC & LỚP THEO KHỐI -->
+          <div class="space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/80">
+              <div>
+                <h4 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                  <i class="fa-solid fa-graduation-cap text-indigo-500"></i> 1. Danh Mục Trường Học & Lớp Theo Khối
+                </h4>
+                <p class="text-xs text-slate-400">
+                  Thêm trường mới hoặc thêm/xóa các lớp của Khối 10, Khối 11, Khối 12.
+                </p>
+              </div>
+              <button type="button" id="btn-admin-toggle-add-school" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm shadow-indigo-500/20 self-start sm:self-auto">
+                <i class="fa-solid fa-plus"></i> Thêm Trường Mới
+              </button>
+            </div>
+
+            <!-- Form Thêm Trường Mới (Ẩn mặc định) -->
+            <form id="admin-form-add-school" class="hidden p-5 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-200 dark:border-indigo-800 space-y-4 animate-fadeIn">
+              <h5 class="text-xs font-black uppercase text-indigo-700 dark:text-indigo-300 tracking-wider flex items-center gap-1.5">
+                <i class="fa-solid fa-plus-circle"></i> Khởi Tạo Trường Học Mới
+              </h5>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Mã Trường (Key viết tắt) *</label>
+                  <input type="text" id="admin-new-school-key" placeholder="VD: THPT-LeQuyDon" required class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Tên Trường Đầy Đủ *</label>
+                  <input type="text" id="admin-new-school-name" placeholder="VD: Trường THPT Lê Quý Đôn" required class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Tên Gọi Khác / Aliases (cách nhau bởi dấu phẩy)</label>
+                  <input type="text" id="admin-new-school-aliases" placeholder="VD: THPT Lê Quý Đôn, Lê Quý Đôn, LQD" class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500" />
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition">
+                  <i class="fa-solid fa-floppy-disk mr-1"></i> Lưu Trường Học
+                </button>
+                <button type="button" id="btn-admin-cancel-add-school" class="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition">
+                  Hủy
+                </button>
+              </div>
+            </form>
+
+            <!-- Danh Sách Các Trường Học -->
+            <div class="space-y-4">
+              ${Object.entries(schoolsData).map(([sKey, sInfo]) => {
+                const k10 = sInfo.classes?.['10'] || [];
+                const k11 = sInfo.classes?.['11'] || [];
+                const k12 = sInfo.classes?.['12'] || [];
+                const totalClasses = k10.length + k11.length + k12.length;
+                return `
+                  <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 shadow-xs space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <h5 class="text-sm font-bold text-slate-800 dark:text-white">
+                            ${escapeHtml(sInfo.name || sKey)}
+                          </h5>
+                          <span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono text-[11px] font-bold">
+                            Mã: ${escapeHtml(sKey)}
+                          </span>
+                          <span class="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold text-[10px]">
+                            ${totalClasses} lớp học
+                          </span>
+                        </div>
+                        ${(sInfo.aliases && sInfo.aliases.length > 0) ? `
+                          <p class="text-[11px] text-slate-400 mt-0.5">
+                            Aliases: ${escapeHtml(sInfo.aliases.join(', '))}
+                          </p>
+                        ` : ''}
+                      </div>
+                      <button type="button" data-admin-del-school="${escapeHtml(sKey)}" class="px-2.5 py-1 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg text-xs font-bold transition self-start sm:self-auto" title="Xóa toàn bộ trường này">
+                        <i class="fa-regular fa-trash-can mr-1"></i> Xóa Trường
+                      </button>
+                    </div>
+
+                    <!-- 3 Khối Lớp của trường -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <!-- Khối 10 -->
+                      <div class="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3.5 border border-slate-100 dark:border-slate-800 space-y-2.5">
+                        <div class="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <span class="flex items-center gap-1.5"><i class="fa-solid fa-cube text-emerald-500"></i> Khối 10 (${k10.length} lớp)</span>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5 min-h-[32px]">
+                          ${k10.length === 0 ? '<span class="text-[11px] text-slate-400 italic">Chưa có lớp</span>' : k10.map(cls => `
+                            <span class="inline-flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-800 dark:text-white shadow-2xs">
+                              ${escapeHtml(cls)}
+                              <button type="button" data-admin-del-class="${escapeHtml(sKey)}|10|${escapeHtml(cls)}" class="text-slate-400 hover:text-rose-500 text-[10px] font-bold" title="Xóa lớp này">&times;</button>
+                            </span>
+                          `).join('')}
+                        </div>
+                        <div class="flex items-center gap-1.5 pt-1.5">
+                          <input type="text" id="admin-input-add-class-${escapeHtml(sKey)}-10" placeholder="Tên lớp (vd: 10A1)" class="w-full px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs uppercase font-bold text-slate-800 dark:text-white" />
+                          <button type="button" data-admin-add-class="${escapeHtml(sKey)}|10" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shrink-0">
+                            + Thêm
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Khối 11 -->
+                      <div class="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3.5 border border-slate-100 dark:border-slate-800 space-y-2.5">
+                        <div class="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <span class="flex items-center gap-1.5"><i class="fa-solid fa-cube text-blue-500"></i> Khối 11 (${k11.length} lớp)</span>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5 min-h-[32px]">
+                          ${k11.length === 0 ? '<span class="text-[11px] text-slate-400 italic">Chưa có lớp</span>' : k11.map(cls => `
+                            <span class="inline-flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-800 dark:text-white shadow-2xs">
+                              ${escapeHtml(cls)}
+                              <button type="button" data-admin-del-class="${escapeHtml(sKey)}|11|${escapeHtml(cls)}" class="text-slate-400 hover:text-rose-500 text-[10px] font-bold" title="Xóa lớp này">&times;</button>
+                            </span>
+                          `).join('')}
+                        </div>
+                        <div class="flex items-center gap-1.5 pt-1.5">
+                          <input type="text" id="admin-input-add-class-${escapeHtml(sKey)}-11" placeholder="Tên lớp (vd: 11A1)" class="w-full px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs uppercase font-bold text-slate-800 dark:text-white" />
+                          <button type="button" data-admin-add-class="${escapeHtml(sKey)}|11" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shrink-0">
+                            + Thêm
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Khối 12 -->
+                      <div class="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3.5 border border-slate-100 dark:border-slate-800 space-y-2.5">
+                        <div class="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <span class="flex items-center gap-1.5"><i class="fa-solid fa-cube text-indigo-500"></i> Khối 12 (${k12.length} lớp)</span>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5 min-h-[32px]">
+                          ${k12.length === 0 ? '<span class="text-[11px] text-slate-400 italic">Chưa có lớp</span>' : k12.map(cls => `
+                            <span class="inline-flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-800 dark:text-white shadow-2xs">
+                              ${escapeHtml(cls)}
+                              <button type="button" data-admin-del-class="${escapeHtml(sKey)}|12|${escapeHtml(cls)}" class="text-slate-400 hover:text-rose-500 text-[10px] font-bold" title="Xóa lớp này">&times;</button>
+                            </span>
+                          `).join('')}
+                        </div>
+                        <div class="flex items-center gap-1.5 pt-1.5">
+                          <input type="text" id="admin-input-add-class-${escapeHtml(sKey)}-12" placeholder="Tên lớp (vd: 12A1)" class="w-full px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs uppercase font-bold text-slate-800 dark:text-white" />
+                          <button type="button" data-admin-add-class="${escapeHtml(sKey)}|12" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition shrink-0">
+                            + Thêm
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- PHẦN 2: DANH MỤC MÔN HỌC -->
+          <div class="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+            <div class="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/80">
+              <h4 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-book-bookmark text-amber-500"></i> 2. Quản Lý Danh Mục Môn Học
+              </h4>
+              <p class="text-xs text-slate-400">
+                Môn học được sử dụng khi phân công giảng dạy cho Giáo viên (mặc định: Tin học).
+              </p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              ${subjectsList.map(s => `
+                <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs font-bold">
+                  <i class="fa-solid fa-book text-[10px]"></i> ${escapeHtml(s)}
+                  ${s !== 'Tin học' ? `
+                    <button type="button" data-admin-del-subject="${escapeHtml(s)}" class="text-amber-600 hover:text-rose-500 text-xs font-bold" title="Xóa môn này">&times;</button>
+                  ` : ''}
+                </span>
+              `).join('')}
+            </div>
+
+            <form id="admin-form-add-subject" class="flex flex-wrap items-center gap-2 max-w-md">
+              <input type="text" id="admin-input-new-subject" placeholder="Tên môn mới (vd: Chuyên đề Tin học)..." required class="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-amber-500" />
+              <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition shadow-sm">
+                + Thêm Môn
+              </button>
+            </form>
+          </div>
+
+          <!-- PHẦN 3: MA TRẬN PHÂN CÔNG GIẢNG DẠY GIÁO VIÊN -->
+          <div class="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+            <div class="bg-indigo-50/60 dark:bg-indigo-950/40 p-4 rounded-2xl border border-indigo-200/80 dark:border-indigo-800/80">
+              <h4 class="text-sm font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-2">
+                <i class="fa-solid fa-user-check text-indigo-600"></i> 3. Ma Trận Phân Công Giảng Dạy Giáo Viên
+              </h4>
+              <p class="text-xs text-indigo-800/70 dark:text-indigo-300/70">
+                Chọn Giáo viên, chọn Môn dạy, sau đó tích chọn các Lớp học cụ thể mà Giáo viên đó phụ trách. Khi Giáo viên đăng nhập, hệ thống sẽ tự động lọc đề thi, phòng thi và sổ điểm đúng các lớp được phân công.
+              </p>
+            </div>
+
+            <!-- Điều Khiển Chọn Giáo Viên & Môn Học -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <i class="fa-solid fa-chalkboard-user text-indigo-500 mr-1"></i> Chọn Giáo Viên Cần Phân Công *
+                </label>
+                <select id="admin-select-teacher-assign" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500">
+                  <option value="">-- Bấm vào đây để chọn Giáo viên --</option>
+                  ${teachersList.map(t => `
+                    <option value="${escapeHtml(t.email)}">
+                      ${escapeHtml(t.fullName || t.username)} (${escapeHtml(t.email)}) - ${t.role === 'admin' ? '[Admin]' : '[Giáo Viên]'}
+                    </option>
+                  `).join('')}
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <i class="fa-solid fa-book text-amber-500 mr-1"></i> Môn Học Phụ Trách
+                </label>
+                <select id="admin-select-subject-assign" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500">
+                  ${subjectsList.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+
+            <!-- Cây Checkbox Các Lớp Học -->
+            <div id="admin-teacher-classes-matrix" class="space-y-4">
+              <div class="flex items-center justify-between text-xs font-bold text-slate-500">
+                <span><i class="fa-solid fa-list-check mr-1"></i> Tích chọn các lớp Giáo viên này giảng dạy:</span>
+                <span id="admin-assigned-counter" class="text-indigo-600 font-black">Chưa chọn giáo viên</span>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${Object.entries(schoolsData).map(([sKey, sInfo]) => {
+                  const k10 = sInfo.classes?.['10'] || [];
+                  const k11 = sInfo.classes?.['11'] || [];
+                  const k12 = sInfo.classes?.['12'] || [];
+                  return `
+                    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 space-y-3 shadow-2xs">
+                      <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                        <span class="text-xs font-black text-slate-800 dark:text-white">
+                          🏫 ${escapeHtml(sInfo.name || sKey)}
+                        </span>
+                        <div class="flex items-center gap-1.5 text-[11px]">
+                          <button type="button" data-admin-select-all-school="${escapeHtml(sKey)}" class="text-indigo-600 hover:underline font-bold">Tất cả</button>
+                          <span class="text-slate-300">|</span>
+                          <button type="button" data-admin-unselect-all-school="${escapeHtml(sKey)}" class="text-slate-400 hover:text-slate-600 font-bold">Bỏ chọn</button>
+                        </div>
+                      </div>
+
+                      <!-- Lớp K10 -->
+                      ${k10.length > 0 ? `
+                        <div>
+                          <div class="text-[11px] font-bold text-emerald-600 mb-1">Khối 10:</div>
+                          <div class="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+                            ${k10.map(cls => `
+                              <label class="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer hover:text-indigo-600">
+                                <input type="checkbox" data-assign-school="${escapeHtml(sKey)}" data-assign-grade="10" data-assign-class="${escapeHtml(cls)}" class="rounded text-indigo-600 focus:ring-indigo-500" />
+                                <span>${escapeHtml(cls)}</span>
+                              </label>
+                            `).join('')}
+                          </div>
+                        </div>
+                      ` : ''}
+
+                      <!-- Lớp K11 -->
+                      ${k11.length > 0 ? `
+                        <div>
+                          <div class="text-[11px] font-bold text-blue-600 mb-1">Khối 11:</div>
+                          <div class="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+                            ${k11.map(cls => `
+                              <label class="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer hover:text-indigo-600">
+                                <input type="checkbox" data-assign-school="${escapeHtml(sKey)}" data-assign-grade="11" data-assign-class="${escapeHtml(cls)}" class="rounded text-indigo-600 focus:ring-indigo-500" />
+                                <span>${escapeHtml(cls)}</span>
+                              </label>
+                            `).join('')}
+                          </div>
+                        </div>
+                      ` : ''}
+
+                      <!-- Lớp K12 -->
+                      ${k12.length > 0 ? `
+                        <div>
+                          <div class="text-[11px] font-bold text-indigo-600 mb-1">Khối 12:</div>
+                          <div class="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+                            ${k12.map(cls => `
+                              <label class="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer hover:text-indigo-600">
+                                <input type="checkbox" data-assign-school="${escapeHtml(sKey)}" data-assign-grade="12" data-assign-class="${escapeHtml(cls)}" class="rounded text-indigo-600 focus:ring-indigo-500" />
+                                <span>${escapeHtml(cls)}</span>
+                              </label>
+                            `).join('')}
+                          </div>
+                        </div>
+                      ` : ''}
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+
+              <!-- Nút Lưu Phân Công -->
+              <div class="flex flex-wrap items-center gap-3 pt-2">
+                <button type="button" id="btn-admin-save-assignment" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-500/20 flex items-center gap-2">
+                  <i class="fa-solid fa-floppy-disk"></i> Lưu Phân Công Giảng Dạy & Đồng Bộ Cloud
+                </button>
+                <button type="button" id="btn-admin-clear-assignment" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-rose-500 rounded-xl text-xs font-bold transition">
+                  <i class="fa-regular fa-trash-can mr-1"></i> Xóa Hết Phân Công Của GV Này
+                </button>
+              </div>
+            </div>
+
+            <!-- BẢNG TỔNG HỢP PHÂN CÔNG HIỆN TẠI -->
+            <div class="space-y-2 pt-4">
+              <h5 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <i class="fa-solid fa-table-list mr-1"></i> Bảng Tổng Hợp Phân Công Toàn Trường
+              </h5>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                  <thead>
+                    <tr class="border-b border-slate-200 dark:border-slate-700 text-slate-400 font-bold">
+                      <th class="py-2.5 px-3">Giáo Viên</th>
+                      <th class="py-2.5 px-3">Môn Dạy</th>
+                      <th class="py-2.5 px-3">Các Lớp Được Phân Công Phụ Trách</th>
+                      <th class="py-2.5 px-3 text-right">Thao Tác</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    ${Object.keys(allAssignments).length === 0 ? `
+                      <tr>
+                        <td colspan="4" class="py-6 text-center text-slate-400 italic">
+                          Chưa có giáo viên nào được phân công lớp cụ thể (Mọi giáo viên hiện đang có toàn quyền chọn lớp).
+                        </td>
+                      </tr>
+                    ` : Object.entries(allAssignments).map(([email, assigns]) => {
+                      const userObj = accounts.find(a => a.email.toLowerCase() === email.toLowerCase());
+                      const displayName = userObj ? (userObj.fullName || userObj.username) : email;
+                      const subject = (assigns[0] && assigns[0].subject) ? assigns[0].subject : 'Tin học';
+                      return `
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                          <td class="py-2.5 px-3 font-bold text-slate-800 dark:text-white">
+                            <div>${escapeHtml(displayName)}</div>
+                            <div class="text-[11px] text-slate-400 font-normal font-mono">${escapeHtml(email)}</div>
+                          </td>
+                          <td class="py-2.5 px-3 font-medium text-amber-600 dark:text-amber-400">
+                            ${escapeHtml(subject)}
+                          </td>
+                          <td class="py-2.5 px-3">
+                            <div class="flex flex-wrap gap-1.5">
+                              ${assigns.map(a => `
+                                <span class="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold text-[11px] border border-indigo-200 dark:border-indigo-800">
+                                  ${escapeHtml(a.school)}: ${escapeHtml(a.className)} (K${escapeHtml(a.grade)})
+                                </span>
+                              `).join('')}
+                            </div>
+                          </td>
+                          <td class="py-2.5 px-3 text-right">
+                            <button type="button" data-admin-edit-assign="${escapeHtml(email)}" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-xs font-bold transition">
+                              <i class="fa-solid fa-pen-to-square mr-1"></i> Sửa
+                            </button>
+                          </td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
 
         <!-- 2. KẾT NỐI CƠ SỞ DỮ LIỆU ĐÁM MÂY (CLOUD DATABASE / REALTIME BACKEND) -->
         <div id="admin-cloud-sync-card" class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
@@ -768,6 +1154,245 @@ export const AdminManager = {
   },
 
   bindEvents() {
+
+    // --- BINDING SỰ KIỆN QUẢN LÝ TRƯỜNG - LỚP - MÔN & PHÂN CÔNG GIÁO VIÊN ---
+    // Nút Bật/Tắt form Thêm Trường Mới
+    const btnToggleAddSchool = this.container.querySelector('#btn-admin-toggle-add-school');
+    const formAddSchool = this.container.querySelector('#admin-form-add-school');
+    const btnCancelAddSchool = this.container.querySelector('#btn-admin-cancel-add-school');
+
+    if (btnToggleAddSchool && formAddSchool) {
+      btnToggleAddSchool.onclick = () => formAddSchool.classList.toggle('hidden');
+    }
+    if (btnCancelAddSchool && formAddSchool) {
+      btnCancelAddSchool.onclick = () => formAddSchool.classList.add('hidden');
+    }
+
+    // Submit Thêm Trường Mới
+    if (formAddSchool) {
+      formAddSchool.onsubmit = (e) => {
+        e.preventDefault();
+        const key = document.getElementById('admin-new-school-key')?.value.trim();
+        const name = document.getElementById('admin-new-school-name')?.value.trim();
+        const rawAliases = document.getElementById('admin-new-school-aliases')?.value.trim();
+        const aliases = rawAliases ? rawAliases.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+        if (!key || !name) {
+          alert('Vui lòng nhập đầy đủ Mã trường và Tên trường!');
+          return;
+        }
+
+        const res = Storage.addSchool(key, name, aliases);
+        alert(res.message);
+        if (res.success) {
+          CloudSync.pushSchoolsDataToCloud(Storage.getSchoolsData());
+          this.render();
+        }
+      };
+    }
+
+    // Xóa Trường Học
+    this.container.querySelectorAll('[data-admin-del-school]').forEach(btn => {
+      btn.onclick = () => {
+        const sKey = btn.getAttribute('data-admin-del-school');
+        if (confirm(`Bạn có chắc chắn muốn xóa toàn bộ Trường [${sKey}] và tất cả các lớp của trường này không?`)) {
+          const res = Storage.deleteSchool(sKey);
+          alert(res.message);
+          if (res.success) {
+            CloudSync.pushSchoolsDataToCloud(Storage.getSchoolsData());
+            this.render();
+          }
+        }
+      };
+    });
+
+    // Thêm Lớp Vào Trường
+    this.container.querySelectorAll('[data-admin-add-class]').forEach(btn => {
+      btn.onclick = () => {
+        const [sKey, grade] = btn.getAttribute('data-admin-add-class').split('|');
+        const input = document.getElementById(`admin-input-add-class-${sKey}-${grade}`);
+        const className = input ? input.value.trim().toUpperCase() : '';
+        if (!className) {
+          alert('Vui lòng nhập tên lớp (ví dụ: 10A1)!');
+          return;
+        }
+        const res = Storage.addClassToSchool(sKey, grade, className);
+        alert(res.message);
+        if (res.success) {
+          CloudSync.pushSchoolsDataToCloud(Storage.getSchoolsData());
+          this.render();
+        }
+      };
+    });
+
+    // Xóa Lớp Khỏi Trường
+    this.container.querySelectorAll('[data-admin-del-class]').forEach(btn => {
+      btn.onclick = () => {
+        const [sKey, grade, cls] = btn.getAttribute('data-admin-del-class').split('|');
+        if (confirm(`Bạn có chắc muốn xóa lớp ${cls} khỏi trường ${sKey} (Khối ${grade})?`)) {
+          const res = Storage.deleteClassFromSchool(sKey, grade, cls);
+          if (res.success) {
+            CloudSync.pushSchoolsDataToCloud(Storage.getSchoolsData());
+            this.render();
+          }
+        }
+      };
+    });
+
+    // Thêm Môn Học Mới
+    const formAddSubject = this.container.querySelector('#admin-form-add-subject');
+    if (formAddSubject) {
+      formAddSubject.onsubmit = (e) => {
+        e.preventDefault();
+        const input = document.getElementById('admin-input-new-subject');
+        const name = input ? input.value.trim() : '';
+        if (!name) return;
+        const res = Storage.addSubject(name);
+        alert(res.message);
+        if (res.success) {
+          CloudSync.pushSubjectsToCloud(Storage.getSubjectsList());
+          this.render();
+        }
+      };
+    }
+
+    // Xóa Môn Học
+    this.container.querySelectorAll('[data-admin-del-subject]').forEach(btn => {
+      btn.onclick = () => {
+        const name = btn.getAttribute('data-admin-del-subject');
+        if (confirm(`Bạn có chắc muốn xóa môn học [${name}] không?`)) {
+          const res = Storage.deleteSubject(name);
+          alert(res.message);
+          if (res.success) {
+            CloudSync.pushSubjectsToCloud(Storage.getSubjectsList());
+            this.render();
+          }
+        }
+      };
+    });
+
+    // --- PHÂN CÔNG GIẢNG DẠY GIÁO VIÊN ---
+    const selectTeacher = this.container.querySelector('#admin-select-teacher-assign');
+    const selectSubject = this.container.querySelector('#admin-select-subject-assign');
+    const matrixContainer = this.container.querySelector('#admin-teacher-classes-matrix');
+    const counterBadge = this.container.querySelector('#admin-assigned-counter');
+
+    const updateMatrixFromTeacher = () => {
+      const email = selectTeacher ? selectTeacher.value.trim() : '';
+      if (!matrixContainer) return;
+      const checkboxes = matrixContainer.querySelectorAll('input[type="checkbox"]');
+
+      if (!email) {
+        checkboxes.forEach(cb => { cb.checked = false; });
+        if (counterBadge) counterBadge.textContent = 'Chưa chọn giáo viên';
+        return;
+      }
+
+      const assigned = Storage.getTeacherAssignments(email);
+      let count = 0;
+      checkboxes.forEach(cb => {
+        const s = cb.getAttribute('data-assign-school');
+        const g = cb.getAttribute('data-assign-grade');
+        const c = cb.getAttribute('data-assign-class');
+        const match = assigned.some(a => a.school === s && String(a.grade) === String(g) && a.className === c);
+        cb.checked = match;
+        if (match) count++;
+      });
+
+      if (assigned.length > 0 && assigned[0].subject && selectSubject) {
+        selectSubject.value = assigned[0].subject;
+      }
+
+      if (counterBadge) {
+        counterBadge.textContent = `Đang phân công ${count} lớp`;
+      }
+    };
+
+    if (selectTeacher) {
+      selectTeacher.onchange = updateMatrixFromTeacher;
+    }
+
+    // Chọn tất cả lớp của 1 trường
+    this.container.querySelectorAll('[data-admin-select-all-school]').forEach(btn => {
+      btn.onclick = () => {
+        const sKey = btn.getAttribute('data-admin-select-all-school');
+        matrixContainer?.querySelectorAll(`input[data-assign-school="${sKey}"]`).forEach(cb => {
+          cb.checked = true;
+        });
+      };
+    });
+
+    // Bỏ chọn tất cả lớp của 1 trường
+    this.container.querySelectorAll('[data-admin-unselect-all-school]').forEach(btn => {
+      btn.onclick = () => {
+        const sKey = btn.getAttribute('data-admin-unselect-all-school');
+        matrixContainer?.querySelectorAll(`input[data-assign-school="${sKey}"]`).forEach(cb => {
+          cb.checked = false;
+        });
+      };
+    });
+
+    // Lưu Phân Công Giáo Viên
+    const btnSaveAssign = this.container.querySelector('#btn-admin-save-assignment');
+    if (btnSaveAssign) {
+      btnSaveAssign.onclick = async () => {
+        const email = selectTeacher ? selectTeacher.value.trim() : '';
+        if (!email) {
+          alert('Vui lòng chọn Giáo viên trước khi lưu phân công!');
+          return;
+        }
+
+        const subject = selectSubject ? selectSubject.value.trim() : 'Tin học';
+        const checkedBoxes = matrixContainer?.querySelectorAll('input[type="checkbox"]:checked') || [];
+        const assignments = [];
+
+        checkedBoxes.forEach(cb => {
+          assignments.push({
+            school: cb.getAttribute('data-assign-school'),
+            grade: cb.getAttribute('data-assign-grade'),
+            className: cb.getAttribute('data-assign-class'),
+            subject: subject
+          });
+        });
+
+        Storage.saveTeacherAssignments(email, assignments);
+        await CloudSync.pushTeacherAssignmentsToCloud(Storage.getAllTeacherAssignments());
+        alert(`✅ Đã lưu phân công giảng dạy cho Giáo viên [${email}] thành công!\nSố lớp phụ trách: ${assignments.length} lớp.`);
+        this.render();
+      };
+    }
+
+    // Xóa hết phân công của GV này
+    const btnClearAssign = this.container.querySelector('#btn-admin-clear-assignment');
+    if (btnClearAssign) {
+      btnClearAssign.onclick = async () => {
+        const email = selectTeacher ? selectTeacher.value.trim() : '';
+        if (!email) {
+          alert('Vui lòng chọn Giáo viên cần xóa phân công!');
+          return;
+        }
+        if (confirm(`Bạn có chắc muốn xóa TOÀN BỘ phân công lớp của Giáo viên [${email}]?`)) {
+          Storage.saveTeacherAssignments(email, []);
+          await CloudSync.pushTeacherAssignmentsToCloud(Storage.getAllTeacherAssignments());
+          alert(`Đã xóa phân công của [${email}].`);
+          this.render();
+        }
+      };
+    }
+
+    // Nút Sửa phân công trên bảng tổng hợp
+    this.container.querySelectorAll('[data-admin-edit-assign]').forEach(btn => {
+      btn.onclick = () => {
+        const email = btn.getAttribute('data-admin-edit-assign');
+        if (selectTeacher) {
+          selectTeacher.value = email;
+          updateMatrixFromTeacher();
+          selectTeacher.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      };
+    });
+
+
     // 1. Cấu hình Cơ sở dữ liệu Đám mây (Cloud Database)
     const formCloud = document.getElementById('form-cloud-config');
     if (formCloud) {
