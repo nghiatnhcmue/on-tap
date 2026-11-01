@@ -3,9 +3,9 @@
  * Quản lý giao đề thi theo khung giờ, trường học, lớp học, mật khẩu và chống gian lận cho Giáo viên & Admin
  */
 
-import { Storage } from './storage.js?v=20261030_49';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261030_49';
-import { escapeHtml } from './utils.js?v=20261030_49';
+import { Storage } from './storage.js?v=20261101_50';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_50';
+import { escapeHtml } from './utils.js?v=20261101_50';
 
 export const ExamRooms = {
   container: null,
@@ -1326,7 +1326,7 @@ export const ExamRooms = {
         const availableQ = lessonData.total || 0;
 
         html += `
-          <div class="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition border border-transparent hover:border-slate-200 dark:hover:border-slate-700">
+          <div data-matrix-lesson-row class="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition border border-transparent hover:border-slate-200 dark:hover:border-slate-700">
             <label class="flex items-center gap-2.5 cursor-pointer text-xs text-slate-700 dark:text-slate-300 flex-1 min-w-0 select-none">
               <input type="checkbox" data-matrix-lesson-check 
                 data-topic="${escapeHtml(topicName)}" 
@@ -1339,21 +1339,26 @@ export const ExamRooms = {
               </div>
             </label>
 
-            <!-- Ô nhập số lượng câu hỏi cần lấy từ bài này -->
-            <div class="flex items-center gap-1.5 shrink-0">
-              <span class="text-[11px] text-slate-400">Lấy:</span>
-              <input type="number" 
-                data-matrix-lesson-count 
-                data-topic="${escapeHtml(topicName)}" 
-                data-lesson="${escapeHtml(lessonName)}" 
-                data-available="${availableQ}"
-                value="${allocatedCount}" 
-                min="1" 
-                max="${availableQ}" 
-                ${!isChecked ? 'disabled' : ''}
-                class="w-14 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-center text-slate-800 dark:text-white disabled:opacity-40 focus:ring-2 focus:ring-emerald-500" />
-              <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400">câu</span>
-              <span data-matrix-percent class="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 min-w-[34px] text-right"></span>
+            <!-- Ô nhập số lượng câu hỏi + nút đọc và chọn từng câu -->
+            <div class="flex items-center gap-2 shrink-0">
+              <button type="button" data-jump-to-qpick="${escapeHtml(lessonName)}" class="px-2 py-0.5 rounded-lg text-[11px] font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800/60 transition flex items-center gap-1 shrink-0" title="Chuyển sang chế độ Đọc và chọn đích danh từng câu hỏi trong bài này">
+                <i class="fa-solid fa-list-check text-[10px]"></i> Đọc & Chọn câu
+              </button>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[11px] text-slate-400">Lấy:</span>
+                <input type="number" 
+                  data-matrix-lesson-count 
+                  data-topic="${escapeHtml(topicName)}" 
+                  data-lesson="${escapeHtml(lessonName)}" 
+                  data-available="${availableQ}"
+                  value="${allocatedCount}" 
+                  min="1" 
+                  max="${availableQ}" 
+                  ${!isChecked ? 'disabled' : ''}
+                  class="w-14 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-center text-slate-800 dark:text-white disabled:opacity-40 focus:ring-2 focus:ring-emerald-500" />
+                <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400">câu</span>
+                <span data-matrix-percent class="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 min-w-[34px] text-right"></span>
+              </div>
             </div>
           </div>
         `;
@@ -1384,17 +1389,41 @@ export const ExamRooms = {
         const checks = group.querySelectorAll('[data-matrix-lesson-check]');
         checks.forEach(chk => {
           chk.checked = topicToggle.checked;
-          const countInput = chk.closest('.flex').querySelector('[data-matrix-lesson-count]');
+          const countInput = chk.closest('[data-matrix-lesson-row]').querySelector('[data-matrix-lesson-count]');
           if (countInput) countInput.disabled = !chk.checked;
         });
         this.updateMatrixSummary();
       };
     });
 
+    // Nút nhảy nhanh sang đọc & chọn từng câu theo bài học
+    listContainer.querySelectorAll('[data-jump-to-qpick]').forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const lName = btn.getAttribute('data-jump-to-qpick');
+        this.setupScopeSwitcher('questions');
+        const lessonFilter = document.getElementById('room-qpick-filter-lesson');
+        if (lessonFilter && lName) {
+          lessonFilter.value = lName;
+        }
+        this.renderQuestionsPicker();
+      };
+    });
+
+    // Nút banner trên đầu ma trận chuyển sang đọc & chọn câu
+    const bannerSwitchBtn = document.getElementById('btn-matrix-switch-to-qpick');
+    if (bannerSwitchBtn) {
+      bannerSwitchBtn.onclick = () => {
+        this.setupScopeSwitcher('questions');
+      };
+    }
+
     // Tích từng bài học -> bật/tắt ô nhập số câu
     listContainer.querySelectorAll('[data-matrix-lesson-check]').forEach(chk => {
       chk.onchange = () => {
-        const countInput = chk.closest('.flex').querySelector('[data-matrix-lesson-count]');
+        const row = chk.closest('[data-matrix-lesson-row]') || chk.closest('[data-matrix-lesson-row]')?.parentElement;
+        const countInput = row ? row.querySelector('[data-matrix-lesson-count]') : null;
         if (countInput) countInput.disabled = !chk.checked;
         this.updateMatrixSummary();
       };
@@ -1423,7 +1452,7 @@ export const ExamRooms = {
     let totalAllocated = 0;
 
     checks.forEach(chk => {
-      const row = chk.closest('.flex');
+      const row = chk.closest('[data-matrix-lesson-row]');
       const countInputEl = row.querySelector('[data-matrix-lesson-count]');
       const cnt = parseInt(countInputEl?.value || '0', 10);
       totalAllocated += cnt;
@@ -1431,7 +1460,7 @@ export const ExamRooms = {
 
     // Cập nhật nhãn phần trăm cho từng dòng bài học
     checks.forEach(chk => {
-      const row = chk.closest('.flex');
+      const row = chk.closest('[data-matrix-lesson-row]');
       const countInputEl = row.querySelector('[data-matrix-lesson-count]');
       const percentEl = row.querySelector('[data-matrix-percent]');
       const cnt = parseInt(countInputEl?.value || '0', 10);
@@ -1440,7 +1469,7 @@ export const ExamRooms = {
     });
 
     listContainer.querySelectorAll('[data-matrix-lesson-check]:not(:checked)').forEach(chk => {
-      const row = chk.closest('.flex');
+      const row = chk.closest('[data-matrix-lesson-row]');
       const percentEl = row.querySelector('[data-matrix-percent]');
       if (percentEl) percentEl.textContent = '';
     });
@@ -1467,7 +1496,7 @@ export const ExamRooms = {
     const remainder = targetTotal % n;
 
     checkedRows.forEach((chk, idx) => {
-      const row = chk.closest('.flex');
+      const row = chk.closest('[data-matrix-lesson-row]');
       const countInputEl = row.querySelector('[data-matrix-lesson-count]');
       const available = parseInt(countInputEl?.getAttribute('data-available') || '50', 10);
       let count = baseCount + (idx < remainder ? 1 : 0);
@@ -1685,7 +1714,7 @@ export const ExamRooms = {
         if (!listContainer) return;
         listContainer.querySelectorAll('[data-matrix-lesson-check]').forEach(chk => {
           chk.checked = true;
-          const row = chk.closest('.flex');
+          const row = chk.closest('[data-matrix-lesson-row]');
           const countInp = row.querySelector('[data-matrix-lesson-count]');
           if (countInp) countInp.disabled = false;
         });
@@ -1699,7 +1728,7 @@ export const ExamRooms = {
         if (!listContainer) return;
         listContainer.querySelectorAll('[data-matrix-lesson-check]').forEach(chk => {
           chk.checked = false;
-          const row = chk.closest('.flex');
+          const row = chk.closest('[data-matrix-lesson-row]');
           const countInp = row.querySelector('[data-matrix-lesson-count]');
           if (countInp) countInp.disabled = true;
         });
@@ -1823,7 +1852,7 @@ export const ExamRooms = {
             checks.forEach(chk => {
               const topic = chk.getAttribute('data-topic');
               const lesson = chk.getAttribute('data-lesson');
-              const row = chk.closest('.flex');
+              const row = chk.closest('[data-matrix-lesson-row]');
               const countInputEl = row.querySelector('[data-matrix-lesson-count]');
               const count = parseInt(countInputEl?.value || '1', 10);
               sumCount += count;
@@ -1846,7 +1875,7 @@ export const ExamRooms = {
                 checks.forEach(chk => {
                   const topic = chk.getAttribute('data-topic');
                   const lesson = chk.getAttribute('data-lesson');
-                  const row = chk.closest('.flex');
+                  const row = chk.closest('[data-matrix-lesson-row]');
                   const countInputEl = row.querySelector('[data-matrix-lesson-count]');
                   const count = parseInt(countInputEl?.value || '1', 10);
                   selectedLessons.push({

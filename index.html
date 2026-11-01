@@ -50,7 +50,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261030_49" />
+  <link rel="stylesheet" href="css/style.css?v=20261101_50" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -2205,6 +2205,19 @@
 
             <!-- Khung Ma Trận Chọn Bài Học & Điều Chỉnh Tỉ Lệ -->
             <div id="room-lessons-matrix-panel" class="hidden space-y-3 p-3.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+              <!-- Banner hướng dẫn & nút chuyển sang chế độ đọc câu đích danh -->
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-blue-50/90 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 text-xs">
+                <div class="flex items-center gap-2">
+                  <i class="fa-solid fa-lightbulb text-amber-500 text-sm shrink-0"></i>
+                  <span class="text-slate-700 dark:text-slate-200">
+                    Chế độ này phân bổ <b>số lượng câu ngẫu nhiên</b> theo từng bài học. Nếu muốn <b>đọc từng câu & tự chọn</b>:
+                  </span>
+                </div>
+                <button type="button" id="btn-matrix-switch-to-qpick" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition flex items-center gap-1.5 shrink-0 shadow-sm self-start sm:self-auto">
+                  <i class="fa-solid fa-list-check"></i> Đọc & Chọn Từng Câu
+                </button>
+              </div>
+
               <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-700 text-xs">
                 <div class="flex items-center gap-2">
                   <span class="font-bold text-slate-800 dark:text-white">Ma trận bài học:</span>
@@ -2862,7 +2875,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261030_49"></script>
+  <script type="module" src="js/app.js?v=20261101_50"></script>
 </body>
 </html>
 
