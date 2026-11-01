@@ -50,7 +50,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261101_74" />
+  <link rel="stylesheet" href="css/style.css?v=20261101_75" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -122,7 +122,7 @@
         });
 
         // Nạp động module Auth để mở Google Popup ngay lập tức
-        import('./js/auth.js?v=20261101_74').then(function(mod) {
+        import('./js/auth.js?v=20261101_75').then(function(mod) {
           if (mod && mod.Auth) {
             window.Auth = mod.Auth;
             mod.Auth.signInWithGoogleFirebase();
@@ -2250,6 +2250,9 @@
                 <button type="button" id="btn-scope-import" class="px-3 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition flex items-center gap-1.5">
                   📥 Nhập Word / Excel
                 </button>
+                <button type="button" id="btn-scope-manual" class="px-3 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition flex items-center gap-1.5 font-bold">
+                  ✍️ Tự Soạn Đề Mới
+                </button>
               </div>
             </div>
 
@@ -2331,6 +2334,9 @@
                   </span>
                 </div>
                 <div class="flex items-center gap-1.5 flex-wrap">
+                  <button type="button" id="btn-qpick-manual-add" class="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-[11px] font-black transition flex items-center gap-1.5 shadow-xs hover:scale-[1.02] active:scale-[0.98]">
+                    <i class="fa-solid fa-plus-circle text-xs"></i> ✍️ Soạn Thêm Câu Mới
+                  </button>
                   <button type="button" id="btn-qpick-auto-fill" class="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 rounded-lg text-[11px] font-bold transition flex items-center gap-1">
                     <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i> Chọn đủ ngẫu nhiên
                   </button>
@@ -2619,6 +2625,219 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
           <i class="fa-solid fa-check"></i> Lưu & Kích Hoạt Phòng Thi
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: TỰ SOẠN CÂU HỎI MỚI DÀNH CHO GIÁO VIÊN KHI TẠO ĐỀ ==================== -->
+  <div id="modal-manual-add-question" class="hidden fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[92dvh] overflow-y-auto space-y-5 animate-scaleUp">
+      <button type="button" id="btn-close-manual-q-modal" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="flex items-center gap-3 border-b border-slate-100 dark:border-slate-700 pb-4">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center text-xl shrink-0 shadow-sm">
+          <i class="fa-solid fa-pen-to-square"></i>
+        </div>
+        <div>
+          <h3 id="manual-q-modal-title" class="text-base sm:text-lg font-black text-slate-800 dark:text-white">
+            ✍️ Tự Soạn & Thêm Câu Hỏi Vào Đề Thi
+          </h3>
+          <p class="text-xs text-slate-400">Tự do nhập nội dung câu hỏi, phương án và thiết lập đáp án chấm điểm</p>
+        </div>
+      </div>
+
+      <form id="form-manual-question-submit" class="space-y-4 text-xs">
+        
+        <!-- 1. Dạng câu hỏi & Mức độ nhận thức -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">1. Dạng Câu Hỏi *</label>
+            <div class="grid grid-cols-3 gap-2">
+              <label class="p-2.5 rounded-xl border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 text-center cursor-pointer flex flex-col items-center gap-1">
+                <input type="radio" name="manual-q-type" value="MCQ" checked class="text-emerald-600 focus:ring-emerald-500" />
+                <span class="text-xs font-bold text-slate-800 dark:text-white">MCQ (4 Lựa chọn)</span>
+              </label>
+
+              <label class="p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-emerald-300 text-center cursor-pointer flex flex-col items-center gap-1">
+                <input type="radio" name="manual-q-type" value="DS" class="text-emerald-600 focus:ring-emerald-500" />
+                <span class="text-xs font-bold text-slate-800 dark:text-white">Đúng / Sai (DS)</span>
+              </label>
+
+              <label class="p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-emerald-300 text-center cursor-pointer flex flex-col items-center gap-1">
+                <input type="radio" name="manual-q-type" value="TLN" class="text-emerald-600 focus:ring-emerald-500" />
+                <span class="text-xs font-bold text-slate-800 dark:text-white">Trả lời ngắn</span>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">2. Mức Độ Nhận Thức GDPT 2018</label>
+            <select id="manual-q-level" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white">
+              <option value="1">Mức 1: Nhận biết (0.25đ)</option>
+              <option value="2" selected>Mức 2: Thông hiểu (0.25đ)</option>
+              <option value="3">Mức 3: Vận dụng (0.25đ)</option>
+              <option value="4">Mức 4: Vận dụng cao (0.25đ)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 2. Chủ đề & Bài học -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Chủ Đề</label>
+            <input type="text" id="manual-q-topic" placeholder="Ví dụ: Chủ đề 1. Máy tính và xã hội tri thức" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-white" />
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Bài Học / Chuyên Đề</label>
+            <input type="text" id="manual-q-lesson" placeholder="Ví dụ: Bài 01. Giới thiệu Trí tuệ nhân tạo (AI)" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-white" />
+          </div>
+        </div>
+
+        <!-- 3. Nội dung câu hỏi -->
+        <div>
+          <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+            Nội Dung Câu Hỏi <span class="text-rose-500">*</span>
+          </label>
+          <textarea id="manual-q-content" required rows="3" placeholder="Nhập nội dung câu hỏi đề thi (hỗ trợ xuống dòng, công thức, mã code)..." class="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 resize-y leading-relaxed"></textarea>
+        </div>
+
+        <!-- 4. KHU VỰC PHƯƠNG ÁN & ĐÁP ÁN (Thay đổi theo dạng câu) -->
+        
+        <!-- Panel 4A: Trắc nghiệm 4 lựa chọn (MCQ) -->
+        <div id="manual-q-panel-mcq" class="space-y-3 p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between pb-1 border-b border-slate-200/60 dark:border-slate-700">
+            <span class="font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+              <i class="fa-solid fa-list-ol text-emerald-600"></i> Các Phương Án Lựa Chọn (Tích tròn chọn đáp án đúng):
+            </span>
+            <span class="text-[11px] text-slate-400">Chọn 1 đáp án đúng</span>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex items-center gap-2">
+              <label class="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-300 w-16 shrink-0 cursor-pointer">
+                <input type="radio" name="manual-mcq-correct" value="A" checked class="text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+                <span>A.</span>
+              </label>
+              <input type="text" id="manual-opt-a" placeholder="Nội dung phương án A..." class="flex-1 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white font-medium" />
+            </div>
+
+            <div class="flex items-center gap-2">
+              <label class="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-300 w-16 shrink-0 cursor-pointer">
+                <input type="radio" name="manual-mcq-correct" value="B" class="text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+                <span>B.</span>
+              </label>
+              <input type="text" id="manual-opt-b" placeholder="Nội dung phương án B..." class="flex-1 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white font-medium" />
+            </div>
+
+            <div class="flex items-center gap-2">
+              <label class="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-300 w-16 shrink-0 cursor-pointer">
+                <input type="radio" name="manual-mcq-correct" value="C" class="text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+                <span>C.</span>
+              </label>
+              <input type="text" id="manual-opt-c" placeholder="Nội dung phương án C..." class="flex-1 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white font-medium" />
+            </div>
+
+            <div class="flex items-center gap-2">
+              <label class="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-300 w-16 shrink-0 cursor-pointer">
+                <input type="radio" name="manual-mcq-correct" value="D" class="text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+                <span>D.</span>
+              </label>
+              <input type="text" id="manual-opt-d" placeholder="Nội dung phương án D..." class="flex-1 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white font-medium" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 4B: Đúng / Sai chuẩn BGD (4 ý a, b, c, d) -->
+        <div id="manual-q-panel-ds" class="hidden space-y-3 p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between pb-1 border-b border-slate-200/60 dark:border-slate-700">
+            <span class="font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+              <i class="fa-solid fa-square-check text-rose-600"></i> Bốn Nhận Định Độc Lập (Chọn Đúng hoặc Sai cho từng ý):
+            </span>
+            <span class="text-[11px] text-slate-400">Barem Bộ GD: 1 ý=0.1đ • 2 ý=0.25đ • 3 ý=0.5đ • 4 ý=1.0đ</span>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-700 dark:text-slate-300 w-7 shrink-0">a)</span>
+              <input type="text" id="manual-ds-text-a" placeholder="Nội dung nhận định a..." class="flex-1 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white font-medium" />
+              <select id="manual-ds-ans-a" class="w-24 px-2 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-xs">
+                <option value="true" selected>🟢 Đúng</option>
+                <option value="false">🔴 Sai</option>
+              </select>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-700 dark:text-slate-300 w-7 shrink-0">b)</span>
+              <input type="text" id="manual-ds-text-b" placeholder="Nội dung nhận định b..." class="flex-1 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white font-medium" />
+              <select id="manual-ds-ans-b" class="w-24 px-2 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-xs">
+                <option value="true">🟢 Đúng</option>
+                <option value="false" selected>🔴 Sai</option>
+              </select>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-700 dark:text-slate-300 w-7 shrink-0">c)</span>
+              <input type="text" id="manual-ds-text-c" placeholder="Nội dung nhận định c..." class="flex-1 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white font-medium" />
+              <select id="manual-ds-ans-c" class="w-24 px-2 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-xs">
+                <option value="true" selected>🟢 Đúng</option>
+                <option value="false">🔴 Sai</option>
+              </select>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-700 dark:text-slate-300 w-7 shrink-0">d)</span>
+              <input type="text" id="manual-ds-text-d" placeholder="Nội dung nhận định d..." class="flex-1 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white font-medium" />
+              <select id="manual-ds-ans-d" class="w-24 px-2 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-xs">
+                <option value="true">🟢 Đúng</option>
+                <option value="false" selected>🔴 Sai</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 4C: Trả lời ngắn (TLN) -->
+        <div id="manual-q-panel-tln" class="hidden space-y-3 p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-700">
+          <label class="block font-bold text-slate-800 dark:text-white">
+            <i class="fa-solid fa-keyboard text-purple-600 mr-1"></i> Đáp Án Ngắn Chuẩn Xác *
+          </label>
+          <input type="text" id="manual-tln-answer" placeholder="Nhập đáp án chính xác (ví dụ: 15 hoặc CPU)..." class="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white text-xs" />
+          <p class="text-[11px] text-slate-400">Hệ thống sẽ chuẩn hóa tự động bỏ khoảng trắng thừa và so sánh không phân biệt hoa/thường.</p>
+        </div>
+
+        <!-- 5. Hướng dẫn giải / Giải thích -->
+        <div>
+          <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+            💡 Lời Giải Thích / Hướng Dẫn Giải Chi Tiết (Tùy chọn)
+          </label>
+          <textarea id="manual-q-explanation" rows="2" placeholder="Hiển thị cho học sinh sau khi nộp bài để củng cố kiến thức..." class="w-full p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-white text-xs resize-y"></textarea>
+        </div>
+
+        <!-- 6. Tùy chọn lưu vào Ngân Hàng Chung -->
+        <div class="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800/60 flex items-center gap-2.5">
+          <input type="checkbox" id="manual-q-save-to-bank" checked class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer" />
+          <label for="manual-q-save-to-bank" class="text-xs font-bold text-emerald-900 dark:text-emerald-200 cursor-pointer">
+            Đồng thời lưu câu hỏi này vào Ngân Hàng Câu Hỏi Chung của trường để dùng lại cho các đề thi khác
+          </label>
+        </div>
+
+        <!-- 7. Action buttons -->
+        <div class="pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between gap-3">
+          <button type="button" id="btn-cancel-manual-q" class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-100 transition">
+            Hủy
+          </button>
+
+          <div class="flex items-center gap-2">
+            <button type="button" id="btn-save-and-add-another" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition flex items-center gap-1.5">
+              <i class="fa-solid fa-plus"></i> Lưu & Soạn Tiếp Câu Khác
+            </button>
+
+            <button type="submit" id="btn-save-manual-q" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black shadow-md transition flex items-center gap-1.5">
+              <i class="fa-solid fa-check"></i> Lưu & Đưa Vào Đề Thi
+            </button>
+          </div>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -2993,7 +3212,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261101_74"></script>
+  <script type="module" src="js/app.js?v=20261101_75"></script>
 </body>
 </html>
 

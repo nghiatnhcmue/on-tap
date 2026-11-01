@@ -3,9 +3,9 @@
  * Quản lý giao đề thi theo khung giờ, trường học, lớp học, mật khẩu và chống gian lận cho Giáo viên & Admin
  */
 
-import { Storage } from './storage.js?v=20261101_74';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_74';
-import { escapeHtml } from './utils.js?v=20261101_74';
+import { Storage } from './storage.js?v=20261101_75';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261101_75';
+import { escapeHtml } from './utils.js?v=20261101_75';
 
 export const ExamRooms = {
   container: null,
@@ -815,10 +815,25 @@ export const ExamRooms = {
               <input type="checkbox" data-qpick-checkbox="${escapeHtml(qKey)}" ${isSelected ? 'checked' : ''} class="w-4 h-4 rounded text-blue-600 cursor-pointer pointer-events-none" />
               <span class="font-bold text-xs text-slate-800 dark:text-white">Câu ${idx + 1}</span>
               <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${levelColor}">${levelBadge}</span>
+              ${q.isManualCustom ? `
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
+                  ✍️ Tự Soạn
+                </span>
+              ` : ''}
               ${q.id ? `<span class="text-[10px] font-mono text-slate-400">#${escapeHtml(q.id)}</span>` : ''}
             </div>
-            <div class="text-[10px] text-slate-400 font-medium truncate max-w-xs">
-              ${escapeHtml(q.topic || '')} • ${escapeHtml(q.lesson || '')}
+            <div class="flex items-center gap-2">
+              <div class="text-[10px] text-slate-400 font-medium truncate max-w-[140px]">
+                ${escapeHtml(q.topic || '')}
+              </div>
+              <button type="button" data-qpick-edit="${escapeHtml(qKey)}" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold transition flex items-center gap-1 shadow-xs" title="Chỉnh sửa câu hỏi này">
+                <i class="fa-solid fa-pen text-[9px]"></i> Sửa
+              </button>
+              ${q.isManualCustom ? `
+                <button type="button" data-qpick-delete="${escapeHtml(qKey)}" class="px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 text-[10px] font-bold transition" title="Xóa khỏi đề thi">
+                  <i class="fa-solid fa-trash-can text-[9px]"></i>
+                </button>
+              ` : ''}
             </div>
           </div>
 
@@ -832,6 +847,35 @@ export const ExamRooms = {
         </div>
       `;
     }).join('');
+
+    // Gắn sự kiện sửa câu hỏi
+    listContainer.querySelectorAll('[data-qpick-edit]').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const qKey = btn.getAttribute('data-qpick-edit');
+        const targetQ = (this.loadedGradeQuestions || []).find(q => (q.id === qKey || `q_${(this.loadedGradeQuestions || []).indexOf(q)}_${q.question?.substring(0, 15)}` === qKey))
+          || this.selectedQuestionsMap.get(qKey);
+        if (targetQ) {
+          this.openManualQuestionModal(targetQ, qKey);
+        }
+      };
+    });
+
+    // Gắn sự kiện xóa câu hỏi tự soạn
+    listContainer.querySelectorAll('[data-qpick-delete]').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const qKey = btn.getAttribute('data-qpick-delete');
+        if (confirm('Thầy Cô có chắc chắn muốn xóa câu hỏi tự soạn này khỏi đề thi không?')) {
+          this.selectedQuestionsMap.delete(qKey);
+          if (this.loadedGradeQuestions) {
+            this.loadedGradeQuestions = this.loadedGradeQuestions.filter(q => q.id !== qKey);
+          }
+          this.renderQuestionsPicker();
+          this.updateQuestionsPickSummary();
+        }
+      };
+    });
 
     // Gắn sự kiện click để toggle chọn/bỏ chọn câu hỏi
     listContainer.querySelectorAll('[data-qpick-card]').forEach(card => {
@@ -930,6 +974,286 @@ export const ExamRooms = {
     this.selectedQuestionsMap.clear();
     this.renderQuestionsPicker();
     this.updateQuestionsPickSummary();
+  },
+
+  // ==================== BỘ TỰ SOẠN CÂU HỎI THỦ CÔNG CỦA GIÁO VIÊN ====================
+  openManualQuestionModal(editingQuestion = null, qKey = null) {
+    const modal = document.getElementById('modal-manual-add-question');
+    if (!modal) return;
+
+    const titleEl = document.getElementById('manual-q-modal-title');
+    const form = document.getElementById('form-manual-question-submit');
+    const btnClose = document.getElementById('btn-close-manual-q-modal');
+    const btnCancel = document.getElementById('btn-cancel-manual-q');
+    const btnSaveAnother = document.getElementById('btn-save-and-add-another');
+
+    const panelMcq = document.getElementById('manual-q-panel-mcq');
+    const panelDs = document.getElementById('manual-q-panel-ds');
+    const panelTln = document.getElementById('manual-q-panel-tln');
+
+    const qContent = document.getElementById('manual-q-content');
+    const qLevel = document.getElementById('manual-q-level');
+    const qTopic = document.getElementById('manual-q-topic');
+    const qLesson = document.getElementById('manual-q-lesson');
+    const qExplanation = document.getElementById('manual-q-explanation');
+    const chkSaveBank = document.getElementById('manual-q-save-to-bank');
+
+    const optA = document.getElementById('manual-opt-a');
+    const optB = document.getElementById('manual-opt-b');
+    const optC = document.getElementById('manual-opt-c');
+    const optD = document.getElementById('manual-opt-d');
+
+    const dsTextA = document.getElementById('manual-ds-text-a');
+    const dsTextB = document.getElementById('manual-ds-text-b');
+    const dsTextC = document.getElementById('manual-ds-text-c');
+    const dsTextD = document.getElementById('manual-ds-text-d');
+    const dsAnsA = document.getElementById('manual-ds-ans-a');
+    const dsAnsB = document.getElementById('manual-ds-ans-b');
+    const dsAnsC = document.getElementById('manual-ds-ans-c');
+    const dsAnsD = document.getElementById('manual-ds-ans-d');
+
+    const tlnAnswer = document.getElementById('manual-tln-answer');
+
+    // Mặc định chủ đề và bài học từ bộ lọc nếu đang có
+    const filterTopic = document.getElementById('room-qpick-filter-topic')?.value;
+    const filterLesson = document.getElementById('room-qpick-filter-lesson')?.value;
+    const curGrade = document.getElementById('room-input-grade')?.value || '12';
+
+    // Chuyển đổi giao diện theo dạng câu hỏi (MCQ, DS, TLN)
+    const setQuestionType = (type) => {
+      panelMcq?.classList.add('hidden');
+      panelDs?.classList.add('hidden');
+      panelTln?.classList.add('hidden');
+
+      if (type === 'MCQ') {
+        panelMcq?.classList.remove('hidden');
+        if (optA) optA.required = true;
+        if (optB) optB.required = true;
+        if (optC) optC.required = true;
+        if (optD) optD.required = true;
+        if (tlnAnswer) tlnAnswer.required = false;
+      } else if (type === 'DS') {
+        panelDs?.classList.remove('hidden');
+        if (optA) optA.required = false;
+        if (optB) optB.required = false;
+        if (optC) optC.required = false;
+        if (optD) optD.required = false;
+        if (tlnAnswer) tlnAnswer.required = false;
+      } else if (type === 'TLN') {
+        panelTln?.classList.remove('hidden');
+        if (optA) optA.required = false;
+        if (optB) optB.required = false;
+        if (optC) optC.required = false;
+        if (optD) optD.required = false;
+        if (tlnAnswer) tlnAnswer.required = true;
+      }
+    };
+
+    modal.querySelectorAll('input[name="manual-q-type"]').forEach(r => {
+      r.onchange = () => setQuestionType(r.value);
+    });
+
+    if (editingQuestion) {
+      if (titleEl) titleEl.innerHTML = '✏️ Chỉnh Sửa Câu Hỏi Trong Đề Thi';
+      if (qContent) qContent.value = editingQuestion.question || '';
+      if (qTopic) qTopic.value = editingQuestion.topic || '';
+      if (qLesson) qLesson.value = editingQuestion.lesson || '';
+      if (qExplanation) qExplanation.value = editingQuestion.explanation || '';
+      if (qLevel) qLevel.value = String(editingQuestion.level || '2');
+
+      const qType = editingQuestion.type || (editingQuestion.level === 'DS' ? 'DS' : (editingQuestion.level === 'TLN' ? 'TLN' : 'MCQ'));
+      const typeRadio = modal.querySelector(`input[name="manual-q-type"][value="${qType}"]`);
+      if (typeRadio) typeRadio.checked = true;
+      setQuestionType(qType);
+
+      if (qType === 'MCQ' && editingQuestion.options) {
+        if (optA) optA.value = editingQuestion.options[0] || '';
+        if (optB) optB.value = editingQuestion.options[1] || '';
+        if (optC) optC.value = editingQuestion.options[2] || '';
+        if (optD) optD.value = editingQuestion.options[3] || '';
+
+        let ansChar = 'A';
+        if (typeof editingQuestion.answer === 'number') {
+          ansChar = ['A', 'B', 'C', 'D'][editingQuestion.answer] || 'A';
+        } else if (typeof editingQuestion.answer === 'string') {
+          ansChar = editingQuestion.answer.trim().toUpperCase()[0] || 'A';
+        }
+        const radioAns = modal.querySelector(`input[name="manual-mcq-correct"][value="${ansChar}"]`);
+        if (radioAns) radioAns.checked = true;
+      } else if (qType === 'DS' && editingQuestion.subItems) {
+        const subs = editingQuestion.subItems;
+        if (dsTextA) dsTextA.value = subs[0]?.content || '';
+        if (dsTextB) dsTextB.value = subs[1]?.content || '';
+        if (dsTextC) dsTextC.value = subs[2]?.content || '';
+        if (dsTextD) dsTextD.value = subs[3]?.content || '';
+        if (dsAnsA) dsAnsA.value = String(subs[0]?.isCorrect ?? true);
+        if (dsAnsB) dsAnsB.value = String(subs[1]?.isCorrect ?? false);
+        if (dsAnsC) dsAnsC.value = String(subs[2]?.isCorrect ?? true);
+        if (dsAnsD) dsAnsD.value = String(subs[3]?.isCorrect ?? false);
+      } else if (qType === 'TLN') {
+        if (tlnAnswer) tlnAnswer.value = editingQuestion.correctShortAnswer || editingQuestion.answer || '';
+      }
+    } else {
+      if (titleEl) titleEl.innerHTML = '✍️ Tự Soạn & Thêm Câu Hỏi Mới Vào Đề Thi';
+      form?.reset();
+      const firstRadio = modal.querySelector('input[name="manual-q-type"][value="MCQ"]');
+      if (firstRadio) firstRadio.checked = true;
+      setQuestionType('MCQ');
+
+      if (qTopic) qTopic.value = (filterTopic && filterTopic !== 'all') ? filterTopic : `Chủ đề Khối ${curGrade}`;
+      if (qLesson) qLesson.value = (filterLesson && filterLesson !== 'all') ? filterLesson : 'Bài học tự chọn';
+      if (qLevel) qLevel.value = '2';
+    }
+
+    const closeModal = () => modal.classList.add('hidden');
+    if (btnClose) btnClose.onclick = closeModal;
+    if (btnCancel) btnCancel.onclick = closeModal;
+
+    // Xử lý lưu câu hỏi
+    const saveQuestionData = (continueNext = false) => {
+      const qText = qContent?.value.trim();
+      if (!qText) {
+        alert('Vui lòng nhập nội dung câu hỏi!');
+        qContent?.focus();
+        return false;
+      }
+
+      const qType = modal.querySelector('input[name="manual-q-type"]:checked')?.value || 'MCQ';
+      const user = Auth.getCurrentUser();
+      const id = editingQuestion ? editingQuestion.id : `manual_q_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+
+      let optionsArr = [];
+      let correctAnswer = 'A';
+      let subItemsArr = null;
+      let shortAns = '';
+
+      if (qType === 'MCQ') {
+        const valA = optA?.value.trim();
+        const valB = optB?.value.trim();
+        const valC = optC?.value.trim();
+        const valD = optD?.value.trim();
+        if (!valA || !valB || !valC || !valD) {
+          alert('Vui lòng điền đủ 4 phương án A, B, C, D!');
+          return false;
+        }
+        optionsArr = [valA, valB, valC, valD];
+        correctAnswer = modal.querySelector('input[name="manual-mcq-correct"]:checked')?.value || 'A';
+      } else if (qType === 'DS') {
+        const valA = dsTextA?.value.trim();
+        const valB = dsTextB?.value.trim();
+        const valC = dsTextC?.value.trim();
+        const valD = dsTextD?.value.trim();
+        if (!valA || !valB || !valC || !valD) {
+          alert('Vui lòng điền đủ nội dung cho cả 4 nhận định a, b, c, d!');
+          return false;
+        }
+        subItemsArr = [
+          { letter: 'a', content: valA, isCorrect: dsAnsA?.value === 'true' },
+          { letter: 'b', content: valB, isCorrect: dsAnsB?.value === 'true' },
+          { letter: 'c', content: valC, isCorrect: dsAnsC?.value === 'true' },
+          { letter: 'd', content: valD, isCorrect: dsAnsD?.value === 'true' }
+        ];
+        correctAnswer = subItemsArr.map(s => `${s.letter}:${s.isCorrect ? 'Đ' : 'S'}`).join(', ');
+      } else if (qType === 'TLN') {
+        shortAns = tlnAnswer?.value.trim();
+        if (!shortAns) {
+          alert('Vui lòng nhập đáp án ngắn chuẩn xác!');
+          tlnAnswer?.focus();
+          return false;
+        }
+        correctAnswer = shortAns;
+      }
+
+      const qObj = {
+        id,
+        type: qType,
+        level: qType === 'DS' ? 'DS' : (qType === 'TLN' ? 'TLN' : (qLevel?.value || '2')),
+        grade: curGrade,
+        topic: qTopic?.value.trim() || `Chủ đề Khối ${curGrade}`,
+        lesson: qLesson?.value.trim() || 'Bài học tự chọn',
+        question: qText,
+        options: optionsArr,
+        answer: correctAnswer,
+        subItems: subItemsArr,
+        correctShortAnswer: shortAns,
+        explanation: qExplanation?.value.trim() || '',
+        isManualCustom: true,
+        createdBy: user?.email || 'Teacher',
+        creatorName: user?.fullName || 'Giáo viên',
+        createdAt: editingQuestion?.createdAt || Date.now(),
+        updatedAt: Date.now()
+      };
+
+      // 1. Thêm vào Map câu hỏi đã chọn cho đề thi
+      this.selectedQuestionsMap.set(id, qObj);
+
+      // 2. Thêm hoặc cập nhật trong danh sách hiển thị
+      if (!this.loadedGradeQuestions) this.loadedGradeQuestions = [];
+      const existIdx = this.loadedGradeQuestions.findIndex(x => x.id === id);
+      if (existIdx !== -1) {
+        this.loadedGradeQuestions[existIdx] = qObj;
+      } else {
+        this.loadedGradeQuestions.unshift(qObj);
+      }
+
+      // 3. Nếu chọn lưu vào ngân hàng câu hỏi chung
+      if (chkSaveBank?.checked) {
+        Storage.saveQuestion(qObj);
+        if (typeof CloudSync !== 'undefined' && CloudSync.pushQuestionsToCloud) {
+          CloudSync.pushQuestionsToCloud();
+        }
+      }
+
+      // 4. Cập nhật UI
+      this.renderQuestionsPicker();
+      this.updateQuestionsPickSummary();
+
+      // Tự động tăng số câu trong input tổng nếu vượt quá
+      const countInput = document.getElementById('room-input-count');
+      if (countInput) {
+        const curCount = parseInt(countInput.value || '28', 10);
+        if (this.selectedQuestionsMap.size > curCount) {
+          countInput.value = this.selectedQuestionsMap.size;
+        }
+      }
+
+      if (continueNext) {
+        if (qContent) qContent.value = '';
+        if (optA) optA.value = '';
+        if (optB) optB.value = '';
+        if (optC) optC.value = '';
+        if (optD) optD.value = '';
+        if (dsTextA) dsTextA.value = '';
+        if (dsTextB) dsTextB.value = '';
+        if (dsTextC) dsTextC.value = '';
+        if (dsTextD) dsTextD.value = '';
+        if (tlnAnswer) tlnAnswer.value = '';
+        if (qExplanation) qExplanation.value = '';
+        qContent?.focus();
+        alert('✅ Đã lưu câu hỏi vào đề thi! Thầy Cô có thể tiếp tục soạn câu tiếp theo.');
+      } else {
+        closeModal();
+        alert('🎉 Đã thêm thành công câu hỏi tự soạn vào đề thi!');
+      }
+
+      return true;
+    };
+
+    if (form) {
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        saveQuestionData(false);
+      };
+    }
+
+    if (btnSaveAnother) {
+      btnSaveAnother.onclick = () => {
+        saveQuestionData(true);
+      };
+    }
+
+    modal.classList.remove('hidden');
+    qContent?.focus();
   },
 
   // ==================== BỘ XỬ LÝ NHẬP CÂU HỎI TỪ WORD / EXCEL ====================
@@ -1895,6 +2219,19 @@ Trí tuệ nhân tạo (AI) thường được ứng dụng phổ biến trong l
 
     if (qpickLevel) qpickLevel.onchange = () => this.renderQuestionsPicker();
     if (qpickSearch) qpickSearch.oninput = () => this.renderQuestionsPicker();
+
+    const btnQpickManualAdd = document.getElementById('btn-qpick-manual-add');
+    if (btnQpickManualAdd) {
+      btnQpickManualAdd.onclick = () => this.openManualQuestionModal();
+    }
+
+    const btnScopeManual = document.getElementById('btn-scope-manual');
+    if (btnScopeManual) {
+      btnScopeManual.onclick = () => {
+        setScope('questions');
+        this.openManualQuestionModal();
+      };
+    }
 
     if (btnQpickAutoFill) {
       btnQpickAutoFill.onclick = () => this.autoFillQuestionsRandomly();

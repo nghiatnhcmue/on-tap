@@ -172,6 +172,7 @@ Hệ thống tự động nhận diện nền tảng (`Proctor.detectPlatform()`
     - `Toàn bộ khối lớp`: Trộn ngẫu nhiên từ toàn bộ ngân hàng câu hỏi của khối.
     - `Chọn chủ đề / Nhiều bài học cụ thể & Tỉ lệ số câu`: Cho phép Giáo viên tích chọn nhiều Chủ đề và nhiều Bài học cụ thể cho một bài kiểm tra. Giáo viên có thể điều chỉnh số lượng câu hỏi hoặc tỉ lệ (%) cho từng bài học độc lập, có phím tắt "Chia đều số câu", thanh kiểm tra khớp tổng câu thời gian thực.
     - Khi học sinh vào thi, hệ thống phân bổ câu hỏi chính xác theo ma trận bài học đã cấu hình (với Đề chuẩn Bộ GD 2025: phân bổ 24 câu MCQ theo tỉ lệ các bài và bổ sung đúng 4 câu Đúng/Sai).
+    - `Tự Soạn Từng Câu Hỏi & Tùy Biến Đề Thi (Manual Question Builder)`: Cho phép Giáo viên tự soạn từng câu hỏi mới trực tiếp vào đề thi (`#modal-manual-add-question`). Hỗ trợ đầy đủ cả 3 dạng câu hỏi: MCQ (4 phương án, chọn đáp án đúng), Đúng/Sai (DS 4 nhận định độc lập theo barem Bộ GD), và Trả lời ngắn (TLN chuẩn hóa chuỗi). Giáo viên có thể chỉnh sửa (`[ ✏️ Sửa ]`) hoặc xóa (`[ 🗑️ Xóa ]`) câu hỏi trực tiếp trên danh sách, có tùy chọn lưu câu hỏi vào Ngân hàng chung của trường, hoặc kết hợp linh hoạt giữa câu tự soạn, câu chọn lọc từ ngân hàng 4.098 câu và câu nhập từ Word/Excel.
   - Tùy chọn đảo câu hỏi, đảo phương án A,B,C,D, và tùy chọn cấp Mã đề thi riêng chống nhìn bài nhau trong phòng thi (`randomExamCode`).
 - **Kiểm soát bảo mật khi vào phòng thi (`Storage.validateRoomAccess`):**
   - Bắt buộc kiểm tra: Mã phòng thi, Mật khẩu, Khung giờ mở/đóng.
