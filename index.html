@@ -50,7 +50,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261101_70" />
+  <link rel="stylesheet" href="css/style.css?v=20261101_71" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -122,7 +122,7 @@
         });
 
         // Nạp động module Auth để mở Google Popup ngay lập tức
-        import('./js/auth.js?v=20261101_70').then(function(mod) {
+        import('./js/auth.js?v=20261101_71').then(function(mod) {
           if (mod && mod.Auth) {
             window.Auth = mod.Auth;
             mod.Auth.signInWithGoogleFirebase();
@@ -878,6 +878,10 @@
               <input type="checkbox" id="practice-cfg-shuffle-options" checked class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 cursor-pointer" />
               <span><i class="fa-solid fa-list-ol text-purple-600 mr-1"></i>Đảo phương án (A, B, C, D)</span>
             </label>
+            <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-700 dark:text-slate-300">
+              <input type="checkbox" id="practice-cfg-exclude-mastered" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer" />
+              <span><i class="fa-solid fa-graduation-cap text-emerald-600 mr-1"></i>Bỏ qua câu đã làm đúng</span>
+            </label>
           </div>
           <div class="flex items-center gap-2">
             <button type="button" id="btn-practice-wrong-questions" class="px-3.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 font-bold transition flex items-center gap-1.5">
@@ -967,21 +971,21 @@
             </p>
           </button>
 
-          <!-- Card 3: Theo Bài Học -->
+          <!-- Card 3: Theo Bài Học (1 hoặc nhiều bài, toàn bộ câu) -->
           <button type="button" id="tab-exam-mode-lesson" data-exam-tab="lesson" class="exam-mode-card group relative p-4 rounded-2xl border-2 text-left transition-all duration-200 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-sm cursor-pointer">
             <div class="flex items-center justify-between mb-3">
               <div class="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center text-base group-hover:scale-105 transition-transform shrink-0">
                 <i class="fa-solid fa-book-bookmark"></i>
               </div>
               <span class="mode-badge px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                Kiểm tra 15p
+                1 hoặc nhiều bài
               </span>
             </div>
             <h4 class="font-extrabold text-sm text-slate-800 dark:text-white group-hover:text-teal-600 transition-colors">
               Luyện Theo Bài Học
             </h4>
             <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
-              Kiểm tra nhanh kiến thức từng bài • 10 - 25 câu ngắn gọn
+              Ôn trọn vẹn 1 bài hoặc kết hợp nhiều bài • Toàn bộ câu
             </p>
           </button>
 
@@ -1108,43 +1112,120 @@
           </div>
         </div>
 
-        <!-- 3. PANEL: TRỘN ĐỀ THEO BÀI HỌC (KIỂM TRA 15 PHÚT) -->
+        <!-- 3. PANEL: TRỘN ĐỀ THEO BÀI HỌC (ÔN TRỌN VẸN 1 BÀI HOẶC KẾT HỢP NHIỀU BÀI) -->
         <div id="panel-exam-lesson" class="hidden space-y-5">
-          <div class="p-4 rounded-2xl bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200/60 dark:border-teal-900/40 text-xs text-teal-900 dark:text-teal-300 flex items-center gap-2.5">
-            <i class="fa-solid fa-clock text-teal-600 text-sm shrink-0"></i>
-            <span>Chế độ kiểm tra <b>Theo Bài Học</b>: Lý tưởng cho các bài kiểm tra 15 phút đầu giờ hoặc ôn lại bài giảng vừa học trên lớp.</span>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                1. Chọn Chủ Đề <span class="text-rose-500">*</span>
-              </label>
-              <select id="exam-lesson-topic-select" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500">
-                <option value="">-- Vui lòng chọn chủ đề --</option>
-              </select>
+          <!-- Banner & Chuyển Chế độ: 1 bài vs Nhiều bài -->
+          <div class="p-4 rounded-2xl bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200/70 dark:border-teal-900/50 text-xs text-teal-900 dark:text-teal-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5">
+              <i class="fa-solid fa-graduation-cap text-teal-600 dark:text-teal-400 text-base shrink-0"></i>
+              <span><b>Chế độ Luyện Theo Bài Học:</b> Ôn trọn vẹn toàn bộ câu của bài hoặc tích chọn kết hợp nhiều bài để thi thử.</span>
             </div>
-
-            <div>
-              <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                2. Chọn Bài Học Cụ Thể <span class="text-rose-500">*</span>
-              </label>
-              <select id="exam-lesson-select" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500">
-                <option value="">-- Vui lòng chọn chủ đề trước --</option>
-              </select>
+            <div class="inline-flex p-1 bg-white/90 dark:bg-slate-900/90 rounded-xl border border-teal-200 dark:border-teal-800 shrink-0 self-start sm:self-auto shadow-xs">
+              <button type="button" id="btn-lesson-mode-single" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-600 text-white shadow-xs transition">
+                <i class="fa-solid fa-file-lines mr-1"></i> 1 Bài Cụ Thể
+              </button>
+              <button type="button" id="btn-lesson-mode-multi" class="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-teal-600 transition">
+                <i class="fa-solid fa-layer-group mr-1"></i> Chọn Nhiều Bài Học
+              </button>
             </div>
           </div>
 
+          <!-- 1. BỘ CHỌN: CHẾ ĐỘ 1 BÀI CỤ THỂ -->
+          <div id="lesson-submode-single-box" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  1. Chọn Chủ Đề <span class="text-rose-500">*</span>
+                </label>
+                <select id="exam-lesson-topic-select" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500">
+                  <option value="">-- Vui lòng chọn chủ đề --</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  2. Chọn Bài Học Cụ Thể <span class="text-rose-500">*</span>
+                </label>
+                <select id="exam-lesson-select" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500">
+                  <option value="">-- Vui lòng chọn chủ đề trước --</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. BỘ CHỌN: CHẾ ĐỘ CHỌN NHIỀU BÀI HỌC (MULTI-LESSONS) -->
+          <div id="lesson-submode-multi-box" class="hidden space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Lọc bài học theo Chủ đề (hoặc Toàn khối)
+                </label>
+                <select id="exam-lesson-multi-topic-filter" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500">
+                  <option value="all">-- Tất cả các chủ đề trong khối --</option>
+                </select>
+              </div>
+
+              <div class="flex items-center justify-end gap-3 pt-4 sm:pt-0">
+                <button type="button" id="btn-lesson-multi-check-all" class="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 text-xs font-bold transition flex items-center gap-1.5 border border-teal-200 dark:border-teal-800">
+                  <i class="fa-solid fa-check-double"></i> Chọn tất cả
+                </button>
+                <button type="button" id="btn-lesson-multi-uncheck-all" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold transition">
+                  Bỏ chọn tất cả
+                </button>
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between text-xs px-1">
+                <span class="font-bold text-slate-700 dark:text-slate-300">Danh sách các bài học:</span>
+                <span id="lesson-multi-summary-text" class="text-teal-600 dark:text-teal-400 font-bold">Đã chọn: 0 bài (0 câu)</span>
+              </div>
+              <div id="exam-lesson-multi-checklist" class="p-3.5 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-700 max-h-60 overflow-y-auto space-y-1.5 pr-1 divide-y divide-slate-100 dark:divide-slate-800">
+                <!-- Checklist điền động -->
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. KHỐI CHẾ ĐỘ HỌC THÔNG MINH (LOẠI TRỪ CÂU ĐÃ THÀNH THẠO) -->
+          <div class="p-4 bg-emerald-50/50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200/70 dark:border-emerald-800/60 space-y-2.5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <label class="flex items-start sm:items-center gap-2.5 cursor-pointer select-none">
+                <input type="checkbox" id="exam-lesson-exclude-mastered" checked class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer mt-0.5 sm:mt-0" />
+                <div>
+                  <span class="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                    <i class="fa-solid fa-brain text-emerald-600"></i> Chế Độ Học Thông Minh (Tránh Lặp Câu)
+                  </span>
+                  <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                    Bỏ qua các câu đã trả lời đúng trước đó, chỉ tập trung ôn câu chưa làm hoặc từng làm sai.
+                  </p>
+                </div>
+              </label>
+
+              <button type="button" id="btn-reset-lesson-progress" class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-white transition flex items-center gap-1 shrink-0 self-end sm:self-auto px-2.5 py-1 rounded-lg bg-emerald-100/70 dark:bg-emerald-900/50" title="Đặt lại tiến trình câu đúng của bài để ôn lại toàn bộ từ đầu">
+                <i class="fa-solid fa-rotate-left"></i> Ôn lại từ đầu
+              </button>
+            </div>
+
+            <!-- Mini Progress bar tiến trình bài học -->
+            <div id="lesson-mastered-progress-box" class="space-y-1 pt-1 border-t border-emerald-100 dark:border-emerald-900/50">
+              <div class="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300">
+                <span id="lesson-mastered-stats-text">🎯 Đã nắm vững: 0/0 câu (0%)</span>
+                <span id="lesson-remaining-stats-text" class="font-bold text-emerald-600 dark:text-emerald-400">Còn lại: 0 câu cần ôn</span>
+              </div>
+              <div class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div id="lesson-mastered-progress-bar" class="h-full bg-emerald-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. SỐ LƯỢNG CÂU & THỜI GIAN LÀM BÀI -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                Số lượng câu hỏi (Khuyến nghị 10 - 15 câu)
+                Số lượng câu hỏi <span class="text-rose-500">*</span>
               </label>
-              <select id="exam-lesson-count" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
-                <option value="10" selected>10 câu (Kiểm tra 15 phút chuẩn)</option>
-                <option value="15">15 câu (Kiểm tra 20 phút)</option>
-                <option value="20">20 câu (Kiểm tra 30 phút)</option>
-                <option value="25">25 câu (Toàn bộ câu của bài)</option>
+              <select id="exam-lesson-count" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-teal-500">
+                <option value="all">Toàn bộ câu hỏi của bài</option>
               </select>
             </div>
 
@@ -1152,18 +1233,29 @@
               <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                 Thời gian làm bài
               </label>
-              <select id="exam-lesson-duration" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
-                <option value="10">10 phút</option>
+              <select id="exam-lesson-duration" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-teal-500">
+                <option value="0">Tự do (Không giới hạn thời gian - Khuyên dùng)</option>
                 <option value="15" selected>15 phút (Chuẩn 15p)</option>
                 <option value="20">20 phút</option>
                 <option value="30">30 phút</option>
+                <option value="45">45 phút (1 tiết)</option>
+                <option value="60">60 phút</option>
+                <option value="90">90 phút</option>
               </select>
             </div>
           </div>
 
+          <!-- 5. TIÊU ĐỀ BÀI KIỂM TRA (TÙY CHỌN) -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+              Tiêu đề bài ôn tập / thi thử (Tùy chọn)
+            </label>
+            <input type="text" id="exam-lesson-custom-title" placeholder="Hệ thống tự động đặt tên theo bài học (hoặc tự nhập tiêu đề riêng)" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          </div>
+
           <div class="pt-2">
-            <button type="button" id="btn-start-lesson-exam" class="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-teal-500/25 flex items-center justify-center gap-2">
-              <i class="fa-solid fa-play"></i> Bắt Đầu Bài Kiểm Tra 15 Phút Theo Bài Học
+            <button type="button" id="btn-start-lesson-exam" class="w-full py-3.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-teal-500/25 flex items-center justify-center gap-2">
+              <i class="fa-solid fa-play"></i> Bắt Đầu Làm Đề Ôn Luyện / Thi Thử
             </button>
           </div>
         </div>
@@ -2866,7 +2958,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261101_70"></script>
+  <script type="module" src="js/app.js?v=20261101_71"></script>
 </body>
 </html>
 

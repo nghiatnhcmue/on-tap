@@ -120,9 +120,11 @@ Hỗ trợ 4 chế độ sinh đề và trộn đề tự động từ ngân hà
 2. **📁 Trộn Đề Theo Chủ Đề (`by_topic`):**
    - Lọc ngân hàng câu hỏi theo Chủ đề cụ thể trong khối lớp (`q.topic`).
    - Tùy chỉnh số lượng câu (10, 15, 20, 25, 30, 40 câu) và thời lượng (15, 20, 30, 45, 50 phút).
-3. **📖 Trộn Đề Theo Bài Học - Kiểm Tra 15 Phút (`by_lesson`):**
-   - Lọc chính xác theo Chủ đề và Bài học cụ thể (`q.topic` & `q.lesson`).
-   - Tùy chỉnh số lượng câu (10, 15, 20, 25 câu) và thời lượng (10, 15, 20, 30 phút).
+3. **📖 Luyện Tập Theo Bài Học & Thi Thử Tự Chọn (`by_lesson`):**
+   - Hỗ trợ 2 chế độ linh hoạt: **1 Bài Cụ Thể** hoặc **Chọn Nhiều Bài Học (Multi-lessons Checklist)** để tạo đề ôn thi giữa kỳ/học kỳ.
+   - **Ôn trọn vẹn toàn bộ câu hỏi:** Không giới hạn cứng ở 25 câu; tự động nhận diện chính xác tổng số câu của bài (ví dụ 44/44 câu) và cho phép học sinh ôn toàn bộ hoặc chọn các mốc (10, 15, 20, 25, 30, 40...).
+   - **Chế độ Học Thông Minh (Mastery Learning):** Tự động ghi nhận câu đã trả lời đúng vào `Storage.recordMasteredQuestion` và gỡ khỏi danh sách câu sai. Tùy chọn **"Bỏ qua câu đã làm đúng"** giúp học sinh chỉ ôn các câu chưa thuộc hoặc từng làm sai, kèm thanh tiến trình thành thạo trực quan và nút **"Ôn lại từ đầu"** (`clearMasteredQuestions`).
+   - **Thời gian làm bài tự do:** Hỗ trợ tùy chọn **"Tự do (Không giới hạn thời gian)"** với timer đếm xuôi, không tự nộp bài khi hết giờ, phù hợp để học sinh nghiền ngẫm toàn bộ câu hỏi.
 4. **⚙️ Ma Trận Nhận Thức Tự Chọn (`custom`):**
    - Lọc theo cấp độ nhận thức GDPT 2018: Mức 1 (Nhận biết), Mức 2 (Thông hiểu), Mức 3 (Vận dụng), Mức 4 (Vận dụng cao), DS hoặc TLN.
    - Tùy chỉnh số câu (10–50 câu) và thời gian làm bài (15–90 phút).

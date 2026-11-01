@@ -3,22 +3,22 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261101_70';
-import { Practice } from './practice.js?v=20261101_70';
-import { Exam } from './exam.js?v=20261101_70';
-import { Search } from './search.js?v=20261101_70';
-import { PrintManager } from './print.js?v=20261101_70';
-import { Auth } from './auth.js?v=20261101_70';
-import { escapeHtml } from './utils.js?v=20261101_70';
-import { Leaderboard } from './leaderboard.js?v=20261101_70';
-import { QuestionsManager } from './questions-manager.js?v=20261101_70';
-import { AdminManager } from './admin-manager.js?v=20261101_70';
-import { ExamRooms } from './exam-rooms.js?v=20261101_70';
-import { Proctor } from './proctor.js?v=20261101_70';
-import { Gradebook } from './gradebook.js?v=20261101_70';
-import { CloudSync } from './cloud-sync.js?v=20261101_70';
-import { InteractiveVideo } from './interactive-video.js?v=20261101_70';
-import { LiveVideo } from './live-video.js?v=20261101_70';
+import { Storage } from './storage.js?v=20261101_71';
+import { Practice } from './practice.js?v=20261101_71';
+import { Exam } from './exam.js?v=20261101_71';
+import { Search } from './search.js?v=20261101_71';
+import { PrintManager } from './print.js?v=20261101_71';
+import { Auth } from './auth.js?v=20261101_71';
+import { escapeHtml } from './utils.js?v=20261101_71';
+import { Leaderboard } from './leaderboard.js?v=20261101_71';
+import { QuestionsManager } from './questions-manager.js?v=20261101_71';
+import { AdminManager } from './admin-manager.js?v=20261101_71';
+import { ExamRooms } from './exam-rooms.js?v=20261101_71';
+import { Proctor } from './proctor.js?v=20261101_71';
+import { Gradebook } from './gradebook.js?v=20261101_71';
+import { CloudSync } from './cloud-sync.js?v=20261101_71';
+import { InteractiveVideo } from './interactive-video.js?v=20261101_71';
+import { LiveVideo } from './live-video.js?v=20261101_71';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -187,7 +187,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261101_70');
+      const res = await fetch('data/manifest.json?v=20261101_71');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
@@ -1233,12 +1233,15 @@ class App {
       const t = topicSelect ? topicSelect.value : 'all';
       const l = lessonSelect ? lessonSelect.value : 'all';
       const lvl = levelSelect ? levelSelect.value : 'all';
-      Practice.filter(g, t, l, lvl);
+      const excludeMastered = !!document.getElementById('practice-cfg-exclude-mastered')?.checked;
+      Practice.filter(g, t, l, lvl, excludeMastered);
     };
 
     if (topicSelect) topicSelect.onchange = () => { updateLessons(); doFilter(); };
     if (lessonSelect) lessonSelect.onchange = doFilter;
     if (levelSelect) levelSelect.onchange = doFilter;
+    const pExcludeMastered = document.getElementById('practice-cfg-exclude-mastered');
+    if (pExcludeMastered) pExcludeMastered.onchange = doFilter;
     if (gradeSelect) {
       gradeSelect.onchange = async (e) => {
         await this.switchGrade(e.target.value);
@@ -1373,44 +1376,91 @@ class App {
       };
     }
 
-    // 3. Nút thi Trộn theo Bài học (15 phút)
+    // 3. Nút thi Trộn theo Bài học (1 hoặc nhiều bài, ôn toàn bộ hoặc tùy chọn)
     const btnStartLesson = document.getElementById('btn-start-lesson-exam');
     if (btnStartLesson) {
       btnStartLesson.onclick = async () => {
         const curGrade = gradeSelect ? gradeSelect.value : this.currentGrade;
-        const topic = document.getElementById('exam-lesson-topic-select')?.value;
-        const lesson = document.getElementById('exam-lesson-select')?.value;
-
-        if (!topic) {
-          alert('Vui lòng chọn Chủ đề trước!');
-          document.getElementById('exam-lesson-topic-select')?.focus();
-          return;
-        }
-        if (!lesson) {
-          alert('Vui lòng chọn Bài học cụ thể cần thi thử!');
-          document.getElementById('exam-lesson-select')?.focus();
-          return;
-        }
-
-        const count = parseInt(document.getElementById('exam-lesson-count')?.value || '10', 10);
-        const duration = parseInt(document.getElementById('exam-lesson-duration')?.value || '15', 10);
-        const title = `Thi thử 15 phút: ${lesson} - Khối ${curGrade}`;
+        const isSingleMode = this.lessonSubMode !== 'multi';
         const { shuffleQuestions, shuffleOptions, antiCheat } = getExamShuffleConfig();
         const examCode = String(Math.floor(100 + Math.random() * 900));
+        const rawCount = document.getElementById('exam-lesson-count')?.value || 'all';
+        const count = (rawCount === 'all') ? 'all' : parseInt(rawCount, 10);
+        const duration = parseInt(document.getElementById('exam-lesson-duration')?.value || '15', 10);
+        const excludeMastered = !!document.getElementById('exam-lesson-exclude-mastered')?.checked;
+        const customTitle = document.getElementById('exam-lesson-custom-title')?.value.trim();
 
-        await this.startExam({
-          type: 'by_lesson',
-          title,
-          grade: curGrade,
-          topic,
-          lesson,
-          count,
-          duration,
-          examCode,
-          shuffleQuestions,
-          shuffleOptions,
-          antiCheat
-        });
+        if (count === 0) {
+          alert('Không còn câu hỏi nào phù hợp với bộ lọc (tất cả câu đã làm đúng)! Hãy bỏ chọn "Bỏ qua các câu đã làm đúng" hoặc bấm "Ôn lại từ đầu".');
+          return;
+        }
+
+        if (isSingleMode) {
+          const topic = document.getElementById('exam-lesson-topic-select')?.value;
+          const lesson = document.getElementById('exam-lesson-select')?.value;
+
+          if (!topic) {
+            alert('Vui lòng chọn Chủ đề trước!');
+            document.getElementById('exam-lesson-topic-select')?.focus();
+            return;
+          }
+          if (!lesson) {
+            alert('Vui lòng chọn Bài học cụ thể cần ôn luyện!');
+            document.getElementById('exam-lesson-select')?.focus();
+            return;
+          }
+
+          const defaultTitle = duration === 0
+            ? `Ôn tập toàn bộ: ${lesson} - Khối ${curGrade}`
+            : `Thi thử: ${lesson} (${duration} phút) - Khối ${curGrade}`;
+          const title = customTitle || defaultTitle;
+
+          await this.startExam({
+            type: 'by_lesson',
+            title,
+            grade: curGrade,
+            topic,
+            lesson,
+            count,
+            duration,
+            excludeMastered,
+            examCode,
+            shuffleQuestions,
+            shuffleOptions,
+            antiCheat
+          });
+        } else {
+          // Multi-lessons mode
+          const checkedBoxes = Array.from(document.querySelectorAll('#exam-lesson-multi-checklist input[type="checkbox"]:checked'));
+          if (checkedBoxes.length === 0) {
+            alert('Vui lòng tích chọn ít nhất 1 bài học để tạo đề ôn luyện!');
+            return;
+          }
+
+          const selectedLessons = checkedBoxes.map(cb => ({
+            lesson: cb.value,
+            topic: cb.getAttribute('data-topic')
+          }));
+
+          const defaultTitle = duration === 0
+            ? `Ôn tập tổng hợp ${selectedLessons.length} bài học - Khối ${curGrade}`
+            : `Thi thử tổng hợp ${selectedLessons.length} bài học (${duration} phút) - Khối ${curGrade}`;
+          const title = customTitle || defaultTitle;
+
+          await this.startExam({
+            type: 'by_lesson',
+            title,
+            grade: curGrade,
+            selectedLessons,
+            count,
+            duration,
+            excludeMastered,
+            examCode,
+            shuffleQuestions,
+            shuffleOptions,
+            antiCheat
+          });
+        }
       };
     }
 
@@ -1467,38 +1517,316 @@ class App {
       topicSelect.innerHTML = tHtml;
     }
 
-    // 2. Panel Theo Bài học
-    const lessonTopicSelect = document.getElementById('exam-lesson-topic-select');
-    const lessonSelect = document.getElementById('exam-lesson-select');
-    if (lessonTopicSelect) {
-      let ltHtml = `<option value="">-- Vui lòng chọn chủ đề --</option>`;
-      topics.forEach(t => {
-        ltHtml += `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`;
-      });
-      lessonTopicSelect.innerHTML = ltHtml;
-
-      lessonTopicSelect.onchange = () => {
-        const selTopic = lessonTopicSelect.value;
-        if (!selTopic || !gradeData.topics[selTopic]) {
-          lessonSelect.innerHTML = `<option value="">-- Vui lòng chọn chủ đề trước --</option>`;
-          lessonSelect.disabled = true;
-          return;
-        }
-        const lessons = Object.keys(gradeData.topics[selTopic].lessons || {});
-        let lHtml = `<option value="">-- Chọn bài học --</option>`;
-        lessons.forEach(l => {
-          lHtml += `<option value="${escapeHtml(l)}">${escapeHtml(l)} (${gradeData.topics[selTopic].lessons[l].total} câu)</option>`;
-        });
-        lessonSelect.innerHTML = lHtml;
-        lessonSelect.disabled = false;
-      };
-    }
+    // 2. Panel Theo Bài học (1 bài hoặc kết hợp nhiều bài)
+    this.setupLessonExamUI(grade, gradeData);
 
     // 3. Cập nhật mã đề thi ngẫu nhiên gợi ý
     const bgdCodeEl = document.getElementById('bgd-suggested-code');
     if (bgdCodeEl) {
       bgdCodeEl.textContent = `Mã đề ${Math.floor(100 + Math.random() * 900)}`;
     }
+  }
+
+
+  // Quản lý toàn bộ giao diện và logic Panel Luyện Theo Bài Học (1 bài hoặc nhiều bài, ôn toàn bộ, loại trừ câu đã làm đúng)
+  setupLessonExamUI(grade, gradeData) {
+    this.lessonSubMode = this.lessonSubMode || 'single';
+    const topics = Object.keys(gradeData.topics || {});
+
+    const btnSingle = document.getElementById('btn-lesson-mode-single');
+    const btnMulti = document.getElementById('btn-lesson-mode-multi');
+    const singleBox = document.getElementById('lesson-submode-single-box');
+    const multiBox = document.getElementById('lesson-submode-multi-box');
+    const topicSelect = document.getElementById('exam-lesson-topic-select');
+    const lessonSelect = document.getElementById('exam-lesson-select');
+    const multiTopicFilter = document.getElementById('exam-lesson-multi-topic-filter');
+    const multiChecklist = document.getElementById('exam-lesson-multi-checklist');
+    const btnCheckAll = document.getElementById('btn-lesson-multi-check-all');
+    const btnUncheckAll = document.getElementById('btn-lesson-multi-uncheck-all');
+    const multiSummaryText = document.getElementById('lesson-multi-summary-text');
+    const excludeMasteredCb = document.getElementById('exam-lesson-exclude-mastered');
+    const btnResetProgress = document.getElementById('btn-reset-lesson-progress');
+    const masteredStatsText = document.getElementById('lesson-mastered-stats-text');
+    const remainingStatsText = document.getElementById('lesson-remaining-stats-text');
+    const progressBar = document.getElementById('lesson-mastered-progress-bar');
+    const countSelect = document.getElementById('exam-lesson-count');
+
+    // Helper: Cập nhật dropdown số lượng câu hỏi
+    const updateCountDropdown = (availableCount, totalCount) => {
+      if (!countSelect) return;
+      if (availableCount <= 0) {
+        countSelect.innerHTML = `<option value="0">Tất cả câu hỏi đã làm đúng! Bấm "Ôn lại từ đầu" để làm lại</option>`;
+        return;
+      }
+      let html = `<option value="all" selected>Toàn bộ câu hỏi (${availableCount} câu - Ôn trọn vẹn)</option>`;
+      const steps = [10, 15, 20, 25, 30, 40, 50, 60, 80, 100];
+      steps.forEach(s => {
+        if (s < availableCount) {
+          html += `<option value="${s}">${s} câu (${s <= 15 ? 'Kiểm tra 15p' : (s <= 25 ? 'Kiểm tra 1 tiết' : 'Luyện đề dài')})</option>`;
+        }
+      });
+      countSelect.innerHTML = html;
+    };
+
+    // Helper: Cập nhật thống kê và dropdown cho Single Lesson
+    const updateSingleStats = () => {
+      const selTopic = topicSelect?.value;
+      const selLesson = lessonSelect?.value;
+      if (!selTopic || !selLesson || !gradeData.topics[selTopic]?.lessons[selLesson]) {
+        if (masteredStatsText) masteredStatsText.textContent = '🎯 Đã nắm vững: 0/0 câu (0%)';
+        if (remainingStatsText) remainingStatsText.textContent = 'Còn lại: 0 câu cần ôn';
+        if (progressBar) progressBar.style.width = '0%';
+        if (countSelect) countSelect.innerHTML = `<option value="all">Vui lòng chọn bài học ở trên</option>`;
+        return;
+      }
+
+      const totalLessonQ = gradeData.topics[selTopic].lessons[selLesson].total || 0;
+      const masteredIds = Storage.getMasteredQuestionIds(grade, selTopic, selLesson);
+      const masteredCount = masteredIds.size;
+      const remainingCount = Math.max(0, totalLessonQ - masteredCount);
+      const pct = totalLessonQ > 0 ? Math.round((masteredCount / totalLessonQ) * 100) : 0;
+
+      if (masteredStatsText) masteredStatsText.textContent = `🎯 Đã nắm vững: ${masteredCount}/${totalLessonQ} câu (${pct}%)`;
+      if (remainingStatsText) remainingStatsText.textContent = `Còn lại: ${remainingCount} câu cần ôn`;
+      if (progressBar) progressBar.style.width = `${pct}%`;
+
+      const isExclude = excludeMasteredCb?.checked;
+      const available = isExclude ? remainingCount : totalLessonQ;
+      updateCountDropdown(available, totalLessonQ);
+    };
+
+    // Helper: Cập nhật thống kê và dropdown cho Multi Lessons
+    const updateMultiStats = () => {
+      if (!multiChecklist) return;
+      const checkedBoxes = Array.from(multiChecklist.querySelectorAll('input[type="checkbox"]:checked'));
+      if (checkedBoxes.length === 0) {
+        if (multiSummaryText) multiSummaryText.textContent = 'Chưa chọn bài học nào. Vui lòng tích chọn các bài cần ôn.';
+        if (masteredStatsText) masteredStatsText.textContent = '🎯 Đã nắm vững: 0/0 câu (0%)';
+        if (remainingStatsText) remainingStatsText.textContent = 'Còn lại: 0 câu cần ôn';
+        if (progressBar) progressBar.style.width = '0%';
+        if (countSelect) countSelect.innerHTML = `<option value="all">Vui lòng tích chọn bài học ở trên</option>`;
+        return;
+      }
+
+      let totalQ = 0;
+      let totalMastered = 0;
+      checkedBoxes.forEach(cb => {
+        const c = parseInt(cb.getAttribute('data-count') || '0', 10);
+        const t = cb.getAttribute('data-topic');
+        const l = cb.value;
+        totalQ += c;
+        const m = Storage.getMasteredQuestionIds(grade, t, l);
+        totalMastered += m.size;
+      });
+
+      const remainingQ = Math.max(0, totalQ - totalMastered);
+      const pct = totalQ > 0 ? Math.round((totalMastered / totalQ) * 100) : 0;
+
+      if (multiSummaryText) multiSummaryText.textContent = `Đã chọn: ${checkedBoxes.length} bài học • Tổng cộng: ${totalQ} câu hỏi`;
+      if (masteredStatsText) masteredStatsText.textContent = `🎯 Đã nắm vững: ${totalMastered}/${totalQ} câu (${pct}%)`;
+      if (remainingStatsText) remainingStatsText.textContent = `Còn lại: ${remainingQ} câu cần ôn`;
+      if (progressBar) progressBar.style.width = `${pct}%`;
+
+      const isExclude = excludeMasteredCb?.checked;
+      const available = isExclude ? remainingQ : totalQ;
+      updateCountDropdown(available, totalQ);
+    };
+
+    // Chuyển đổi tab Single vs Multi
+    const switchSubMode = (mode) => {
+      this.lessonSubMode = mode;
+      const isSingle = (mode === 'single');
+      if (singleBox) singleBox.classList.toggle('hidden', !isSingle);
+      if (multiBox) multiBox.classList.toggle('hidden', isSingle);
+
+      if (btnSingle) {
+        btnSingle.className = isSingle
+          ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-600 text-white shadow-xs transition'
+          : 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-teal-600 transition';
+      }
+      if (btnMulti) {
+        btnMulti.className = !isSingle
+          ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-600 text-white shadow-xs transition'
+          : 'px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-teal-600 transition';
+      }
+
+      if (isSingle) {
+        updateSingleStats();
+      } else {
+        updateMultiStats();
+      }
+    };
+
+    if (btnSingle) btnSingle.onclick = () => switchSubMode('single');
+    if (btnMulti) btnMulti.onclick = () => switchSubMode('multi');
+
+    // 1. Setup Single Mode Dropdowns
+    if (topicSelect) {
+      let ltHtml = `<option value="">-- Vui lòng chọn chủ đề --</option>`;
+      topics.forEach(t => {
+        ltHtml += `<option value="${escapeHtml(t)}">${escapeHtml(t)} (${gradeData.topics[t].total} câu)</option>`;
+      });
+      topicSelect.innerHTML = ltHtml;
+
+      topicSelect.onchange = () => {
+        const selTopic = topicSelect.value;
+        if (!selTopic || !gradeData.topics[selTopic]) {
+          lessonSelect.innerHTML = `<option value="">-- Vui lòng chọn chủ đề trước --</option>`;
+          lessonSelect.disabled = true;
+          updateSingleStats();
+          return;
+        }
+        const lessons = Object.keys(gradeData.topics[selTopic].lessons || {});
+        let lHtml = `<option value="">-- Chọn bài học --</option>`;
+        lessons.forEach(l => {
+          const count = gradeData.topics[selTopic].lessons[l].total;
+          lHtml += `<option value="${escapeHtml(l)}">${escapeHtml(l)} (${count} câu)</option>`;
+        });
+        lessonSelect.innerHTML = lHtml;
+        lessonSelect.disabled = false;
+        updateSingleStats();
+      };
+    }
+
+    if (lessonSelect) {
+      lessonSelect.onchange = updateSingleStats;
+    }
+
+    // 2. Setup Multi Mode Checklist & Filter
+    if (multiTopicFilter) {
+      let mtfHtml = `<option value="all">Tất cả chủ đề trong Khối ${grade} (${gradeData.total} câu)</option>`;
+      topics.forEach(t => {
+        mtfHtml += `<option value="${escapeHtml(t)}">${escapeHtml(t)} (${gradeData.topics[t].total} câu)</option>`;
+      });
+      multiTopicFilter.innerHTML = mtfHtml;
+
+      const renderChecklist = () => {
+        if (!multiChecklist) return;
+        const filterTopic = multiTopicFilter.value;
+        let html = '';
+
+        topics.forEach(t => {
+          if (filterTopic !== 'all' && filterTopic !== t) return;
+          const lessons = Object.keys(gradeData.topics[t]?.lessons || {});
+          if (lessons.length === 0) return;
+
+          html += `
+            <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700/60 space-y-1.5">
+              <div class="text-[11px] font-bold text-teal-700 dark:text-teal-300 flex items-center justify-between">
+                <span><i class="fa-solid fa-folder-open mr-1"></i> ${escapeHtml(t)}</span>
+                <span class="text-[10px] text-slate-400 font-normal">${gradeData.topics[t].total} câu</span>
+              </div>
+              <div class="space-y-1 pl-1">
+          `;
+
+          lessons.forEach(l => {
+            const count = gradeData.topics[t].lessons[l].total;
+            const mastered = Storage.getMasteredQuestionIds(grade, t, l).size;
+            const masteredBadge = mastered > 0
+              ? `<span class="px-1.5 py-0.5 text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded">Đã đúng ${mastered}/${count}</span>`
+              : '';
+
+            html += `
+              <label class="flex items-center justify-between p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-800 cursor-pointer text-xs transition">
+                <div class="flex items-center gap-2 min-w-0 pr-2">
+                  <input type="checkbox" name="exam-lesson-multi-item" value="${escapeHtml(l)}" data-topic="${escapeHtml(t)}" data-count="${count}" class="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 cursor-pointer shrink-0" />
+                  <span class="font-medium text-slate-700 dark:text-slate-200 truncate">${escapeHtml(l)}</span>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  ${masteredBadge}
+                  <span class="text-[10px] font-semibold text-slate-400">${count} câu</span>
+                </div>
+              </label>
+            `;
+          });
+
+          html += `
+              </div>
+            </div>
+          `;
+        });
+
+        multiChecklist.innerHTML = html;
+
+        // Gắn listener change cho từng checkbox
+        multiChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+          cb.onchange = updateMultiStats;
+        });
+        updateMultiStats();
+      };
+
+      multiTopicFilter.onchange = renderChecklist;
+      renderChecklist();
+    }
+
+    if (btnCheckAll && multiChecklist) {
+      btnCheckAll.onclick = () => {
+        multiChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+          cb.checked = true;
+        });
+        updateMultiStats();
+      };
+    }
+
+    if (btnUncheckAll && multiChecklist) {
+      btnUncheckAll.onclick = () => {
+        multiChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+          cb.checked = false;
+        });
+        updateMultiStats();
+      };
+    }
+
+    // 3. Setup Checkbox Exclude Mastered
+    if (excludeMasteredCb) {
+      excludeMasteredCb.onchange = () => {
+        if (this.lessonSubMode === 'single') {
+          updateSingleStats();
+        } else {
+          updateMultiStats();
+        }
+      };
+    }
+
+    // 4. Setup Nút Reset Tiến Trình Bài Học
+    if (btnResetProgress) {
+      btnResetProgress.onclick = () => {
+        if (this.lessonSubMode === 'single') {
+          const selTopic = topicSelect?.value;
+          const selLesson = lessonSelect?.value;
+          if (!selTopic || !selLesson) {
+            alert('Vui lòng chọn bài học cần đặt lại tiến trình!');
+            return;
+          }
+          if (!confirm(`Bạn có chắc muốn đặt lại tiến trình nắm vững câu hỏi của "${selLesson}" để ôn lại từ đầu không?`)) {
+            return;
+          }
+          Storage.clearMasteredQuestions(grade, selTopic, selLesson);
+          updateSingleStats();
+          alert(`Đã đặt lại tiến trình của "${selLesson}" thành công!`);
+        } else {
+          const checkedBoxes = Array.from(multiChecklist.querySelectorAll('input[type="checkbox"]:checked'));
+          if (checkedBoxes.length === 0) {
+            alert('Vui lòng chọn các bài học cần đặt lại tiến trình!');
+            return;
+          }
+          if (!confirm(`Bạn có chắc muốn đặt lại tiến trình câu hỏi của ${checkedBoxes.length} bài học đã chọn để ôn lại từ đầu không?`)) {
+            return;
+          }
+          checkedBoxes.forEach(cb => {
+            const t = cb.getAttribute('data-topic');
+            const l = cb.value;
+            Storage.clearMasteredQuestions(grade, t, l);
+          });
+          if (multiTopicFilter) multiTopicFilter.dispatchEvent(new Event('change'));
+          updateMultiStats();
+          alert(`Đã đặt lại tiến trình của ${checkedBoxes.length} bài học thành công!`);
+        }
+      };
+    }
+
+    // Thiết lập trạng thái ban đầu
+    switchSubMode(this.lessonSubMode);
   }
 
   // --- EXAM SETUP VIEW (PHÒNG KIỂM TRA TRỰC TUYẾN - CHỈ HIỆN KIỂM TRA CHÍNH THỨC) ---

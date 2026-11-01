@@ -3,8 +3,8 @@
  * Ghi nhận & Vinh danh thành tích thi thử của học sinh theo Ngày / Tuần / Tháng / Năm học
  */
 
-import { Storage } from './storage.js?v=20261101_70';
-import { escapeHtml } from './utils.js?v=20261101_70';
+import { Storage } from './storage.js?v=20261101_71';
+import { escapeHtml } from './utils.js?v=20261101_71';
 
 export const Leaderboard = {
   container: null,

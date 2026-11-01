@@ -3,9 +3,9 @@
  * Quản lý tính năng Ôn tập chuyên đề, luyện tập trắc nghiệm, đúng/sai, trả lời ngắn
  */
 
-import { Storage } from './storage.js?v=20261101_70';
-import { Auth } from './auth.js?v=20261101_70';
-import { escapeHtml } from './utils.js?v=20261101_70';
+import { Storage } from './storage.js?v=20261101_71';
+import { Auth } from './auth.js?v=20261101_71';
+import { escapeHtml } from './utils.js?v=20261101_71';
 
 export const Practice = {
   questions: [],
@@ -45,7 +45,8 @@ export const Practice = {
     this.render();
   },
 
-  filter(grade, topic, lesson, level) {
+  filter(grade, topic, lesson, level, excludeMastered = false) {
+    this.lastFilter = { grade, topic, lesson, level, excludeMastered };
     let result = this.questions;
 
     if (grade && grade !== 'all') {
@@ -59,6 +60,10 @@ export const Practice = {
     }
     if (level && level !== 'all') {
       result = result.filter(q => q.level === level);
+    }
+    if (excludeMastered) {
+      const masteredIds = Storage.getMasteredQuestionIds();
+      result = result.filter(q => !masteredIds.has(q.id));
     }
 
     this.rawFilteredQuestions = result;

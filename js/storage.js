@@ -16,6 +16,7 @@ const STORAGE_KEYS = {
   EXAM_ROOMS: 'tinhoc_exam_rooms',
   ACTIVE_EXAM_SESSION: 'tinhoc_active_exam_session',
   WRONG_QUESTIONS: 'tinhoc_wrong_questions',
+  MASTERED_QUESTIONS: 'tinhoc_mastered_questions',
   USER_NOTES: 'tinhoc_user_notes',
   STUDY_STREAK: 'tinhoc_study_streak',
   VIDEO_CONFIG: 'tinhoc_video_config',
@@ -1103,6 +1104,7 @@ export const Storage = {
       practiceStats: this.getPracticeStats(),
       bookmarks: this.getBookmarks(),
       wrongQuestions: this.getWrongQuestions(),
+      masteredQuestions: this.getAllMasteredQuestions(),
       studyStreak: this.getStudyStreak(),
       userNotes: this.getAllQuestionNotes(),
       videoProgress: this.getAllVideoProgress(),
@@ -1116,6 +1118,7 @@ export const Storage = {
       if (snap.practiceStats) localStorage.setItem(STORAGE_KEYS.PRACTICE_STATS, JSON.stringify(snap.practiceStats));
       if (Array.isArray(snap.bookmarks)) localStorage.setItem(STORAGE_KEYS.BOOKMARKS, JSON.stringify(snap.bookmarks));
       if (Array.isArray(snap.wrongQuestions)) localStorage.setItem(STORAGE_KEYS.WRONG_QUESTIONS, JSON.stringify(snap.wrongQuestions));
+      if (snap.masteredQuestions) localStorage.setItem(STORAGE_KEYS.MASTERED_QUESTIONS, JSON.stringify(snap.masteredQuestions));
       if (snap.studyStreak) localStorage.setItem(STORAGE_KEYS.STUDY_STREAK, JSON.stringify(snap.studyStreak));
       if (snap.userNotes) localStorage.setItem(STORAGE_KEYS.USER_NOTES, JSON.stringify(snap.userNotes));
       if (snap.videoProgress) localStorage.setItem(STORAGE_KEYS.VIDEO_PROGRESS, JSON.stringify(snap.videoProgress));
@@ -1341,6 +1344,79 @@ export const Storage = {
     localStorage.removeItem(STORAGE_KEYS.WRONG_QUESTIONS);
   },
 
+  // --- QUẢN LÝ CÂU HỎI ĐÃ THÀNH THẠO / ĐÃ LÀM ĐÚNG (SMART LEARNING / MASTERY) ---
+  getAllMasteredQuestions() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.MASTERED_QUESTIONS);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  },
+
+  getMasteredQuestionIds(grade = null, topic = null, lesson = null) {
+    const all = this.getAllMasteredQuestions();
+    const ids = new Set();
+    for (const [id, meta] of Object.entries(all)) {
+      if (grade && meta.grade && String(meta.grade) !== String(grade)) continue;
+      if (topic && meta.topic && meta.topic !== topic) continue;
+      if (lesson && meta.lesson && meta.lesson !== lesson) continue;
+      ids.add(id);
+    }
+    return ids;
+  },
+
+  recordMasteredQuestion(questionId, grade = null, topic = null, lesson = null) {
+    if (!questionId) return;
+    try {
+      const all = this.getAllMasteredQuestions();
+      all[questionId] = {
+        masteredAt: new Date().toISOString(),
+        grade: grade || null,
+        topic: topic || null,
+        lesson: lesson || null
+      };
+      localStorage.setItem(STORAGE_KEYS.MASTERED_QUESTIONS, JSON.stringify(all));
+      this.markWrongQuestionResolved(questionId);
+      this.notifyUserProgressChanged();
+    } catch (e) {
+      console.warn('Error recording mastered question:', e);
+    }
+  },
+
+  removeMasteredQuestion(questionId) {
+    if (!questionId) return;
+    try {
+      const all = this.getAllMasteredQuestions();
+      if (all[questionId]) {
+        delete all[questionId];
+        localStorage.setItem(STORAGE_KEYS.MASTERED_QUESTIONS, JSON.stringify(all));
+        this.notifyUserProgressChanged();
+      }
+    } catch (e) {}
+  },
+
+  clearMasteredQuestions(grade = null, topic = null, lesson = null) {
+    try {
+      if (!grade && !topic && !lesson) {
+        localStorage.removeItem(STORAGE_KEYS.MASTERED_QUESTIONS);
+      } else {
+        const all = this.getAllMasteredQuestions();
+        for (const [id, meta] of Object.entries(all)) {
+          let match = true;
+          if (grade && meta.grade && String(meta.grade) !== String(grade)) match = false;
+          if (topic && meta.topic && meta.topic !== topic) match = false;
+          if (lesson && meta.lesson && meta.lesson !== lesson) match = false;
+          if (match) {
+            delete all[id];
+          }
+        }
+        localStorage.setItem(STORAGE_KEYS.MASTERED_QUESTIONS, JSON.stringify(all));
+      }
+      this.notifyUserProgressChanged();
+    } catch (e) {}
+  },
+
   // --- GHI CHÚ CÁ NHÂN CHO TỪNG CÂU HỎI (PERSONAL NOTES) ---
   getAllQuestionNotes() {
     try {
@@ -1436,10 +1512,16 @@ export const Storage = {
       stats.total += 1;
       if (isCorrect) {
         stats.correct += 1;
-        if (question?.id) this.markWrongQuestionResolved(question.id);
+        if (question?.id) {
+          this.markWrongQuestionResolved(question.id);
+          this.recordMasteredQuestion(question.id, question.grade, question.topic, question.lesson);
+        }
       } else {
         stats.wrong += 1;
-        if (question) this.recordWrongQuestion(question);
+        if (question?.id) {
+          this.removeMasteredQuestion(question.id);
+          this.recordWrongQuestion(question);
+        }
       }
       localStorage.setItem(STORAGE_KEYS.PRACTICE_STATS, JSON.stringify(stats));
       this.recordDailyActivity();

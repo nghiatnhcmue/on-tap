@@ -3,10 +3,10 @@
  * Hỗ trợ đề chuẩn Bộ GD&ĐT 2025, kiểm tra định kỳ 15p, 45p và tùy biến đề thi
  */
 
-import { Storage } from './storage.js?v=20261101_70';
-import { Auth } from './auth.js?v=20261101_70';
-import { escapeHtml } from './utils.js?v=20261101_70';
-import { Proctor } from './proctor.js?v=20261101_70';
+import { Storage } from './storage.js?v=20261101_71';
+import { Auth } from './auth.js?v=20261101_71';
+import { escapeHtml } from './utils.js?v=20261101_71';
+import { Proctor } from './proctor.js?v=20261101_71';
 
 export const Exam = {
   questions: [],
@@ -287,21 +287,61 @@ export const Exam = {
       if (config.topic && config.topic !== 'all') {
         pool = pool.filter(q => q.topic === config.topic);
       }
-      const count = Math.min(config.count || 20, pool.length);
+      if (config.excludeMastered) {
+        const masteredIds = Storage.getMasteredQuestionIds();
+        const unmastered = pool.filter(q => !masteredIds.has(q.id));
+        if (unmastered.length > 0) pool = unmastered;
+      }
+      const count = (config.count === 'all' || !config.count || config.count >= pool.length) ? pool.length : Math.min(config.count, pool.length);
       selectedQuestions = this.sampleQuestions(pool, count, shouldShuffleQuestions);
-      this.totalSeconds = (config.duration || 30) * 60;
+      if (config.duration === 0) {
+        this.totalSeconds = 0;
+        this.isUnlimitedTime = true;
+        this.elapsedSeconds = 0;
+        this.remainingSeconds = 0;
+      } else {
+        this.totalSeconds = (config.duration || 30) * 60;
+        this.isUnlimitedTime = false;
+        this.remainingSeconds = this.totalSeconds;
+      }
     } else if (config.type === 'by_lesson') {
-      // Trộn đề theo Bài học cụ thể (Kiểm tra 15p)
+      // Trộn đề theo Bài học (1 bài hoặc kết hợp nhiều bài)
       let pool = gradePool;
       if (config.topic && config.topic !== 'all') {
         pool = pool.filter(q => q.topic === config.topic);
       }
-      if (config.lesson && config.lesson !== 'all') {
+
+      // Hỗ trợ chọn NHIỀU BÀI HỌC (multi-lessons)
+      if (config.selectedLessons && Array.isArray(config.selectedLessons) && config.selectedLessons.length > 0) {
+        pool = pool.filter(q => config.selectedLessons.some(l => (typeof l === 'string' ? l === q.lesson : l.lesson === q.lesson)));
+      } else if (config.lesson && config.lesson !== 'all') {
         pool = pool.filter(q => q.lesson === config.lesson);
       }
-      const count = Math.min(config.count || 10, pool.length);
+
+      // Hỗ trợ CHẾ ĐỘ HỌC THÔNG MINH: Bỏ qua câu đã trả lời đúng (excludeMastered)
+      if (config.excludeMastered) {
+        const masteredIds = Storage.getMasteredQuestionIds();
+        const unmastered = pool.filter(q => !masteredIds.has(q.id));
+        if (unmastered.length > 0) {
+          pool = unmastered;
+        }
+      }
+
+      // Hỗ trợ ÔN TOÀN BỘ CÂU HỎI (count === 'all' hoặc count >= pool.length)
+      const count = (config.count === 'all' || !config.count || config.count >= pool.length) ? pool.length : Math.min(config.count, pool.length);
       selectedQuestions = this.sampleQuestions(pool, count, shouldShuffleQuestions);
-      this.totalSeconds = (config.duration || 15) * 60;
+
+      // Hỗ trợ KHÔNG GIỚI HẠN THỜI GIAN (duration === 0)
+      if (config.duration === 0) {
+        this.totalSeconds = 0;
+        this.isUnlimitedTime = true;
+        this.elapsedSeconds = 0;
+        this.remainingSeconds = 0;
+      } else {
+        this.totalSeconds = (config.duration || 15) * 60;
+        this.isUnlimitedTime = false;
+        this.remainingSeconds = this.totalSeconds;
+      }
     } else {
       // Đề kiểm tra định kỳ hoặc ma trận tự chọn (custom)
       let pool = gradePool;
@@ -431,6 +471,20 @@ export const Exam = {
   // --- TIMER ---
   startTimer() {
     if (this.timerInterval) clearInterval(this.timerInterval);
+    if (this.isUnlimitedTime) {
+      this.elapsedSeconds = this.elapsedSeconds || 0;
+      this.updateTimerDisplay();
+      this.timerInterval = setInterval(() => {
+        this.elapsedSeconds++;
+        this.remainingSeconds = this.elapsedSeconds;
+        this.updateTimerDisplay();
+        if (this.elapsedSeconds % 5 === 0) {
+          this.saveCurrentSession();
+        }
+      }, 1000);
+      return;
+    }
+
     this.timerInterval = setInterval(() => {
       this.remainingSeconds--;
       this.updateTimerDisplay();
@@ -449,6 +503,14 @@ export const Exam = {
   updateTimerDisplay() {
     const timerEl = document.getElementById('exam-timer');
     if (!timerEl) return;
+
+    if (this.isUnlimitedTime) {
+      const mins = Math.floor(this.elapsedSeconds / 60);
+      const secs = this.elapsedSeconds % 60;
+      timerEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')} (Tự do)`;
+      timerEl.className = 'text-emerald-600 dark:text-emerald-400 font-bold text-lg';
+      return;
+    }
 
     const mins = Math.floor(this.remainingSeconds / 60);
     const secs = this.remainingSeconds % 60;
@@ -944,7 +1006,7 @@ export const Exam = {
       Proctor.stop();
     }
 
-    const timeSpent = this.totalSeconds - Math.max(0, this.remainingSeconds);
+    const timeSpent = this.isUnlimitedTime ? (this.elapsedSeconds || 0) : (this.totalSeconds - Math.max(0, this.remainingSeconds));
     let totalScore = 0;
     let part1Score = 0;
     let part2Score = 0;
@@ -1021,6 +1083,14 @@ export const Exam = {
       }
 
       totalScore += itemScore;
+
+      // Tự động ghi nhận câu thành thạo (Mastered) hoặc câu hay sai (Wrong)
+      if (isCorrect) {
+        Storage.recordMasteredQuestion(q.id, q.grade, q.topic, q.lesson);
+      } else {
+        Storage.removeMasteredQuestion(q.id);
+        Storage.recordWrongQuestion(q);
+      }
     });
 
     // Giới hạn điểm từ 0 đến 10, làm tròn 2 chữ số thập phân
