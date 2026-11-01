@@ -3,22 +3,23 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261101_73';
-import { Practice } from './practice.js?v=20261101_73';
-import { Exam } from './exam.js?v=20261101_73';
-import { Search } from './search.js?v=20261101_73';
-import { PrintManager } from './print.js?v=20261101_73';
-import { Auth } from './auth.js?v=20261101_73';
-import { escapeHtml } from './utils.js?v=20261101_73';
-import { Leaderboard } from './leaderboard.js?v=20261101_73';
-import { QuestionsManager } from './questions-manager.js?v=20261101_73';
-import { AdminManager } from './admin-manager.js?v=20261101_73';
-import { ExamRooms } from './exam-rooms.js?v=20261101_73';
-import { Proctor } from './proctor.js?v=20261101_73';
-import { Gradebook } from './gradebook.js?v=20261101_73';
-import { CloudSync } from './cloud-sync.js?v=20261101_73';
-import { InteractiveVideo } from './interactive-video.js?v=20261101_73';
-import { LiveVideo } from './live-video.js?v=20261101_73';
+import { Storage } from './storage.js?v=20261101_74';
+import { Practice } from './practice.js?v=20261101_74';
+import { Exam } from './exam.js?v=20261101_74';
+import { Search } from './search.js?v=20261101_74';
+import { PrintManager } from './print.js?v=20261101_74';
+import { Auth } from './auth.js?v=20261101_74';
+import { escapeHtml } from './utils.js?v=20261101_74';
+import { Leaderboard } from './leaderboard.js?v=20261101_74';
+import { QuestionsManager } from './questions-manager.js?v=20261101_74';
+import { AdminManager } from './admin-manager.js?v=20261101_74';
+import { ExamRooms } from './exam-rooms.js?v=20261101_74';
+import { Proctor } from './proctor.js?v=20261101_74';
+import { Gradebook } from './gradebook.js?v=20261101_74';
+import { CloudSync } from './cloud-sync.js?v=20261101_74';
+import { InteractiveVideo } from './interactive-video.js?v=20261101_74';
+import { LiveVideo } from './live-video.js?v=20261101_74';
+import Arena from './arena.js?v=20261101_74';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -30,6 +31,7 @@ if (typeof window !== 'undefined') {
   window.CloudSync = CloudSync;
   window.InteractiveVideo = InteractiveVideo;
   window.LiveVideo = LiveVideo;
+  window.Arena = Arena;
 }
 
 class App {
@@ -103,8 +105,12 @@ class App {
     await this.switchGrade(this.currentGrade);
     this.renderHome();
 
-    // Tự động nhận diện mã phòng thi qua URL param (?room=XYZ hoặc ?phong=XYZ)
+    // Tự động nhận diện mã phòng thi hoặc đấu trường game qua URL param
     const urlParams = new URLSearchParams(window.location.search);
+    const arenaParam = urlParams.get('game') || urlParams.get('pin');
+    if (arenaParam) {
+      setTimeout(() => this.switchTab('arena'), 300);
+    }
     const roomParam = urlParams.get('room') || urlParams.get('phong');
     if (roomParam) {
       this.pendingRoomParam = roomParam.trim().toUpperCase();
@@ -187,7 +193,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261101_73');
+      const res = await fetch('data/manifest.json?v=20261101_74');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
@@ -353,7 +359,7 @@ class App {
       'view-home', 'view-practice', 'view-exam-setup', 'view-exam-room',
       'view-search', 'view-bookmarks', 'view-history', 'view-print',
       'view-gradebook', 'view-leaderboard', 'view-questions-manage', 'view-admin-system',
-      'view-exam-rooms', 'view-interactive-video'
+      'view-exam-rooms', 'view-interactive-video', 'view-arena'
     ];
     views.forEach(id => {
       const el = document.getElementById(id);
@@ -416,6 +422,14 @@ class App {
           this.manifest,
           (g) => this.loadGradeData(g),
           this.currentGrade
+        );
+        break;
+      case 'arena':
+        document.getElementById('view-arena')?.classList.remove('hidden');
+        await Arena.init(
+          document.getElementById('view-arena'),
+          this.manifest,
+          (g) => this.loadGradeData(g)
         );
         break;
       case 'questions-manage':

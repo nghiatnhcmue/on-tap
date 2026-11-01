@@ -10,7 +10,7 @@
  * 5. Cơ chế Local-First an toàn: Mất mạng vẫn làm bài bình thường, khi có mạng tự động đẩy dữ liệu lên đám mây.
  */
 
-import { Storage } from './storage.js?v=20261101_73';
+import { Storage } from './storage.js?v=20261101_74';
 
 const CLOUD_CONFIG_KEY = 'tinhoc_cloud_config';
 export const DEFAULT_FIREBASE_DB_URL = 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -244,6 +244,9 @@ export const CloudSync = {
       // 8. Đồng bộ Câu hỏi Đóng góp (Excel/Soạn tay) & Video Bài giảng của Giáo viên
       await this.syncTeacherContributions(baseUrl);
       await this.syncTeacherVideos(baseUrl);
+
+      // 9. Đồng bộ Phòng Đấu trường Game Trí tuệ (Blooket & Wayground Arena)
+      await this.syncArenaRooms(baseUrl);
 
       this.config.lastSync = new Date().toISOString();
       try {
@@ -1393,5 +1396,56 @@ export const CloudSync = {
       console.warn('Lỗi pushTeacherAssignmentsToCloud:', e);
       return false;
     }
+  },
+
+  // --- ĐẤU TRƯỜNG ARENA SYNC (BLOOKET & WAYGROUND) ---
+  async syncArenaRooms(baseUrl = null) {
+    const url = baseUrl || this.getBaseUrl();
+    try {
+      const res = await fetch(`${url}/arena_rooms.json`, { cache: 'no-cache' });
+      if (!res.ok) return;
+      const remoteData = await res.json() || {};
+      const localRooms = Storage.getArenaRooms();
+      let updated = false;
+
+      Object.entries(remoteData).forEach(([pin, remoteRoom]) => {
+        if (!remoteRoom || !remoteRoom.pin) return;
+        const localRoom = localRooms[pin];
+        if (!localRoom || (remoteRoom.updatedAt || 0) > (localRoom.updatedAt || 0)) {
+          localRooms[pin] = remoteRoom;
+          updated = true;
+        }
+      });
+
+      if (updated) {
+        localStorage.setItem(Storage.STORAGE_KEYS?.ARENA_ROOMS || 'tinhoc_arena_rooms', JSON.stringify(localRooms));
+      }
+    } catch (e) {
+      console.warn('CloudSync: Lỗi đồng bộ phòng arena:', e);
+    }
+  },
+
+  async pushArenaRoomToCloud(room, baseUrl = null) {
+    if (!room || !room.pin) return;
+    const url = baseUrl || this.getBaseUrl();
+    try {
+      await fetch(`${url}/arena_rooms/${room.pin}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(room)
+      });
+    } catch (e) {
+      console.warn('CloudSync: Lỗi đẩy phòng arena lên cloud:', e);
+    }
+  },
+
+  async deleteArenaRoomFromCloud(pin, baseUrl = null) {
+    if (!pin) return;
+    const url = baseUrl || this.getBaseUrl();
+    try {
+      await fetch(`${url}/arena_rooms/${pin}.json`, {
+        method: 'DELETE'
+      });
+    } catch (e) {}
   },
 };

@@ -285,6 +285,24 @@ Hệ thống cho phép giáo viên đóng góp câu hỏi từ Excel và đăng 
   - Bảng kiểm duyệt video bài giảng: Xem trước video trực tiếp, nút **`[ ✅ Duyệt Phát Hành ]`** (công khai vào Tab Chuyên đề mở rộng cho toàn bộ học sinh và giáo viên cùng học) và nút **`[ ❌ Từ Chối ]`**.
   - Tự động đồng bộ thời gian thực đa chiều qua `CloudSync.syncTeacherContributions()` và `CloudSync.syncTeacherVideos()`.
 
+### 4.9. Đấu Trường Game Trí Tuệ Gamification (Blooket & Wayground Style) & Tích Hợp LMS Chỉnh Chu (`js/arena.js`)
+Hệ thống tích hợp mô hình Đấu trường Gamification học tập đỉnh cao kết hợp giữa **Blooket** và **Wayground (Quizizz)**, kết nối trực tiếp với LMS Sổ điểm điện tử:
+- **1. Bộ Linh Thú Blooks (12 Blook Avatars):**
+  - Danh mục 12 linh thú hoạt họa SVG rực rỡ: Cyber Bot (🤖), Ninja Neko (🐱), Rồng Lửa (🐉), Pháp Sư (🧙‍♂️), Phi Hành Gia (🚀), Cáo Tinh Anh (🦊), Cú Thông Thái (🦉), Kỳ Lân (🦄), Pixel Alien (👾), Sư Tử Chúa (🦁), Kungfu Panda (🐼), Cá Mập Tech (🦈).
+  - Học sinh chọn Blook đại diện; Blook sẽ nhảy múa trong Lobby, xuất hiện trên Bảng vinh danh và các hoạt cảnh rương báu.
+- **2. Bốn Chế Độ Game Đỉnh Cao (Game Modes):**
+  - 🪙 **Đào Vàng & Mở Rương Báu (Blooket Gold Quest):** Trả lời đúng mở 1 trong 3 rương báu bí ẩn: nhận Vàng (+25, +50, +100 vàng), Nhân đôi x2 Vàng Jackpot, Khiên thần bảo hộ, hoặc Cướp 20% vàng từ bạn khác trong lớp kèm tin tức trực tiếp (Live Activity Ticker).
+  - 🏎️ **Đua Top Tốc Độ & Combo Power-Ups (Wayground Style):** Điểm số phụ thuộc vào độ nhanh nhạy phản xạ; chuỗi trả lời đúng tạo combo x1.2, x1.5, x2, x3 và nhận trợ giúp 50/50, Đóng băng đối thủ.
+  - 👾 **Hợp Lực Diệt Siêu Trùm Bug (Boss Battle Raid):** Cả lớp cùng nhìn lên máy chiếu hợp sức đánh Siêu Trùm (3000-10000 HP); mỗi câu trả lời đúng phóng một chưởng phép thuật trừ máu Boss, trả lời sai Boss tung chiêu phản kích.
+  - ⚡ **Tốc Độ Cổ Điển (Classic Arena):** Trải nghiệm chuẩn Kahoot với biểu đồ phân tích phương án A, B, C, D sau mỗi câu.
+- **3. Bộ Tổng Hợp Âm Thanh Web Audio API Động (Sound Synthesizer):**
+  - Tự động phát âm thanh độc quyền không phụ thuộc file ngoài: Tiếng chuông đúng (`playChime`), tiếng còi sai (`playWrong`), tiếng mở rương báu (`playChest`), tiếng cướp vàng (`playSteal`), tiếng nổ sát thương Boss (`playBossHit`), tiếng đếm ngược (`playTick`), tiếng kèn chiến thắng (`playFanfare`).
+- **4. Tích Hợp LMS Sổ Điểm Điện Tử & Báo Cáo Sư Phạm:**
+  - Nút **`[ 💾 Lưu Vào Sổ Điểm Lớp ]`**: Tự động chuyển đổi điểm số / số câu đúng thành thang điểm 10.0 và lưu vào Sổ điểm lớp học tương ứng trên `Gradebook` và `CloudSync`.
+  - Phân tích sư phạm chuyên sâu: Tỷ lệ chính xác toàn lớp, thống kê câu hỏi hóc búa nhất (Hardest Questions).
+  - Nút **`[ 📥 Xuất Báo Cáo Excel ]`**: Xuất file CSV chuẩn UTF-8 BOM (`\uFEFF`), mở trực tiếp bằng Excel tiếng Việt không lỗi font.
+  - Kết nối phòng tức thì qua **Mã PIN 6 số**, **Mã QR Code động** và link trực tiếp `?game=XYZ`.
+
 ---
 
 ## 5. Kiến trúc Bố cục Lỏng Thích Ứng Toàn Diện (Fluid & Adaptive Architecture)

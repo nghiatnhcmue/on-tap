@@ -50,7 +50,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261101_73" />
+  <link rel="stylesheet" href="css/style.css?v=20261101_74" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -122,7 +122,7 @@
         });
 
         // Nạp động module Auth để mở Google Popup ngay lập tức
-        import('./js/auth.js?v=20261101_73').then(function(mod) {
+        import('./js/auth.js?v=20261101_74').then(function(mod) {
           if (mod && mod.Auth) {
             window.Auth = mod.Auth;
             mod.Auth.signInWithGoogleFirebase();
@@ -303,6 +303,9 @@
         </button>
         <button data-tab-target="interactive-video" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
           <i class="fa-solid fa-circle-play text-xs text-rose-500"></i> Video tương tác
+        </button>
+        <button data-tab-target="arena" class="px-2.5 py-2 rounded-xl text-purple-600 dark:text-purple-400 font-bold hover:bg-purple-50 dark:hover:bg-purple-950/30 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+          <i class="fa-solid fa-gamepad text-xs"></i> Đấu trường
         </button>
         <button data-tab-target="leaderboard" class="px-2.5 py-2 rounded-xl text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-50 dark:hover:bg-amber-950/30 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
           <i class="fa-solid fa-crown text-xs"></i> Vinh danh
@@ -765,6 +768,25 @@
 
       <!-- User Progress Stats Quick Bar -->
       <div id="home-user-stats"></div>
+
+      <!-- Arena Game Banner (Blooket & Wayground Style) -->
+      <div class="bg-gradient-to-r from-purple-700 via-indigo-600 to-pink-600 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+        <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-amber-400/20 rounded-full blur-2xl pointer-events-none"></div>
+        <div class="relative z-10 max-w-xl">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-semibold tracking-wide mb-2">
+            <i class="fa-solid fa-gamepad text-amber-300"></i> Đấu Trường Game Trí Tuệ (Blooket & Wayground)
+          </div>
+          <h3 class="text-xl sm:text-2xl font-black">
+            Đào Vàng Rương Báu, Đua Top & Săn Boss Cả Lớp
+          </h3>
+          <p class="text-xs sm:text-sm text-white/90 mt-1 leading-relaxed">
+            Học tập hứng khởi qua các chế độ game đỉnh cao! Nhập mã PIN để tham gia thi đấu cùng các bạn hoặc giáo viên khởi tạo đấu trường mới.
+          </p>
+        </div>
+        <button data-tab-target="arena" class="relative z-10 px-6 py-3.5 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-900 rounded-2xl text-xs sm:text-sm font-black transition shadow-lg shadow-black/20 flex items-center gap-2 shrink-0 hover:scale-[1.02] active:scale-[0.98]">
+          <i class="fa-solid fa-rocket text-xs"></i> Vào Đấu Trường Ngay
+        </button>
+      </div>
 
       <!-- Interactive Video Banner -->
       <div class="bg-gradient-to-r from-rose-600 via-purple-600 to-indigo-700 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
@@ -1409,6 +1431,9 @@
     <!-- VIEW: BÀI GIẢNG VIDEO TƯƠNG TÁC (INTERACTIVE VIDEO) -->
     <section id="view-interactive-video" class="hidden max-w-7xl mx-auto"></section>
 
+    <!-- VIEW: ĐẤU TRƯỜNG GAME TRÍ TUỆ (BLOOKET & WAYGROUND ARENA) -->
+    <section id="view-arena" class="hidden max-w-7xl mx-auto"></section>
+
     <!-- VIEW: TRA CỨU NGÂN HÀNG CÂU HỎI (SEARCH) -->
     <section id="view-search" class="hidden">
       <div id="search-results-area"></div>
@@ -1530,30 +1555,35 @@
   <!-- ==================== MOBILE BOTTOM NAVIGATION BAR ==================== -->
   <!-- Dành cho điện thoại thông minh (16:9, 18:9, 19.5:9, 20:9, 21:9) & Foldables & Tablets < 1024px -->
   <nav id="mobile-bottom-nav" class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 mobile-bottom-bar no-print shadow-lg">
-    <div class="grid grid-cols-5 h-14 items-center">
+    <div class="grid grid-cols-6 h-14 items-center">
       <button data-tab-target="home" class="flex flex-col items-center justify-center gap-1 text-blue-600 dark:text-blue-400 font-bold transition">
-        <i class="fa-solid fa-house text-base"></i>
-        <span class="text-[10px]">Trang chủ</span>
+        <i class="fa-solid fa-house text-sm"></i>
+        <span class="text-[9px]">Trang chủ</span>
       </button>
 
       <button data-tab-target="practice" class="flex flex-col items-center justify-center gap-1 text-slate-600 dark:text-slate-300 font-medium transition">
-        <i class="fa-solid fa-book-open text-base"></i>
-        <span class="text-[10px]">Ôn tập</span>
+        <i class="fa-solid fa-book-open text-sm"></i>
+        <span class="text-[9px]">Ôn tập</span>
       </button>
 
       <button data-tab-target="exam-setup" class="flex flex-col items-center justify-center gap-1 text-slate-600 dark:text-slate-300 font-medium transition">
-        <i class="fa-solid fa-pen-clip text-base"></i>
-        <span class="text-[10px]">Kiểm tra</span>
+        <i class="fa-solid fa-pen-clip text-sm"></i>
+        <span class="text-[9px]">Kiểm tra</span>
+      </button>
+
+      <button data-tab-target="arena" class="flex flex-col items-center justify-center gap-1 text-purple-600 dark:text-purple-400 font-bold transition">
+        <i class="fa-solid fa-gamepad text-sm"></i>
+        <span class="text-[9px]">Đấu trường</span>
       </button>
 
       <button data-tab-target="leaderboard" class="flex flex-col items-center justify-center gap-1 text-amber-500 font-bold transition">
-        <i class="fa-solid fa-crown text-base"></i>
-        <span class="text-[10px]">Vinh danh</span>
+        <i class="fa-solid fa-crown text-sm"></i>
+        <span class="text-[9px]">Vinh danh</span>
       </button>
 
       <button data-tab-target="interactive-video" class="flex flex-col items-center justify-center gap-1 text-slate-600 dark:text-slate-300 font-medium transition">
-        <i class="fa-solid fa-circle-play text-base text-rose-500"></i>
-        <span class="text-[10px]">Video</span>
+        <i class="fa-solid fa-circle-play text-sm text-rose-500"></i>
+        <span class="text-[9px]">Video</span>
       </button>
     </div>
   </nav>
@@ -2963,7 +2993,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261101_73"></script>
+  <script type="module" src="js/app.js?v=20261101_74"></script>
 </body>
 </html>
 

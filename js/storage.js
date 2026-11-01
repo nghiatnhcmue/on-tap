@@ -27,7 +27,10 @@ const STORAGE_KEYS = {
   SUBJECTS: 'tinhoc_subjects_list',
   TEACHER_ASSIGNMENTS: 'tinhoc_teacher_assignments',
   TEACHER_CONTRIBUTIONS: 'tinhoc_teacher_contributions',
-  TEACHER_VIDEOS: 'tinhoc_teacher_videos'
+  TEACHER_VIDEOS: 'tinhoc_teacher_videos',
+  ARENA_ROOMS: 'tinhoc_arena_rooms',
+  ARENA_HISTORY: 'tinhoc_arena_history',
+  ARENA_PLAYER: 'tinhoc_arena_player'
 };
 
 export const DEFAULT_FIREBASE_API_KEY = 'AIzaSyBOn_vHOZXDhRPpeOhjuZOiECpCRfhXPA0';
@@ -2051,6 +2054,92 @@ export const Storage = {
       console.error('Invalid backup data', e);
       return false;
     }
+  },
+
+  // ==========================================
+  // ĐẤU TRƯỜNG GAME TRÍ TUỆ (BLOOKET & WAYGROUND ARENA)
+  // ==========================================
+  getArenaRooms() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEYS.ARENA_ROOMS) || '{}');
+    } catch {
+      return {};
+    }
+  },
+
+  getArenaRoom(pin) {
+    if (!pin) return null;
+    const rooms = this.getArenaRooms();
+    return rooms[pin] || null;
+  },
+
+  saveArenaRoom(room) {
+    if (!room || !room.pin) return false;
+    const rooms = this.getArenaRooms();
+    rooms[room.pin] = {
+      ...room,
+      updatedAt: Date.now()
+    };
+    try {
+      localStorage.setItem(STORAGE_KEYS.ARENA_ROOMS, JSON.stringify(rooms));
+      return true;
+    } catch (e) {
+      console.error('Storage: Lỗi lưu phòng đấu trường arena:', e);
+      return false;
+    }
+  },
+
+  deleteArenaRoom(pin) {
+    if (!pin) return false;
+    const rooms = this.getArenaRooms();
+    if (rooms[pin]) {
+      delete rooms[pin];
+      localStorage.setItem(STORAGE_KEYS.ARENA_ROOMS, JSON.stringify(rooms));
+      return true;
+    }
+    return false;
+  },
+
+  getArenaHistory() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEYS.ARENA_HISTORY) || '[]');
+    } catch {
+      return [];
+    }
+  },
+
+  saveArenaHistory(historyItem) {
+    if (!historyItem) return false;
+    const history = this.getArenaHistory();
+    history.unshift({
+      id: historyItem.id || `arena_hist_${Date.now()}`,
+      savedAt: Date.now(),
+      ...historyItem
+    });
+    // Giữ tối đa 50 trận đấu gần nhất
+    const trimmed = history.slice(0, 50);
+    try {
+      localStorage.setItem(STORAGE_KEYS.ARENA_HISTORY, JSON.stringify(trimmed));
+      return true;
+    } catch (e) {
+      console.error('Storage: Lỗi lưu lịch sử arena:', e);
+      return false;
+    }
+  },
+
+  getArenaPlayer() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEYS.ARENA_PLAYER) || 'null');
+    } catch {
+      return null;
+    }
+  },
+
+  saveArenaPlayer(playerData) {
+    if (!playerData) return;
+    try {
+      localStorage.setItem(STORAGE_KEYS.ARENA_PLAYER, JSON.stringify(playerData));
+    } catch {}
   }
 };
 
