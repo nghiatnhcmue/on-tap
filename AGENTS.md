@@ -264,6 +264,27 @@ Phục vụ nhu cầu theo dõi tiến độ, đánh giá năng lực học tậ
   - **Lưu Sổ Điểm:** Nút `💾 Lưu vào Sổ Điểm Lớp` tự động ghi nhận kết quả vào `Gradebook` và `CloudSync`.
   - **Xuất Báo Cáo Excel Chuẩn Quốc Tế:** Nút `📥 Xuất Báo Cáo Excel` tải file `.csv` có byte order mark UTF-8 (`\uFEFF`), mở trực tiếp trên Excel tiếng Việt không lỗi font.
 
+### 4.8. Đóng Góp Câu Hỏi Excel, Video Mở Rộng & Quy Trình Phê Duyệt Của Admin (`js/questions-manager.js`, `js/interactive-video.js`, `js/admin-manager.js`)
+Hệ thống cho phép giáo viên đóng góp câu hỏi từ Excel và đăng tải video bài giảng mở rộng tự do, được quản lý chặt chẽ qua quy trình kiểm duyệt của Ban Quản Trị (Admin):
+- **1. Thêm Câu Hỏi Bằng Excel (.xlsx, .xls, .csv):**
+  - **File mẫu chuẩn 2 Sheet (`data/Mau_Nhap_Cau_Hoi_TinHocHub.xlsx`):** Sheet 1 gồm 14 cột chuẩn (STT, Môn học/Lĩnh vực, Khối lớp, Chủ đề, Bài học, Loại câu MCQ/DS/TLN, Mức độ 1/2/3/4/DS/TLN, Nội dung câu hỏi, Phương án A, B, C, D, Đáp án đúng, Giải thích). Sheet 2 hướng dẫn chi tiết quy tắc điền dữ liệu.
+  - Tải file mẫu động bằng SheetJS ngay trên trình duyệt qua nút `Tải file Excel mẫu (.xlsx)` hoặc tải trực tiếp file mẫu từ thư mục `data/`.
+  - Phân tích và nhận diện tự động cấu trúc cột, mở **Modal Xem trước (Excel Preview Modal)** phân loại số câu MCQ, Đúng/Sai, Trả lời ngắn trước khi lưu.
+- **2. Kho Câu Hỏi Đóng Góp Của Giáo Viên & Vòng Đời Duyệt (`tinhoc_teacher_contributions`):**
+  - Lưu trữ theo tài khoản của từng giáo viên: Tab `Kho câu hỏi đóng góp của tôi` trong Quản lý câu hỏi.
+  - Vòng đời trạng thái: Bản nháp (`draft`) -> Chờ duyệt (`pending`) -> Đã phê duyệt (`approved`) hoặc Từ chối (`rejected` kèm lý do góp ý của Admin).
+  - Nút **`[ 🚀 Gửi Lên Kho Chung (Yêu Cầu Duyệt) ]`** đẩy trạng thái sang `pending` và tự động đồng bộ lên Firebase `/teacher_contributions`.
+- **3. Đóng Góp Video Bài Giảng & Chuyên Đề Tự Do Của Giáo Viên (`tinhoc_teacher_videos`):**
+  - Không giới hạn môn Tin học: Giáo viên có thể đóng góp bài giảng mọi môn học (Toán, Lý, Hóa, Sinh, Ngoại ngữ, AI, Lập trình Game, Chuyên đề tự chọn...) và chọn Khối lớp linh hoạt (10, 11, 12, Đại trà/Tất cả).
+  - Hỗ trợ nguồn phát video đa dạng: Google Drive (tự động chuyển sang link stream CDN `lh3.googleusercontent.com/d/`), Dropbox raw stream, Archive.org CORS stream, và link MP4/WebM trực tiếp.
+  - Thiết lập các mốc dừng tương tác (Checkpoints) kèm câu hỏi, đáp án, thời gian dừng (phút:giây) và giải thích chi tiết.
+  - Phân loại 3 tab chuyên nghiệp trong Video Tương Tác: `[ 📚 Video Theo SGK ]`, `[ 🎬 Chuyên Đề & Video Mở Rộng ]`, `[ 👤 Video Đóng Góp Của Tôi ]`.
+- **4. Trung Tâm Phê Duyệt Của Quản Trị Viên (Admin Dashboard - Section 1B):**
+  - Thẻ KPI hiển thị số lượng đóng góp đang chờ duyệt kèm hiệu ứng cảnh báo trực quan.
+  - Bảng kiểm duyệt gói câu hỏi Excel: Xem toàn bộ nội dung câu hỏi trong modal chi tiết, nút **`[ ✅ Phê Duyệt ]`** (tự động nạp toàn bộ câu hỏi vào ngân hàng chung của trường) và nút **`[ ❌ Từ Chối ]`** (nhập lý do phản hồi cho Giáo viên).
+  - Bảng kiểm duyệt video bài giảng: Xem trước video trực tiếp, nút **`[ ✅ Duyệt Phát Hành ]`** (công khai vào Tab Chuyên đề mở rộng cho toàn bộ học sinh và giáo viên cùng học) và nút **`[ ❌ Từ Chối ]`**.
+  - Tự động đồng bộ thời gian thực đa chiều qua `CloudSync.syncTeacherContributions()` và `CloudSync.syncTeacherVideos()`.
+
 ---
 
 ## 5. Kiến trúc Bố cục Lỏng Thích Ứng Toàn Diện (Fluid & Adaptive Architecture)

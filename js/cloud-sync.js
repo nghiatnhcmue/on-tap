@@ -10,7 +10,7 @@
  * 5. Cơ chế Local-First an toàn: Mất mạng vẫn làm bài bình thường, khi có mạng tự động đẩy dữ liệu lên đám mây.
  */
 
-import { Storage } from './storage.js?v=20261101_72';
+import { Storage } from './storage.js?v=20261101_73';
 
 const CLOUD_CONFIG_KEY = 'tinhoc_cloud_config';
 export const DEFAULT_FIREBASE_DB_URL = 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -240,6 +240,10 @@ export const CloudSync = {
       await this.syncSchoolsData(baseUrl);
       await this.syncSubjects(baseUrl);
       await this.syncTeacherAssignments(baseUrl);
+
+      // 8. Đồng bộ Câu hỏi Đóng góp (Excel/Soạn tay) & Video Bài giảng của Giáo viên
+      await this.syncTeacherContributions(baseUrl);
+      await this.syncTeacherVideos(baseUrl);
 
       this.config.lastSync = new Date().toISOString();
       try {
@@ -1249,6 +1253,127 @@ export const CloudSync = {
       }
     } catch (e) {
       console.warn('Lỗi syncTeacherAssignments:', e);
+    }
+  },
+
+
+  // 12. ĐỒNG BỘ CÂU HỎI ĐÓNG GÓP TỪ GIÁO VIÊN (EXCEL / SOẠN TAY)
+  async syncTeacherContributions(baseUrl = null) {
+    const url = baseUrl || this.getBaseUrl();
+    if (!url || !url.startsWith('http')) return;
+
+    try {
+      const res = await fetch(`${url}/teacher_contributions.json`);
+      if (res.ok) {
+        const cloudData = await res.json();
+        if (cloudData && typeof cloudData === 'object') {
+          const cloudList = Array.isArray(cloudData) ? cloudData : Object.values(cloudData);
+          const localList = Storage.getAllTeacherContributions();
+          const map = new Map();
+          localList.forEach(item => { if (item?.id) map.set(item.id, item); });
+          cloudList.forEach(item => {
+            if (item?.id) {
+              const existing = map.get(item.id);
+              if (!existing) {
+                map.set(item.id, item);
+              } else {
+                const cTime = new Date(item.updatedAt || item.submittedAt || item.createdAt || 0).getTime();
+                const lTime = new Date(existing.updatedAt || existing.submittedAt || existing.createdAt || 0).getTime();
+                if (cTime >= lTime) map.set(item.id, item);
+              }
+            }
+          });
+          const merged = Array.from(map.values());
+          localStorage.setItem('tinhoc_teacher_contributions', JSON.stringify(merged));
+        } else {
+          const localList = Storage.getAllTeacherContributions();
+          if (localList.length > 0) await this.pushTeacherContributionsToCloud();
+        }
+      }
+    } catch (e) {
+      console.warn('Lỗi syncTeacherContributions:', e);
+    }
+  },
+
+  async pushTeacherContributionsToCloud() {
+    const url = this.getBaseUrl();
+    if (!url || !url.startsWith('http')) return false;
+
+    try {
+      const list = Storage.getAllTeacherContributions();
+      const obj = {};
+      list.forEach(item => {
+        if (item?.id) obj[item.id] = item;
+      });
+      await fetch(`${url}/teacher_contributions.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(obj)
+      });
+      return true;
+    } catch (e) {
+      console.warn('Lỗi pushTeacherContributionsToCloud:', e);
+      return false;
+    }
+  },
+
+  // 13. ĐỒNG BỘ VIDEO BÀI GIẢNG ĐÓNG GÓP TỰ DO TỪ GIÁO VIÊN
+  async syncTeacherVideos(baseUrl = null) {
+    const url = baseUrl || this.getBaseUrl();
+    if (!url || !url.startsWith('http')) return;
+
+    try {
+      const res = await fetch(`${url}/teacher_videos.json`);
+      if (res.ok) {
+        const cloudData = await res.json();
+        if (cloudData && typeof cloudData === 'object') {
+          const cloudList = Array.isArray(cloudData) ? cloudData : Object.values(cloudData);
+          const localList = Storage.getAllTeacherVideos();
+          const map = new Map();
+          localList.forEach(item => { if (item?.id) map.set(item.id, item); });
+          cloudList.forEach(item => {
+            if (item?.id) {
+              const existing = map.get(item.id);
+              if (!existing) {
+                map.set(item.id, item);
+              } else {
+                const cTime = new Date(item.updatedAt || item.submittedAt || item.createdAt || 0).getTime();
+                const lTime = new Date(existing.updatedAt || existing.submittedAt || existing.createdAt || 0).getTime();
+                if (cTime >= lTime) map.set(item.id, item);
+              }
+            }
+          });
+          const merged = Array.from(map.values());
+          localStorage.setItem('tinhoc_teacher_videos', JSON.stringify(merged));
+        } else {
+          const localList = Storage.getAllTeacherVideos();
+          if (localList.length > 0) await this.pushTeacherVideosToCloud();
+        }
+      }
+    } catch (e) {
+      console.warn('Lỗi syncTeacherVideos:', e);
+    }
+  },
+
+  async pushTeacherVideosToCloud() {
+    const url = this.getBaseUrl();
+    if (!url || !url.startsWith('http')) return false;
+
+    try {
+      const list = Storage.getAllTeacherVideos();
+      const obj = {};
+      list.forEach(item => {
+        if (item?.id) obj[item.id] = item;
+      });
+      await fetch(`${url}/teacher_videos.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(obj)
+      });
+      return true;
+    } catch (e) {
+      console.warn('Lỗi pushTeacherVideosToCloud:', e);
+      return false;
     }
   },
 

@@ -25,7 +25,9 @@ const STORAGE_KEYS = {
   CUSTOM_VIDEO_URLS: 'tinhoc_custom_video_urls',
   SCHOOLS_DATA: 'tinhoc_schools_data',
   SUBJECTS: 'tinhoc_subjects_list',
-  TEACHER_ASSIGNMENTS: 'tinhoc_teacher_assignments'
+  TEACHER_ASSIGNMENTS: 'tinhoc_teacher_assignments',
+  TEACHER_CONTRIBUTIONS: 'tinhoc_teacher_contributions',
+  TEACHER_VIDEOS: 'tinhoc_teacher_videos'
 };
 
 export const DEFAULT_FIREBASE_API_KEY = 'AIzaSyBOn_vHOZXDhRPpeOhjuZOiECpCRfhXPA0';
@@ -1804,6 +1806,228 @@ export const Storage = {
       subjectsList: this.getSubjectsList(),
       teacherAssignments: this.getAllTeacherAssignments()
     }, null, 2);
+  },
+
+
+  // ==========================================
+  // QUẢN LÝ CÂU HỎI ĐÓNG GÓP TỪ GIÁO VIÊN (EXCEL & SOẠN TAY)
+  // ==========================================
+  getAllTeacherContributions() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.TEACHER_CONTRIBUTIONS);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  getTeacherContributions(teacherEmail = null) {
+    const all = this.getAllTeacherContributions();
+    if (!teacherEmail) return all;
+    return all.filter(c => c.teacherEmail && c.teacherEmail.toLowerCase() === teacherEmail.toLowerCase());
+  },
+
+  saveTeacherContribution(pkg) {
+    if (!pkg) return null;
+    const all = this.getAllTeacherContributions();
+    const now = new Date().toISOString();
+    if (!pkg.id) {
+      pkg.id = 'cont_q_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+      pkg.createdAt = now;
+      pkg.status = pkg.status || 'draft';
+      all.unshift(pkg);
+    } else {
+      const idx = all.findIndex(c => c.id === pkg.id);
+      pkg.updatedAt = now;
+      if (idx >= 0) {
+        all[idx] = { ...all[idx], ...pkg };
+      } else {
+        all.unshift(pkg);
+      }
+    }
+    localStorage.setItem(STORAGE_KEYS.TEACHER_CONTRIBUTIONS, JSON.stringify(all));
+    if (typeof window !== 'undefined' && window.CloudSync && typeof window.CloudSync.pushTeacherContributionsToCloud === 'function') {
+      window.CloudSync.pushTeacherContributionsToCloud().catch(() => {});
+    }
+    return pkg;
+  },
+
+  deleteTeacherContribution(id) {
+    const all = this.getAllTeacherContributions();
+    const filtered = all.filter(c => c.id !== id);
+    localStorage.setItem(STORAGE_KEYS.TEACHER_CONTRIBUTIONS, JSON.stringify(filtered));
+    if (typeof window !== 'undefined' && window.CloudSync && typeof window.CloudSync.pushTeacherContributionsToCloud === 'function') {
+      window.CloudSync.pushTeacherContributionsToCloud().catch(() => {});
+    }
+  },
+
+  submitContributionForApproval(id) {
+    const all = this.getAllTeacherContributions();
+    const item = all.find(c => c.id === id);
+    if (!item) return false;
+    item.status = 'pending';
+    item.submittedAt = new Date().toISOString();
+    item.rejectReason = '';
+    localStorage.setItem(STORAGE_KEYS.TEACHER_CONTRIBUTIONS, JSON.stringify(all));
+    if (typeof window !== 'undefined' && window.CloudSync && typeof window.CloudSync.pushTeacherContributionsToCloud === 'function') {
+      window.CloudSync.pushTeacherContributionsToCloud().catch(() => {});
+    }
+    return true;
+  },
+
+  approveContribution(id, adminName = 'Admin') {
+    const all = this.getAllTeacherContributions();
+    const item = all.find(c => c.id === id);
+    if (!item) return false;
+    item.status = 'approved';
+    item.approvedAt = new Date().toISOString();
+    item.approvedBy = adminName;
+    item.rejectReason = '';
+    localStorage.setItem(STORAGE_KEYS.TEACHER_CONTRIBUTIONS, JSON.stringify(all));
+
+    // Tự động nạp các câu hỏi trong gói vào Ngân hàng câu hỏi dùng chung (Storage.saveQuestion)
+    if (Array.isArray(item.questions) && item.questions.length > 0) {
+      item.questions.forEach(q => {
+        if (q && q.question) {
+          this.saveQuestion({
+            ...q,
+            contributedBy: item.teacherName || item.teacherEmail,
+            contributedSchool: item.teacherSchool || '',
+            contributionId: item.id
+          });
+        }
+      });
+    }
+
+    if (typeof window !== 'undefined' && window.CloudSync) {
+      if (typeof window.CloudSync.pushTeacherContributionsToCloud === 'function') {
+        window.CloudSync.pushTeacherContributionsToCloud().catch(() => {});
+      }
+      if (typeof window.CloudSync.pushCustomQuestionsToCloud === 'function') {
+        window.CloudSync.pushCustomQuestionsToCloud().catch(() => {});
+      }
+    }
+    return true;
+  },
+
+  rejectContribution(id, reason = '', adminName = 'Admin') {
+    const all = this.getAllTeacherContributions();
+    const item = all.find(c => c.id === id);
+    if (!item) return false;
+    item.status = 'rejected';
+    item.rejectedAt = new Date().toISOString();
+    item.rejectedBy = adminName;
+    item.rejectReason = reason || 'Nội dung câu hỏi chưa đạt yêu cầu chuẩn hóa.';
+    localStorage.setItem(STORAGE_KEYS.TEACHER_CONTRIBUTIONS, JSON.stringify(all));
+    if (typeof window !== 'undefined' && window.CloudSync && typeof window.CloudSync.pushTeacherContributionsToCloud === 'function') {
+      window.CloudSync.pushTeacherContributionsToCloud().catch(() => {});
+    }
+    return true;
+  },
+
+  // ==========================================
+  // QUẢN LÝ VIDEO BÀI GIẢNG ĐÓNG GÓP TỰ DO TỪ GIÁO VIÊN
+  // ==========================================
+  getAllTeacherVideos() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.TEACHER_VIDEOS);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  getTeacherVideos(teacherEmail = null, status = null) {
+    let list = this.getAllTeacherVideos();
+    if (teacherEmail) {
+      list = list.filter(v => v.teacherEmail && v.teacherEmail.toLowerCase() === teacherEmail.toLowerCase());
+    }
+    if (status) {
+      list = list.filter(v => v.status === status);
+    }
+    return list;
+  },
+
+  getApprovedTeacherVideos() {
+    return this.getAllTeacherVideos().filter(v => v.status === 'approved');
+  },
+
+  saveTeacherVideo(video) {
+    if (!video) return null;
+    const all = this.getAllTeacherVideos();
+    const now = new Date().toISOString();
+    if (!video.id) {
+      video.id = 'cont_v_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+      video.createdAt = now;
+      video.status = video.status || 'draft';
+      all.unshift(video);
+    } else {
+      const idx = all.findIndex(v => v.id === video.id);
+      video.updatedAt = now;
+      if (idx >= 0) {
+        all[idx] = { ...all[idx], ...video };
+      } else {
+        all.unshift(video);
+      }
+    }
+    localStorage.setItem(STORAGE_KEYS.TEACHER_VIDEOS, JSON.stringify(all));
+    if (typeof window !== 'undefined' && window.CloudSync && typeof window.CloudSync.pushTeacherVideosToCloud === 'function') {
+      window.CloudSync.pushTeacherVideosToCloud().catch(() => {});
+    }
+    return video;
+  },
+
+  deleteTeacherVideo(id) {
+    const all = this.getAllTeacherVideos();
+    const filtered = all.filter(v => v.id !== id);
+    localStorage.setItem(STORAGE_KEYS.TEACHER_VIDEOS, JSON.stringify(filtered));
+    if (typeof window !== 'undefined' && window.CloudSync && typeof window.CloudSync.pushTeacherVideosToCloud === 'function') {
+      window.CloudSync.pushTeacherVideosToCloud().catch(() => {});
+    }
+  },
+
+  submitVideoForApproval(id) {
+    const all = this.getAllTeacherVideos();
+    const item = all.find(v => v.id === id);
+    if (!item) return false;
+    item.status = 'pending';
+    item.submittedAt = new Date().toISOString();
+    item.rejectReason = '';
+    localStorage.setItem(STORAGE_KEYS.TEACHER_VIDEOS, JSON.stringify(all));
+    if (typeof window !== 'undefined' && window.CloudSync && typeof window.CloudSync.pushTeacherVideosToCloud === 'function') {
+      window.CloudSync.pushTeacherVideosToCloud().catch(() => {});
+    }
+    return true;
+  },
+
+  approveVideo(id, adminName = 'Admin') {
+    const all = this.getAllTeacherVideos();
+    const item = all.find(v => v.id === id);
+    if (!item) return false;
+    item.status = 'approved';
+    item.approvedAt = new Date().toISOString();
+    item.approvedBy = adminName;
+    item.rejectReason = '';
+    localStorage.setItem(STORAGE_KEYS.TEACHER_VIDEOS, JSON.stringify(all));
+    if (typeof window !== 'undefined' && window.CloudSync && typeof window.CloudSync.pushTeacherVideosToCloud === 'function') {
+      window.CloudSync.pushTeacherVideosToCloud().catch(() => {});
+    }
+    return true;
+  },
+
+  rejectVideo(id, reason = '', adminName = 'Admin') {
+    const all = this.getAllTeacherVideos();
+    const item = all.find(v => v.id === id);
+    if (!item) return false;
+    item.status = 'rejected';
+    item.rejectedAt = new Date().toISOString();
+    item.rejectedBy = adminName;
+    item.rejectReason = reason || 'Video bài giảng chưa phù hợp chuẩn sư phạm.';
+    localStorage.setItem(STORAGE_KEYS.TEACHER_VIDEOS, JSON.stringify(all));
+    if (typeof window !== 'undefined' && window.CloudSync && typeof window.CloudSync.pushTeacherVideosToCloud === 'function') {
+      window.CloudSync.pushTeacherVideosToCloud().catch(() => {});
+    }
+    return true;
   },
 
   importBackup(jsonString) {

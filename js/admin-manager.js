@@ -5,10 +5,10 @@
  * Cơ sở dữ liệu đám mây, Tải lên Video bài giảng Archive.org S3, Dọn dẹp/Sao lưu.
  */
 
-import { Storage } from './storage.js?v=20261101_72';
-import { Auth } from './auth.js?v=20261101_72';
-import { escapeHtml } from './utils.js?v=20261101_72';
-import { CloudSync, DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_72';
+import { Storage } from './storage.js?v=20261101_73';
+import { Auth } from './auth.js?v=20261101_73';
+import { escapeHtml } from './utils.js?v=20261101_73';
+import { CloudSync, DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261101_73';
 
 export const AdminManager = {
   container: null,
@@ -41,6 +41,14 @@ export const AdminManager = {
     if (CloudSync && typeof CloudSync.syncVideoConfig === 'function') {
       try {
         await CloudSync.syncVideoConfig();
+      } catch (e) {}
+    }
+    if (CloudSync && typeof CloudSync.syncTeacherContributions === 'function') {
+      try {
+        await Promise.all([
+          CloudSync.syncTeacherContributions(),
+          CloudSync.syncTeacherVideos()
+        ]);
       } catch (e) {}
     }
     this.render();
@@ -151,6 +159,11 @@ export const AdminManager = {
     const totalCustomQs = customQuestions12.length + customQuestions11.length + customQuestions10.length;
     const cloudStatus = CloudSync.getStatus();
     const manifestVideos = this.getManifestVideos();
+    const allContributions = Storage.getAllTeacherContributions();
+    const pendingContributions = allContributions.filter(c => c.status === 'pending');
+    const allTeacherVideos = Storage.getAllTeacherVideos();
+    const pendingTeacherVideos = allTeacherVideos.filter(v => v.status === 'pending');
+    const totalPending = pendingContributions.length + pendingTeacherVideos.length;
 
     // Thống kê video đã ghép khớp và đã tải lên
     let matchedCount = 0;
@@ -189,6 +202,12 @@ export const AdminManager = {
 
         <!-- KPI Thống Kê Nhanh -->
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+          <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+            <span class="text-slate-400 text-xs font-medium block">Đóng góp chờ duyệt</span>
+            <span class="text-2xl font-black ${totalPending > 0 ? 'text-rose-600 animate-pulse' : 'text-slate-800 dark:text-white'} mt-1 block">
+              ${totalPending} <span class="text-xs font-normal text-slate-400">(${pendingContributions.length} câu hỏi • ${pendingTeacherVideos.length} video)</span>
+            </span>
+          </div>
           <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
             <span class="text-slate-400 text-xs font-medium block">Tài khoản đã lưu</span>
             <span class="text-2xl font-black text-slate-800 dark:text-white mt-1 block">${accounts.length}</span>
@@ -657,6 +676,188 @@ export const AdminManager = {
 
         </div>
 
+
+
+        <!-- 1B. TRUNG TÂM PHÊ DUYỆT ĐÓNG GÓP TỪ GIÁO VIÊN (CÂU HỎI EXCEL & VIDEO BÀI GIẢNG) -->
+        <div id="admin-contributions-card" class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 pb-4">
+            <div>
+              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-bold uppercase tracking-wider mb-2">
+                <i class="fa-solid fa-stamp"></i> Phê Duyệt Đóng Góp Từ Giáo Viên
+              </div>
+              <h3 class="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-clipboard-check text-emerald-600"></i> Kiểm Duyệt Câu Hỏi Excel & Video Bài Giảng
+              </h3>
+              <p class="text-xs text-slate-400 mt-0.5">
+                Admin xem xét và phê duyệt các gói câu hỏi (nhập từ Excel/soạn tay) hoặc video bài giảng chuyên đề do Giáo viên gửi lên.
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span class="px-3 py-1 rounded-xl text-xs font-bold ${totalPending > 0 ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 animate-pulse' : 'bg-emerald-100 text-emerald-700'}">
+                ${totalPending > 0 ? `⚠️ Có ${totalPending} mục đang chờ duyệt` : '✅ Đã duyệt hết'}
+              </span>
+            </div>
+          </div>
+
+          <!-- Bảng 1: Danh Sách Gói Câu Hỏi Đóng Góp (Excel / Soạn tay) -->
+          <div class="space-y-3">
+            <h4 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <i class="fa-solid fa-file-excel text-emerald-600"></i> Gói Câu Hỏi Đóng Góp Từ Giáo Viên (${allContributions.length} gói)
+            </h4>
+
+            ${allContributions.length === 0 ? `
+              <div class="py-8 text-center text-slate-400 text-xs bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-700">
+                Chưa có giáo viên nào gửi gói câu hỏi đóng góp.
+              </div>
+            ` : `
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                  <thead>
+                    <tr class="border-b border-slate-200 dark:border-slate-700 text-slate-400 font-semibold uppercase tracking-wider">
+                      <th class="py-2.5 px-3">Gói câu hỏi</th>
+                      <th class="py-2.5 px-3">Giáo viên gửi</th>
+                      <th class="py-2.5 px-3">Số câu</th>
+                      <th class="py-2.5 px-3">Thời gian</th>
+                      <th class="py-2.5 px-3">Trạng thái</th>
+                      <th class="py-2.5 px-3 text-right">Hành động của Admin</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 dark:divide-slate-700/60">
+                    ${allContributions.map(pkg => {
+                      let badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Bản nháp</span>';
+                      if (pkg.status === 'pending') badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 animate-pulse">Chờ duyệt ⏳</span>';
+                      else if (pkg.status === 'approved') badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Đã duyệt ✅</span>';
+                      else if (pkg.status === 'rejected') badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">Từ chối ⚠️</span>';
+
+                      return `
+                        <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition">
+                          <td class="py-3 px-3 font-bold text-slate-800 dark:text-white">
+                            ${escapeHtml(pkg.packageTitle || 'Gói câu hỏi')}
+                            <span class="block text-[10px] font-normal text-slate-400">Nguồn: ${escapeHtml(pkg.sourceType || 'excel')}</span>
+                          </td>
+                          <td class="py-3 px-3 text-slate-700 dark:text-slate-300">
+                            <strong>${escapeHtml(pkg.teacherName || pkg.teacherEmail)}</strong>
+                            ${pkg.teacherSchool ? `<span class="block text-[10px] text-slate-400">${escapeHtml(pkg.teacherSchool)}</span>` : ''}
+                          </td>
+                          <td class="py-3 px-3 font-bold text-indigo-600">
+                            ${pkg.questionsCount || (pkg.questions ? pkg.questions.length : 0)} câu
+                          </td>
+                          <td class="py-3 px-3 text-slate-400 text-[11px]">
+                            ${new Date(pkg.submittedAt || pkg.createdAt).toLocaleDateString('vi-VN')}
+                          </td>
+                          <td class="py-3 px-3">
+                            ${badge}
+                            ${pkg.status === 'rejected' && pkg.rejectReason ? `
+                              <span class="block text-[10px] text-rose-500 truncate max-w-[150px]" title="${escapeHtml(pkg.rejectReason)}">${escapeHtml(pkg.rejectReason)}</span>
+                            ` : ''}
+                          </td>
+                          <td class="py-3 px-3 text-right">
+                            <div class="flex items-center justify-end gap-1.5 flex-wrap">
+                              <button data-admin-view-contrib="${pkg.id}" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition">
+                                <i class="fa-regular fa-eye"></i> Xem câu hỏi
+                              </button>
+                              
+                              ${pkg.status === 'pending' ? `
+                                <button data-admin-approve-contrib="${pkg.id}" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs">
+                                  <i class="fa-solid fa-check"></i> Duyệt
+                                </button>
+                                <button data-admin-reject-contrib="${pkg.id}" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold transition">
+                                  <i class="fa-solid fa-xmark"></i> Từ chối
+                                </button>
+                              ` : pkg.status === 'approved' ? `
+                                <span class="text-[10px] text-emerald-600 font-bold"><i class="fa-solid fa-check-double mr-1"></i>Đã vào ngân hàng</span>
+                              ` : ''}
+                            </div>
+                          </td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `}
+          </div>
+
+          <!-- Bảng 2: Danh Sách Video Bài Giảng Đóng Góp -->
+          <div class="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-700">
+            <h4 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <i class="fa-solid fa-video text-rose-600"></i> Video Bài Giảng & Chuyên Đề Mở Rộng Từ Giáo Viên (${allTeacherVideos.length} video)
+            </h4>
+
+            ${allTeacherVideos.length === 0 ? `
+              <div class="py-8 text-center text-slate-400 text-xs bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-700">
+                Chưa có giáo viên nào gửi video bài giảng đóng góp.
+              </div>
+            ` : `
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                  <thead>
+                    <tr class="border-b border-slate-200 dark:border-slate-700 text-slate-400 font-semibold uppercase tracking-wider">
+                      <th class="py-2.5 px-3">Tên video & Môn học</th>
+                      <th class="py-2.5 px-3">Giáo viên đóng góp</th>
+                      <th class="py-2.5 px-3">Mốc dừng</th>
+                      <th class="py-2.5 px-3">Link Video</th>
+                      <th class="py-2.5 px-3">Trạng thái</th>
+                      <th class="py-2.5 px-3 text-right">Hành động của Admin</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 dark:divide-slate-700/60">
+                    ${allTeacherVideos.map(v => {
+                      let badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Bản nháp</span>';
+                      if (v.status === 'pending') badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 animate-pulse">Chờ duyệt ⏳</span>';
+                      else if (v.status === 'approved') badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Đã phát hành ✅</span>';
+                      else if (v.status === 'rejected') badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">Từ chối ⚠️</span>';
+
+                      return `
+                        <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition">
+                          <td class="py-3 px-3 font-bold text-slate-800 dark:text-white">
+                            ${escapeHtml(v.title)}
+                            <span class="block text-[10px] font-normal text-indigo-600 dark:text-indigo-400">
+                              ${escapeHtml(v.subject)} • Khối ${escapeHtml(v.grade === 'all' ? 'Tất cả' : v.grade)} • ${escapeHtml(v.topic || '')}
+                            </span>
+                          </td>
+                          <td class="py-3 px-3 text-slate-700 dark:text-slate-300">
+                            <strong>${escapeHtml(v.teacherName || v.teacherEmail)}</strong>
+                            ${v.teacherSchool ? `<span class="block text-[10px] text-slate-400">${escapeHtml(v.teacherSchool)}</span>` : ''}
+                          </td>
+                          <td class="py-3 px-3 font-bold text-rose-600">
+                            ${v.checkpoints ? v.checkpoints.length : 0} mốc
+                          </td>
+                          <td class="py-3 px-3 text-blue-500 text-[11px] truncate max-w-[140px]">
+                            <a href="${escapeHtml(v.videoUrl)}" target="_blank" class="hover:underline flex items-center gap-1">
+                              <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Mở link
+                            </a>
+                          </td>
+                          <td class="py-3 px-3">
+                            ${badge}
+                            ${v.status === 'rejected' && v.rejectReason ? `
+                              <span class="block text-[10px] text-rose-500 truncate max-w-[140px]" title="${escapeHtml(v.rejectReason)}">${escapeHtml(v.rejectReason)}</span>
+                            ` : ''}
+                          </td>
+                          <td class="py-3 px-3 text-right">
+                            <div class="flex items-center justify-end gap-1.5 flex-wrap">
+                              ${v.status === 'pending' ? `
+                                <button data-admin-approve-video="${v.id}" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs">
+                                  <i class="fa-solid fa-check"></i> Duyệt phát hành
+                                </button>
+                                <button data-admin-reject-video="${v.id}" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold transition">
+                                  <i class="fa-solid fa-xmark"></i> Từ chối
+                                </button>
+                              ` : v.status === 'approved' ? `
+                                <span class="text-[10px] text-emerald-600 font-bold"><i class="fa-solid fa-tower-broadcast mr-1"></i>Đang công khai</span>
+                              ` : ''}
+                            </div>
+                          </td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `}
+          </div>
+        </div>
 
         <!-- 2. KẾT NỐI CƠ SỞ DỮ LIỆU ĐÁM MÂY (CLOUD DATABASE / REALTIME BACKEND) -->
         <div id="admin-cloud-sync-card" class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
@@ -1886,6 +2087,96 @@ export const AdminManager = {
         this.render();
       }
     });
+
+    // --- SỰ KIỆN DUYỆT ĐÓNG GÓP TỪ GIÁO VIÊN (CÂU HỎI EXCEL & VIDEO BÀI GIẢNG) ---
+    // 1. Xem chi tiết gói câu hỏi
+    this.container.querySelectorAll('[data-admin-view-contrib]').forEach(btn => {
+      btn.onclick = () => {
+        const pkgId = btn.getAttribute('data-admin-view-contrib');
+        const allPkgs = Storage.getAllTeacherContributions();
+        const pkg = allPkgs.find(p => p.id === pkgId);
+        if (pkg) {
+          this.showContributionPreviewModal(pkg);
+        } else {
+          alert('Không tìm thấy gói câu hỏi này!');
+        }
+      };
+    });
+
+    // 2. Phê duyệt gói câu hỏi
+    this.container.querySelectorAll('[data-admin-approve-contrib]').forEach(btn => {
+      btn.onclick = () => {
+        const pkgId = btn.getAttribute('data-admin-approve-contrib');
+        if (confirm('Thầy/Cô có chắc chắn muốn phê duyệt gói câu hỏi này và đưa toàn bộ câu hỏi vào ngân hàng chung?')) {
+          const user = Auth.getCurrentUser();
+          const res = Storage.approveContribution(pkgId, user?.fullName || 'Admin');
+          if (res.success) {
+            CloudSync.pushTeacherContributionsToCloud();
+            CloudSync.pushQuestionsToCloud();
+            alert(res.message);
+            this.render();
+          } else {
+            alert('Lỗi: ' + res.message);
+          }
+        }
+      };
+    });
+
+    // 3. Từ chối gói câu hỏi
+    this.container.querySelectorAll('[data-admin-reject-contrib]').forEach(btn => {
+      btn.onclick = () => {
+        const pkgId = btn.getAttribute('data-admin-reject-contrib');
+        const reason = prompt('Nhập lý do từ chối gói câu hỏi này để gửi phản hồi cho Giáo viên:');
+        if (reason && reason.trim()) {
+          const user = Auth.getCurrentUser();
+          const res = Storage.rejectContribution(pkgId, reason.trim(), user?.fullName || 'Admin');
+          if (res.success) {
+            CloudSync.pushTeacherContributionsToCloud();
+            alert(res.message);
+            this.render();
+          } else {
+            alert('Lỗi: ' + res.message);
+          }
+        }
+      };
+    });
+
+    // 4. Phê duyệt video bài giảng
+    this.container.querySelectorAll('[data-admin-approve-video]').forEach(btn => {
+      btn.onclick = () => {
+        const vidId = btn.getAttribute('data-admin-approve-video');
+        if (confirm('Thầy/Cô có chắc chắn muốn phê duyệt và phát hành video bài giảng này cho học sinh và giáo viên toàn trường cùng xem?')) {
+          const user = Auth.getCurrentUser();
+          const res = Storage.approveVideo(vidId, user?.fullName || 'Admin');
+          if (res.success) {
+            CloudSync.pushTeacherVideosToCloud();
+            alert(res.message);
+            this.render();
+          } else {
+            alert('Lỗi: ' + res.message);
+          }
+        }
+      };
+    });
+
+    // 5. Từ chối video bài giảng
+    this.container.querySelectorAll('[data-admin-reject-video]').forEach(btn => {
+      btn.onclick = () => {
+        const vidId = btn.getAttribute('data-admin-reject-video');
+        const reason = prompt('Nhập lý do từ chối phát hành video này để gửi phản hồi cho Giáo viên:');
+        if (reason && reason.trim()) {
+          const user = Auth.getCurrentUser();
+          const res = Storage.rejectVideo(vidId, reason.trim(), user?.fullName || 'Admin');
+          if (res.success) {
+            CloudSync.pushTeacherVideosToCloud();
+            alert(res.message);
+            this.render();
+          } else {
+            alert('Lỗi: ' + res.message);
+          }
+        }
+      };
+    });
   },
 
   bindRowEvents() {
@@ -2191,6 +2482,134 @@ export const AdminManager = {
       };
 
       xhr.send(file);
+    });
+  },
+
+  showContributionPreviewModal(pkg) {
+    let modal = document.getElementById('modal-admin-preview-contrib');
+    if (modal) modal.remove();
+
+    const questions = pkg.questions || [];
+    const mcqCount = questions.filter(q => q.type === 'MCQ').length;
+    const dsCount = questions.filter(q => q.type === 'DS').length;
+    const tlnCount = questions.filter(q => q.type === 'TLN').length;
+
+    modal = document.createElement('div');
+    modal.id = 'modal-admin-preview-contrib';
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in';
+    modal.innerHTML = `
+      <div class="bg-white dark:bg-slate-800 rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div class="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between gap-4 bg-slate-50 dark:bg-slate-900/50">
+          <div>
+            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold uppercase mb-1">
+              <i class="fa-solid fa-file-excel"></i> Chi Tiết Gói Đóng Góp
+            </div>
+            <h3 class="text-base sm:text-lg font-black text-slate-800 dark:text-white">
+              ${escapeHtml(pkg.packageTitle || 'Gói câu hỏi')}
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Người gửi: <b>${escapeHtml(pkg.teacherName || pkg.teacherEmail)}</b> (${escapeHtml(pkg.teacherSchool || 'Chưa rõ trường')}) • 
+              Tổng số: <b>${questions.length}</b> câu (${mcqCount} MCQ • ${dsCount} Đúng/Sai • ${tlnCount} Trả lời ngắn)
+            </p>
+          </div>
+          <button id="btn-close-admin-preview" class="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 flex items-center justify-center text-slate-600 dark:text-slate-300 transition">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
+        </div>
+
+        <div class="p-5 sm:p-6 overflow-y-auto space-y-4 max-h-[60vh]">
+          ${questions.map((q, idx) => `
+            <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 space-y-2">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-bold text-slate-700 dark:text-slate-300">
+                  Câu ${idx + 1}: <span class="px-2 py-0.5 rounded text-[10px] bg-indigo-100 text-indigo-700 font-bold">${escapeHtml(q.type || 'MCQ')}</span>
+                  ${q.level ? `<span class="px-2 py-0.5 rounded text-[10px] bg-amber-100 text-amber-700 font-bold">Mức ${escapeHtml(q.level)}</span>` : ''}
+                </span>
+                <span class="text-[11px] text-slate-400">
+                  ${escapeHtml(q.subject || 'Tin học')} • Khối ${escapeHtml(q.grade || '12')} • ${escapeHtml(q.topic || '')}
+                </span>
+              </div>
+              <p class="text-xs sm:text-sm font-semibold text-slate-800 dark:text-white leading-relaxed">
+                ${escapeHtml(q.question)}
+              </p>
+              ${q.options && q.options.length ? `
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
+                  ${q.options.map((opt, oIdx) => {
+                    const isCorrect = (oIdx === q.answer) || (String(opt).startsWith(String(q.answer)));
+                    return `
+                      <div class="p-2 rounded-xl border ${isCorrect ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 text-emerald-800 dark:text-emerald-300 font-bold' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}">
+                        ${String.fromCharCode(65 + oIdx)}. ${escapeHtml(opt)} ${isCorrect ? '✅' : ''}
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              ` : ''}
+              ${q.type === 'TLN' ? `
+                <div class="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-xs text-emerald-800 dark:text-emerald-300">
+                  <b>Đáp án ngắn:</b> ${escapeHtml(q.correctShortAnswer || q.answer || '')}
+                </div>
+              ` : ''}
+              ${q.explanation ? `
+                <div class="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 p-2 rounded-xl">
+                  💡 <b>Giải thích:</b> ${escapeHtml(q.explanation)}
+                </div>
+              ` : ''}
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900/50">
+          <button id="btn-close-admin-preview-bottom" class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 transition">
+            Đóng
+          </button>
+          ${pkg.status === 'pending' ? `
+            <div class="flex items-center gap-2">
+              <button id="btn-modal-reject-contrib" class="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold transition">
+                <i class="fa-solid fa-xmark mr-1"></i> Từ chối
+              </button>
+              <button id="btn-modal-approve-contrib" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm">
+                <i class="fa-solid fa-check mr-1"></i> Phê Duyệt Toàn Bộ Câu Hỏi Này
+              </button>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const closeModal = () => modal.remove();
+    modal.querySelector('#btn-close-admin-preview')?.addEventListener('click', closeModal);
+    modal.querySelector('#btn-close-admin-preview-bottom')?.addEventListener('click', closeModal);
+
+    modal.querySelector('#btn-modal-approve-contrib')?.addEventListener('click', () => {
+      closeModal();
+      const user = Auth.getCurrentUser();
+      const res = Storage.approveContribution(pkg.id, user?.fullName || 'Admin');
+      if (res.success) {
+        CloudSync.pushTeacherContributionsToCloud();
+        CloudSync.pushQuestionsToCloud();
+        alert(res.message);
+        this.render();
+      } else {
+        alert('Lỗi: ' + res.message);
+      }
+    });
+
+    modal.querySelector('#btn-modal-reject-contrib')?.addEventListener('click', () => {
+      const reason = prompt('Nhập lý do từ chối gói câu hỏi này:');
+      if (reason && reason.trim()) {
+        closeModal();
+        const user = Auth.getCurrentUser();
+        const res = Storage.rejectContribution(pkg.id, reason.trim(), user?.fullName || 'Admin');
+        if (res.success) {
+          CloudSync.pushTeacherContributionsToCloud();
+          alert(res.message);
+          this.render();
+        } else {
+          alert('Lỗi: ' + res.message);
+        }
+      }
     });
   },
 

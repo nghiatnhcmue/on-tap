@@ -10,10 +10,10 @@
  * - HỖ TRỢ THIẾT LẬP CÂU HỎI & MỐC DỪNG (Question & Checkpoint Editor): Cho phép Giáo viên & Admin tạo, sửa, xóa mốc dừng và câu hỏi trực tiếp trên web, tự động đồng bộ đám mây realtime!
  */
 
-import { Storage } from './storage.js?v=20261101_72';
-import { Auth } from './auth.js?v=20261101_72';
-import { escapeHtml } from './utils.js?v=20261101_72';
-import { Proctor } from './proctor.js?v=20261101_72';
+import { Storage } from './storage.js?v=20261101_73';
+import { Auth } from './auth.js?v=20261101_73';
+import { escapeHtml } from './utils.js?v=20261101_73';
+import { Proctor } from './proctor.js?v=20261101_73';
 
 export const InteractiveVideo = {
   container: null,
@@ -50,6 +50,9 @@ export const InteractiveVideo = {
   keyboardListener: null,
   notesSaveTimeout: null,
 
+  activeVideoTab: 'sgk', // 'sgk' | 'community' | 'my-videos'
+  tempCheckpoints: [],
+
   // Bộ nhớ đệm tệp video cục bộ (Offline / Local File Streaming)
   localVideoMap: {}, // filename -> { file, url, name }
   currentCustomUrlLesson: null,
@@ -77,6 +80,11 @@ export const InteractiveVideo = {
 
     this.setupGlobalModalListeners();
     this.render();
+    if (typeof window !== 'undefined' && window.CloudSync) {
+      window.CloudSync.syncTeacherVideos().then(() => {
+        if (!this.activeLesson) this.render();
+      }).catch(() => {});
+    }
   },
 
   setGrade(grade) {
@@ -154,9 +162,12 @@ export const InteractiveVideo = {
     return url;
   },
 
-  // Xác định đường dẫn phát video (Ưu tiên: 1. File local đã nạp -> 2. Custom URL -> 3. Archive.org S3 Base URL)
+  // Xác định đường dẫn phát video (Ưu tiên: 1. Link trực tiếp http/https -> 2. File local -> 3. Custom URL -> 4. Archive.org S3)
   getVideoUrl(videoFile) {
     if (!videoFile) return '';
+    if (videoFile.startsWith('http://') || videoFile.startsWith('https://')) {
+      return this.normalizeStreamingUrl(videoFile);
+    }
     const vLower = videoFile.toLowerCase();
 
     // 1. Tệp video cục bộ chọn từ máy tính
@@ -237,6 +248,9 @@ export const InteractiveVideo = {
     const isAdmin = Auth.isAdmin();
 
     const localCount = Object.keys(this.localVideoMap).length;
+    const currentUser = Auth.getCurrentUser();
+    const approvedTeacherVideos = Storage.getApprovedTeacherVideos();
+    const myTeacherVideos = isTeacher ? Storage.getTeacherVideos(currentUser?.email) : [];
 
     const filtered = videos.filter(v => {
       if (this.selectedTopic !== 'all' && v.topic !== this.selectedTopic) return false;
@@ -266,8 +280,12 @@ export const InteractiveVideo = {
             <!-- Bộ công cụ Lớp Học Video Trực Tuyến & Nạp Video Máy Tính -->
             <div class="pt-4 flex items-center gap-2 flex-wrap">
               ${isTeacher ? `
+                <button type="button" id="btn-open-create-teacher-video" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-black/20 border border-white/20 hover:scale-[1.02] active:scale-[0.98]">
+                  <i class="fa-solid fa-circle-plus"></i> Đóng Góp Video / Chuyên Đề Mới
+                </button>
+
                 <button type="button" id="btn-open-create-live-room" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white text-xs font-black transition flex items-center gap-2 shadow-lg shadow-black/20 border border-white/20 hover:scale-[1.02] active:scale-[0.98]">
-                  <i class="fa-solid fa-tower-broadcast"></i> Tạo Phòng Video Live (Real-Time)
+                  <i class="fa-solid fa-tower-broadcast"></i> Tạo Phòng Video Live
                 </button>
               ` : ''}
               
@@ -311,6 +329,29 @@ export const InteractiveVideo = {
           <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
         </div>
 
+        <!-- Thanh Tab: Video SGK vs Chuyên Đề Mở Rộng vs Video Của Tôi -->
+        <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-3 flex-wrap">
+          <button type="button" id="btn-tab-iv-sgk" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${this.activeVideoTab === 'sgk' ? 'bg-rose-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-rose-600'}">
+            <i class="fa-solid fa-book-bookmark"></i> Video Theo SGK (${videos.length} bài)
+          </button>
+          
+          <button type="button" id="btn-tab-iv-community" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${this.activeVideoTab === 'community' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-indigo-600'}">
+            <i class="fa-solid fa-globe"></i> Chuyên Đề & Video Mở Rộng
+            <span class="px-1.5 py-0.5 rounded-full text-[10px] font-black ${this.activeVideoTab === 'community' ? 'bg-white text-indigo-700' : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'}">
+              ${approvedTeacherVideos.length}
+            </span>
+          </button>
+
+          ${isTeacher ? `
+            <button type="button" id="btn-tab-iv-my-videos" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${this.activeVideoTab === 'my-videos' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-emerald-600'}">
+              <i class="fa-solid fa-cloud-arrow-up"></i> Video Đóng Góp Của Tôi
+              <span class="px-1.5 py-0.5 rounded-full text-[10px] font-black ${this.activeVideoTab === 'my-videos' ? 'bg-white text-emerald-700' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'}">
+                ${myTeacherVideos.length}
+              </span>
+            </button>
+          ` : ''}
+        </div>
+
         <!-- Filter & Search Controls -->
         <div class="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
           <div class="w-full sm:w-auto flex-1 flex flex-col sm:flex-row items-center gap-3">
@@ -334,6 +375,155 @@ export const InteractiveVideo = {
           </div>
         </div>
 
+        <!-- Grid Hiển Thị Nội Dung Theo Tab -->
+        ${this.activeVideoTab === 'community' ? `
+          <div class="space-y-4">
+            <div class="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/70 dark:border-indigo-800/60 text-xs text-indigo-900 dark:text-indigo-200 flex items-center justify-between gap-3">
+              <div class="flex items-center gap-2.5">
+                <i class="fa-solid fa-graduation-cap text-indigo-600 dark:text-indigo-400 text-base shrink-0"></i>
+                <span><b>Kho Chuyên Đề & Video Mở Rộng:</b> Các bài giảng chất lượng cao do Thầy/Cô thuộc mọi bộ môn (Tin học, Toán, Lý, Hóa, Ngoại ngữ...) đóng góp và đã được Ban Quản Trị phê duyệt.</span>
+              </div>
+            </div>
+
+            ${approvedTeacherVideos.length === 0 ? `
+              <div class="py-16 text-center bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 p-8">
+                <i class="fa-solid fa-film text-4xl text-slate-300 dark:text-slate-600 mb-3"></i>
+                <h4 class="text-sm font-bold text-slate-700 dark:text-slate-300">Chưa có video chuyên đề mở rộng nào được phát hành</h4>
+                <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                  Quý Thầy/Cô có thể bấm "Đóng Góp Video / Chuyên Đề Mới" ở phía trên để chia sẻ bài giảng của mình.
+                </p>
+              </div>
+            ` : `
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                ${approvedTeacherVideos.map(v => `
+                  <div class="group bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-indigo-400 dark:hover:border-indigo-500 transition overflow-hidden flex flex-col justify-between">
+                    <div class="p-5 space-y-3">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                          ${escapeHtml(v.subject || 'Chuyên đề')} • Khối ${escapeHtml(v.grade === 'all' ? 'Tất cả' : v.grade)}
+                        </span>
+                        <span class="text-[10px] text-slate-400">
+                          ${v.checkpoints ? v.checkpoints.length : 0} mốc dừng
+                        </span>
+                      </div>
+
+                      <h4 class="font-bold text-sm text-slate-800 dark:text-white line-clamp-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition">
+                        ${escapeHtml(v.title)}
+                      </h4>
+
+                      <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
+                        ${escapeHtml(v.description || v.topic || 'Bài giảng chuyên đề mở rộng')}
+                      </p>
+
+                      <div class="pt-2 border-t border-slate-100 dark:border-slate-700/60 text-[11px] text-slate-400 flex items-center justify-between">
+                        <span>GV: <strong class="text-slate-600 dark:text-slate-300">${escapeHtml(v.teacherName || 'Thầy/Cô')}</strong></span>
+                        ${v.teacherSchool ? `<span class="truncate max-w-[120px]">${escapeHtml(v.teacherSchool)}</span>` : ''}
+                      </div>
+                    </div>
+
+                    <div class="p-4 bg-slate-50 dark:bg-slate-900/60 border-t border-slate-100 dark:border-slate-700/60">
+                      <button type="button" data-start-custom-video="${v.id}" class="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-play text-[10px]"></i> Bắt Đầu Học Video Này
+                      </button>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
+        ` : this.activeVideoTab === 'my-videos' ? `
+          <div class="space-y-4">
+            <div class="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/70 dark:border-emerald-800/60 text-xs text-emerald-900 dark:text-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-2.5">
+                <i class="fa-solid fa-cloud-arrow-up text-emerald-600 dark:text-emerald-400 text-base shrink-0"></i>
+                <span><b>Video Đóng Góp Của Bạn:</b> Quản lý các video bài giảng Thầy/Cô đã thêm. Bấm <b>"Gửi Duyệt"</b> để Admin kiểm tra và đưa vào kho dùng chung cho học sinh.</span>
+              </div>
+              <button type="button" id="btn-inner-create-teacher-video" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition shadow-xs shrink-0 self-start sm:self-auto">
+                <i class="fa-solid fa-plus mr-1"></i> Thêm Video Mới
+              </button>
+            </div>
+
+            ${myTeacherVideos.length === 0 ? `
+              <div class="py-16 text-center bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 p-8">
+                <i class="fa-solid fa-video text-4xl text-slate-300 dark:text-slate-600 mb-3"></i>
+                <h4 class="text-sm font-bold text-slate-700 dark:text-slate-300">Thầy/Cô chưa đóng góp video bài giảng nào</h4>
+                <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                  Hãy bấm nút "Thêm Video Mới" ở trên để chia sẻ bài giảng YouTube, video MP4 của Thầy/Cô.
+                </p>
+              </div>
+            ` : `
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${myTeacherVideos.map(v => {
+                  let badgeClass = 'bg-amber-100 text-amber-800 border-amber-300';
+                  let badgeText = 'Bản nháp riêng';
+                  if (v.status === 'pending') {
+                    badgeClass = 'bg-blue-100 text-blue-800 border-blue-300 animate-pulse';
+                    badgeText = 'Chờ Admin duyệt ⏳';
+                  } else if (v.status === 'approved') {
+                    badgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+                    badgeText = 'Đã phê duyệt ✅';
+                  } else if (v.status === 'rejected') {
+                    badgeClass = 'bg-rose-100 text-rose-800 border-rose-300';
+                    badgeText = 'Cần chỉnh sửa ⚠️';
+                  }
+
+                  return `
+                    <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-3 flex flex-col justify-between">
+                      <div class="space-y-2">
+                        <div class="flex items-center justify-between gap-2 flex-wrap">
+                          <span class="px-2 py-0.5 rounded-md text-[10px] font-bold border ${badgeClass}">
+                            ${badgeText}
+                          </span>
+                          <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                            ${escapeHtml(v.subject)} • Khối ${escapeHtml(v.grade === 'all' ? 'Tất cả' : v.grade)}
+                          </span>
+                        </div>
+
+                        <h4 class="font-bold text-sm text-slate-800 dark:text-white line-clamp-2">
+                          ${escapeHtml(v.title)}
+                        </h4>
+
+                        <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
+                          ${escapeHtml(v.description || 'Không có mô tả')}
+                        </p>
+
+                        <div class="text-[11px] text-slate-400 truncate">
+                          Link: <a href="${escapeHtml(v.videoUrl)}" target="_blank" class="text-blue-500 hover:underline">${escapeHtml(v.videoUrl)}</a>
+                        </div>
+
+                        ${v.status === 'rejected' && v.rejectReason ? `
+                          <div class="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300">
+                            <strong>Lý do từ chối:</strong> ${escapeHtml(v.rejectReason)}
+                          </div>
+                        ` : ''}
+                      </div>
+
+                      <div class="pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between gap-2">
+                        <button type="button" data-start-custom-video="${v.id}" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center gap-1.5">
+                          <i class="fa-solid fa-play text-[10px]"></i> Xem thử
+                        </button>
+
+                        <div class="flex items-center gap-2">
+                          ${(v.status === 'draft' || v.status === 'rejected') ? `
+                            <button type="button" data-iv-submit-video="${v.id}" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold transition shadow-xs flex items-center gap-1">
+                              <i class="fa-solid fa-paper-plane text-[10px]"></i> Gửi duyệt
+                            </button>
+                          ` : ''}
+
+                          ${v.status !== 'approved' ? `
+                            <button type="button" data-iv-delete-video="${v.id}" class="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 text-xs font-bold transition" title="Xóa video này">
+                              <i class="fa-regular fa-trash-can"></i>
+                            </button>
+                          ` : ''}
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `}
+          </div>
+        ` : `
         <!-- Lesson Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           ${filtered.length === 0 ? `
@@ -447,6 +637,7 @@ export const InteractiveVideo = {
             `;
           }).join('')}
         </div>
+        `}
 
       </div>
     `;
@@ -455,7 +646,64 @@ export const InteractiveVideo = {
   },
 
   bindListEvents() {
-    // Chuyển khối lớp
+
+    // --- SỰ KIỆN QUẢN LÝ VIDEO ĐÓNG GÓP ---
+    this.container.querySelector('#btn-open-create-teacher-video')?.addEventListener('click', () => {
+      this.openCreateTeacherVideoModal();
+    });
+    this.container.querySelector('#btn-inner-create-teacher-video')?.addEventListener('click', () => {
+      this.openCreateTeacherVideoModal();
+    });
+
+    this.container.querySelector('#btn-tab-iv-sgk')?.addEventListener('click', () => {
+      this.activeVideoTab = 'sgk';
+      this.render();
+    });
+    this.container.querySelector('#btn-tab-iv-community')?.addEventListener('click', () => {
+      this.activeVideoTab = 'community';
+      this.render();
+    });
+    this.container.querySelector('#btn-tab-iv-my-videos')?.addEventListener('click', () => {
+      this.activeVideoTab = 'my-videos';
+      this.render();
+    });
+
+    // Phát video mở rộng
+    this.container.querySelectorAll('[data-start-custom-video]').forEach(btn => {
+      btn.onclick = () => {
+        const vidId = btn.getAttribute('data-start-custom-video');
+        const allVids = Storage.getAllTeacherVideos();
+        const found = allVids.find(v => v.id === vidId);
+        if (found) {
+          this.startCustomTeacherVideo(found);
+        }
+      };
+    });
+
+    // Gửi duyệt video
+    this.container.querySelectorAll('[data-iv-submit-video]').forEach(btn => {
+      btn.onclick = () => {
+        const vidId = btn.getAttribute('data-iv-submit-video');
+        if (confirm('Bạn có chắc muốn gửi video bài giảng này lên Kho chung để Ban Quản Trị (Admin) phê duyệt?')) {
+          Storage.submitVideoForApproval(vidId);
+          alert('🚀 Đã gửi video bài giảng lên Kho chung thành công! Vui lòng đợi Admin kiểm duyệt.');
+          this.render();
+        }
+      };
+    });
+
+    // Xóa video đóng góp
+    this.container.querySelectorAll('[data-iv-delete-video]').forEach(btn => {
+      btn.onclick = () => {
+        const vidId = btn.getAttribute('data-iv-delete-video');
+        if (confirm('Bạn có chắc chắn muốn xóa video bài giảng này không?')) {
+          Storage.deleteTeacherVideo(vidId);
+          this.render();
+        }
+      };
+    });
+
+        // Chuyển khối lớp
     this.container.querySelectorAll('[data-video-grade]').forEach(btn => {
       btn.onclick = () => {
         const grade = btn.getAttribute('data-video-grade');
@@ -2609,6 +2857,289 @@ export const InteractiveVideo = {
   // ==========================================
   // 7. CẤU HÌNH ĐƯỜNG LINK VIDEO TÙY CHỈNH
   // ==========================================
+
+  // ==========================================
+  // PHÁT VIDEO BÀI GIẢNG ĐÓNG GÓP TỰ DO CỦA GIÁO VIÊN
+  // ==========================================
+  startCustomTeacherVideo(videoItem) {
+    if (!videoItem) return;
+    this.activeLesson = {
+      lesson: videoItem.title,
+      topic: `${videoItem.subject || 'Chuyên đề'} • ${videoItem.topic || 'Mở rộng'}`,
+      video: videoItem.videoUrl,
+      isCustomTeacherVideo: true,
+      teacherName: videoItem.teacherName,
+      teacherSchool: videoItem.teacherSchool
+    };
+
+    const checkpointsMap = {};
+    if (Array.isArray(videoItem.checkpoints) && videoItem.checkpoints.length > 0) {
+      videoItem.checkpoints.forEach((cp, idx) => {
+        const sec = parseInt(cp.time_sec || '0', 10);
+        if (!checkpointsMap[sec]) checkpointsMap[sec] = [];
+        checkpointsMap[sec].push({
+          id: `cp_q_${videoItem.id}_${idx}`,
+          question: cp.question,
+          options: cp.options || [],
+          answer: cp.answer || 'A',
+          note: cp.note || '',
+          level: '1',
+          video_stop: sec
+        });
+      });
+    }
+
+    this.sortedCheckpoints = Object.keys(checkpointsMap).map(Number).sort((a, b) => a - b);
+    this.checkpointsMap = checkpointsMap;
+    this.completedCheckpoints = new Set();
+    this.currentCheckpointSec = null;
+    this.scoreEarned = 0;
+    this.correctCount = 0;
+    this.totalQuestionsInLesson = Object.values(checkpointsMap).reduce((acc, list) => acc + list.length, 0);
+    this.renderPlayerView();
+  },
+
+  // ==========================================
+  // MODAL ĐÓNG GÓP VIDEO / CHUYÊN ĐỀ MỚI CỦA GIÁO VIÊN
+  // ==========================================
+  openCreateTeacherVideoModal() {
+    let modal = document.getElementById('modal-create-teacher-video');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'modal-create-teacher-video';
+      modal.className = 'fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto';
+      document.body.appendChild(modal);
+    }
+
+    const user = Auth.getCurrentUser();
+    this.tempCheckpoints = [];
+
+    const renderModalHtml = () => {
+      modal.innerHTML = `
+        <div class="bg-white dark:bg-slate-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-5 animate-scaleUp max-h-[92vh] overflow-y-auto">
+          <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-500 to-indigo-600 text-white flex items-center justify-center text-lg shadow-sm">
+                <i class="fa-solid fa-video"></i>
+              </div>
+              <div>
+                <h3 class="text-base font-bold text-slate-800 dark:text-white">Đóng Góp Video / Chuyên Đề Mới</h3>
+                <p class="text-xs text-slate-400">Tự do chia sẻ bài giảng mọi môn học hoặc chuyên đề riêng của Thầy/Cô</p>
+              </div>
+            </div>
+            <button id="btn-close-create-teacher-video" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 transition flex items-center justify-center">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <form id="form-create-teacher-video" class="space-y-4 text-xs">
+            <!-- 1. Tên bài giảng -->
+            <div>
+              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Tiêu đề bài giảng / Video <span class="text-rose-500">*</span>
+              </label>
+              <input type="text" id="tv-input-title" required placeholder="Ví dụ: Chuyên đề Lập trình Game Flappy Bird với Python" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-rose-500" />
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <!-- 2. Môn học / Lĩnh vực -->
+              <div>
+                <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Môn học / Lĩnh vực *</label>
+                <select id="tv-input-subject" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white">
+                  <option value="Tin học" selected>Tin học</option>
+                  <option value="Toán học">Toán học</option>
+                  <option value="Vật lý">Vật lý</option>
+                  <option value="Hóa học">Hóa học</option>
+                  <option value="Sinh học">Sinh học</option>
+                  <option value="Tiếng Anh">Tiếng Anh</option>
+                  <option value="Lập trình & Kỹ năng số">Lập trình & Kỹ năng số</option>
+                  <option value="Trí tuệ nhân tạo (AI)">Trí tuệ nhân tạo (AI)</option>
+                  <option value="__other__">Môn học khác (Tự nhập)...</option>
+                </select>
+                <input type="text" id="tv-input-subject-other" placeholder="Nhập tên môn học..." class="hidden w-full mt-1.5 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium" />
+              </div>
+
+              <!-- 3. Khối lớp -->
+              <div>
+                <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Khối lớp</label>
+                <select id="tv-input-grade" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white">
+                  <option value="12">Khối 12</option>
+                  <option value="11">Khối 11</option>
+                  <option value="10">Khối 10</option>
+                  <option value="all" selected>Tất cả / Đại trà</option>
+                </select>
+              </div>
+
+              <!-- 4. Chủ đề -->
+              <div>
+                <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Chủ đề / Chuyên đề</label>
+                <input type="text" id="tv-input-topic" placeholder="Ví dụ: Lập trình Pygame" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-white" />
+              </div>
+            </div>
+
+            <!-- 5. Đường dẫn video URL -->
+            <div>
+              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Đường dẫn Video (URL) <span class="text-rose-500">*</span>
+              </label>
+              <input type="url" id="tv-input-url" required placeholder="Dán link YouTube (youtube.com/watch?v=...), Archive.org hoặc link video MP4..." class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-rose-500" />
+              <p class="text-[11px] text-slate-400 mt-1">
+                Hỗ trợ link YouTube, link chia sẻ video trên mạng hoặc link máy chủ trường học.
+              </p>
+            </div>
+
+            <!-- 6. Mô tả bài giảng -->
+            <div>
+              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Mô tả bài học & Mục tiêu</label>
+              <textarea id="tv-input-desc" rows="2" placeholder="Tóm tắt ngắn gọn nội dung bài giảng để học sinh nắm bắt..." class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-white"></textarea>
+            </div>
+
+            <!-- 7. Mốc dừng tương tác (Checkpoints) -->
+            <div class="border-t border-slate-100 dark:border-slate-700 pt-3 space-y-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <span class="font-bold text-slate-800 dark:text-white block">Câu hỏi dừng tương tác (Checkpoints)</span>
+                  <span class="text-[11px] text-slate-400">Video sẽ tự động dừng tại các giây đã hẹn để học sinh trả lời</span>
+                </div>
+                <button type="button" id="btn-add-tv-checkpoint" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 rounded-xl font-bold transition flex items-center gap-1">
+                  <i class="fa-solid fa-plus text-[10px]"></i> Thêm mốc dừng
+                </button>
+              </div>
+
+              <div id="tv-checkpoints-list" class="space-y-2">
+                ${this.tempCheckpoints.length === 0 ? `
+                  <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-dashed border-slate-200 dark:border-slate-700 text-center text-slate-400 text-[11px]">
+                    Chưa có mốc dừng nào. Bấm "+ Thêm mốc dừng" nếu Thầy/Cô muốn chèn câu hỏi trắc nghiệm khi đang chiếu video.
+                  </div>
+                ` : this.tempCheckpoints.map((cp, idx) => `
+                  <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+                    <div class="flex items-center justify-between">
+                      <span class="font-bold text-rose-600 dark:text-rose-400">🚩 Mốc ${idx + 1}: Dừng tại giây thứ <strong>${cp.time_sec}s</strong> (${Math.floor(cp.time_sec / 60)}p${cp.time_sec % 60}s)</span>
+                      <button type="button" data-del-checkpoint="${idx}" class="text-rose-500 hover:text-rose-700 font-bold text-xs"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                    <p class="font-semibold text-slate-800 dark:text-white">${escapeHtml(cp.question)}</p>
+                    <div class="text-[11px] text-slate-500">Đáp án đúng: <strong>${escapeHtml(cp.answer)}</strong></div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Nút hành động -->
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-end gap-3">
+              <button type="button" id="btn-save-tv-draft" class="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition flex items-center justify-center gap-1.5">
+                <i class="fa-regular fa-bookmark"></i> Lưu Bản Nháp Riêng
+              </button>
+              <button type="button" id="btn-submit-tv-approval" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-700 hover:to-indigo-700 text-white font-bold transition shadow-lg shadow-rose-500/25 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-paper-plane"></i> Gửi Lên Kho Chung (Yêu Cầu Duyệt)
+              </button>
+            </div>
+          </form>
+        </div>
+      `;
+
+      modal.classList.remove('hidden');
+
+      const closeModal = () => modal.classList.add('hidden');
+      modal.querySelector('#btn-close-create-teacher-video').onclick = closeModal;
+
+      // Xử lý chọn môn học khác
+      const subjectSelect = modal.querySelector('#tv-input-subject');
+      const subjectOtherInput = modal.querySelector('#tv-input-subject-other');
+      subjectSelect.onchange = () => {
+        if (subjectSelect.value === '__other__') {
+          subjectOtherInput.classList.remove('hidden');
+          subjectOtherInput.focus();
+        } else {
+          subjectOtherInput.classList.add('hidden');
+        }
+      };
+
+      // Xóa checkpoint
+      modal.querySelectorAll('[data-del-checkpoint]').forEach(btn => {
+        btn.onclick = () => {
+          const idx = parseInt(btn.getAttribute('data-del-checkpoint'), 10);
+          this.tempCheckpoints.splice(idx, 1);
+          renderModalHtml();
+        };
+      });
+
+      // Thêm mốc dừng
+      modal.querySelector('#btn-add-tv-checkpoint').onclick = () => {
+        const timeSec = prompt('Nhập thời điểm dừng video (tính bằng giây, ví dụ: 90 là 1 phút 30 giây):', '60');
+        if (!timeSec) return;
+        const qText = prompt('Nhập nội dung câu hỏi trắc nghiệm:', '');
+        if (!qText) return;
+        const optA = prompt('Phương án A:', '');
+        const optB = prompt('Phương án B:', '');
+        const optC = prompt('Phương án C:', '');
+        const optD = prompt('Phương án D:', '');
+        const ans = (prompt('Đáp án đúng (A, B, C, D):', 'A') || 'A').toUpperCase();
+
+        this.tempCheckpoints.push({
+          time_sec: parseInt(timeSec, 10) || 60,
+          question: qText,
+          options: [optA, optB, optC, optD].filter(Boolean),
+          answer: ans
+        });
+        renderModalHtml();
+      };
+
+      const collectVideoData = (status) => {
+        const title = modal.querySelector('#tv-input-title').value.trim();
+        const url = modal.querySelector('#tv-input-url').value.trim();
+        if (!title) { alert('Vui lòng nhập Tiêu đề bài giảng!'); return null; }
+        if (!url) { alert('Vui lòng nhập Đường dẫn Video (URL)!'); return null; }
+
+        let subject = subjectSelect.value;
+        if (subject === '__other__') {
+          subject = subjectOtherInput.value.trim() || 'Môn học khác';
+        }
+        const grade = modal.querySelector('#tv-input-grade').value;
+        const topic = modal.querySelector('#tv-input-topic').value.trim() || 'Chuyên đề mở rộng';
+        const description = modal.querySelector('#tv-input-desc').value.trim();
+
+        return {
+          title,
+          videoUrl: url,
+          subject,
+          grade,
+          topic,
+          description,
+          status,
+          teacherEmail: user?.email || 'giaovien@tinhochub.edu.vn',
+          teacherName: user?.fullName || 'Giáo viên',
+          teacherSchool: user?.school || '',
+          checkpoints: this.tempCheckpoints
+        };
+      };
+
+      // Nút Lưu Bản Nháp
+      modal.querySelector('#btn-save-tv-draft').onclick = () => {
+        const data = collectVideoData('draft');
+        if (!data) return;
+        Storage.saveTeacherVideo(data);
+        alert(`Đã lưu video "${data.title}" vào "Video Đóng Góp Của Tôi" (Bản nháp)!`);
+        closeModal();
+        this.activeVideoTab = 'my-videos';
+        this.render();
+      };
+
+      // Nút Gửi Duyệt
+      modal.querySelector('#btn-submit-tv-approval').onclick = () => {
+        const data = collectVideoData('pending');
+        if (!data) return;
+        data.submittedAt = new Date().toISOString();
+        Storage.saveTeacherVideo(data);
+        alert(`Đã gửi video "${data.title}" lên Kho chung thành công!\nBan Quản Trị (Admin) sẽ xem xét và phê duyệt phát hành.`);
+        closeModal();
+        this.activeVideoTab = 'my-videos';
+        this.render();
+      };
+    };
+
+    renderModalHtml();
+  },
+
   openCustomUrlModal(lesson) {
     this.currentCustomUrlLesson = lesson;
     const modal = document.getElementById('modal-video-custom-url');
