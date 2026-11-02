@@ -4,9 +4,9 @@
  * Cho phép: Thêm, Sửa, Xóa câu hỏi trong ngân hàng đề, lọc và tìm kiếm trực quan.
  */
 
-import { Storage } from './storage.js?v=20261101_77';
-import { Auth } from './auth.js?v=20261101_77';
-import { escapeHtml } from './utils.js?v=20261101_77';
+import { Storage } from './storage.js?v=20261102_78';
+import { Auth } from './auth.js?v=20261102_78';
+import { escapeHtml } from './utils.js?v=20261102_78';
 
 export const QuestionsManager = {
   container: null,
@@ -48,12 +48,7 @@ export const QuestionsManager = {
       ['STT', 'Môn học / Lĩnh vực', 'Khối lớp', 'Chủ đề', 'Bài học', 'Loại câu (MCQ/DS/TLN)', 'Mức độ (1/2/3/4/DS/TLN)', 'Nội dung câu hỏi', 'Phương án A', 'Phương án B', 'Phương án C', 'Phương án D', 'Đáp án đúng', 'Hướng dẫn giải / Giải thích'],
       [1, 'Tin học', '12', 'Chủ đề 1. Máy tính và xã hội tri thức', 'Bài 01. Giới thiệu Trí tuệ nhân tạo (AI)', 'MCQ', '2', 'Hệ thống nào sau đây là một ứng dụng tiêu biểu của Trí tuệ nhân tạo (AI)?', 'Bảng tính Excel cơ bản', 'Hệ thống nhận diện khuôn mặt tự động trên điện thoại', 'Phần mềm Paint vẽ hình', 'Trình soạn thảo văn bản Notepad', 'B', 'Nhận diện khuôn mặt ứng dụng mạng nơ-ron tích chập (CNN) của Trí tuệ nhân tạo.'],
       [2, 'Tin học', '12', 'Chủ đề 2. Mạng máy tính và Internet', 'Bài 02. Giao thức mạng và địa chỉ IP', 'DS', 'DS', 'Cho các nhận định sau về giao thức TCP/IP trên Internet:', 'a) TCP đảm bảo việc truyền dữ liệu diễn ra tin cậy và nguyên vẹn.', 'b) IP chịu trách nhiệm định tuyến các gói tin đến đúng địa chỉ nhận.', 'c) HTTP là giao thức hoạt động tại tầng mạng.', 'd) Địa chỉ IPv4 tiêu chuẩn có độ dài là 128 bit.', 'a:Đ, b:Đ, c:S, d:S', 'HTTP hoạt động ở tầng ứng dụng; IPv4 có độ dài 32 bit (IPv6 mới có độ dài 128 bit).'],
-      [3, 'Tin học', '10', 'Chủ đề 4. Lập trình cơ bản với Python', 'Bài 03. Cấu trúc lặp for và while', 'TLN', '3', 'Cho đoạn mã Python sau:
-s = 0
-for i in range(1, 6):
-    s += i
-print(s)
-Giá trị in ra màn hình là bao nhiêu?', '', '', '', '', '15', 'Vòng lặp tính tổng s = 1 + 2 + 3 + 4 + 5 = 15.'],
+      [3, 'Tin học', '10', 'Chủ đề 4. Lập trình cơ bản với Python', 'Bài 03. Cấu trúc lặp for và while', 'TLN', '3', `Cho đoạn mã Python sau:\ns = 0\nfor i in range(1, 6):\n    s += i\nprint(s)\nGiá trị in ra màn hình là bao nhiêu?`, '', '', '', '', '15', 'Vòng lặp tính tổng s = 1 + 2 + 3 + 4 + 5 = 15.'],
       [4, 'Toán học', '12', 'Chuyên đề: Giải tích', 'Bài 01. Khảo sát hàm số', 'MCQ', '1', 'Đạo hàm của hàm số y = x^3 là gì?', '3x^2', '2x^3', '3x', 'x^2', 'A', 'Áp dụng công thức (x^n)\' = n*x^(n-1), ta có (x^3)\' = 3x^2.']
     ];
 

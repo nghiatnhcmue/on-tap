@@ -1921,5 +1921,5 @@ const Arena = {
   }
 };
 
-window.Arena = Arena;
+if (typeof window !== "undefined") window.Arena = Arena;
 export default Arena;

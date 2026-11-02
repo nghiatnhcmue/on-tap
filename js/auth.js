@@ -4,8 +4,8 @@
  * Hỗ trợ: Đăng nhập Google Popup, Đồng bộ Firebase Realtime Database, Hồ sơ học sinh.
  */
 
-import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261101_77';
-import { CloudSync } from './cloud-sync.js?v=20261101_77';
+import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261102_78';
+import { CloudSync } from './cloud-sync.js?v=20261102_78';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
 
@@ -269,10 +269,24 @@ export const Auth = {
 
       // Lắng nghe thay đổi trạng thái xác thực Firebase
       this.firebaseAuth.onAuthStateChanged((user) => {
-        if (user && !this.currentUser) {
+        if (user) {
           this.handleFirebaseUser(user);
         }
       });
+
+      // Kiểm tra kết quả Redirect nếu người dùng vừa xác thực Google Redirect về trang
+      if (typeof this.firebaseAuth.getRedirectResult === 'function') {
+        this.firebaseAuth.getRedirectResult().then((result) => {
+          if (result && result.user) {
+            console.log("Đã đăng nhập thành công qua Google Redirect:", result.user);
+            this.handleFirebaseUser(result.user);
+          }
+        }).catch((err) => {
+          if (err && err.code !== 'auth/null-user') {
+            console.warn("Lỗi getRedirectResult:", err);
+          }
+        });
+      }
 
       return true;
     } catch (err) {
@@ -569,8 +583,31 @@ export const Auth = {
       const provider = new firebase.auth.GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
 
-      // Gọi popup trực tiếp
-      const result = await this.firebaseAuth.signInWithPopup(provider);
+      // Thử xác thực qua Popup, tự động chuyển đổi sang Redirect nếu gặp lỗi chặn COOP/Tracking
+      let result = null;
+      try {
+        result = await this.firebaseAuth.signInWithPopup(provider);
+      } catch (popupErr) {
+        console.warn('Popup gặp lỗi hoặc bị chặn COOP/Tracking, tự động chuyển sang signInWithRedirect:', popupErr);
+        const isCoopOrBlocked = popupErr.code === 'auth/popup-blocked' ||
+                                popupErr.code === 'auth/cancelled-popup-request' ||
+                                popupErr.code === 'auth/internal-error' ||
+                                (popupErr.message && (
+                                  popupErr.message.includes('Cross-Origin-Opener-Policy') ||
+                                  popupErr.message.includes('window.closed') ||
+                                  popupErr.message.includes('tracking')
+                                ));
+
+        if (isCoopOrBlocked && typeof this.firebaseAuth.signInWithRedirect === 'function') {
+          btns.forEach(b => {
+            b.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang chuyển hướng Google...';
+          });
+          await this.firebaseAuth.signInWithRedirect(provider);
+          return;
+        }
+        throw popupErr;
+      }
+
       if (result && result.user) {
         this.handleFirebaseUser(result.user);
         document.documentElement.classList.add('is-authenticated');
