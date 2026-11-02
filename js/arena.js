@@ -11,7 +11,27 @@ import defaultGameEngine, {
   SpeedRaceHandler,
   BossRaidHandler,
   ClassicKahootHandler
-} from './game-engine.js?v=20261102_79';
+} from './game-engine.js?v=20261102_80';
+import { Storage } from './storage.js?v=20261102_80';
+import { Auth } from './auth.js?v=20261102_80';
+import { CloudSync } from './cloud-sync.js?v=20261102_80';
+import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_80';
+
+// Định nghĩa an toàn tuyệt đối cho hàm escapeHtml trong scope của arena.js
+function escapeHtml(str) {
+  if (typeof importedEscapeHtml === 'function') return importedEscapeHtml(str);
+  if (typeof window !== 'undefined' && typeof window.escapeHtml === 'function') return window.escapeHtml(str);
+  if (!str && str !== 0) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+if (typeof window !== 'undefined') {
+  window.escapeHtml = escapeHtml;
+}
 
 const Arena = {
   engine: defaultGameEngine,

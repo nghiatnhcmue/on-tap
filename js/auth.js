@@ -4,8 +4,8 @@
  * Hỗ trợ: Đăng nhập Google Popup, Đồng bộ Firebase Realtime Database, Hồ sơ học sinh.
  */
 
-import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261102_79';
-import { CloudSync } from './cloud-sync.js?v=20261102_79';
+import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261102_80';
+import { CloudSync } from './cloud-sync.js?v=20261102_80';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
 
