@@ -1,10 +1,20 @@
 /**
  * TinHocHub - Arena: Đấu Trường Game Trí Tuệ (Blooket & Wayground Style + LMS Chỉnh Chu)
- * Hỗ trợ 4 chế độ game: Đào Vàng Rương Báu, Đua Top Tốc Độ, Săn Boss Diệt Bug, Kahoot Cổ Điển.
- * Tích hợp Blook Avatars, Web Audio API Sound Synthesizer, Firebase Realtime Sync, và LMS Sổ Điểm.
+ * Kiến trúc Pluggable Game Modes over Decoupled Question Sets:
+ * Tách biệt hoàn toàn ngân hàng câu hỏi giáo dục khỏi lớp cơ chế gamification.
+ * Hỗ trợ các GameModeHandler: Resource Quest (Đào Vàng), Speed Race (Đua Top), Boss Raid (Săn Boss), Classic Kahoot.
  */
 
+import defaultGameEngine, {
+  GameSessionManager,
+  ResourceQuestHandler,
+  SpeedRaceHandler,
+  BossRaidHandler,
+  ClassicKahootHandler
+} from './game-engine.js?v=20261102_79';
+
 const Arena = {
+  engine: defaultGameEngine,
   container: null,
   manifest: null,
   loadGradeFn: null,
@@ -389,7 +399,7 @@ const Arena = {
   },
 
   // ==========================================
-  // 3. MODAL TẠO ĐẤU TRƯỜNG DÀNH CHO GIÁO VIÊN
+  // 3. MODAL TẠO ĐẤU TRƯỜNG DÀNH CHO GIÁO VIÊN (PLUGGABLE FLOW)
   // ==========================================
   openCreateArenaModal() {
     let modal = document.getElementById('modal-create-arena');
@@ -412,8 +422,8 @@ const Arena = {
               <i class="fa-solid fa-gamepad"></i>
             </div>
             <div>
-              <h3 class="text-base font-black text-slate-800 dark:text-white">Tạo Đấu Trường Game Mới</h3>
-              <p class="text-xs text-slate-400">Khởi tạo trận đấu tương tác trực tiếp hoặc giao bài tập về nhà</p>
+              <h3 class="text-base font-black text-slate-800 dark:text-white">Khởi Tạo Đấu Trường Gamification</h3>
+              <p class="text-xs text-slate-400">Kiến trúc Pluggable: Ghép nối ngân hàng đề với các cơ chế game đa dạng</p>
             </div>
           </div>
           <button id="btn-close-create-arena" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 transition flex items-center justify-center">
@@ -421,93 +431,124 @@ const Arena = {
           </button>
         </div>
 
-        <form id="form-create-arena-submit" class="space-y-4 text-xs">
-          <!-- 1. Tên trận đấu -->
+        <form id="form-create-arena-submit" class="space-y-5 text-xs">
+          <!-- Tên trận đấu -->
           <div>
             <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Tên Trận Đấu / Đấu Trường *</label>
             <input type="text" id="arena-create-title" required placeholder="Ví dụ: Đấu Trường Rương Báu Tin Học 12 - Ôn Thi Giữa Kỳ" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-amber-500" />
           </div>
 
-          <!-- 2. Chọn Chế độ Game -->
-          <div>
-            <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Chế Độ Chơi (Game Mode) *</label>
-            <div class="grid grid-cols-2 gap-2.5">
+          <!-- BƯỚC 1: CHỌN NGUỒN ĐỀ THI (DECOUPLED QUIZ SET) -->
+          <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 space-y-3">
+            <span class="text-[11px] font-black uppercase text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-book-open"></i> Bước 1: Chọn Bộ Đề Thi Giáo Dục (Decoupled Quiz Set)
+            </span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Ngân Hàng Câu Hỏi *</label>
+                <select id="arena-create-source" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white">
+                  <option value="grade_12" selected>Khối 12 (Ngân hàng chuẩn 1.479 câu)</option>
+                  <option value="grade_11">Khối 11 (Ngân hàng chuẩn 1.240 câu)</option>
+                  <option value="grade_10">Khối 10 (Ngân hàng chuẩn 1.379 câu)</option>
+                  ${customPackages.map(p => `
+                    <option value="pkg_${p.id}">Gói Excel: ${escapeHtml(p.packageTitle)} (${p.questions.length} câu)</option>
+                  `).join('')}
+                </select>
+              </div>
+
+              <div>
+                <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Số Lượng Câu Hỏi Trộn *</label>
+                <select id="arena-create-qcount" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white">
+                  <option value="10">10 câu hỏi (Nhanh 5-7 phút)</option>
+                  <option value="15" selected>15 câu hỏi (Tiêu chuẩn 10-12 phút)</option>
+                  <option value="20">20 câu hỏi (Toàn diện 15 phút)</option>
+                  <option value="25">25 câu hỏi</option>
+                  <option value="30">30 câu hỏi</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- BƯỚC 2: CHỌN CHẾ ĐỘ CHƠI (GAME MODE STRATEGY) -->
+          <div class="space-y-2">
+            <span class="text-[11px] font-black uppercase text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-dice"></i> Bước 2: Chọn Chế Độ Gamification (Game Mode Adapter)
+            </span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <label class="p-3 rounded-2xl border-2 border-amber-400 bg-amber-50/50 dark:bg-amber-950/20 flex items-center gap-3 cursor-pointer">
-                <input type="radio" name="arena-create-mode" value="gold_quest" checked class="text-amber-500 focus:ring-amber-400" />
+                <input type="radio" name="arena-create-mode" value="resource_quest" checked class="text-amber-500 focus:ring-amber-400" />
                 <div>
-                  <strong class="block text-slate-800 dark:text-white text-xs">🪙 Đào Vàng & Rương Báu</strong>
-                  <span class="text-[10px] text-slate-500">Blooket Gold Quest cướp vàng</span>
+                  <strong class="block text-slate-800 dark:text-white text-xs">🪙 Đào Vàng & Rương Báu (Resource Quest)</strong>
+                  <span class="text-[10px] text-slate-500">Blooket Style: Mở 3 rương, x2 vàng, Khiên thần, Cướp vàng</span>
                 </div>
               </label>
 
               <label class="p-3 rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:border-blue-400 flex items-center gap-3 cursor-pointer">
-                <input type="radio" name="arena-create-mode" value="speed_racer" class="text-blue-500 focus:ring-blue-400" />
+                <input type="radio" name="arena-create-mode" value="speed_race" class="text-blue-500 focus:ring-blue-400" />
                 <div>
-                  <strong class="block text-slate-800 dark:text-white text-xs">🏎️ Đua Top Tốc Độ</strong>
-                  <span class="text-[10px] text-slate-500">Wayground Combo Power-ups</span>
+                  <strong class="block text-slate-800 dark:text-white text-xs">🏎️ Đua Top Tốc Độ (Speed Race)</strong>
+                  <span class="text-[10px] text-slate-500">Wayground Style: Phản xạ nhanh, Combo streak x2/x3 & Đóng băng</span>
                 </div>
               </label>
 
               <label class="p-3 rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:border-rose-400 flex items-center gap-3 cursor-pointer">
-                <input type="radio" name="arena-create-mode" value="boss_raid" class="text-rose-500 focus:ring-rose-400" />
+                <input type="radio" name="arena-create-mode" value="boss_hunt" class="text-rose-500 focus:ring-rose-400" />
                 <div>
-                  <strong class="block text-slate-800 dark:text-white text-xs">👾 Săn Boss Diệt Bug</strong>
-                  <span class="text-[10px] text-slate-500">Cả lớp hợp lực đánh trùm</span>
+                  <strong class="block text-slate-800 dark:text-white text-xs">👾 Săn Boss Diệt Bug (Boss Raid)</strong>
+                  <span class="text-[10px] text-slate-500">Co-op Co-operative: Cả lớp hợp lực đánh bại Siêu Trùm</span>
                 </div>
               </label>
 
               <label class="p-3 rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:border-purple-400 flex items-center gap-3 cursor-pointer">
                 <input type="radio" name="arena-create-mode" value="classic" class="text-purple-500 focus:ring-purple-400" />
                 <div>
-                  <strong class="block text-slate-800 dark:text-white text-xs">⚡ Tốc Độ Cổ Điển</strong>
-                  <span class="text-[10px] text-slate-500">Biểu đồ câu hỏi Kahoot</span>
+                  <strong class="block text-slate-800 dark:text-white text-xs">⚡ Tốc Độ Cổ Điển (Classic Kahoot)</strong>
+                  <span class="text-[10px] text-slate-500">Biểu đồ phân bổ phương án và bục vinh danh Podium</span>
                 </div>
               </label>
             </div>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <!-- 3. Nguồn câu hỏi -->
-            <div>
-              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Nguồn Đề Thi / Câu Hỏi *</label>
-              <select id="arena-create-source" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white">
-                <option value="grade_12" selected>Khối 12 (Ngân hàng chuẩn 1.479 câu)</option>
-                <option value="grade_11">Khối 11 (Ngân hàng chuẩn 1.240 câu)</option>
-                <option value="grade_10">Khối 10 (Ngân hàng chuẩn 1.379 câu)</option>
-                ${customPackages.map(p => `
-                  <option value="pkg_${p.id}">Gói Excel: ${escapeHtml(p.packageTitle)} (${p.questions.length} câu)</option>
-                `).join('')}
-              </select>
+          <!-- BƯỚC 3: THIẾT LẬP THÔNG SỐ GAME (MODE PARAMETERS) -->
+          <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 space-y-3">
+            <span class="text-[11px] font-black uppercase text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-sliders"></i> Bước 3: Thiết Lập Thông Số Trận Đấu (Mode Parameters)
+            </span>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Thời Gian / Câu</label>
+                <select id="arena-create-timer" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white">
+                  <option value="15">15 giây (Rất nhanh)</option>
+                  <option value="20" selected>20 giây (Chuẩn cân đối)</option>
+                  <option value="30">30 giây (Thư thả suy nghĩ)</option>
+                  <option value="45">45 giây (Vận dụng cao)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Mục Tiêu Kết Thúc (Goal Cap)</label>
+                <select id="arena-create-goal-cap" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white">
+                  <option value="0" selected>Thi hết số câu trong đề</option>
+                  <option value="500">Cán mốc 500 Vàng / Điểm</option>
+                  <option value="1000">Cán mốc 1.000 Vàng / Điểm</option>
+                  <option value="2500">Cán mốc 2.500 Vàng / Điểm</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Tần Suất Rương / Power-up</label>
+                <select id="arena-create-powerup-freq" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white">
+                  <option value="low">Thấp (Tập trung lý thuyết)</option>
+                  <option value="normal" selected>Tiêu chuẩn (Cân đối)</option>
+                  <option value="high">Cao (Nhiều rương Jackpot & Cướp)</option>
+                </select>
+              </div>
             </div>
 
-            <!-- 4. Số lượng câu hỏi -->
             <div>
-              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Số Lượng Câu Hỏi</label>
-              <select id="arena-create-qcount" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white">
-                <option value="10">10 câu hỏi (Nhanh 5-7 phút)</option>
-                <option value="15" selected>15 câu hỏi (Tiêu chuẩn 10-12 phút)</option>
-                <option value="20">20 câu hỏi (Toàn diện 15 phút)</option>
-                <option value="25">25 câu hỏi</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <!-- 5. Thời gian mỗi câu -->
-            <div>
-              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Thời Gian Mỗi Câu</label>
-              <select id="arena-create-timer" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white">
-                <option value="15">15 giây (Rất nhanh)</option>
-                <option value="20" selected>20 giây (Chuẩn cân đối)</option>
-                <option value="30">30 giây (Thư thả suy nghĩ)</option>
-                <option value="45">45 giây (Vận dụng cao)</option>
-              </select>
-            </div>
-
-            <!-- 6. Phân lớp ghi sổ điểm -->
-            <div>
-              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Giao Cho Lớp (Tự Lưu Sổ Điểm)</label>
-              <select id="arena-create-target-class" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white">
+              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Giao Cho Lớp (Tự Lưu Sổ Điểm LMS)</label>
+              <select id="arena-create-target-class" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white">
                 <option value="all" selected>Tất cả các lớp / Tự do</option>
                 ${schoolsList.map(s => {
                   const sInfo = schoolsData[s];
@@ -540,19 +581,21 @@ const Arena = {
       form.onsubmit = async (e) => {
         e.preventDefault();
         const title = modal.querySelector('#arena-create-title').value.trim();
-        const mode = modal.querySelector('input[name="arena-create-mode"]:checked')?.value || 'gold_quest';
+        const mode = modal.querySelector('input[name="arena-create-mode"]:checked')?.value || 'resource_quest';
         const source = modal.querySelector('#arena-create-source').value;
         const qCount = parseInt(modal.querySelector('#arena-create-qcount').value, 10) || 15;
         const timerSec = parseInt(modal.querySelector('#arena-create-timer').value, 10) || 20;
+        const goalCap = parseInt(modal.querySelector('#arena-create-goal-cap')?.value, 10) || 0;
+        const powerUpFrequency = modal.querySelector('#arena-create-powerup-freq')?.value || 'normal';
         const targetClass = modal.querySelector('#arena-create-target-class').value;
 
         closeModal();
-        await this.createNewArenaRoom({ title, mode, source, qCount, timerSec, targetClass });
+        await this.createNewArenaRoom({ title, mode, source, qCount, timerSec, targetClass, goalCap, powerUpFrequency });
       };
     }
   },
 
-  async createNewArenaRoom({ title, mode, source, qCount, timerSec, targetClass }) {
+  async createNewArenaRoom({ title, mode, source, qCount, timerSec, targetClass, goalCap = 0, powerUpFrequency = 'normal' }) {
     // 1. Sinh mã PIN 6 số ngẫu nhiên
     const pin = String(Math.floor(100000 + Math.random() * 900000));
 
@@ -572,38 +615,35 @@ const Arena = {
       }
     }
 
-    // Xáo trộn và cắt đúng số lượng câu hỏi
+    // Xáo trộn và cắt đúng số lượng câu hỏi giáo dục (Decoupled questions)
     const shuffledQuestions = questions.sort(() => 0.5 - Math.random()).slice(0, qCount);
-
     const hostUser = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
-    const roomData = {
+
+    // 3. Khởi tạo Normalized Session State thông qua GameEngine
+    const session = defaultGameEngine.createSession({
       pin,
-      title,
+      hostId: hostUser?.email || hostUser?.username || 'host',
+      quizId: source,
       gameMode: mode,
-      timerPerQuestion: timerSec,
+      questions: shuffledQuestions,
+      timerSec,
+      goalCap,
+      powerUpFrequency,
+      title: title || 'Đấu Trường TinHocHub',
       targetClass,
       hostName: hostUser?.fullName || 'Thầy/Cô',
-      hostEmail: hostUser?.email || '',
-      status: 'lobby', // 'lobby' | 'playing' | 'question_result' | 'game_over'
-      currentQuestionIndex: -1,
-      totalQuestions: shuffledQuestions.length,
-      questions: shuffledQuestions,
-      bossMaxHp: shuffledQuestions.length * 400,
-      bossCurrentHp: shuffledQuestions.length * 400,
-      players: {},
-      activityFeed: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
+      hostEmail: hostUser?.email || ''
+    });
+    session.pin = pin; // Tương thích ngược
 
-    // Lưu LocalStorage & Đẩy lên Firebase RTDB
-    Storage.saveArenaRoom(roomData);
+    // 4. Lưu LocalStorage & Đẩy lên Firebase RTDB
+    Storage.saveArenaRoom(session);
     if (typeof CloudSync !== 'undefined' && CloudSync.pushArenaRoomToCloud) {
-      CloudSync.pushArenaRoomToCloud(roomData);
+      CloudSync.pushArenaRoomToCloud(session);
     }
 
     // Mở màn hình Host (Máy chiếu)
-    this.startHostView(roomData);
+    this.startHostView(session);
   },
 
   // ==========================================
@@ -942,11 +982,9 @@ const Arena = {
       if (correctIdx === -1) correctIdx = 0;
     }
 
-    // Leaderboard Top 5 hiện tại
-    const topPlayers = [...players].sort((a, b) => {
-      if (room.gameMode === 'gold_quest') return (b.gold || 0) - (a.gold || 0);
-      return (b.score || 0) - (a.score || 0);
-    }).slice(0, 5);
+    // Leaderboard Top 5 hiện tại qua GameEngine rankPlayers
+    const topPlayers = defaultGameEngine.rankPlayers(room).slice(0, 5);
+    const isGoldMode = room.gameMode === 'resource_quest' || room.gameMode === 'gold_quest';
 
     this.playTone(800, 0.25, 'triangle');
 
@@ -1005,13 +1043,14 @@ const Arena = {
               <h4 class="text-sm font-black text-slate-800 dark:text-white flex items-center gap-2">
                 <i class="fa-solid fa-trophy text-amber-500"></i> Bảng Xếp Hạng Top 5
               </h4>
-              <span class="text-[11px] text-slate-400">${room.gameMode === 'gold_quest' ? 'Vàng 🪙' : 'Điểm ⚡'}</span>
+              <span class="text-[11px] text-slate-400">${isGoldMode ? 'Vàng 🪙' : 'Điểm ⚡'}</span>
             </div>
 
             <div class="space-y-2">
               ${topPlayers.map((p, idx) => {
                 const blook = this.BLOOKS.find(b => b.id === p.blookId) || this.BLOOKS[0];
-                const val = room.gameMode === 'gold_quest' ? `${p.gold || 0} 🪙` : `${p.score || 0} đ`;
+                const gold = p.metadata?.gold ?? p.gold ?? 0;
+                const val = isGoldMode ? `${gold} 🪙` : `${p.score || 0} đ`;
                 return `
                   <div class="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 flex items-center justify-between gap-3">
                     <div class="flex items-center gap-2.5">
@@ -1052,11 +1091,8 @@ const Arena = {
 
     this.playFanfare();
 
-    // Sắp xếp thứ hạng toàn bộ học sinh
-    const sortedPlayers = Object.values(room.players || {}).sort((a, b) => {
-      if (room.gameMode === 'gold_quest') return (b.gold || 0) - (a.gold || 0);
-      return (b.score || 0) - (a.score || 0);
-    });
+    // Sắp xếp thứ hạng toàn bộ học sinh qua GameEngine rankPlayers
+    const sortedPlayers = defaultGameEngine.rankPlayers(room);
 
     const top1 = sortedPlayers[0] || null;
     const top2 = sortedPlayers[1] || null;
@@ -1379,21 +1415,19 @@ const Arena = {
     const finalName = studentName || currentUser?.fullName || 'Học sinh ẩn danh';
     const uid = (currentUser?.email || currentUser?.username || `player_${Date.now()}`).replace(/[.#$\[\]\/]/g, '_');
 
-    this.playerInfo = {
+    // Khởi tạo PlayerState thông qua GameEngine (Universal + Extensible Metadata)
+    const playerState = defaultGameEngine.joinPlayer(room, {
+      id: uid,
       uid,
       name: finalName,
-      blookId,
-      email: currentUser?.email || '',
-      school: currentUser?.school || '',
-      className: currentUser?.className || '',
-      gold: 0,
-      score: 0,
-      streak: 0,
-      correctCount: 0,
-      hasShield: false,
-      shieldCount: 0
-    };
+      blookId
+    });
+    playerState.uid = uid;
+    playerState.email = currentUser?.email || '';
+    playerState.school = currentUser?.school || '';
+    playerState.className = currentUser?.className || '';
 
+    this.playerInfo = playerState;
     this.activeRoom = room;
     this.activeRole = 'player';
 
@@ -1464,11 +1498,18 @@ const Arena = {
     const room = this.activeRoom;
     const blook = this.BLOOKS.find(b => b.id === this.playerInfo.blookId) || this.BLOOKS[0];
     const qIdx = (room.currentQuestionIndex || 0) + 1;
+    this.questionStartTime = Date.now();
+
+    const isGoldMode = room.gameMode === 'resource_quest' || room.gameMode === 'gold_quest';
+    const currentGold = this.playerInfo.metadata?.gold ?? this.playerInfo.gold ?? 0;
+    const currentShields = this.playerInfo.metadata?.shields ?? 0;
+    const currentScore = this.playerInfo.score || 0;
+    const currentMultiplier = this.playerInfo.metadata?.multiplier || 1;
 
     this.container.innerHTML = `
       <div class="max-w-lg mx-auto space-y-4 py-4 animate-fadeIn">
         
-        <!-- Top Stats Bar Mobile -->
+        <!-- INJECTED MODE HUD: Tách biệt hoàn toàn trên question renderer -->
         <div class="p-3.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
           <div class="flex items-center gap-2">
             <div class="w-7 h-7 rounded-lg bg-gradient-to-tr ${blook.gradient} text-white flex items-center justify-center text-xs">
@@ -1477,22 +1518,24 @@ const Arena = {
             <span class="text-xs font-black text-slate-800 dark:text-white truncate max-w-[120px]">${escapeHtml(this.playerInfo.name)}</span>
           </div>
 
-          <div class="flex items-center gap-3 font-mono font-bold text-xs">
-            ${room.gameMode === 'gold_quest' ? `
-              <span class="text-amber-500 font-black"><i class="fa-solid fa-coins mr-1"></i>${this.playerInfo.gold || 0}</span>
+          <div class="flex items-center gap-2.5 font-mono font-bold text-xs">
+            ${isGoldMode ? `
+              <span class="text-amber-500 font-black"><i class="fa-solid fa-coins mr-1"></i>${currentGold}</span>
+              ${currentShields > 0 ? `<span class="px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 text-[10px] font-black"><i class="fa-solid fa-shield-halved mr-1"></i>${currentShields}</span>` : ''}
             ` : `
-              <span class="text-purple-600 font-black"><i class="fa-solid fa-bolt mr-1"></i>${this.playerInfo.score || 0} đ</span>
+              <span class="text-purple-600 font-black"><i class="fa-solid fa-bolt mr-1"></i>${currentScore} đ</span>
+              ${currentMultiplier > 1 ? `<span class="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 text-[10px] font-black">x${currentMultiplier}</span>` : ''}
             `}
-            <span class="px-2 py-0.5 rounded-md bg-purple-100 text-purple-800 text-[10px] font-bold">Câu ${qIdx}</span>
+            <span class="px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 text-[10px] font-bold">Câu ${qIdx}</span>
           </div>
         </div>
 
-        <!-- Nội Dung Câu Hỏi Trên Máy Học Sinh -->
+        <!-- NỘI DUNG CÂU HỎI TIÊU CHUẨN (AGNOSTIC QUESTION RENDERER) -->
         <div class="p-5 rounded-3xl bg-slate-900 text-white text-center shadow-lg border border-white/10 min-h-[90px] flex items-center justify-center">
           <p class="text-sm sm:text-base font-bold leading-relaxed">${escapeHtml(q.question)}</p>
         </div>
 
-        <!-- 4 Nút Bấm Lớn Màu Sắc Cảm Ứng Nhạy (A, B, C, D) -->
+        <!-- 4 NÚT BẤM LỰA CHỌN PHƯƠNG ÁN (A, B, C, D) -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
           ${(q.options || ['A', 'B', 'C', 'D']).slice(0, 4).map((opt, idx) => {
             const colors = [
@@ -1531,36 +1574,28 @@ const Arena = {
 
     if (navigator.vibrate) navigator.vibrate([40]);
 
-    // Kiểm tra đúng/sai
-    let isCorrect = false;
-    let correctIdx = 0;
-    if (typeof q.answer === 'number') correctIdx = q.answer;
-    else if (typeof q.answer === 'string') {
-      const char = q.answer.trim().toUpperCase()[0];
-      correctIdx = ['A', 'B', 'C', 'D'].indexOf(char);
-      if (correctIdx === -1) correctIdx = 0;
-    }
-    isCorrect = (ansIdx === correctIdx);
-
+    const responseTime = Date.now() - (this.questionStartTime || Date.now());
     const room = this.activeRoom;
+
+    // AUTHORITATIVE HOST / SERVER EVALUATION THÔNG QUA GAME ENGINE
+    let evalResult;
+    try {
+      evalResult = defaultGameEngine.submitAnswer(room, this.playerInfo.uid, ansIdx, responseTime);
+    } catch (e) {
+      console.warn('GameEngine evaluate answer fallback:', e);
+      evalResult = { isCorrect: false, rewardPayload: { rewardOptions: [] } };
+    }
+
+    const isCorrect = evalResult.isCorrect;
     const dbUrl = this.getBaseDbUrl();
+
+    // Đồng bộ lại local playerInfo từ room.players
+    if (room.players[this.playerInfo.uid]) {
+      this.playerInfo = { ...room.players[this.playerInfo.uid], uid: this.playerInfo.uid };
+    }
 
     if (isCorrect) {
       this.playChime();
-      this.playerInfo.streak = (this.playerInfo.streak || 0) + 1;
-      this.playerInfo.correctCount = (this.playerInfo.correctCount || 0) + 1;
-
-      // Cộng điểm theo chế độ
-      if (room.gameMode === 'speed_racer' || room.gameMode === 'classic') {
-        const bonus = Math.min(3, 1 + (this.playerInfo.streak * 0.2));
-        const pts = Math.round(500 * bonus);
-        this.playerInfo.score = (this.playerInfo.score || 0) + pts;
-      } else if (room.gameMode === 'boss_raid') {
-        // Gây sát thương lên Boss
-        const dmg = Math.floor(100 + Math.random() * 80);
-        room.bossCurrentHp = Math.max(0, (room.bossCurrentHp || 1000) - dmg);
-        this.playBossHit();
-      }
 
       // Đẩy cập nhật lên Firebase
       try {
@@ -1571,29 +1606,30 @@ const Arena = {
             score: this.playerInfo.score,
             streak: this.playerInfo.streak,
             correctCount: this.playerInfo.correctCount,
-            currentAnswer: ansIdx
+            currentAnswer: ansIdx,
+            metadata: this.playerInfo.metadata,
+            inventory: this.playerInfo.inventory
           })
         });
 
-        if (room.gameMode === 'boss_raid') {
-          await fetch(`${dbUrl}/arena_rooms/${room.pin}/bossCurrentHp.json`, {
+        if (room.gameMode === 'boss_raid' || room.gameMode === 'boss_hunt') {
+          await fetch(`${dbUrl}/arena_rooms/${room.pin}/metadata/bossCurrentHp.json`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(room.bossCurrentHp)
+            body: JSON.stringify(room.metadata?.bossCurrentHp || 0)
           });
         }
       } catch {}
 
-      // Nếu là chế độ Gold Quest -> Mở màn hình 3 Rương Báu
-      if (room.gameMode === 'gold_quest') {
-        this.renderPlayerChestChoice();
+      // Nếu có rewardOptions (như 3 rương báu Resource Quest) -> Mở giao diện rương
+      if (evalResult.rewardPayload?.rewardOptions && evalResult.rewardPayload.rewardOptions.length > 0) {
+        this.renderPlayerChestChoice(evalResult.rewardPayload.rewardOptions);
       } else {
         this.renderPlayerFeedback(true, 'Chính xác! Xuất sắc lắm!');
       }
 
     } else {
       this.playWrong();
-      this.playerInfo.streak = 0;
       try {
         await fetch(`${dbUrl}/arena_rooms/${room.pin}/players/${this.playerInfo.uid}.json`, {
           method: 'PATCH',
@@ -1609,7 +1645,7 @@ const Arena = {
     }
   },
 
-  renderPlayerChestChoice() {
+  renderPlayerChestChoice(rewardOptions = []) {
     this.playChest();
     this.container.innerHTML = `
       <div class="max-w-md mx-auto text-center space-y-6 py-6 animate-fadeIn">
@@ -1618,14 +1654,14 @@ const Arena = {
             🎉 Trả Lời Đúng!
           </div>
           <h3 class="text-xl font-black">CHỌN 1 TRONG 3 RƯƠNG BÁU</h3>
-          <p class="text-xs text-white/90">Mở rương để nhận Vàng, Nhân đôi số vàng hoặc Cướp vàng của bạn khác!</p>
+          <p class="text-xs text-white/90">Mở rương để nhận Vàng, Nhân đôi số vàng, Khiên thần hoặc Cướp vàng của bạn khác!</p>
 
           <!-- 3 Rương Báu -->
           <div class="grid grid-cols-3 gap-3 pt-4">
-            ${[1, 2, 3].map(n => `
+            ${[0, 1, 2].map(n => `
               <button type="button" data-pick-chest="${n}" class="p-4 rounded-2xl bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/30 flex flex-col items-center gap-2 transition transform hover:scale-105 active:scale-95 shadow-lg">
                 <span class="text-4xl animate-bounce">📦</span>
-                <span class="text-xs font-black uppercase">Rương ${n}</span>
+                <span class="text-xs font-black uppercase">Rương ${n + 1}</span>
               </button>
             `).join('')}
           </div>
@@ -1635,59 +1671,48 @@ const Arena = {
 
     this.container.querySelectorAll('[data-pick-chest]').forEach(btn => {
       btn.onclick = () => {
-        this.playerOpenChestReward();
+        const chestIdx = parseInt(btn.getAttribute('data-pick-chest'), 10);
+        this.playerOpenChestReward(chestIdx);
       };
     });
   },
 
-  async playerOpenChestReward() {
-    // Các phần thưởng rương báu
-    const rewards = [
-      { type: 'gold', val: 25, text: '+25 Vàng 🪙' },
-      { type: 'gold', val: 50, text: '+50 Vàng 🪙' },
-      { type: 'gold', val: 100, text: '+100 Vàng Đại Thắng! 🪙' },
-      { type: 'double', text: 'Nhân Đôi x2 Toàn Bộ Số Vàng! 🔥' },
-      { type: 'shield', text: 'Nhận Khiên Thần (Bảo Vệ Chống Cướp)! 🛡️' },
-      { type: 'steal', text: 'Cướp 20% Vàng Của Bạn Khác! ⚡' }
-    ];
-    const picked = rewards[Math.floor(Math.random() * rewards.length)];
-
+  async playerOpenChestReward(chestIndex = 0) {
     const room = this.activeRoom;
-    const dbUrl = this.getBaseDbUrl();
 
-    if (picked.type === 'gold') {
-      this.playerInfo.gold = (this.playerInfo.gold || 0) + picked.val;
-      this.playTone(880, 0.25, 'sine');
-    } else if (picked.type === 'double') {
-      this.playerInfo.gold = Math.max(20, (this.playerInfo.gold || 10) * 2);
-      this.playTone(987, 0.35, 'triangle');
-    } else if (picked.type === 'shield') {
-      this.playerInfo.hasShield = true;
-      this.playerInfo.shieldCount = 3;
+    // TRIGGER_ACTION: CHEST_PICK qua GameEngine
+    const delta = defaultGameEngine.triggerAction(room, {
+      type: 'CHEST_PICK',
+      playerId: this.playerInfo.uid,
+      payload: { chestIndex }
+    });
+
+    if (room.players[this.playerInfo.uid]) {
+      this.playerInfo = { ...room.players[this.playerInfo.uid], uid: this.playerInfo.uid };
     }
 
-    // Đẩy vàng lên Firebase
+    const dbUrl = this.getBaseDbUrl();
     try {
       await fetch(`${dbUrl}/arena_rooms/${room.pin}/players/${this.playerInfo.uid}.json`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          gold: this.playerInfo.gold,
-          hasShield: this.playerInfo.hasShield
+          score: this.playerInfo.score,
+          metadata: this.playerInfo.metadata
         })
       });
     } catch {}
 
-    if (picked.type === 'steal') {
+    if (delta.reward?.type === 'steal') {
       this.renderPlayerStealTargetPicker();
     } else {
-      this.renderPlayerFeedback(true, `Rương báu mở ra: ${picked.text}`);
+      this.renderPlayerFeedback(true, delta.broadcastMessage || `Đã mở rương thành công!`);
     }
   },
 
   renderPlayerStealTargetPicker() {
     const room = this.activeRoom;
-    const otherPlayers = Object.values(room.players || {}).filter(p => p.uid !== this.playerInfo.uid);
+    const otherPlayers = Object.values(room.players || {}).filter(p => (p.id || p.uid) !== this.playerInfo.uid);
 
     this.playSteal();
 
@@ -1696,17 +1721,24 @@ const Arena = {
         <div class="p-6 sm:p-8 rounded-3xl bg-slate-900 text-white shadow-2xl border border-white/10 space-y-4">
           <span class="text-3xl animate-pulse">⚡</span>
           <h3 class="text-lg font-black text-amber-300">CHỌN NGƯỜI CHƠI ĐỂ CƯỚP VÀNG</h3>
-          <p class="text-xs text-slate-300">Em sẽ cướp được 20% số vàng của bạn đó (nếu bạn chưa kích hoạt khiên)!</p>
+          <p class="text-xs text-slate-300">Em sẽ cướp được 20% số vàng của bạn đó (nếu bạn chưa kích hoạt khiên bảo vệ)!</p>
 
           <div class="space-y-2 max-h-52 overflow-y-auto pt-2">
             ${otherPlayers.length === 0 ? `
               <p class="text-xs text-slate-400 py-4">Chưa có người chơi khác trong phòng để cướp.</p>
-            ` : otherPlayers.map(p => `
-              <button type="button" data-steal-target="${p.uid}" class="w-full p-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center justify-between transition text-xs">
-                <span class="font-bold">${escapeHtml(p.name)}</span>
-                <span class="font-mono text-amber-400 font-bold">${p.gold || 0} 🪙</span>
-              </button>
-            `).join('')}
+            ` : otherPlayers.map(p => {
+              const gold = p.metadata?.gold ?? p.gold ?? 0;
+              const hasShield = (p.metadata?.shields ?? 0) > 0;
+              return `
+                <button type="button" data-steal-target="${p.id || p.uid}" class="w-full p-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center justify-between transition text-xs">
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold">${escapeHtml(p.name)}</span>
+                    ${hasShield ? '<span class="text-[10px] text-blue-400">🛡️ Có Khiên</span>' : ''}
+                  </div>
+                  <span class="font-mono text-amber-400 font-bold">${gold} 🪙</span>
+                </button>
+              `;
+            }).join('')}
           </div>
         </div>
       </div>
@@ -1714,29 +1746,36 @@ const Arena = {
 
     this.container.querySelectorAll('[data-steal-target]').forEach(btn => {
       btn.onclick = async () => {
-        const targetUid = btn.getAttribute('data-steal-target');
-        const target = otherPlayers.find(p => p.uid === targetUid);
-        if (target) {
-          const stolen = Math.max(5, Math.floor((target.gold || 0) * 0.2));
-          this.playerInfo.gold = (this.playerInfo.gold || 0) + stolen;
-          target.gold = Math.max(0, (target.gold || 0) - stolen);
+        const targetId = btn.getAttribute('data-steal-target');
+        // TRIGGER_ACTION: STEAL_EXECUTE (Giao dịch cướp vàng nguyên tử trên GameEngine)
+        const delta = defaultGameEngine.triggerAction(room, {
+          type: 'STEAL_EXECUTE',
+          playerId: this.playerInfo.uid,
+          targetPlayerId: targetId
+        });
 
-          const dbUrl = this.getBaseDbUrl();
-          try {
-            await fetch(`${dbUrl}/arena_rooms/${room.pin}/players/${this.playerInfo.uid}/gold.json`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(this.playerInfo.gold)
-            });
-            await fetch(`${dbUrl}/arena_rooms/${room.pin}/players/${targetUid}/gold.json`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(target.gold)
-            });
-          } catch {}
-
-          this.renderPlayerFeedback(true, `Đã cướp thành công ${stolen} vàng từ [${target.name}]! 🪙`);
+        if (room.players[this.playerInfo.uid]) {
+          this.playerInfo = { ...room.players[this.playerInfo.uid], uid: this.playerInfo.uid };
         }
+
+        const dbUrl = this.getBaseDbUrl();
+        try {
+          // Cập nhật cả 2 người chơi atomic lên Firebase
+          await fetch(`${dbUrl}/arena_rooms/${room.pin}/players/${this.playerInfo.uid}/metadata.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.playerInfo.metadata)
+          });
+          if (room.players[targetId]) {
+            await fetch(`${dbUrl}/arena_rooms/${room.pin}/players/${targetId}/metadata.json`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(room.players[targetId].metadata)
+            });
+          }
+        } catch {}
+
+        this.renderPlayerFeedback(true, delta.broadcastMessage || 'Đã hoàn tất hành động!');
       };
     });
   },
@@ -1912,11 +1951,20 @@ const Arena = {
 
   getModeTitle(mode) {
     switch (mode) {
-      case 'gold_quest': return '🪙 Đào Vàng & Rương Báu';
-      case 'speed_racer': return '🏎️ Đua Top Tốc Độ';
-      case 'boss_raid': return '👾 Săn Boss Diệt Bug';
-      case 'classic': return '⚡ Tốc Độ Cổ Điển';
-      default: return 'Đấu Trường Trí Tuệ';
+      case 'resource_quest':
+      case 'gold_quest':
+        return '🪙 Đào Vàng & Rương Báu (Resource Quest)';
+      case 'speed_race':
+      case 'speed_racer':
+        return '🏎️ Đua Top Tốc Độ (Speed Race)';
+      case 'boss_hunt':
+      case 'boss_raid':
+        return '👾 Săn Boss Diệt Bug (Boss Raid)';
+      case 'classic':
+      case 'classic_kahoot':
+        return '⚡ Tốc Độ Cổ Điển (Classic Kahoot)';
+      default:
+        return 'Đấu Trường Trí Tuệ';
     }
   }
 };

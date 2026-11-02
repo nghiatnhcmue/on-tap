@@ -3,23 +3,23 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261102_78';
-import { Practice } from './practice.js?v=20261102_78';
-import { Exam } from './exam.js?v=20261102_78';
-import { Search } from './search.js?v=20261102_78';
-import { PrintManager } from './print.js?v=20261102_78';
-import { Auth } from './auth.js?v=20261102_78';
-import { escapeHtml } from './utils.js?v=20261102_78';
-import { Leaderboard } from './leaderboard.js?v=20261102_78';
-import { QuestionsManager } from './questions-manager.js?v=20261102_78';
-import { AdminManager } from './admin-manager.js?v=20261102_78';
-import { ExamRooms } from './exam-rooms.js?v=20261102_78';
-import { Proctor } from './proctor.js?v=20261102_78';
-import { Gradebook } from './gradebook.js?v=20261102_78';
-import { CloudSync } from './cloud-sync.js?v=20261102_78';
-import { InteractiveVideo } from './interactive-video.js?v=20261102_78';
-import { LiveVideo } from './live-video.js?v=20261102_78';
-import Arena from './arena.js?v=20261102_78';
+import { Storage } from './storage.js?v=20261102_79';
+import { Practice } from './practice.js?v=20261102_79';
+import { Exam } from './exam.js?v=20261102_79';
+import { Search } from './search.js?v=20261102_79';
+import { PrintManager } from './print.js?v=20261102_79';
+import { Auth } from './auth.js?v=20261102_79';
+import { escapeHtml } from './utils.js?v=20261102_79';
+import { Leaderboard } from './leaderboard.js?v=20261102_79';
+import { QuestionsManager } from './questions-manager.js?v=20261102_79';
+import { AdminManager } from './admin-manager.js?v=20261102_79';
+import { ExamRooms } from './exam-rooms.js?v=20261102_79';
+import { Proctor } from './proctor.js?v=20261102_79';
+import { Gradebook } from './gradebook.js?v=20261102_79';
+import { CloudSync } from './cloud-sync.js?v=20261102_79';
+import { InteractiveVideo } from './interactive-video.js?v=20261102_79';
+import { LiveVideo } from './live-video.js?v=20261102_79';
+import Arena from './arena.js?v=20261102_79';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -193,7 +193,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261102_78');
+      const res = await fetch('data/manifest.json?v=20261102_79');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
