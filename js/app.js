@@ -3,23 +3,24 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261102_81';
-import { Practice } from './practice.js?v=20261102_81';
-import { Exam } from './exam.js?v=20261102_81';
-import { Search } from './search.js?v=20261102_81';
-import { PrintManager } from './print.js?v=20261102_81';
-import { Auth } from './auth.js?v=20261102_81';
-import { escapeHtml } from './utils.js?v=20261102_81';
-import { Leaderboard } from './leaderboard.js?v=20261102_81';
-import { QuestionsManager } from './questions-manager.js?v=20261102_81';
-import { AdminManager } from './admin-manager.js?v=20261102_81';
-import { ExamRooms } from './exam-rooms.js?v=20261102_81';
-import { Proctor } from './proctor.js?v=20261102_81';
-import { Gradebook } from './gradebook.js?v=20261102_81';
-import { CloudSync } from './cloud-sync.js?v=20261102_81';
-import { InteractiveVideo } from './interactive-video.js?v=20261102_81';
-import { LiveVideo } from './live-video.js?v=20261102_81';
-import Arena from './arena.js?v=20261102_81';
+import { Storage } from './storage.js?v=20261102_82';
+import { Practice } from './practice.js?v=20261102_82';
+import { Exam } from './exam.js?v=20261102_82';
+import { Search } from './search.js?v=20261102_82';
+import { PrintManager } from './print.js?v=20261102_82';
+import { Auth } from './auth.js?v=20261102_82';
+import { escapeHtml } from './utils.js?v=20261102_82';
+import { Leaderboard } from './leaderboard.js?v=20261102_82';
+import { QuestionsManager } from './questions-manager.js?v=20261102_82';
+import { AdminManager } from './admin-manager.js?v=20261102_82';
+import { ExamRooms } from './exam-rooms.js?v=20261102_82';
+import { Proctor } from './proctor.js?v=20261102_82';
+import { Gradebook } from './gradebook.js?v=20261102_82';
+import { CloudSync } from './cloud-sync.js?v=20261102_82';
+import { InteractiveVideo } from './interactive-video.js?v=20261102_82';
+import { LiveVideo } from './live-video.js?v=20261102_82';
+import Arena from './arena.js?v=20261102_82';
+import RandomPicker from './random-picker.js?v=20261102_82';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -32,6 +33,7 @@ if (typeof window !== 'undefined') {
   window.InteractiveVideo = InteractiveVideo;
   window.LiveVideo = LiveVideo;
   window.Arena = Arena;
+  window.RandomPicker = RandomPicker;
 }
 
 class App {
@@ -193,7 +195,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261102_81');
+      const res = await fetch('data/manifest.json?v=20261102_82');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
@@ -359,7 +361,7 @@ class App {
       'view-home', 'view-practice', 'view-exam-setup', 'view-exam-room',
       'view-search', 'view-bookmarks', 'view-history', 'view-print',
       'view-gradebook', 'view-leaderboard', 'view-questions-manage', 'view-admin-system',
-      'view-exam-rooms', 'view-interactive-video', 'view-arena'
+      'view-exam-rooms', 'view-interactive-video', 'view-arena', 'view-random-picker'
     ];
     views.forEach(id => {
       const el = document.getElementById(id);
@@ -428,6 +430,14 @@ class App {
         document.getElementById('view-arena')?.classList.remove('hidden');
         await Arena.init(
           document.getElementById('view-arena'),
+          this.manifest,
+          (g) => this.loadGradeData(g)
+        );
+        break;
+      case 'random-picker':
+        document.getElementById('view-random-picker')?.classList.remove('hidden');
+        await RandomPicker.init(
+          document.getElementById('view-random-picker'),
           this.manifest,
           (g) => this.loadGradeData(g)
         );
@@ -576,6 +586,27 @@ class App {
               </button>
             </div>
           </div>
+
+          <!-- Hàng 3: Mini-Game & Random Picker Lớp Học -->
+          <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white p-5 rounded-3xl border border-white/10 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-12 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center text-2xl shrink-0 shadow-lg shadow-amber-500/30 animate-bounce">
+                🎲
+              </div>
+              <div>
+                <h4 class="text-sm font-black text-white flex items-center gap-2">
+                  <span>Trợ Giảng Thông Minh: Vòng Quay Gọi Tên & Chia Nhóm Học Tập</span>
+                  <span class="px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black uppercase">Mới</span>
+                </h4>
+                <p class="text-xs text-slate-300 mt-0.5">
+                  Vòng quay may mắn, Máy quay xèng, Hộp quà bí ẩn, Bom nổ chậm & Chia nhóm ngẫu nhiên
+                </p>
+              </div>
+            </div>
+            <button type="button" id="btn-home-open-random-picker" class="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 text-xs font-black transition shrink-0 shadow-lg flex items-center justify-center gap-2">
+              <i class="fa-solid fa-play"></i> <span>Mở Trò Chơi Ngay</span>
+            </button>
+          </div>
         </div>
       `;
 
@@ -591,6 +622,10 @@ class App {
 
       homeStatsContainer.querySelector('#btn-home-open-bookmarks')?.addEventListener('click', () => {
         this.switchTab('bookmarks');
+      });
+
+      homeStatsContainer.querySelector('#btn-home-open-random-picker')?.addEventListener('click', () => {
+        this.switchTab('random-picker');
       });
     }
 

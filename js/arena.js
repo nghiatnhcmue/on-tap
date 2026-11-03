@@ -11,11 +11,11 @@ import defaultGameEngine, {
   SpeedRaceHandler,
   BossRaidHandler,
   ClassicKahootHandler
-} from './game-engine.js?v=20261102_81';
-import { Storage } from './storage.js?v=20261102_81';
-import { Auth } from './auth.js?v=20261102_81';
-import { CloudSync } from './cloud-sync.js?v=20261102_81';
-import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_81';
+} from './game-engine.js?v=20261102_82';
+import { Storage } from './storage.js?v=20261102_82';
+import { Auth } from './auth.js?v=20261102_82';
+import { CloudSync } from './cloud-sync.js?v=20261102_82';
+import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_82';
 
 // Định nghĩa an toàn tuyệt đối cho hàm escapeHtml trong scope của arena.js
 function escapeHtml(str) {
@@ -355,6 +355,22 @@ const Arena = {
               <div class="text-xs text-emerald-900 dark:text-emerald-200">
                 <strong>Hệ thống LMS Chỉnh Chu:</strong> Tự động đồng bộ điểm số vào Sổ Điểm Điện Tử Lớp, phân tích câu hỏi học sinh hay sai nhiều nhất và xuất file Excel chuẩn quốc tế.
               </div>
+            </div>
+
+            <!-- Classroom Random Games Banner -->
+            <div class="p-4 rounded-2xl bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white border border-white/10 flex items-center justify-between gap-3 shadow-md">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center text-xl shrink-0 animate-bounce">
+                  🎲
+                </div>
+                <div>
+                  <strong class="text-xs font-black block text-amber-300">Vòng Quay Gọi Tên & Chia Nhóm Lớp Học</strong>
+                  <span class="text-[11px] text-slate-300 block">Vòng quay may mắn, máy quay xèng, hộp quà bí ẩn & bom nổ chậm</span>
+                </div>
+              </div>
+              <button type="button" onclick="window.AppInstance && window.AppInstance.switchTab('random-picker')" class="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black transition shrink-0 shadow-sm cursor-pointer">
+                Mở Ngay ➔
+              </button>
             </div>
           </div>
         </div>

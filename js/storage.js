@@ -30,7 +30,8 @@ const STORAGE_KEYS = {
   TEACHER_VIDEOS: 'tinhoc_teacher_videos',
   ARENA_ROOMS: 'tinhoc_arena_rooms',
   ARENA_HISTORY: 'tinhoc_arena_history',
-  ARENA_PLAYER: 'tinhoc_arena_player'
+  ARENA_PLAYER: 'tinhoc_arena_player',
+  CLASSROOM_PRESETS: 'tinhoc_classroom_presets'
 };
 
 export const DEFAULT_FIREBASE_API_KEY = 'AIzaSyBOn_vHOZXDhRPpeOhjuZOiECpCRfhXPA0';
@@ -2165,6 +2166,104 @@ export const Storage = {
     try {
       localStorage.setItem(STORAGE_KEYS.ARENA_PLAYER, JSON.stringify(playerData));
     } catch {}
+  },
+
+  // --- QUẢN LÝ DANH SÁCH LỚP HỌC CHO BỘ RANDOM GỌI TÊN ---
+  getClassroomPresets() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.CLASSROOM_PRESETS);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {
+      console.warn('Lỗi đọc classroom presets:', e);
+    }
+    return [
+      {
+        id: 'preset_emasi_12e',
+        name: 'Lớp 12E (EMASI - 25 HS)',
+        school: 'EMASI',
+        grade: '12',
+        className: '12E',
+        names: [
+          'Nguyễn Minh Khôi', 'Trần Bảo An', 'Lê Hoàng Nam', 'Phạm Quỳnh Anh', 'Vũ Đức Trí',
+          'Đặng Mai Phương', 'Bùi Gia Huy', 'Hồ Ngọc Hà', 'Đỗ Thành Đạt', 'Ngô Kiến Huy',
+          'Dương Tú Anh', 'Trịnh Thăng Bình', 'Lý Hải', 'Mai Phương Thúy', 'Phan Mạnh Quỳnh',
+          'Đinh Tiến Dũng', 'Lâm Tâm Như', 'Võ Hoàng Yến', 'Cao Thái Sơn', 'Tạ Quang Thắng',
+          'Châu Bùi', 'Sơn Tùng M-TP', 'Nguyễn Thúc Thùy Tiên', "H'Hen Niê", 'Đen Vâu'
+        ]
+      },
+      {
+        id: 'preset_cva_12a1',
+        name: 'Lớp 12A1 (Chu Văn An - 25 HS)',
+        school: 'TT GDNN GDTX Chu Văn An',
+        grade: '12',
+        className: '12A1',
+        names: [
+          'Nguyễn Văn An', 'Trần Thị Bích', 'Lê Văn Cường', 'Phạm Thị Dung', 'Hoàng Văn Em',
+          'Vũ Thị Giang', 'Đặng Văn Hùng', 'Bùi Thị Lan', 'Đỗ Văn Minh', 'Hồ Thị Nga',
+          'Ngô Văn Phúc', 'Dương Thị Quỳnh', 'Lý Văn Sang', 'Mai Thị Thảo', 'Phan Văn Uy',
+          'Đinh Thị Vân', 'Cao Văn Xuân', 'Tạ Thị Yến', 'Lưu Văn Bình', 'Trịnh Thị Cúc',
+          'Võ Văn Dũng', 'Đào Thị Hoa', 'Phùng Văn Khang', 'Lương Thị Linh', 'Chu Văn Nam'
+        ]
+      },
+      {
+        id: 'preset_ptnk_12toan',
+        name: 'Lớp 12 Tin / Toán (PTNK - 20 HS)',
+        school: 'Phổ thông Năng khiếu',
+        grade: '12',
+        className: '12TOAN',
+        names: [
+          'Minh Khôi (C++ Pro)', 'Bảo An (Algorithm)', 'Hoàng Nam (Python Dev)', 'Quỳnh Anh (Math Olympian)',
+          'Đức Trí (Database)', 'Mai Phương (Web Front)', 'Gia Huy (AI & ML)', 'Thành Đạt (Network)',
+          'Kiến Huy (Cybersec)', 'Tú Anh (Backend)', 'Thăng Bình (Data Science)', 'Lý Hải (Mobile Dev)',
+          'Tiến Dũng (Cloud DevOps)', 'Hoàng Yến (UI/UX)', 'Thái Sơn (Game Dev)', 'Quang Thắng (Robotics)',
+          'Châu Bùi (System Admin)', 'Sơn Tùng (Fullstack)', 'Thùy Tiên (Quality Assurance)', 'Đen Vâu (Embedded)'
+        ]
+      },
+      {
+        id: 'preset_team_sample',
+        name: 'Tổ 1 - Đội Tuyển Học Sinh Giỏi (6 HS)',
+        school: 'TinHocHub',
+        grade: '12',
+        className: 'Đội Tuyển',
+        names: [
+          'Nguyễn Minh Khôi (Tổ trưởng)',
+          'Trần Bảo An (Tổ phó)',
+          'Lê Hoàng Nam',
+          'Phạm Quỳnh Anh',
+          'Vũ Đức Trí',
+          'Đặng Mai Phương'
+        ]
+      }
+    ];
+  },
+
+  saveAllClassroomPresets(presets) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.CLASSROOM_PRESETS, JSON.stringify(presets));
+      return true;
+    } catch (e) {
+      console.error('Lỗi lưu classroom presets:', e);
+      return false;
+    }
+  },
+
+  saveClassroomPreset(preset) {
+    if (!preset || !preset.name || !Array.isArray(preset.names)) return false;
+    const presets = this.getClassroomPresets();
+    const id = preset.id || `preset_${Date.now()}`;
+    preset.id = id;
+    const idx = presets.findIndex(p => p.id === id);
+    if (idx >= 0) {
+      presets[idx] = preset;
+    } else {
+      presets.unshift(preset);
+    }
+    return this.saveAllClassroomPresets(presets);
+  },
+
+  deleteClassroomPreset(presetId) {
+    const presets = this.getClassroomPresets().filter(p => p.id !== presetId);
+    return this.saveAllClassroomPresets(presets);
   }
 };
 
