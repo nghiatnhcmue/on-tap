@@ -11,11 +11,11 @@ import defaultGameEngine, {
   SpeedRaceHandler,
   BossRaidHandler,
   ClassicKahootHandler
-} from './game-engine.js?v=20261102_80';
-import { Storage } from './storage.js?v=20261102_80';
-import { Auth } from './auth.js?v=20261102_80';
-import { CloudSync } from './cloud-sync.js?v=20261102_80';
-import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_80';
+} from './game-engine.js?v=20261102_81';
+import { Storage } from './storage.js?v=20261102_81';
+import { Auth } from './auth.js?v=20261102_81';
+import { CloudSync } from './cloud-sync.js?v=20261102_81';
+import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_81';
 
 // Định nghĩa an toàn tuyệt đối cho hàm escapeHtml trong scope của arena.js
 function escapeHtml(str) {
@@ -628,15 +628,28 @@ const Arena = {
     } else {
       const grade = source.replace('grade_', '');
       try {
-        const res = await fetch(`data/grade_${grade}.json`);
-        if (res.ok) questions = await res.json();
+        if (typeof this.loadGradeFn === 'function') {
+          questions = await this.loadGradeFn(grade);
+        } else if (typeof window !== 'undefined' && typeof window.App?.loadGradeData === 'function') {
+          questions = await window.App.loadGradeData(grade);
+        } else {
+          const res = await fetch(`data/grade_${grade}.json`);
+          if (res.ok) questions = await res.json();
+        }
       } catch (err) {
         console.warn('Không tải được câu hỏi khối:', grade, err);
       }
     }
 
+    if (!questions || questions.length === 0) {
+      if (typeof alert === 'function') {
+        alert('Không tìm thấy câu hỏi cho nguồn đề đã chọn. Vui lòng kiểm tra lại!');
+      }
+      return null;
+    }
+
     // Xáo trộn và cắt đúng số lượng câu hỏi giáo dục (Decoupled questions)
-    const shuffledQuestions = questions.sort(() => 0.5 - Math.random()).slice(0, qCount);
+    const shuffledQuestions = [...questions].sort(() => 0.5 - Math.random()).slice(0, qCount);
     const hostUser = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
 
     // 3. Khởi tạo Normalized Session State thông qua GameEngine
@@ -655,6 +668,8 @@ const Arena = {
       hostEmail: hostUser?.email || ''
     });
     session.pin = pin; // Tương thích ngược
+    session.title = session.settings?.title || title || 'Đấu Trường TinHocHub';
+    session.targetClass = session.settings?.targetClass || targetClass || 'all';
 
     // 4. Lưu LocalStorage & Đẩy lên Firebase RTDB
     Storage.saveArenaRoom(session);
@@ -881,7 +896,7 @@ const Arena = {
         </div>
 
         <!-- Gameplay Visual Theo Chế Độ (Gold / Boss / Speed) -->
-        ${room.gameMode === 'boss_raid' ? `
+        ${this.isBossMode(room.gameMode) ? `
           <!-- Thanh Máu Siêu Trùm Boss -->
           <div class="p-6 rounded-3xl bg-slate-900 border-2 border-rose-500/50 shadow-2xl text-white space-y-3 relative overflow-hidden">
             <div class="flex items-center justify-between">
@@ -895,13 +910,13 @@ const Arena = {
                 </div>
               </div>
               <div class="text-right">
-                <span id="host-boss-hp-text" class="text-xl font-black text-rose-400 font-mono">${room.bossCurrentHp} / ${room.bossMaxHp} HP</span>
+                <span id="host-boss-hp-text" class="text-xl font-black text-rose-400 font-mono">${room.metadata?.bossCurrentHp ?? room.bossCurrentHp ?? 1000} / ${room.metadata?.bossMaxHp ?? room.bossMaxHp ?? 1000} HP</span>
               </div>
             </div>
 
             <!-- Health Bar -->
             <div class="w-full h-4 bg-slate-800 rounded-full overflow-hidden border border-rose-500/30">
-              <div id="host-boss-hp-fill" class="h-full bg-gradient-to-r from-rose-500 to-amber-500 transition-all duration-300" style="width: ${(room.bossCurrentHp / room.bossMaxHp) * 100}%"></div>
+              <div id="host-boss-hp-fill" class="h-full bg-gradient-to-r from-rose-500 to-amber-500 transition-all duration-300" style="width: ${((room.metadata?.bossCurrentHp ?? room.bossCurrentHp ?? 1000) / (room.metadata?.bossMaxHp ?? room.bossMaxHp ?? 1000)) * 100}%"></div>
             </div>
           </div>
         ` : ''}
@@ -979,6 +994,13 @@ const Arena = {
   // ==========================================
   hostRevealQuestionResults() {
     const room = this.activeRoom;
+    // Đồng bộ kết quả câu trả lời của người chơi từ Storage
+    if (typeof Storage !== 'undefined' && typeof Storage.getArenaRoom === 'function') {
+      const savedRoom = Storage.getArenaRoom(room.pin);
+      if (savedRoom && savedRoom.players) {
+        room.players = { ...(room.players || {}), ...savedRoom.players };
+      }
+    }
     const q = room.questions[this.currentQuestionIndex];
     room.status = 'question_result';
     room.updatedAt = Date.now();
@@ -1104,7 +1126,15 @@ const Arena = {
   // 7. KẾT THÚC TRẬN ĐẤU & BỤC VINH DANH PODIUM (LMS INTEGRATION)
   // ==========================================
   hostFinishGame() {
+    this.cleanupRoomListener();
     const room = this.activeRoom;
+    // Đồng bộ toàn bộ điểm và dữ liệu người chơi cuối cùng từ Storage
+    if (typeof Storage !== 'undefined' && typeof Storage.getArenaRoom === 'function') {
+      const savedRoom = Storage.getArenaRoom(room.pin);
+      if (savedRoom && savedRoom.players) {
+        room.players = { ...(room.players || {}), ...savedRoom.players };
+      }
+    }
     room.status = 'game_over';
     room.updatedAt = Date.now();
     this.syncRoomToCloud(room);
@@ -1157,7 +1187,7 @@ const Arena = {
                   🥈
                 </div>
                 <span class="text-xs font-bold truncate max-w-[100px]">${escapeHtml(top2.name)}</span>
-                <span class="text-[10px] text-slate-400 font-mono mb-2">${room.gameMode === 'gold_quest' ? `${top2.gold || 0} 🪙` : `${top2.score || 0} đ`}</span>
+                <span class="text-[10px] text-slate-400 font-mono mb-2">${this.isGoldMode(room.gameMode) ? `${top2.metadata?.gold ?? top2.gold ?? 0} 🪙` : `${top2.score || 0} đ`}</span>
                 <div class="w-full h-28 bg-gradient-to-t from-slate-700 to-slate-600 rounded-t-2xl flex items-center justify-center font-black text-xl text-slate-300 border-t-2 border-slate-400 shadow-md">
                   #2
                 </div>
@@ -1171,7 +1201,7 @@ const Arena = {
                   👑
                 </div>
                 <span class="text-sm font-black truncate max-w-[120px] text-amber-300">${escapeHtml(top1.name)}</span>
-                <span class="text-xs text-amber-400 font-mono font-bold mb-2">${room.gameMode === 'gold_quest' ? `${top1.gold || 0} 🪙` : `${top1.score || 0} đ`}</span>
+                <span class="text-xs text-amber-400 font-mono font-bold mb-2">${this.isGoldMode(room.gameMode) ? `${top1.metadata?.gold ?? top1.gold ?? 0} 🪙` : `${top1.score || 0} đ`}</span>
                 <div class="w-full h-40 bg-gradient-to-t from-amber-600 to-yellow-500 rounded-t-2xl flex items-center justify-center font-black text-3xl text-slate-950 border-t-4 border-amber-200 shadow-2xl">
                   #1
                 </div>
@@ -1185,7 +1215,7 @@ const Arena = {
                   🥉
                 </div>
                 <span class="text-xs font-bold truncate max-w-[90px]">${escapeHtml(top3.name)}</span>
-                <span class="text-[10px] text-slate-400 font-mono mb-2">${room.gameMode === 'gold_quest' ? `${top3.gold || 0} 🪙` : `${top3.score || 0} đ`}</span>
+                <span class="text-[10px] text-slate-400 font-mono mb-2">${this.isGoldMode(room.gameMode) ? `${top3.metadata?.gold ?? top3.gold ?? 0} 🪙` : `${top3.score || 0} đ`}</span>
                 <div class="w-full h-20 bg-gradient-to-t from-amber-900 to-amber-800 rounded-t-2xl flex items-center justify-center font-black text-lg text-amber-300 border-t-2 border-amber-600 shadow-md">
                   #3
                 </div>
@@ -1258,7 +1288,7 @@ const Arena = {
                   const blook = this.BLOOKS.find(b => b.id === p.blookId) || this.BLOOKS[0];
                   const cCount = p.correctCount || 0;
                   const pPct = Math.round((cCount / room.totalQuestions) * 100);
-                  const val = room.gameMode === 'gold_quest' ? `${p.gold || 0} 🪙` : `${p.score || 0} đ`;
+                  const val = this.isGoldMode(room.gameMode) ? `${p.metadata?.gold ?? p.gold ?? 0} 🪙` : `${p.score || 0} đ`;
                   return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/40 transition">
                       <td class="py-3 px-3 font-black text-slate-700 dark:text-slate-300">#${idx + 1}</td>
@@ -1329,8 +1359,9 @@ const Arena = {
     // Phân tích targetClass (ví dụ: 'EMASI|10E')
     let school = 'TinHocHub';
     let className = 'Toàn Trường';
-    if (room.targetClass && room.targetClass.includes('|')) {
-      const parts = room.targetClass.split('|');
+    const targetCls = room.targetClass || room.settings?.targetClass || '';
+    if (targetCls && targetCls.includes('|')) {
+      const parts = targetCls.split('|');
       school = parts[0];
       className = parts[1];
     }
@@ -1386,7 +1417,7 @@ const Arena = {
       const cCount = p.correctCount || 0;
       const pct = Math.round((cCount / room.totalQuestions) * 100);
       const score10 = ((cCount / room.totalQuestions) * 10).toFixed(2);
-      const val = room.gameMode === 'gold_quest' ? (p.gold || 0) : (p.score || 0);
+      const val = this.isGoldMode(room.gameMode) ? (p.metadata?.gold ?? p.gold ?? 0) : (p.score || 0);
 
       rows.push([
         idx + 1,
@@ -1450,6 +1481,13 @@ const Arena = {
     this.playerInfo = playerState;
     this.activeRoom = room;
     this.activeRole = 'player';
+
+    // Cập nhật người chơi vào room và lưu vào Storage
+    room.players = room.players || {};
+    room.players[uid] = this.playerInfo;
+    if (typeof Storage !== 'undefined' && typeof Storage.saveArenaRoom === 'function') {
+      Storage.saveArenaRoom(room);
+    }
 
     // Đăng ký người chơi vào Firebase
     try {
@@ -1613,6 +1651,9 @@ const Arena = {
     if (room.players[this.playerInfo.uid]) {
       this.playerInfo = { ...room.players[this.playerInfo.uid], uid: this.playerInfo.uid };
     }
+    if (typeof Storage !== 'undefined' && typeof Storage.saveArenaRoom === 'function') {
+      Storage.saveArenaRoom(room);
+    }
 
     if (isCorrect) {
       this.playChime();
@@ -1710,6 +1751,9 @@ const Arena = {
     if (room.players[this.playerInfo.uid]) {
       this.playerInfo = { ...room.players[this.playerInfo.uid], uid: this.playerInfo.uid };
     }
+    if (typeof Storage !== 'undefined' && typeof Storage.saveArenaRoom === 'function') {
+      Storage.saveArenaRoom(room);
+    }
 
     const dbUrl = this.getBaseDbUrl();
     try {
@@ -1777,6 +1821,9 @@ const Arena = {
         if (room.players[this.playerInfo.uid]) {
           this.playerInfo = { ...room.players[this.playerInfo.uid], uid: this.playerInfo.uid };
         }
+        if (typeof Storage !== 'undefined' && typeof Storage.saveArenaRoom === 'function') {
+          Storage.saveArenaRoom(room);
+        }
 
         const dbUrl = this.getBaseDbUrl();
         try {
@@ -1829,12 +1876,18 @@ const Arena = {
     // Polling định kỳ mỗi 1.2s đảm bảo cập nhật mượt mà
     this.pollingInterval = setInterval(async () => {
       try {
-        const res = await fetch(roomUrl, { cache: 'no-cache' });
-        if (res.ok) {
-          const remote = await res.json();
-          if (remote) {
-            this.handleRemoteRoomUpdate(remote);
-          }
+        let remote = null;
+        try {
+          const res = await fetch(roomUrl, { cache: 'no-cache' });
+          if (res.ok) remote = await res.json();
+        } catch {}
+
+        if (!remote && typeof Storage !== 'undefined' && typeof Storage.getArenaRoom === 'function') {
+          remote = Storage.getArenaRoom(pin);
+        }
+
+        if (remote) {
+          this.handleRemoteRoomUpdate(remote);
         }
       } catch {}
     }, 1200);
@@ -1845,6 +1898,16 @@ const Arena = {
     const oldStatus = this.activeRoom ? this.activeRoom.status : null;
     const oldQIndex = this.activeRoom ? this.activeRoom.currentQuestionIndex : -1;
     this.activeRoom = remoteRoom;
+
+    // Đảm bảo playerInfo không bị mất khi nhận remoteRoom
+    if (this.activeRole === 'player' && this.playerInfo) {
+      remoteRoom.players = remoteRoom.players || {};
+      if (!remoteRoom.players[this.playerInfo.uid]) {
+        remoteRoom.players[this.playerInfo.uid] = this.playerInfo;
+      } else {
+        this.playerInfo = { ...remoteRoom.players[this.playerInfo.uid], uid: this.playerInfo.uid };
+      }
+    }
 
     // Cập nhật số lượng người chơi trong Lobby nếu Host đang ở màn hình chờ
     if (this.activeRole === 'host' && remoteRoom.status === 'lobby') {
@@ -1877,11 +1940,13 @@ const Arena = {
       if (countEl) countEl.textContent = answeredCount;
 
       // Cập nhật máu Boss nếu là Boss Raid
-      if (remoteRoom.gameMode === 'boss_raid') {
+      if (this.isBossMode(remoteRoom.gameMode)) {
         const hpText = document.getElementById('host-boss-hp-text');
         const hpFill = document.getElementById('host-boss-hp-fill');
-        if (hpText) hpText.textContent = `${remoteRoom.bossCurrentHp} / ${remoteRoom.bossMaxHp} HP`;
-        if (hpFill) hpFill.style.width = `${(remoteRoom.bossCurrentHp / remoteRoom.bossMaxHp) * 100}%`;
+        const currentHp = remoteRoom.metadata?.bossCurrentHp ?? remoteRoom.bossCurrentHp ?? 0;
+        const maxHp = remoteRoom.metadata?.bossMaxHp ?? remoteRoom.bossMaxHp ?? 1000;
+        if (hpText) hpText.textContent = `${currentHp} / ${maxHp} HP`;
+        if (hpFill && maxHp > 0) hpFill.style.width = `${Math.max(0, Math.min(100, (currentHp / maxHp) * 100))}%`;
       }
     }
 
@@ -1892,6 +1957,10 @@ const Arena = {
         this.playerInfo.currentAnswer = null;
         const q = remoteRoom.questions[remoteRoom.currentQuestionIndex];
         if (q) this.renderPlayerQuestionView(q);
+      } else if (remoteRoom.status === 'question_result' && oldStatus !== 'question_result') {
+        if (!this.playerInfo.answeredInCurrentQ) {
+          this.renderPlayerFeedback(false, 'Hết thời gian trả lời câu hỏi này! Hãy chuẩn bị cho câu tiếp theo.');
+        }
       } else if (remoteRoom.status === 'game_over' && oldStatus !== 'game_over') {
         this.renderPlayerGameOver();
       }
@@ -1900,13 +1969,15 @@ const Arena = {
 
   renderPlayerGameOver() {
     const room = this.activeRoom;
-    const sorted = Object.values(room.players || {}).sort((a, b) => {
-      if (room.gameMode === 'gold_quest') return (b.gold || 0) - (a.gold || 0);
-      return (b.score || 0) - (a.score || 0);
-    });
+    const sorted = defaultGameEngine.rankPlayers(room);
 
-    const myRank = sorted.findIndex(p => p.uid === this.playerInfo.uid) + 1;
+    const myRank = sorted.findIndex(p => (p.id || p.uid) === this.playerInfo.uid) + 1;
     this.playFanfare();
+
+    const isGold = this.isGoldMode(room.gameMode);
+    const totalVal = isGold
+      ? `${this.playerInfo.metadata?.gold ?? this.playerInfo.gold ?? 0} 🪙`
+      : `${this.playerInfo.score || 0} đ`;
 
     this.container.innerHTML = `
       <div class="max-w-md mx-auto text-center space-y-6 py-8 animate-fadeIn">
@@ -1926,8 +1997,8 @@ const Arena = {
               <span class="text-base font-bold text-emerald-400 font-mono mt-1 block">${this.playerInfo.correctCount || 0} / ${room.totalQuestions}</span>
             </div>
             <div class="p-3 rounded-xl bg-slate-800">
-              <span class="text-slate-400 block">${room.gameMode === 'gold_quest' ? 'Tổng Vàng' : 'Tổng Điểm'}</span>
-              <span class="text-base font-bold text-amber-400 font-mono mt-1 block">${room.gameMode === 'gold_quest' ? `${this.playerInfo.gold || 0} 🪙` : `${this.playerInfo.score || 0} đ`}</span>
+              <span class="text-slate-400 block">${isGold ? 'Tổng Vàng' : 'Tổng Điểm'}</span>
+              <span class="text-base font-bold text-amber-400 font-mono mt-1 block">${totalVal}</span>
             </div>
           </div>
 
@@ -1967,6 +2038,22 @@ const Arena = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(room)
     }).catch(() => {});
+  },
+
+  isGoldMode(mode) {
+    return mode === 'resource_quest' || mode === 'gold_quest';
+  },
+
+  isBossMode(mode) {
+    return mode === 'boss_hunt' || mode === 'boss_raid';
+  },
+
+  isSpeedMode(mode) {
+    return mode === 'speed_race' || mode === 'speed_racer';
+  },
+
+  isClassicMode(mode) {
+    return mode === 'classic' || mode === 'classic_kahoot';
   },
 
   getModeTitle(mode) {

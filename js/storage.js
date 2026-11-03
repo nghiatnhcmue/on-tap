@@ -1156,6 +1156,10 @@ export const Storage = {
   },
 
   // --- LỊCH SỬ THI THỬ ---
+  getExamResults() {
+    return this.getExamHistory();
+  },
+
   getExamHistory() {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.EXAM_HISTORY);
@@ -1212,17 +1216,20 @@ export const Storage = {
       } catch (err) {}
 
       const entry = {
+        ...result,
         id: result.id || ('exam_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6)),
-        date: result.date || new Date().toISOString(),
-        title: result.title || 'Đề thi thử Tin học',
+        date: result.date || result.completedAt || new Date().toISOString(),
+        title: result.title || result.examTitle || 'Đề thi thử Tin học',
         grade: result.grade,
         score: result.score, // 0 - 10
         totalQuestions: result.totalQuestions,
         correctCount: result.correctCount,
         timeSpentSeconds: result.timeSpentSeconds,
         studentName: result.studentName || student.fullName,
-        studentClass: result.studentClass || student.className,
-        studentSchool: result.studentSchool || student.school,
+        studentClass: result.studentClass || result.className || student.className,
+        studentSchool: result.studentSchool || result.school || student.school,
+        school: result.school || result.studentSchool || student.school,
+        className: result.className || result.studentClass || student.className,
         studentEmail: result.studentEmail || student.email,
         roomId: result.roomId || null,
         roomTitle: result.roomTitle || null,
@@ -1235,7 +1242,11 @@ export const Storage = {
         violationLogs: result.violationLogs || [],
         isDisqualified: !!result.isDisqualified,
         disqualifiedReason: result.disqualifiedReason || '',
-        details: result.details || [] // danh sách câu hỏi và câu trả lời
+        details: result.details || [], // danh sách câu hỏi và câu trả lời
+        isArenaGame: !!result.isArenaGame,
+        arenaPin: result.arenaPin || null,
+        gameMode: result.gameMode || null,
+        blookName: result.blookName || null
       };
       history.unshift(entry);
       // Giữ tối đa 2000 bài thi trên thiết bị để Sổ điểm của Giáo viên luôn đầy đủ
