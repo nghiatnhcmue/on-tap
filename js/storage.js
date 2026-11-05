@@ -513,6 +513,7 @@ export const Storage = {
         avatar: user.avatar || '',
         role: user.role || 'student',
         password: user.password || (idx >= 0 ? list[idx].password : '') || '',
+        profileCompleted: Boolean(user.profileCompleted || user.profileUpdatedAt || (idx >= 0 && list[idx].profileCompleted)),
         profileUpdatedAt: user.profileUpdatedAt || (idx >= 0 ? list[idx].profileUpdatedAt : null) || null,
         lastActive: user.lastActive || new Date().toISOString()
       };
@@ -523,7 +524,8 @@ export const Storage = {
       }
       localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(list));
       const cs = this.getCloudSync();
-      if (cs && typeof cs.pushAccountToCloud === 'function') {
+      const shouldPushCloud = record.role !== 'student' || record.profileCompleted || Boolean(record.profileUpdatedAt);
+      if (cs && typeof cs.pushAccountToCloud === 'function' && shouldPushCloud) {
         cs.pushAccountToCloud(record).catch(() => {});
       }
     } catch (e) {

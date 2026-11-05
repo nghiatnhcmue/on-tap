@@ -4,8 +4,8 @@
  * Hỗ trợ: Đăng nhập Google Popup, Đồng bộ Firebase Realtime Database, Hồ sơ học sinh.
  */
 
-import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261102_84';
-import { CloudSync } from './cloud-sync.js?v=20261102_84';
+import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261102_85';
+import { CloudSync } from './cloud-sync.js?v=20261102_85';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
 
@@ -165,12 +165,18 @@ export const Auth = {
 
   isProfileComplete() {
     if (!this.currentUser) return false;
-    // Bất kỳ tài khoản nào đã đăng nhập đều được vào học ngay, tự động chuẩn hóa nếu thiếu
-    if (!this.currentUser.fullName) this.currentUser.fullName = 'Người dùng TinHocHub';
-    if (!this.currentUser.school) this.currentUser.school = (this.currentUser.role === 'admin' ? 'Ban Quản Trị TinHocHub' : 'TT GDNN GDTX Chu Văn An');
-    if (!this.currentUser.className) this.currentUser.className = (this.currentUser.role === 'admin' ? 'Quản trị hệ thống' : '12A1');
-    if (!this.currentUser.grade) this.currentUser.grade = '12';
-    return true;
+    if (this.currentUser.role === 'admin' || this.currentUser.role === 'teacher') {
+      if (!this.currentUser.fullName) this.currentUser.fullName = this.currentUser.role === 'admin' ? 'Quản trị viên TinHocHub' : 'Giáo viên TinHocHub';
+      if (!this.currentUser.school) this.currentUser.school = this.currentUser.role === 'admin' ? 'Ban Quản Trị TinHocHub' : 'THPT Thực Hành HCMUE';
+      if (!this.currentUser.className) this.currentUser.className = this.currentUser.role === 'admin' ? 'Quản trị hệ thống' : 'Tổ Tin học';
+      if (!this.currentUser.grade) this.currentUser.grade = '12';
+      return true;
+    }
+    const hasName = Boolean(this.currentUser.fullName && this.currentUser.fullName.trim());
+    const hasSchool = Boolean(this.currentUser.school && this.currentUser.school.trim());
+    const hasClass = Boolean(this.currentUser.className && this.currentUser.className.trim());
+    const hasConfirmed = Boolean(this.currentUser.profileCompleted || this.currentUser.profileUpdatedAt);
+    return hasName && hasSchool && hasClass && hasConfirmed;
   },
 
   // ==================== FIREBASE AUTHENTICATION (GOOGLE SIGN-IN) ====================
@@ -611,24 +617,6 @@ export const Auth = {
 
       if (result && result.user) {
         this.handleFirebaseUser(result.user);
-        document.documentElement.classList.add('is-authenticated');
-        document.documentElement.classList.remove('has-incomplete-profile');
-        if (typeof window.closeLoginModal === 'function') {
-          window.closeLoginModal();
-        }
-        const m = document.getElementById('modal-login');
-        if (m) {
-          m.classList.add('hidden');
-          m.style.setProperty('display', 'none', 'important');
-        }
-        if (window.AppInstance) {
-          if (typeof window.AppInstance.renderHome === 'function') {
-            window.AppInstance.renderHome();
-          }
-          if (typeof window.AppInstance.enforceAuthentication === 'function') {
-            window.AppInstance.enforceAuthentication();
-          }
-        }
       }
     } catch (err) {
       console.error('Lỗi đăng nhập Google Firebase:', err);
@@ -685,26 +673,59 @@ export const Auth = {
       sub: uid
     });
 
-    // Luôn mở khóa toàn bộ giao diện và đóng modal đăng nhập ngay lập tức
-    document.documentElement.classList.add('is-authenticated');
-    document.documentElement.classList.remove('has-incomplete-profile');
-    if (typeof window.closeLoginModal === 'function') {
-      window.closeLoginModal();
-    }
     const modalLogin = document.getElementById('modal-login');
     if (modalLogin) {
       modalLogin.classList.add('hidden');
       modalLogin.style.setProperty('display', 'none', 'important');
     }
-    const profileModal = document.getElementById('modal-required-profile');
-    if (profileModal && !this.isEditingProfile) {
-      profileModal.classList.add('hidden');
-      profileModal.style.removeProperty('display');
+
+    if (this.isProfileComplete()) {
+      document.documentElement.classList.add('is-authenticated');
+      document.documentElement.classList.remove('has-incomplete-profile');
+      if (typeof window.closeLoginModal === 'function') {
+        window.closeLoginModal();
+      }
+      const profileModal = document.getElementById('modal-required-profile');
+      if (profileModal && !this.isEditingProfile) {
+        profileModal.classList.add('hidden');
+        profileModal.style.removeProperty('display');
+      }
+      const gatekeeperOverlay = document.getElementById('auth-gatekeeper-overlay');
+      if (gatekeeperOverlay) {
+        gatekeeperOverlay.classList.add('hidden');
+      }
+    } else {
+      document.documentElement.classList.remove('is-authenticated');
+      document.documentElement.classList.add('has-incomplete-profile');
+      this.openRequiredProfileModal();
+
+      // Đồng bộ ngầm từ Cloud phòng trường hợp học sinh đã từng chọn trường/lớp trên thiết bị khác
+      if (CloudSync && typeof CloudSync.syncAccounts === 'function') {
+        CloudSync.syncAccounts().then(() => {
+          const syncedAccounts = Storage.getAccountsList();
+          const remoteFound = syncedAccounts.find(a => a.email && a.email.toLowerCase() === email);
+          if (remoteFound && (remoteFound.profileCompleted || remoteFound.profileUpdatedAt) && remoteFound.school && remoteFound.className) {
+            this.currentUser = {
+              ...this.currentUser,
+              fullName: remoteFound.fullName || this.currentUser.fullName,
+              grade: remoteFound.grade || this.currentUser.grade || '12',
+              school: remoteFound.school,
+              className: remoteFound.className,
+              profileCompleted: true,
+              profileUpdatedAt: remoteFound.profileUpdatedAt || new Date().toISOString()
+            };
+            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(this.currentUser));
+            this.closeRequiredProfileModal();
+            this.notifyAuthChange();
+            if (window.AppInstance) {
+              if (typeof window.AppInstance.renderHome === 'function') window.AppInstance.renderHome();
+              if (typeof window.AppInstance.enforceAuthentication === 'function') window.AppInstance.enforceAuthentication();
+            }
+          }
+        }).catch(() => {});
+      }
     }
-    const gatekeeperOverlay = document.getElementById('auth-gatekeeper-overlay');
-    if (gatekeeperOverlay) {
-      gatekeeperOverlay.classList.add('hidden');
-    }
+
     if (window.AppInstance) {
       if (typeof window.AppInstance.renderHome === 'function') {
         window.AppInstance.renderHome();
@@ -731,21 +752,23 @@ export const Auth = {
     const savedAccounts = Storage.getAccountsList();
     const found = savedAccounts.find(a => a.email && a.email.toLowerCase() === cleanEmail);
     const curSame = (this.currentUser && this.currentUser.email && this.currentUser.email.toLowerCase() === cleanEmail) ? this.currentUser : null;
-    const existing = (curSame && (curSame.profileUpdatedAt || curSame.school)) ? curSame : (found || curSame);
+    const existing = (curSame && (curSame.profileCompleted || curSame.profileUpdatedAt)) ? curSame : (found || curSame);
 
     const userRole = isAdminEmail ? 'admin' : (existing?.role || (cleanEmail.includes('giaovien') || cleanEmail.includes('gv') ? 'teacher' : 'student'));
+    const hasConfirmedProfile = Boolean(existing && (existing.profileCompleted || existing.profileUpdatedAt) && existing.school && existing.className);
 
     const profile = {
       uid: sub ? ('google_' + sub) : (existing?.uid || 'google_' + Date.now()),
       email: cleanEmail,
-      fullName: (existing?.profileUpdatedAt && existing?.fullName) ? existing.fullName : (cleanName || existing?.fullName || (isAdminEmail ? 'Thầy Nghĩa (Quản trị viên)' : 'Học sinh Google')),
+      fullName: (hasConfirmedProfile && existing?.fullName) ? existing.fullName : (cleanName || existing?.fullName || (isAdminEmail ? 'Thầy Nghĩa (Quản trị viên)' : 'Học sinh Google')),
       avatar: avatar,
       grade: existing?.grade || '12',
-      className: existing?.className || (isAdminEmail ? 'Quản trị hệ thống' : (userRole === 'teacher' ? 'Tổ Tin học' : '12A1')),
-      school: existing?.school || (isAdminEmail ? 'Ban Quản Trị TinHocHub' : (userRole === 'teacher' ? 'THPT Thực Hành HCMUE' : 'TT GDNN GDTX Chu Văn An')),
+      className: isAdminEmail ? (existing?.className || 'Quản trị hệ thống') : (userRole === 'teacher' ? (existing?.className || 'Tổ Tin học') : (hasConfirmedProfile ? existing.className : '')),
+      school: isAdminEmail ? (existing?.school || 'Ban Quản Trị TinHocHub') : (userRole === 'teacher' ? (existing?.school || 'THPT Thực Hành HCMUE') : (hasConfirmedProfile ? existing.school : '')),
       role: userRole,
+      profileCompleted: isAdminEmail || userRole === 'teacher' || hasConfirmedProfile,
       profileUpdatedAt: existing?.profileUpdatedAt || null,
-      lastActive: existing?.lastActive || new Date().toISOString(),
+      lastActive: new Date().toISOString(),
       createdAt: existing?.createdAt || new Date().toISOString()
     };
 
@@ -933,6 +956,7 @@ export const Auth = {
       }
     }
 
+    const nowIso = new Date().toISOString();
     const newUser = {
       uid: cleanUsername || ('user_' + Date.now()),
       username: cleanUsername,
@@ -944,7 +968,9 @@ export const Auth = {
       className: cleanClass,
       school: cleanSchool,
       role: finalRole,
-      createdAt: new Date().toISOString()
+      profileCompleted: true,
+      profileUpdatedAt: nowIso,
+      createdAt: nowIso
     };
 
     this.saveUser(newUser);
@@ -969,9 +995,11 @@ export const Auth = {
       fullName: target.fullName,
       avatar: target.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(target.fullName)}&background=${target.role === 'admin' ? 'ef4444' : (target.role === 'teacher' ? '8b5cf6' : '3b82f6')}&color=fff`,
       grade: target.grade || '12',
-      className: target.className,
-      school: target.school,
+      className: target.className || '',
+      school: target.school || '',
       role: target.role || 'student',
+      profileCompleted: Boolean(target.profileCompleted || target.profileUpdatedAt),
+      profileUpdatedAt: target.profileUpdatedAt || null,
       createdAt: target.createdAt || new Date().toISOString()
     };
     this.saveUser(user);
@@ -1007,6 +1035,7 @@ export const Auth = {
       grade: newGrade,
       className: newClassName,
       school: newSchool,
+      profileCompleted: true,
       profileUpdatedAt: nowIso,
       lastActive: nowIso
     };
@@ -1251,8 +1280,9 @@ export const Auth = {
           customSchoolInput.value = initialSchool;
         }
       }
-    } else if (schoolNames.length > 0) {
-      schoolSelect.value = schoolNames[0];
+    } else {
+      schoolSelect.value = '';
+      if (customSchoolInput) customSchoolInput.classList.add('hidden');
     }
 
     if (gradeSelect && initialGrade) {
@@ -1267,22 +1297,53 @@ export const Auth = {
     if (!modal) return;
 
     this.isEditingProfile = true;
+    const isComplete = this.isProfileComplete();
+
+    // Ẩn nút Đóng (X) và nút Đóng phụ nếu học sinh đăng nhập lần đầu chưa chọn Trường & Lớp
+    const closeTopBtn = document.getElementById('btn-close-profile-modal');
+    const closeBottomBtn = document.getElementById('btn-cancel-profile-close');
+    if (closeTopBtn) closeTopBtn.classList.toggle('hidden', !isComplete);
+    if (closeBottomBtn) closeBottomBtn.classList.toggle('hidden', !isComplete);
+
+    const titleEl = document.getElementById('profile-modal-title');
+    const subtitleEl = document.getElementById('profile-modal-subtitle');
+    const submitBtnEl = document.getElementById('btn-submit-required-profile');
+    if (titleEl) {
+      titleEl.textContent = isComplete
+        ? 'Cập Nhật Hồ Sơ Học Sinh (Lớp & Trường)'
+        : 'Chào Mừng Em! Vui Lòng Chọn Trường & Lớp Học';
+    }
+    if (subtitleEl) {
+      subtitleEl.textContent = isComplete
+        ? 'Đồng bộ chính xác Trường, Khối, Lớp để nhận đề kiểm tra và tính điểm'
+        : 'Bước bắt buộc trong lần đăng nhập đầu tiên để nhận đúng bài tập và phòng thi của lớp em';
+    }
+    if (submitBtnEl) {
+      submitBtnEl.innerHTML = isComplete
+        ? '<i class="fa-solid fa-floppy-disk"></i> Lưu Cập Nhật Lớp & Trường'
+        : '<i class="fa-solid fa-circle-check"></i> Xác Nhận Trường Lớp & Vào Học Ngay';
+    }
 
     const emailEl = document.getElementById('profile-email-display');
     const nameInput = document.getElementById('profile-input-fullname');
 
     if (this.currentUser) {
       if (emailEl) emailEl.textContent = this.currentUser.email || this.currentUser.username || this.currentUser.uid || '-';
-      if (nameInput) nameInput.value = this.currentUser.fullName || '';
+      if (nameInput) {
+        const defaultPlaceholderNames = ['Người dùng Google', 'Học sinh Google', 'Người dùng TinHocHub', 'Người dùng'];
+        nameInput.value = (this.currentUser.fullName && !defaultPlaceholderNames.includes(this.currentUser.fullName))
+          ? this.currentUser.fullName
+          : (isComplete ? (this.currentUser.fullName || '') : '');
+      }
       this.setupSchoolClassSync({
         schoolSelectId: 'profile-input-school',
         customSchoolInputId: 'profile-input-school-custom',
         gradeSelectId: 'profile-input-grade',
         classSelectId: 'profile-input-class',
         customClassInputId: 'profile-input-class-custom',
-        initialSchool: this.currentUser.school || 'TT GDNN GDTX Chu Văn An',
+        initialSchool: isComplete ? (this.currentUser.school || '') : '',
         initialGrade: this.currentUser.grade || '12',
-        initialClass: this.currentUser.className || '12A1'
+        initialClass: isComplete ? (this.currentUser.className || '') : ''
       });
     }
 

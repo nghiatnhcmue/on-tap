@@ -12,9 +12,9 @@
  * 9. 👥 Chia Nhóm Tự Động (Group / Team Generator with Random Mascot Names)
  */
 
-import { Storage } from './storage.js?v=20261102_84';
-import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_84';
-import { AVATARS, renderAvatar } from './avatars.js?v=20261102_84';
+import { Storage } from './storage.js?v=20261102_85';
+import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_85';
+import { AVATARS, renderAvatar } from './avatars.js?v=20261102_85';
 
 function escapeHtml(str) {
   if (typeof importedEscapeHtml === 'function') return importedEscapeHtml(str);

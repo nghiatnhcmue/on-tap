@@ -50,7 +50,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261102_84" />
+  <link rel="stylesheet" href="css/style.css?v=20261102_85" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -59,7 +59,8 @@
         var uStr = localStorage.getItem('tinhoc_user');
         if (uStr) {
           var u = JSON.parse(uStr);
-          if (u && (u.email || u.fullName || u.uid) && u.school && u.className) {
+          var isComplete = (u && (u.role === 'admin' || u.role === 'teacher')) || Boolean(u && u.school && u.className && (u.profileCompleted || u.profileUpdatedAt));
+          if (u && (u.email || u.fullName || u.uid) && isComplete) {
             document.documentElement.classList.add('is-authenticated');
           } else if (u && (u.email || u.fullName || u.uid)) {
             document.documentElement.classList.add('has-incomplete-profile');
@@ -137,6 +138,10 @@
       };
 
       window.closeEditProfileModal = function() {
+        if (window.Auth && typeof window.Auth.isProfileComplete === 'function' && !window.Auth.isProfileComplete()) {
+          alert('Em vui lòng chọn đầy đủ Trường học, Khối lớp và Lớp học để bắt đầu vào học nhé!');
+          return;
+        }
         if (window.Auth && typeof window.Auth.closeRequiredProfileModal === 'function') {
           window.Auth.closeRequiredProfileModal();
         } else {
@@ -163,7 +168,7 @@
         });
 
         // Nạp động module Auth để mở Google Popup ngay lập tức
-        import('./js/auth.js?v=20261102_84').then(function(mod) {
+        import('./js/auth.js?v=20261102_85').then(function(mod) {
           if (mod && mod.Auth) {
             window.Auth = mod.Auth;
             mod.Auth.signInWithGoogleFirebase();
@@ -275,9 +280,31 @@
     // Bắt mọi tương tác click khi chưa đăng nhập và mở modal ngay lập tức
     document.addEventListener('click', function(e) {
       var hasUser = false;
-      try { hasUser = !!localStorage.getItem('tinhoc_user'); } catch(err){}
-      if (hasUser) {
+      var isComplete = false;
+      try {
+        var uStr = localStorage.getItem('tinhoc_user');
+        if (uStr) {
+          var u = JSON.parse(uStr);
+          hasUser = !!(u && (u.email || u.fullName || u.uid));
+          isComplete = (u && (u.role === 'admin' || u.role === 'teacher')) || Boolean(u && u.school && u.className && (u.profileCompleted || u.profileUpdatedAt));
+        }
+      } catch(err){}
+      if (hasUser && isComplete) {
         document.documentElement.classList.add('is-authenticated');
+        document.documentElement.classList.remove('has-incomplete-profile');
+        return;
+      }
+      if (hasUser && !isComplete) {
+        document.documentElement.classList.remove('is-authenticated');
+        document.documentElement.classList.add('has-incomplete-profile');
+        var tProf = e.target;
+        if (!tProf.closest('#modal-required-profile')) {
+          if (tProf.closest('#app-main') || tProf.closest('[data-tab-target]')) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.openEditProfileModal) window.openEditProfileModal();
+          }
+        }
         return;
       }
       if (!document.documentElement.classList.contains('is-authenticated')) {
@@ -1948,10 +1975,10 @@
           <i class="fa-solid fa-id-card"></i>
         </div>
         <div>
-          <h3 class="text-base sm:text-lg font-bold text-slate-800 dark:text-white">
-            Cập Nhật Hồ Sơ Học Sinh (Lớp & Trường)
+          <h3 id="profile-modal-title" class="text-base sm:text-lg font-bold text-slate-800 dark:text-white">
+            Chào Mừng Em! Vui Lòng Chọn Trường & Lớp Học
           </h3>
-          <span class="inline-block text-[11px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">
+          <span id="profile-modal-subtitle" class="inline-block text-[11px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">
             Đồng bộ chính xác Trường, Khối, Lớp để nhận đề kiểm tra và tính điểm
           </span>
         </div>
@@ -2021,7 +2048,7 @@
           <button type="button" id="btn-cancel-profile-logout" onclick="window.logoutAndOpenLogin()" class="w-full sm:w-auto px-4 py-2.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-300 font-bold rounded-2xl text-xs transition flex items-center justify-center gap-1.5 shrink-0">
             <i class="fa-solid fa-arrow-right-from-bracket"></i> Đổi tài khoản
           </button>
-          <button type="submit" class="w-full sm:flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs transition shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
+          <button type="submit" id="btn-submit-required-profile" class="w-full sm:flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs transition shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
             <i class="fa-solid fa-floppy-disk"></i> Lưu Cập Nhật Lớp & Trường
           </button>
         </div>
@@ -3267,7 +3294,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261102_84"></script>
+  <script type="module" src="js/app.js?v=20261102_85"></script>
 </body>
 </html>
 

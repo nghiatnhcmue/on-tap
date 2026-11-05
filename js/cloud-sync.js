@@ -10,7 +10,7 @@
  * 5. Cơ chế Local-First an toàn: Mất mạng vẫn làm bài bình thường, khi có mạng tự động đẩy dữ liệu lên đám mây.
  */
 
-import { Storage } from './storage.js?v=20261102_84';
+import { Storage } from './storage.js?v=20261102_85';
 
 const CLOUD_CONFIG_KEY = 'tinhoc_cloud_config';
 export const DEFAULT_FIREBASE_DB_URL = 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -388,13 +388,15 @@ export const CloudSync = {
           localMap.set(cleanKey, remoteAcc);
           updated = true;
         } else {
-          // Ưu tiên bản có profileUpdatedAt hoặc lastActive mới hơn
+          // Ưu tiên bản đã hoàn tất chọn Trường/Lớp (profileCompleted / profileUpdatedAt)
+          const remoteHasProfile = Boolean((remoteAcc.profileCompleted || remoteAcc.profileUpdatedAt) && remoteAcc.school && remoteAcc.className);
+          const localHasProfile = Boolean((localAcc.profileCompleted || localAcc.profileUpdatedAt) && localAcc.school && localAcc.className);
           const remoteTime = new Date(remoteAcc.profileUpdatedAt || remoteAcc.lastActive || 0).getTime();
           const localTime = new Date(localAcc.profileUpdatedAt || localAcc.lastActive || 0).getTime();
-          if (remoteTime > localTime) {
+          if ((remoteHasProfile && !localHasProfile) || (remoteHasProfile === localHasProfile && remoteTime > localTime)) {
             localMap.set(cleanKey, { ...localAcc, ...remoteAcc });
             updated = true;
-          } else if (localTime > remoteTime) {
+          } else if ((localHasProfile && !remoteHasProfile) || (remoteHasProfile === localHasProfile && localTime > remoteTime)) {
             this.pushAccountToCloud(localAcc).catch(() => {});
           }
         }
@@ -406,9 +408,10 @@ export const CloudSync = {
         localStorage.setItem('tinhoc_accounts', JSON.stringify(mergedList));
       }
 
-      // Đẩy ngược các tài khoản local chưa có trên Cloud
+      // Đẩy ngược các tài khoản local đã hoàn tất hồ sơ nhưng chưa có trên Cloud
       for (const [key, localAcc] of localMap.entries()) {
-        if (!remoteData[key]) {
+        const canPush = localAcc && (localAcc.role !== 'student' || localAcc.profileCompleted || localAcc.profileUpdatedAt);
+        if (!remoteData[key] && canPush) {
           this.pushAccountToCloud(localAcc).catch(() => {});
         }
       }
