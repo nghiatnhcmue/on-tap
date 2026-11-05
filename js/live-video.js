@@ -10,12 +10,12 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261102_99';
-import { Storage } from './storage.js?v=20261102_99';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261102_99';
-import { escapeHtml } from './utils.js?v=20261102_99';
-import { Proctor } from './proctor.js?v=20261102_99';
-import { Gradebook } from './gradebook.js?v=20261102_99';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261102_100';
+import { Storage } from './storage.js?v=20261102_100';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261102_100';
+import { escapeHtml } from './utils.js?v=20261102_100';
+import { Proctor } from './proctor.js?v=20261102_100';
+import { Gradebook } from './gradebook.js?v=20261102_100';
 
 export const LiveVideo = {
   manifest: null,
@@ -938,9 +938,16 @@ export const LiveVideo = {
                   </span>
                   <span id="master-time-duration">00:00</span>
                 </div>
-                <div id="master-timeline-track" class="relative w-full h-3.5 bg-slate-100 dark:bg-slate-800 rounded-full cursor-pointer overflow-hidden border border-slate-200 dark:border-slate-700">
-                  <div id="master-timeline-fill" class="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-rose-500 to-indigo-600 rounded-full w-0 transition-all duration-100"></div>
-                  <div id="master-timeline-pins" class="absolute inset-0 pointer-events-none"></div>
+                <!-- Thanh tua video tương tác chuyên nghiệp (Click, Kéo thả chuột / Cảm ứng & Cờ mốc tương tác) -->
+                <div id="master-timeline-wrapper" class="relative w-full py-2.5 cursor-pointer group select-none" title="Bấm hoặc kéo chuột để tua bài giảng • Cả lớp sẽ tự động tua theo Thầy/Cô">
+                  <div id="master-timeline-track" class="relative w-full h-4 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 shadow-inner">
+                    <!-- Thanh tiến trình đã phát -->
+                    <div id="master-timeline-fill" class="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-rose-500 via-purple-500 to-indigo-600 rounded-full w-0 transition-all duration-75"></div>
+                    <!-- Nút trượt Scrubber Thumb tròn -->
+                    <div id="master-timeline-thumb" class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-white rounded-full shadow-lg border-2 border-rose-600 pointer-events-none transition-transform group-hover:scale-125 z-10" style="left: 0%"></div>
+                    <!-- Cụm cờ mốc câu hỏi tương tác (Clickable pins) -->
+                    <div id="master-timeline-pins" class="absolute inset-0 z-20"></div>
+                  </div>
                 </div>
               </div>
 
@@ -2948,50 +2955,86 @@ export const LiveVideo = {
     const btnRewind10 = document.getElementById('btn-master-rewind-10');
     if (btnRewind10 && video) {
       btnRewind10.onclick = () => {
-        const target = Math.max(0, (video.currentTime || 0) - 10);
-        video.currentTime = target;
-        fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ currentTime: target, updatedAt: Date.now() })
-        }).catch(() => {});
+        this.seekMasterVideo((video.currentTime || 0) - 10);
       };
     }
 
     const btnForward10 = document.getElementById('btn-master-forward-10');
     if (btnForward10 && video) {
       btnForward10.onclick = () => {
-        const dur = video.duration || 9999;
-        const target = Math.min(dur, (video.currentTime || 0) + 10);
-        video.currentTime = target;
-        fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ currentTime: target, updatedAt: Date.now() })
-        }).catch(() => {});
+        this.seekMasterVideo((video.currentTime || 0) + 10);
       };
     }
 
-    // 3. Tua Seekbar đồng bộ
-    const timeline = document.getElementById('master-timeline-track');
-    if (timeline && video) {
-      timeline.onclick = (e) => {
-        if (!video.duration) return;
-        const rect = timeline.getBoundingClientRect();
-        const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-        const target = pct * video.duration;
-        video.currentTime = target;
+    // 3. Cơ chế Tua Seekbar chuyên nghiệp: Click & Kéo thả chuột (Drag / Scrub) & Chạm cảm ứng
+    const timelineWrapper = document.getElementById('master-timeline-wrapper') || document.getElementById('master-timeline-track');
+    if (timelineWrapper && video) {
+      let isDragging = false;
 
-        fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            currentTime: target,
-            updatedAt: Date.now()
-          })
-        });
+      const calcAndSeek = (clientX) => {
+        const track = document.getElementById('master-timeline-track') || timelineWrapper;
+        const rect = track.getBoundingClientRect();
+        if (rect.width <= 0) return;
+        const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        const dur = video.duration || this.activeRoom?.videoDuration || 1;
+        const target = pct * dur;
+        this.seekMasterVideo(target);
+      };
+
+      timelineWrapper.onmousedown = (e) => {
+        isDragging = true;
+        calcAndSeek(e.clientX);
+      };
+
+      window.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+          calcAndSeek(e.clientX);
+        }
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+        }
+      });
+
+      // Hỗ trợ Touch trên thiết bị di động & Bảng tương tác thông minh
+      timelineWrapper.ontouchstart = (e) => {
+        if (e.touches && e.touches[0]) {
+          isDragging = true;
+          calcAndSeek(e.touches[0].clientX);
+        }
+      };
+
+      timelineWrapper.ontouchmove = (e) => {
+        if (isDragging && e.touches && e.touches[0]) {
+          calcAndSeek(e.touches[0].clientX);
+        }
+      };
+
+      timelineWrapper.ontouchend = () => {
+        isDragging = false;
       };
     }
+
+    // 4. Phím tắt Bàn phím tiện lợi cho Thầy/Cô khi giảng bài
+    this.masterKeyHandler = (e) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+      if (!this.isHost || !video) return;
+
+      if (e.key === 'ArrowLeft' || e.key === 'j' || e.key === 'J') {
+        e.preventDefault();
+        this.seekMasterVideo((video.currentTime || 0) - 5);
+      } else if (e.key === 'ArrowRight' || e.key === 'l' || e.key === 'L') {
+        e.preventDefault();
+        this.seekMasterVideo((video.currentTime || 0) + 5);
+      } else if (e.key === ' ' || e.key === 'k' || e.key === 'K') {
+        e.preventDefault();
+        toggleMasterPlayPause();
+      }
+    };
+    window.removeEventListener('keydown', this.masterKeyHandler);
+    window.addEventListener('keydown', this.masterKeyHandler);
 
     // Cập nhật timeline fill, đồng hồ và sự kiện video
     if (video) {
@@ -3003,19 +3046,21 @@ export const LiveVideo = {
         const curTimeText = document.getElementById('master-time-current');
         const durTimeText = document.getElementById('master-time-duration');
 
+        const thumb = document.getElementById('master-timeline-thumb');
         if (fill) fill.style.width = `${pct}%`;
+        if (thumb) thumb.style.left = `${pct}%`;
         if (curTimeText) curTimeText.textContent = this.formatTime(cur);
         if (durTimeText) durTimeText.textContent = this.formatTime(dur);
 
         // BẢO VỆ CHỐNG RESET VỀ 0:00:
-        // Nếu vừa hoàn thành một câu hỏi mà trình duyệt tự động reset về 0, chủ động khôi phục vị trí đã lưu
-        if (this.savedPlaybackTime > 2 && cur < 1.0 && !video.seeking) {
+        // Chỉ kích hoạt khi KHÔNG phải do Giáo viên chủ động tua (manual seeking)
+        if (!this.isManualSeeking && this.savedPlaybackTime > 2 && cur < 1.0 && !video.seeking) {
           console.warn('Live Master Video bị reset về 0:00, tự động khôi phục về:', this.savedPlaybackTime);
           try { video.currentTime = this.savedPlaybackTime; } catch (e) {}
           return;
         }
 
-        if (cur > (this.savedPlaybackTime || 0)) {
+        if (!this.isManualSeeking && cur > (this.savedPlaybackTime || 0)) {
           this.savedPlaybackTime = cur;
         }
 
@@ -3288,20 +3333,87 @@ export const LiveVideo = {
     }
   },
 
+  // Hàm tua Master Video an toàn, cập nhật đồng bộ cho cả lớp
+  seekMasterVideo(targetSec) {
+    const video = this.videoElem || document.getElementById('live-master-video');
+    if (!video) return;
+
+    const dur = video.duration || this.activeRoom?.videoDuration || 9999;
+    const target = Math.max(0, Math.min(dur, Number(targetSec) || 0));
+
+    // Đặt cờ manual seeking để Anti-Reset Guard không can thiệp
+    this.isManualSeeking = true;
+    this.savedPlaybackTime = target;
+
+    try {
+      video.currentTime = target;
+    } catch (e) {
+      console.warn('Lỗi gán currentTime video:', e);
+    }
+
+    // Cập nhật giao diện thanh tua ngay lập tức
+    const pct = dur > 0 ? (target / dur) * 100 : 0;
+    const fill = document.getElementById('master-timeline-fill');
+    const thumb = document.getElementById('master-timeline-thumb');
+    const curTimeText = document.getElementById('master-time-current');
+
+    if (fill) fill.style.width = `${pct}%`;
+    if (thumb) thumb.style.left = `${pct}%`;
+    if (curTimeText) curTimeText.textContent = this.formatTime(target);
+
+    // Phát tín hiệu đồng bộ lên Firebase RTDB để máy học sinh tua theo tức thì
+    const roomId = this.activeRoom?.roomId;
+    const dbUrl = this.getBaseDbUrl();
+    if (roomId && dbUrl) {
+      fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentTime: target,
+          updatedAt: Date.now()
+        })
+      }).catch(() => {});
+    }
+
+    if (this.manualSeekTimer) clearTimeout(this.manualSeekTimer);
+    this.manualSeekTimer = setTimeout(() => {
+      this.isManualSeeking = false;
+    }, 1500);
+  },
+
   renderMasterTimelinePins() {
     const pinsContainer = document.getElementById('master-timeline-pins');
-    const video = this.videoElem;
-    if (!pinsContainer || !video || !video.duration) return;
+    const video = this.videoElem || document.getElementById('live-master-video');
+    if (!pinsContainer || !video) return;
 
-    const dur = video.duration;
-    pinsContainer.innerHTML = this.questionsList.map((q, idx) => {
+    const dur = video.duration || this.activeRoom?.videoDuration || 352;
+    if (!dur) return;
+
+    pinsContainer.innerHTML = (this.questionsList || []).map((q, idx) => {
       const pct = Math.min(100, Math.max(0, (q.sec / dur) * 100));
+      const qCount = q.totalInMilestone || (q.questions ? q.questions.length : 1);
       return `
-        <div class="absolute top-0 bottom-0 w-1.5 bg-amber-400 rounded-full cursor-pointer hover:w-2 hover:bg-white transition" style="left: ${pct}%" title="Mốc câu hỏi số ${idx + 1} (${this.formatTime(q.sec)}) - ${q.totalInMilestone || (q.questions ? q.questions.length : 1)} câu hỏi">
-          <span class="absolute -top-3 -translate-x-1/2 text-[9px]">🚩</span>
+        <div class="master-timeline-pin-item absolute top-0 bottom-0 w-4 -translate-x-1/2 flex flex-col items-center justify-center cursor-pointer group/pin z-30" 
+             style="left: ${pct}%" 
+             data-pin-sec="${q.sec}" 
+             data-pin-idx="${idx}"
+             title="Mốc câu hỏi số ${idx + 1} (${this.formatTime(q.sec)}) - ${qCount} câu hỏi (Bấm để nhảy tới)">
+          <span class="w-1.5 h-full bg-amber-400 group-hover/pin:bg-white group-hover/pin:w-2.5 rounded-full shadow transition-all"></span>
+          <span class="absolute -top-3.5 text-[10px] transform group-hover/pin:scale-125 transition-transform drop-shadow select-none">🚩</span>
         </div>
       `;
     }).join('');
+
+    // Gán sự kiện click cho từng cờ pin trên timeline
+    pinsContainer.querySelectorAll('.master-timeline-pin-item').forEach(pin => {
+      pin.onclick = (e) => {
+        e.stopPropagation(); // Ngăn sự kiện click của thanh track cha
+        const sec = parseFloat(pin.getAttribute('data-pin-sec'));
+        if (!isNaN(sec)) {
+          this.seekMasterVideo(sec);
+        }
+      };
+    });
   },
 
   triggerMasterQuestion(checkpointOrQ, subIndex = 0) {
