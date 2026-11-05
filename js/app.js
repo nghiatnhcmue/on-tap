@@ -3,24 +3,24 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261102_82';
-import { Practice } from './practice.js?v=20261102_82';
-import { Exam } from './exam.js?v=20261102_82';
-import { Search } from './search.js?v=20261102_82';
-import { PrintManager } from './print.js?v=20261102_82';
-import { Auth } from './auth.js?v=20261102_82';
-import { escapeHtml } from './utils.js?v=20261102_82';
-import { Leaderboard } from './leaderboard.js?v=20261102_82';
-import { QuestionsManager } from './questions-manager.js?v=20261102_82';
-import { AdminManager } from './admin-manager.js?v=20261102_82';
-import { ExamRooms } from './exam-rooms.js?v=20261102_82';
-import { Proctor } from './proctor.js?v=20261102_82';
-import { Gradebook } from './gradebook.js?v=20261102_82';
-import { CloudSync } from './cloud-sync.js?v=20261102_82';
-import { InteractiveVideo } from './interactive-video.js?v=20261102_82';
-import { LiveVideo } from './live-video.js?v=20261102_82';
-import Arena from './arena.js?v=20261102_82';
-import RandomPicker from './random-picker.js?v=20261102_82';
+import { Storage } from './storage.js?v=20261102_83';
+import { Practice } from './practice.js?v=20261102_83';
+import { Exam } from './exam.js?v=20261102_83';
+import { Search } from './search.js?v=20261102_83';
+import { PrintManager } from './print.js?v=20261102_83';
+import { Auth } from './auth.js?v=20261102_83';
+import { escapeHtml } from './utils.js?v=20261102_83';
+import { Leaderboard } from './leaderboard.js?v=20261102_83';
+import { QuestionsManager } from './questions-manager.js?v=20261102_83';
+import { AdminManager } from './admin-manager.js?v=20261102_83';
+import { ExamRooms } from './exam-rooms.js?v=20261102_83';
+import { Proctor } from './proctor.js?v=20261102_83';
+import { Gradebook } from './gradebook.js?v=20261102_83';
+import { CloudSync } from './cloud-sync.js?v=20261102_83';
+import { InteractiveVideo } from './interactive-video.js?v=20261102_83';
+import { LiveVideo } from './live-video.js?v=20261102_83';
+import Arena from './arena.js?v=20261102_83';
+import RandomPicker from './random-picker.js?v=20261102_83';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -195,7 +195,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261102_82');
+      const res = await fetch('data/manifest.json?v=20261102_83');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
@@ -288,6 +288,9 @@ class App {
       if (typeof InteractiveVideo !== 'undefined' && InteractiveVideo.activeLesson) {
         InteractiveVideo.cleanupActivePlayer();
         InteractiveVideo.activeLesson = null;
+      }
+      if (typeof LiveVideo !== 'undefined' && LiveVideo.activeRoom) {
+        LiveVideo.cleanupSession();
       }
     }
 
@@ -797,7 +800,17 @@ class App {
         if (liveData) {
           const list = Object.values(liveData);
           activeLiveRoom = list.find(r => {
-            if (!r || r.state === 'finished') return false;
+            if (!r || r.state === 'finished' || r.state === 'closed') return false;
+            const isActivelyLive = (typeof LiveVideo !== 'undefined' && typeof LiveVideo.isRoomActivelyLive === 'function')
+              ? LiveVideo.isRoomActivelyLive(r)
+              : ((Date.now() - Number(r.updatedAt || r.createdAt || 0)) < 30 * 60 * 1000);
+            if (!isActivelyLive) {
+              // Tự động đóng ngầm phòng cũ bị treo để không bao giờ hiện nhầm là đang Live
+              if (typeof LiveVideo !== 'undefined' && typeof LiveVideo.closeOrDeleteRoom === 'function' && r.roomId) {
+                LiveVideo.closeOrDeleteRoom(r.roomId, true);
+              }
+              return false;
+            }
             if (isTeacher) return true;
             const matchGrade = (!r.grade || r.grade === user?.grade);
             const matchSchool = (r.school === 'all' || !r.school || (user?.school && r.school.toLowerCase() === user.school.toLowerCase()));
@@ -863,9 +876,16 @@ class App {
               </div>
             </div>
 
-            <button type="button" data-home-join-live="${escapeHtml(activeLiveRoom.roomId)}" class="relative z-10 w-full sm:w-auto px-6 py-3 rounded-2xl bg-white text-rose-700 hover:bg-slate-100 font-black text-xs sm:text-sm shadow-xl transition flex items-center justify-center gap-2 shrink-0 hover:scale-[1.02] active:scale-[0.98]">
-              <i class="fa-solid fa-ticket"></i> Vào Lớp Trực Tuyến Ngay
-            </button>
+            <div class="relative z-10 flex items-center gap-2 w-full sm:w-auto shrink-0">
+              <button type="button" data-home-join-live="${escapeHtml(activeLiveRoom.roomId)}" class="flex-1 sm:flex-initial px-6 py-3 rounded-2xl bg-white text-rose-700 hover:bg-slate-100 font-black text-xs sm:text-sm shadow-xl transition flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
+                <i class="fa-solid ${isTeacher ? 'fa-sliders' : 'fa-ticket'}"></i> ${isTeacher ? 'Vào Điều Khiển Phòng Live' : 'Vào Lớp Trực Tuyến Ngay'}
+              </button>
+              ${isTeacher ? `
+                <button type="button" data-home-close-live="${escapeHtml(activeLiveRoom.roomId)}" class="px-4 py-3 rounded-2xl bg-rose-950/60 hover:bg-rose-900 text-rose-100 border border-rose-400/40 font-bold text-xs shadow-lg transition flex items-center justify-center gap-1.5" title="Đóng / Kết thúc phòng Live này">
+                  <i class="fa-solid fa-power-off"></i> Đóng Phòng
+                </button>
+              ` : ''}
+            </div>
             <div class="absolute -right-8 -bottom-8 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
           </div>
         ` : ''}
@@ -1137,9 +1157,21 @@ class App {
     container.querySelectorAll('[data-home-join-live]').forEach(btn => {
       btn.onclick = async () => {
         const liveId = btn.getAttribute('data-home-join-live');
-        await this.switchTab('interactive-video');
         if (window.LiveVideo) {
-          window.LiveVideo.handleJoinRoomSubmit(liveId);
+          await window.LiveVideo.handleJoinRoomSubmit(liveId);
+        }
+      };
+    });
+
+    // 4. Đóng phòng Live Video trực tuyến (Dành cho Admin & GV)
+    container.querySelectorAll('[data-home-close-live]').forEach(btn => {
+      btn.onclick = async () => {
+        const liveId = btn.getAttribute('data-home-close-live');
+        if (confirm(`Bạn có chắc chắn muốn đóng / kết thúc phòng trực tuyến "${liveId}"?`)) {
+          if (window.LiveVideo && typeof window.LiveVideo.closeOrDeleteRoom === 'function') {
+            await window.LiveVideo.closeOrDeleteRoom(liveId, false);
+            this.renderStudentAssignedTasks();
+          }
         }
       };
     });

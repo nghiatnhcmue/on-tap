@@ -11,11 +11,20 @@ import defaultGameEngine, {
   SpeedRaceHandler,
   BossRaidHandler,
   ClassicKahootHandler
-} from './game-engine.js?v=20261102_82';
-import { Storage } from './storage.js?v=20261102_82';
-import { Auth } from './auth.js?v=20261102_82';
-import { CloudSync } from './cloud-sync.js?v=20261102_82';
-import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_82';
+} from './game-engine.js?v=20261102_83';
+import { Storage } from './storage.js?v=20261102_83';
+import { Auth } from './auth.js?v=20261102_83';
+import { CloudSync } from './cloud-sync.js?v=20261102_83';
+import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_83';
+import {
+  AVATARS,
+  AVATAR_CATEGORIES,
+  RARITY,
+  renderAvatar,
+  renderAvatarSVG,
+  getAvatar,
+  randomAvatarId
+} from './avatars.js?v=20261102_83';
 
 // Định nghĩa an toàn tuyệt đối cho hàm escapeHtml trong scope của arena.js
 function escapeHtml(str) {
@@ -46,22 +55,20 @@ const Arena = {
   pollingInterval: null,
   isMuted: false,
   soundCtx: null,
+  selectedAvatarCat: 'all',
 
-  // Danh mục 12 Linh thú Blooks ngộ nghĩnh
-  BLOOKS: [
-    { id: 'bot', name: 'Cyber Bot', icon: 'fa-robot', gradient: 'from-cyan-500 to-blue-600', color: '#06b6d4', desc: 'Tăng 10% may mắn mở rương' },
-    { id: 'cat', name: 'Ninja Neko', icon: 'fa-cat', gradient: 'from-amber-400 to-orange-500', color: '#f59e0b', desc: 'Bứt tốc phản xạ câu hỏi' },
-    { id: 'dragon', name: 'Rồng Lửa', icon: 'fa-dragon', gradient: 'from-rose-500 to-red-600', color: '#ef4444', desc: 'Sát thương chí mạng lên Boss' },
-    { id: 'wizard', name: 'Pháp Sư', icon: 'fa-hat-wizard', gradient: 'from-purple-500 to-indigo-600', color: '#8b5cf6', desc: 'Khiên phép thuật bảo hộ' },
-    { id: 'astronaut', name: 'Phi Hành Gia', icon: 'fa-user-astronaut', gradient: 'from-blue-600 to-violet-700', color: '#3b82f6', desc: 'Khám phá tri thức vũ trụ' },
-    { id: 'fox', name: 'Cáo Tinh Anh', icon: 'fa-paw', gradient: 'from-orange-500 to-amber-600', color: '#f97316', desc: 'Mưu lược cướp vàng thông thái' },
-    { id: 'owl', name: 'Cú Thông Thái', icon: 'fa-feather', gradient: 'from-emerald-500 to-teal-600', color: '#10b981', desc: 'Trực giác đáp án chính xác' },
-    { id: 'unicorn', name: 'Kỳ Lân', icon: 'fa-horse-head', gradient: 'from-pink-400 to-purple-500', color: '#ec4899', desc: 'Nhân đôi combo may mắn' },
-    { id: 'alien', name: 'Pixel Alien', icon: 'fa-spaghetti-monster-flying', gradient: 'from-lime-400 to-green-600', color: '#84cc16', desc: 'Miễn nhiễm đòn đóng băng' },
-    { id: 'lion', name: 'Sư Tử Chúa', icon: 'fa-shield-halved', gradient: 'from-yellow-500 to-amber-600', color: '#eab308', desc: 'Vương giả dẫn đầu bảng' },
-    { id: 'panda', name: 'Kungfu Panda', icon: 'fa-hand-fist', gradient: 'from-slate-700 to-slate-900', color: '#334155', desc: 'Đòn đánh liên hoàn dũng mãnh' },
-    { id: 'shark', name: 'Cá Mập Tech', icon: 'fa-fish', gradient: 'from-sky-500 to-indigo-600', color: '#0284c7', desc: 'Lướt sóng bứt phá thần tốc' }
-  ],
+  // Danh mục 44 Linh thú Blooks vẽ tay bằng SVG đa lớp sắc nét
+  BLOOKS: AVATARS.map(a => ({
+    ...a,
+    category: a.cat || a.category || 'animal',
+    icon: a.icon || 'fa-paw',
+    gradient: a.gradient || 'from-purple-500 to-indigo-600',
+    color: (a.bg && a.bg[0]) || '#8b5cf6'
+  })),
+
+  renderBlookIcon(blookId, sizeCls = 'w-8 h-8 rounded-lg', opts = {}) {
+    return renderAvatar(blookId || 'bot', sizeCls, opts);
+  },
 
   // ==========================================
   // 1. WEB AUDIO API SYNTHESIZER (ÂM THANH ĐỘNG)
@@ -249,22 +256,56 @@ const Arena = {
                 <input type="text" id="arena-input-name" required value="${escapeHtml(currentUser?.fullName || savedPlayer.name || '')}" placeholder="Nhập họ tên (Ví dụ: Nguyễn Minh Khôi)" class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-purple-500" />
               </div>
 
-              <!-- Chọn Linh Thú Blook -->
-              <div>
-                <div class="flex items-center justify-between mb-2">
-                  <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Chọn Linh Thú Blook Đại Diện</label>
-                  <span id="arena-selected-blook-name" class="text-xs font-black text-purple-600 dark:text-purple-400">Cyber Bot</span>
+              <!-- Chọn Linh Thú Blook (Bộ Sưu Tập 40 Linh Thú Vector Đa Lớp) -->
+              <div class="space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <label class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <span>Chọn Linh Thú Blook (${this.BLOOKS.length} Nhân Vật)</span>
+                  </label>
+                  <button type="button" id="btn-arena-random-blook" class="px-2.5 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 dark:bg-purple-950/60 dark:hover:bg-purple-900 text-purple-700 dark:text-purple-300 text-[11px] font-black transition flex items-center gap-1 cursor-pointer">
+                    <i class="fa-solid fa-shuffle"></i> Ngẫu Nhiên
+                  </button>
                 </div>
-                
-                <div class="grid grid-cols-4 sm:grid-cols-6 gap-2 p-2 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 max-h-44 overflow-y-auto">
-                  ${this.BLOOKS.map((b, idx) => `
-                    <button type="button" data-blook-id="${b.id}" class="blook-select-btn p-2 rounded-xl flex flex-col items-center gap-1 transition ${idx === 0 ? 'bg-purple-100 dark:bg-purple-900/60 ring-2 ring-purple-500' : 'hover:bg-slate-200 dark:hover:bg-slate-800'}" title="${escapeHtml(b.name)} - ${escapeHtml(b.desc)}">
-                      <div class="w-8 h-8 rounded-lg bg-gradient-to-tr ${b.gradient} text-white flex items-center justify-center text-sm shadow-xs">
-                        <i class="fa-solid ${b.icon}"></i>
-                      </div>
-                      <span class="text-[9px] font-bold text-slate-700 dark:text-slate-300 truncate w-full text-center">${escapeHtml(b.name)}</span>
+
+                <!-- Khung Preview Linh Thú Đang Chọn -->
+                <div id="arena-blook-preview-card" class="p-3 rounded-2xl bg-gradient-to-r from-purple-50 via-indigo-50 to-pink-50 dark:from-slate-900 dark:via-purple-950/30 dark:to-slate-900 border border-purple-200/80 dark:border-purple-800/50 flex items-center gap-3.5">
+                  <div id="arena-selected-blook-avatar" class="shrink-0">
+                    ${this.renderBlookIcon(savedPlayer.blookId || this.BLOOKS[0].id, 'w-14 h-14 rounded-2xl', { badge: true })}
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span id="arena-selected-blook-name" class="text-sm font-black text-slate-800 dark:text-white truncate">${escapeHtml((getAvatar(savedPlayer.blookId || this.BLOOKS[0].id)).name)}</span>
+                      <span id="arena-selected-blook-rarity" class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-gradient-to-r ${(RARITY[(getAvatar(savedPlayer.blookId || this.BLOOKS[0].id)).rarity] || RARITY.common).badge} text-white shadow-xs">
+                        ${escapeHtml((RARITY[(getAvatar(savedPlayer.blookId || this.BLOOKS[0].id)).rarity] || RARITY.common).label)}
+                      </span>
+                    </div>
+                    <p id="arena-selected-blook-desc" class="text-[11px] text-slate-600 dark:text-slate-400 font-medium mt-0.5 truncate">
+                      ✨ Tuyệt kỹ: ${escapeHtml((getAvatar(savedPlayer.blookId || this.BLOOKS[0].id)).desc)}
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Bộ Lọc Chủ Đề Linh Thú -->
+                <div id="arena-blook-cat-tabs" class="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
+                  ${AVATAR_CATEGORIES.map(c => `
+                    <button type="button" data-blook-cat="${c.id}" class="blook-cat-btn px-2.5 py-1 rounded-xl text-[10px] font-black whitespace-nowrap transition cursor-pointer ${c.id === 'all' ? 'bg-purple-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}">
+                      ${c.icon} ${escapeHtml(c.name)}
                     </button>
                   `).join('')}
+                </div>
+                
+                <!-- Lưới 40 Linh Thú Vector SVG -->
+                <div id="arena-blook-grid" class="grid grid-cols-4 sm:grid-cols-5 gap-2 p-2.5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 max-h-60 overflow-y-auto">
+                  ${this.BLOOKS.map((b, idx) => {
+                    const isSelected = savedPlayer.blookId ? b.id === savedPlayer.blookId : idx === 0;
+                    const rar = RARITY[b.rarity] || RARITY.common;
+                    return `
+                      <button type="button" data-blook-id="${b.id}" data-blook-cat="${b.category || 'cute'}" class="blook-select-btn p-1.5 rounded-2xl flex flex-col items-center gap-1 transition cursor-pointer ${isSelected ? 'bg-purple-100 dark:bg-purple-900/70 ring-2 ring-purple-500 scale-[1.03]' : 'hover:bg-slate-200/70 dark:hover:bg-slate-800'}" title="${escapeHtml(b.name)} (${rar.label}) - ${escapeHtml(b.desc)}">
+                        ${this.renderBlookIcon(b.id, 'w-11 h-11 rounded-xl')}
+                        <span class="text-[9px] font-bold text-slate-700 dark:text-slate-300 truncate w-full text-center leading-tight">${escapeHtml(b.name)}</span>
+                      </button>
+                    `;
+                  }).join('')}
                 </div>
               </div>
 
@@ -361,11 +402,11 @@ const Arena = {
             <div class="p-4 rounded-2xl bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white border border-white/10 flex items-center justify-between gap-3 shadow-md">
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center text-xl shrink-0 animate-bounce">
-                  🎲
+                  🦆
                 </div>
                 <div>
-                  <strong class="text-xs font-black block text-amber-300">Vòng Quay Gọi Tên & Chia Nhóm Lớp Học</strong>
-                  <span class="text-[11px] text-slate-300 block">Vòng quay may mắn, máy quay xèng, hộp quà bí ẩn & bom nổ chậm</span>
+                  <strong class="text-xs font-black block text-amber-300">9 Mini-Game Gọi Tên, Đua Vịt & Chia Nhóm Lớp Học</strong>
+                  <span class="text-[11px] text-slate-300 block">Đua vịt đường sông, gắp thú bông, rút thẻ bài ma thuật, vòng quay, quay xèng & bom hẹn giờ</span>
                 </div>
               </div>
               <button type="button" onclick="window.AppInstance && window.AppInstance.switchTab('random-picker')" class="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black transition shrink-0 shadow-sm cursor-pointer">
@@ -381,21 +422,70 @@ const Arena = {
   },
 
   bindMainEvents() {
-    // 1. Chọn Blook
-    let selectedBlookId = this.BLOOKS[0].id;
+    // 1. Chọn Blook & Lọc Chủ Đề + Ngẫu Nhiên
+    const savedPlayer = Storage.getArenaPlayerInfo() || {};
+    let selectedBlookId = (savedPlayer.blookId && this.BLOOKS.some(x => x.id === savedPlayer.blookId))
+      ? savedPlayer.blookId
+      : this.BLOOKS[0].id;
+
+    const selectBlookById = (id, playSound = true) => {
+      const found = this.BLOOKS.find(x => x.id === id) || this.BLOOKS[0];
+      selectedBlookId = found.id;
+      this.container.querySelectorAll('.blook-select-btn').forEach(b => {
+        const match = b.getAttribute('data-blook-id') === selectedBlookId;
+        b.classList.toggle('bg-purple-100', match);
+        b.classList.toggle('dark:bg-purple-900/70', match);
+        b.classList.toggle('ring-2', match);
+        b.classList.toggle('ring-purple-500', match);
+        b.classList.toggle('scale-[1.03]', match);
+      });
+      const nameEl = document.getElementById('arena-selected-blook-name');
+      const descEl = document.getElementById('arena-selected-blook-desc');
+      const avatarEl = document.getElementById('arena-selected-blook-avatar');
+      const rarityEl = document.getElementById('arena-selected-blook-rarity');
+      const rar = RARITY[found.rarity] || RARITY.common;
+      if (nameEl) nameEl.textContent = found.name;
+      if (descEl) descEl.textContent = `✨ Tuyệt kỹ: ${found.desc}`;
+      if (avatarEl) avatarEl.innerHTML = this.renderBlookIcon(found.id, 'w-14 h-14 rounded-2xl', { badge: true });
+      if (rarityEl) {
+        rarityEl.className = `px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-gradient-to-r ${rar.badge} text-white shadow-xs`;
+        rarityEl.textContent = rar.label;
+      }
+      if (playSound) this.playTone(620, 0.08, 'sine');
+    };
+
     this.container.querySelectorAll('.blook-select-btn').forEach(btn => {
-      btn.onclick = () => {
-        this.container.querySelectorAll('.blook-select-btn').forEach(b => {
-          b.classList.remove('bg-purple-100', 'dark:bg-purple-900/60', 'ring-2', 'ring-purple-500');
+      btn.onclick = () => selectBlookById(btn.getAttribute('data-blook-id'), true);
+    });
+
+    // Lọc danh mục Blook
+    this.container.querySelectorAll('.blook-cat-btn').forEach(catBtn => {
+      catBtn.onclick = () => {
+        const cat = catBtn.getAttribute('data-blook-cat') || 'all';
+        this.container.querySelectorAll('.blook-cat-btn').forEach(b => {
+          const active = b.getAttribute('data-blook-cat') === cat;
+          b.className = `blook-cat-btn px-2.5 py-1 rounded-xl text-[10px] font-black whitespace-nowrap transition cursor-pointer ${active ? 'bg-purple-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`;
         });
-        btn.classList.add('bg-purple-100', 'dark:bg-purple-900/60', 'ring-2', 'ring-purple-500');
-        selectedBlookId = btn.getAttribute('data-blook-id');
-        const found = this.BLOOKS.find(x => x.id === selectedBlookId);
-        const nameEl = document.getElementById('arena-selected-blook-name');
-        if (nameEl && found) nameEl.textContent = found.name;
-        this.playTone(600, 0.08, 'sine');
+        this.container.querySelectorAll('.blook-select-btn').forEach(item => {
+          const itemCat = item.getAttribute('data-blook-cat');
+          item.style.display = (cat === 'all' || itemCat === cat) ? '' : 'none';
+        });
+        this.playTone(500, 0.05, 'triangle');
       };
     });
+
+    // Nút Chọn Ngẫu Nhiên Blook
+    const btnRandomBlook = document.getElementById('btn-arena-random-blook');
+    if (btnRandomBlook) {
+      btnRandomBlook.onclick = () => {
+        const rId = randomAvatarId();
+        selectBlookById(rId, true);
+        const targetBtn = this.container.querySelector(`.blook-select-btn[data-blook-id="${rId}"]`);
+        if (targetBtn && targetBtn. style.display !== 'none') {
+          targetBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      };
+    }
 
     // 2. Submit Vào Phòng
     const formJoin = document.getElementById('form-join-arena');
@@ -800,10 +890,11 @@ const Arena = {
               const blook = this.BLOOKS.find(b => b.id === p.blookId) || this.BLOOKS[0];
               return `
                 <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex flex-col items-center gap-2 animate-scaleUp">
-                  <div class="w-12 h-12 rounded-xl bg-gradient-to-tr ${blook.gradient} text-white flex items-center justify-center text-xl shadow-sm animate-bounce">
-                    <i class="fa-solid ${blook.icon}"></i>
+                  <div class="animate-bounce">
+                    ${this.renderBlookIcon(blook.id, 'w-12 h-12 rounded-xl', { badge: true })}
                   </div>
                   <span class="text-xs font-bold text-slate-800 dark:text-white truncate w-full text-center">${escapeHtml(p.name)}</span>
+                  <span class="text-[9px] text-purple-600 dark:text-purple-400 font-bold truncate w-full text-center">${escapeHtml(blook.name)}</span>
                 </div>
               `;
             }).join('')}
@@ -1115,9 +1206,7 @@ const Arena = {
                       <span class="w-6 h-6 rounded-full ${idx === 0 ? 'bg-amber-400 text-slate-900 font-black' : idx === 1 ? 'bg-slate-300 text-slate-800' : idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-100 dark:bg-slate-700'} text-xs flex items-center justify-center font-bold">
                         ${idx + 1}
                       </span>
-                      <div class="w-8 h-8 rounded-lg bg-gradient-to-tr ${blook.gradient} text-white flex items-center justify-center text-sm shadow-xs">
-                        <i class="fa-solid ${blook.icon}"></i>
-                      </div>
+                      ${this.renderBlookIcon(blook.id, 'w-8 h-8 rounded-lg')}
                       <span class="text-xs font-bold text-slate-800 dark:text-white">${escapeHtml(p.name)}</span>
                     </div>
                     <span class="text-xs font-black text-purple-600 dark:text-purple-400 font-mono">${val}</span>
@@ -1199,8 +1288,9 @@ const Arena = {
             <!-- Top 2: Bạc -->
             ${top2 ? `
               <div class="flex flex-col items-center flex-1 animate-scaleUp">
-                <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-slate-300 to-slate-400 text-slate-900 flex items-center justify-center text-2xl shadow-lg shadow-white/10 mb-2">
-                  🥈
+                <div class="relative mb-2">
+                  ${this.renderBlookIcon(top2.blookId, 'w-14 h-14 rounded-2xl', { badge: true })}
+                  <span class="absolute -top-2 -left-2 text-lg">🥈</span>
                 </div>
                 <span class="text-xs font-bold truncate max-w-[100px]">${escapeHtml(top2.name)}</span>
                 <span class="text-[10px] text-slate-400 font-mono mb-2">${this.isGoldMode(room.gameMode) ? `${top2.metadata?.gold ?? top2.gold ?? 0} 🪙` : `${top2.score || 0} đ`}</span>
@@ -1213,8 +1303,9 @@ const Arena = {
             <!-- Top 1: Vàng (Cao nhất) -->
             ${top1 ? `
               <div class="flex flex-col items-center flex-1 animate-scaleUp">
-                <div class="w-20 h-20 rounded-3xl bg-gradient-to-tr from-amber-300 to-yellow-500 text-slate-950 flex items-center justify-center text-4xl shadow-xl shadow-amber-500/40 mb-2 animate-bounce">
-                  👑
+                <div class="relative mb-2 animate-bounce">
+                  ${this.renderBlookIcon(top1.blookId, 'w-20 h-20 rounded-3xl', { badge: true })}
+                  <span class="absolute -top-3 -left-2 text-2xl">👑</span>
                 </div>
                 <span class="text-sm font-black truncate max-w-[120px] text-amber-300">${escapeHtml(top1.name)}</span>
                 <span class="text-xs text-amber-400 font-mono font-bold mb-2">${this.isGoldMode(room.gameMode) ? `${top1.metadata?.gold ?? top1.gold ?? 0} 🪙` : `${top1.score || 0} đ`}</span>
@@ -1227,8 +1318,9 @@ const Arena = {
             <!-- Top 3: Đồng -->
             ${top3 ? `
               <div class="flex flex-col items-center flex-1 animate-scaleUp">
-                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-700 to-amber-800 text-white flex items-center justify-center text-xl shadow-md mb-2">
-                  🥉
+                <div class="relative mb-2">
+                  ${this.renderBlookIcon(top3.blookId, 'w-12 h-12 rounded-2xl', { badge: true })}
+                  <span class="absolute -top-2 -left-2 text-base">🥉</span>
                 </div>
                 <span class="text-xs font-bold truncate max-w-[90px]">${escapeHtml(top3.name)}</span>
                 <span class="text-[10px] text-slate-400 font-mono mb-2">${this.isGoldMode(room.gameMode) ? `${top3.metadata?.gold ?? top3.gold ?? 0} 🪙` : `${top3.score || 0} đ`}</span>
@@ -1309,8 +1401,9 @@ const Arena = {
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/40 transition">
                       <td class="py-3 px-3 font-black text-slate-700 dark:text-slate-300">#${idx + 1}</td>
                       <td class="py-3 px-3">
-                        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr ${blook.gradient} text-white flex items-center justify-center text-sm shadow-xs">
-                          <i class="fa-solid ${blook.icon}"></i>
+                        <div class="flex items-center gap-2">
+                          ${this.renderBlookIcon(blook.id, 'w-8 h-8 rounded-lg')}
+                          <span class="text-[10px] font-bold text-slate-500 hidden sm:inline">${escapeHtml(blook.name)}</span>
                         </div>
                       </td>
                       <td class="py-3 px-3 font-bold text-slate-800 dark:text-white">
@@ -1531,13 +1624,13 @@ const Arena = {
           </div>
 
           <!-- Blook Bouncing Animation -->
-          <div class="w-24 h-24 mx-auto rounded-3xl bg-gradient-to-tr ${blook.gradient} text-white flex items-center justify-center text-4xl shadow-xl shadow-purple-500/20 animate-bounce">
-            <i class="fa-solid ${blook.icon}"></i>
+          <div class="mx-auto flex justify-center animate-bounce">
+            ${this.renderBlookIcon(blook.id, 'w-24 h-24 rounded-3xl', { badge: true })}
           </div>
 
           <div>
             <h3 class="text-xl font-black text-slate-800 dark:text-white">${escapeHtml(this.playerInfo.name)}</h3>
-            <p class="text-xs font-bold text-purple-600 dark:text-purple-400 mt-0.5">Linh Thú: ${escapeHtml(blook.name)}</p>
+            <p class="text-xs font-bold text-purple-600 dark:text-purple-400 mt-0.5">Linh Thú: ${escapeHtml(blook.name)} • <span class="text-amber-500">${escapeHtml(blook.desc)}</span></p>
           </div>
 
           <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 space-y-1">
@@ -1586,9 +1679,7 @@ const Arena = {
         <!-- INJECTED MODE HUD: Tách biệt hoàn toàn trên question renderer -->
         <div class="p-3.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <div class="w-7 h-7 rounded-lg bg-gradient-to-tr ${blook.gradient} text-white flex items-center justify-center text-xs">
-              <i class="fa-solid ${blook.icon}"></i>
-            </div>
+            ${this.renderBlookIcon(blook.id, 'w-8 h-8 rounded-lg')}
             <span class="text-xs font-black text-slate-800 dark:text-white truncate max-w-[120px]">${escapeHtml(this.playerInfo.name)}</span>
           </div>
 
@@ -1939,10 +2030,11 @@ const Arena = {
           const blook = this.BLOOKS.find(b => b.id === p.blookId) || this.BLOOKS[0];
           return `
             <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex flex-col items-center gap-2 animate-scaleUp">
-              <div class="w-12 h-12 rounded-xl bg-gradient-to-tr ${blook.gradient} text-white flex items-center justify-center text-xl shadow-sm animate-bounce">
-                <i class="fa-solid ${blook.icon}"></i>
+              <div class="animate-bounce">
+                ${this.renderBlookIcon(blook.id, 'w-12 h-12 rounded-xl', { badge: true })}
               </div>
               <span class="text-xs font-bold text-slate-800 dark:text-white truncate w-full text-center">${escapeHtml(p.name)}</span>
+              <span class="text-[9px] text-purple-600 dark:text-purple-400 font-bold truncate w-full text-center">${escapeHtml(blook.name)}</span>
             </div>
           `;
         }).join('');

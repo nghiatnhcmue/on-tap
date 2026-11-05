@@ -670,8 +670,10 @@ export const Storage = {
       };
     }
 
-    // 1. Kiểm tra mật khẩu (nếu phòng có cài mật khẩu)
-    if (room.password && room.password.trim() !== '') {
+    const isPrivileged = !!(user && (user.role === 'admin' || user.role === 'teacher'));
+
+    // 1. Kiểm tra mật khẩu (nếu phòng có cài mật khẩu và người vào không phải Admin)
+    if (!isPrivileged && room.password && room.password.trim() !== '') {
       if (!enteredPassword || enteredPassword.trim() !== room.password.trim()) {
         return {
           valid: false,
@@ -680,6 +682,16 @@ export const Storage = {
           message: 'Mật khẩu vào phòng thi chưa chính xác! Vui lòng hỏi lại Giáo viên phụ trách.'
         };
       }
+    }
+
+    // Nếu là Quản trị viên (Admin) hoặc Giáo viên (GV) -> Cho phép vào thẳng mọi phòng thi để kiểm tra/giám sát
+    if (isPrivileged) {
+      return {
+        valid: true,
+        room,
+        reason: 'OK',
+        message: 'Hợp lệ'
+      };
     }
 
     // 2. Kiểm tra khung thời gian

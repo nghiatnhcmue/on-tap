@@ -1,15 +1,20 @@
 /**
- * TinHocHub - RandomPicker (Bộ Công Cụ Random & Mini-Game Lớp Học Đỉnh Cao)
- * Tích hợp 5 tựa game ngẫu nhiên phục vụ giảng dạy, gọi học sinh & chia nhóm:
- * 1. 🎡 Vòng Quay May Mắn (Lucky Wheel / Wheel of Names Canvas)
- * 2. 🎰 Máy Quay Xèng (Arcade Slot Machine 1-3 Reels)
- * 3. 🎁 Hộp Quà Bí Ẩn (Mystery Lucky Boxes with Challenges/Rewards)
- * 4. 💣 Quả Bom Nổ Chậm (Hot Potato Bomb Countdown Timer)
- * 5. 👥 Chia Nhóm Tự Động (Group / Team Generator with Random Mascot Names)
+ * TinHocHub - RandomPicker (Bộ Công Cụ Random & 9 Mini-Game Lớp Học Đỉnh Cao)
+ * Tích hợp 9 tựa game ngẫu nhiên phục vụ giảng dạy, gọi học sinh & chia nhóm:
+ * 1. 🦆 Đua Vịt Đường Sông (Duck Race Track with SVG Ducks & Live Commentary)
+ * 2. 🎡 Vòng Quay May Mắn (Lucky Wheel / Wheel of Names Canvas)
+ * 3. 🧸 Máy Gắp Thú Bông (Arcade Claw Machine with Blook Capsules)
+ * 4. 🎴 Rút Thẻ Bài Ma Thuật (Magic Flip Cards / Tarot Deck)
+ * 5. 🔢 Bảng Ô Số Bí Mật (Lucky Number Grid 1..N)
+ * 6. 🎰 Máy Quay Xèng (Arcade Slot Machine 1-3 Reels)
+ * 7. 🎁 Hộp Quà Bí Ẩn (Mystery Lucky Boxes with Challenges/Rewards)
+ * 8. 💣 Quả Bom Nổ Chậm (Hot Potato Bomb Countdown Timer)
+ * 9. 👥 Chia Nhóm Tự Động (Group / Team Generator with Random Mascot Names)
  */
 
-import { Storage } from './storage.js?v=20261102_82';
-import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_82';
+import { Storage } from './storage.js?v=20261102_83';
+import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_83';
+import { AVATARS, renderAvatar } from './avatars.js?v=20261102_83';
 
 function escapeHtml(str) {
   if (typeof importedEscapeHtml === 'function') return importedEscapeHtml(str);
@@ -163,6 +168,54 @@ const SoundFX = {
         } catch {}
       }, i * 200);
     }
+  },
+
+  playQuack() {
+    if (this.isMuted) return;
+    this.init();
+    if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const filter = this.ctx.createBiquadFilter();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(420 + Math.random() * 80, now);
+      osc.frequency.exponentialRampToValueAtTime(260, now + 0.14);
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(950, now);
+      filter.Q.setValueAtTime(3.5, now);
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.15);
+    } catch {}
+  },
+
+  playMagicChime() {
+    if (this.isMuted) return;
+    this.init();
+    if (!this.ctx) return;
+    const freqs = [587.33, 880, 1174.66, 1760];
+    freqs.forEach((f, i) => {
+      setTimeout(() => {
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(f, this.ctx.currentTime);
+          gain.gain.setValueAtTime(0.14, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.28);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.28);
+        } catch {}
+      }, i * 65);
+    });
   }
 };
 
@@ -175,7 +228,7 @@ export const RandomPicker = {
   loadGradeFn: null,
 
   // Trạng thái chung
-  currentMode: 'wheel', // 'wheel' | 'slot' | 'boxes' | 'bomb' | 'teams'
+  currentMode: 'duck_race', // 'duck_race' | 'wheel' | 'claw_machine' | 'magic_cards' | 'lucky_numbers' | 'slot' | 'boxes' | 'bomb' | 'teams'
   rawNames: [],
   activeNames: [],
   eliminatedNames: [],
@@ -273,9 +326,9 @@ export const RandomPicker = {
               <i class="fa-solid fa-dice animate-spin"></i> Trợ Giảng Thông Minh TinHocHub
             </div>
             <h2 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
-              <span>BỘ CÔNG CỤ RANDOM & GỌI TÊN LỚP HỌC</span>
+              <span>9 MINI-GAME RANDOM, ĐUA VỊT & GỌI TÊN LỚP HỌC</span>
             </h2>
-            <p class="text-xs text-slate-300 mt-1">Vòng quay may mắn, Máy quay xèng, Hộp quà bí ẩn, Bom nổ chậm & Chia nhóm tự động</p>
+            <p class="text-xs text-slate-300 mt-1">Đua vịt đường sông, Vòng quay may mắn, Máy gắp thú bông, Rút thẻ bài ma thuật, Bảng ô số, Máy quay xèng, Hộp quà, Bom hẹn giờ & Chia nhóm</p>
           </div>
 
           <div class="flex items-center gap-2 shrink-0 self-end md:self-center">
@@ -289,23 +342,27 @@ export const RandomPicker = {
           </div>
         </div>
 
-        <!-- TABS CHỌN TỰA GAME RANDOM -->
-        <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <!-- TABS CHỌN 9 TỰA GAME RANDOM -->
+        <div class="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-none">
           ${[
-            { id: 'wheel', label: 'Vòng Quay May Mắn', icon: 'fa-circle-notch', color: 'from-amber-500 to-orange-600' },
-            { id: 'slot', label: 'Máy Quay Xèng', icon: 'fa-cubes', color: 'from-purple-500 to-indigo-600' },
-            { id: 'boxes', label: 'Hộp Quà Bí Ẩn', icon: 'fa-gift', color: 'from-rose-500 to-pink-600' },
-            { id: 'bomb', label: 'Bom Nổ Chậm', icon: 'fa-bomb', color: 'from-red-600 to-rose-700' },
-            { id: 'teams', label: 'Chia Nhóm Tự Động', icon: 'fa-users-gear', color: 'from-emerald-500 to-teal-600' }
+            { id: 'duck_race', label: '🦆 Đua Vịt Đường Sông', icon: 'fa-flag-checkered', color: 'from-cyan-500 to-blue-600' },
+            { id: 'wheel', label: '🎡 Vòng Quay May Mắn', icon: 'fa-circle-notch', color: 'from-amber-500 to-orange-600' },
+            { id: 'claw_machine', label: '🧸 Máy Gắp Thú Bông', icon: 'fa-hand-back-fist', color: 'from-pink-500 to-rose-600' },
+            { id: 'magic_cards', label: '🎴 Rút Thẻ Ma Thuật', icon: 'fa-wand-sparkles', color: 'from-indigo-500 to-purple-600' },
+            { id: 'lucky_numbers', label: '🔢 Bảng Ô Số Bí Mật', icon: 'fa-table-cells', color: 'from-teal-500 to-emerald-600' },
+            { id: 'slot', label: '🎰 Máy Quay Xèng', icon: 'fa-cubes', color: 'from-purple-500 to-indigo-600' },
+            { id: 'boxes', label: '🎁 Hộp Quà Bí Ẩn', icon: 'fa-gift', color: 'from-rose-500 to-pink-600' },
+            { id: 'bomb', label: '💣 Bom Nổ Chậm', icon: 'fa-bomb', color: 'from-red-600 to-rose-700' },
+            { id: 'teams', label: '👥 Chia Nhóm Tự Động', icon: 'fa-users-gear', color: 'from-emerald-500 to-teal-600' }
           ].map(tab => {
             const isActive = this.currentMode === tab.id;
             return `
-              <button type="button" data-rp-mode="${tab.id}" class="px-4 py-3 rounded-2xl font-black text-xs transition flex items-center gap-2.5 shrink-0 shadow-sm ${
+              <button type="button" data-rp-mode="${tab.id}" class="px-3.5 py-2.5 rounded-2xl font-black text-xs transition flex items-center gap-2 shrink-0 shadow-sm cursor-pointer ${
                 isActive
-                  ? `bg-gradient-to-r ${tab.color} text-white shadow-lg ring-2 ring-white/50 scale-105`
+                  ? `bg-gradient-to-r ${tab.color} text-white shadow-lg ring-2 ring-white/50 scale-[1.03]`
                   : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
               }">
-                <i class="fa-solid ${tab.icon}"></i> ${tab.label}
+                <span>${tab.label}</span>
               </button>
             `;
           }).join('')}
@@ -635,8 +692,20 @@ export const RandomPicker = {
     }
 
     switch (this.currentMode) {
+      case 'duck_race':
+        this.renderDuckRaceStage();
+        break;
       case 'wheel':
         this.renderWheelStage();
+        break;
+      case 'claw_machine':
+        this.renderClawMachineStage();
+        break;
+      case 'magic_cards':
+        this.renderMagicCardsStage();
+        break;
+      case 'lucky_numbers':
+        this.renderLuckyNumbersStage();
         break;
       case 'slot':
         this.renderSlotStage();
@@ -1531,10 +1600,601 @@ Nhóm ${chosen.id} - ${chosen.mascot.name} (${chosen.members.length} bạn)!`);
         this.renderCurrentGameStage();
         setTimeout(() => {
           if (this.currentMode === 'wheel') this.spinWheel();
+          else if (this.currentMode === 'duck_race') this.startDuckRace(this.duckRaceSec || 8);
+          else if (this.currentMode === 'claw_machine') this.startClawGrab();
           else if (this.currentMode === 'slot') this.spinSlotMachine(Math.min(3, Math.max(1, this.pickCount)));
         }, 300);
       };
     }
+  },
+
+  // ============================================================================
+  // 11. GAME 6: 🦆 ĐUA VỊT ĐƯỜNG SÔNG (DUCK RACE)
+  // ============================================================================
+  DUCK_COLORS: [
+    { body: '#FACC15', wing: '#EAB308', beak: '#F97316', name: 'Vịt Vàng' },
+    { body: '#F472B6', wing: '#EC4899', beak: '#FB7185', name: 'Vịt Hồng' },
+    { body: '#38BDF8', wing: '#0284C7', beak: '#F97316', name: 'Vịt Lam' },
+    { body: '#34D399', wing: '#059669', beak: '#F59E0B', name: 'Vịt Ngọc' },
+    { body: '#A78BFA', wing: '#7C3AED', beak: '#F97316', name: 'Vịt Tím' },
+    { body: '#FB923C', wing: '#EA580C', beak: '#EF4444', name: 'Vịt Cam' },
+    { body: '#F87171', wing: '#DC2626', beak: '#FBBF24', name: 'Vịt Đỏ' },
+    { body: '#2DD4BF', wing: '#0D9488', beak: '#F97316', name: 'Vịt Xanh' }
+  ],
+
+  renderDuckSVG(idx = 0, isTurbo = false) {
+    const c = this.DUCK_COLORS[idx % this.DUCK_COLORS.length];
+    const hatType = idx % 5;
+    let hatSvg = '';
+    if (hatType === 0) {
+      // Vương miện vàng
+      hatSvg = '<polygon points="26,12 29,5 33,10 37,4 40,12" fill="#FDE047" stroke="#CA8A04" stroke-width="1.2"/>';
+    } else if (hatType === 1) {
+      // Kính râm ngầu
+      hatSvg = '<rect x="33" y="17" width="8" height="4.5" rx="1" fill="#0F172A"/><line x1="28" y1="18.5" x2="33" y2="18.5" stroke="#0F172A" stroke-width="1.5"/>';
+    } else if (hatType === 2) {
+      // Nón thủy thủ
+      hatSvg = '<ellipse cx="33" cy="11" rx="7" ry="3" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.5"/><rect x="28" y="8" width="10" height="3" rx="1.5" fill="#2563EB"/>';
+    } else if (hatType === 3) {
+      // Băng đô đỏ
+      hatSvg = '<path d="M25,15 Q33,13 40,15" stroke="#EF4444" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M24,15 L19,12 M24,15 L18,17" stroke="#EF4444" stroke-width="2" stroke-linecap="round"/>';
+    } else {
+      // Chong chóng tre
+      hatSvg = '<line x1="33" y1="12" x2="33" y2="6" stroke="#D97706" stroke-width="1.8"/><ellipse cx="33" cy="6" rx="7" ry="1.8" fill="#EF4444"/>';
+    }
+    return `
+      <svg viewBox="0 0 56 44" class="w-10 h-8 overflow-visible drop-shadow-md">
+        ${isTurbo ? '<path d="M2,28 Q-6,25 -10,28 Q-6,32 2,31 Z" fill="#F97316" class="animate-pulse"/><path d="M4,33 Q-4,33 -7,36" stroke="#38BDF8" stroke-width="2" fill="none"/>' : ''}
+        <!-- Thân vịt -->
+        <path d="M10,28 C6,28 5,21 9,20 C12,21 15,22 20,22 C28,22 36,24 38,30 C39,35 33,38 22,38 C13,38 9,34 10,28 Z" fill="${c.body}" stroke="#1E293B" stroke-width="1.5"/>
+        <!-- Cánh vịt -->
+        <path d="M16,26 Q24,23 28,29 Q23,34 15,31 Z" fill="${c.wing}" stroke="#1E293B" stroke-width="1.2"/>
+        <!-- Đầu vịt -->
+        <circle cx="33" cy="19" r="8" fill="${c.body}" stroke="#1E293B" stroke-width="1.5"/>
+        <!-- Mỏ vịt -->
+        <path d="M40,17 C46,17 48,19 47,21 C45,23 40,22 39,21 Z" fill="${c.beak}" stroke="#1E293B" stroke-width="1.2"/>
+        <!-- Mắt & Má hồng -->
+        <circle cx="35.5" cy="17.5" r="1.7" fill="#0F172A"/>
+        <circle cx="36" cy="17" r="0.6" fill="#FFFFFF"/>
+        <ellipse cx="33" cy="21" rx="2" ry="1.1" fill="#FB7185" opacity="0.65"/>
+        ${hatSvg}
+        <!-- Sóng nước dưới bụng -->
+        <path d="M6,38 Q14,35 22,38 T38,38 T46,38" stroke="#BAE6FD" stroke-width="2" fill="none" stroke-linecap="round"/>
+      </svg>
+    `;
+  },
+
+  renderDuckRaceStage() {
+    const stage = document.getElementById('rp-stage-container');
+    if (!stage) return;
+
+    this.duckRaceSec = this.duckRaceSec || 8;
+    // Hiển thị các chú vịt đại diện cho học sinh đang active (tối đa 14 làn hiển thị trực tiếp, nếu đông hơn sẽ chọn ngẫu nhiên 14 đại diện vào chung kết mỗi lượt để đường đua mượt và rõ tên)
+    const maxLanes = 12;
+    const pool = [...this.activeNames];
+    const racers = pool.length <= maxLanes
+      ? pool
+      : [...pool].sort(() => 0.5 - Math.random()).slice(0, maxLanes);
+    this.currentDuckRacers = racers;
+
+    stage.innerHTML = `
+      <div class="w-full space-y-4 animate-fadeIn">
+        <!-- Thanh Điều Khiển Đường Đua Vịt -->
+        <div class="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-cyan-900 via-sky-900 to-blue-950 text-white p-4 rounded-2xl border border-cyan-400/30 shadow-lg">
+          <div class="flex items-center gap-2.5">
+            <span class="text-2xl animate-bounce">🦆</span>
+            <div>
+              <h3 class="text-sm sm:text-base font-black text-amber-300 flex items-center gap-2">
+                ĐẠI CHIẾN ĐUA VỊT ĐƯỜNG SÔNG
+                <span class="px-2 py-0.5 rounded-full bg-cyan-500/30 text-cyan-200 text-[10px] font-bold">${racers.length} VĐV Vịt</span>
+              </h3>
+              <p id="rp-duck-commentary" class="text-[11px] text-cyan-100">🎙️ BLV Vịt Vàng: Các vận động viên vịt đã vào vạch xuất phát! Bấm Còi Xuất Phát để đua ngay!</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 flex-wrap">
+            <div class="flex items-center gap-1 bg-black/30 px-2.5 py-1.5 rounded-xl border border-white/10 text-xs">
+              <span class="text-cyan-200 font-bold text-[11px]">Thời gian:</span>
+              ${[5, 8, 12, 15].map(sec => `
+                <button type="button" data-duck-sec="${sec}" class="px-2 py-0.5 rounded-lg text-[11px] font-black transition cursor-pointer ${this.duckRaceSec === sec ? 'bg-amber-400 text-slate-950' : 'text-white/80 hover:bg-white/10'}">${sec}s</button>
+              `).join('')}
+            </div>
+
+            ${pool.length > maxLanes ? `
+              <button type="button" id="rp-btn-duck-reshuffle" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition cursor-pointer" title="Đổi lượt 12 bạn khác vào làn bơi">
+                🔀 Đổi Bảng Đấu
+              </button>
+            ` : ''}
+
+            <button type="button" id="rp-btn-start-duck-race" class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-xs shadow-lg transition transform hover:scale-105 active:scale-95 flex items-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-flag-checkered"></i> CÒI XUẤT PHÁT!
+            </button>
+          </div>
+        </div>
+
+        <!-- Sông Đua Vịt Nhiều Làn -->
+        <div class="relative rounded-3xl overflow-hidden border-4 border-sky-400/60 shadow-2xl bg-gradient-to-r from-sky-600 via-cyan-600 to-blue-700 p-3 sm:p-4">
+          <!-- Vạch Đích Caro (Bên Phải) -->
+          <div class="absolute top-0 bottom-0 right-5 w-5 z-10 opacity-90" style="background-image: conic-gradient(#0f172a 90deg, #ffffff 90deg 180deg, #0f172a 180deg 270deg, #ffffff 270deg); background-size: 12px 12px;"></div>
+          <div class="absolute top-2 right-11 z-20 px-2 py-0.5 rounded bg-amber-400 text-slate-950 font-black text-[9px] uppercase shadow">🏁 ĐÍCH</div>
+
+          <!-- Danh sách làn bơi -->
+          <div id="rp-duck-lanes" class="space-y-1.5 relative z-20 max-h-[390px] overflow-y-auto pr-1">
+            ${racers.map((name, idx) => `
+              <div class="relative h-10 rounded-xl bg-sky-950/35 border border-white/15 flex items-center px-2 overflow-hidden">
+                <!-- Sóng nước trang trí -->
+                <div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: repeating-linear-gradient(90deg, transparent, transparent 28px, rgba(255,255,255,0.4) 28px, rgba(255,255,255,0.4) 40px);"></div>
+                <!-- Số làn -->
+                <span class="w-5 h-5 rounded-full bg-white/20 text-white text-[10px] font-black flex items-center justify-center shrink-0 z-10">${idx + 1}</span>
+                <!-- Vùng chạy của Vịt -->
+                <div class="relative flex-1 h-full mr-8">
+                  <div id="rp-duck-runner-${idx}" class="absolute top-1/2 -translate-y-1/2 left-0 flex items-center gap-1.5 transition-none" style="left: 0%;">
+                    <div id="rp-duck-svg-${idx}">${this.renderDuckSVG(idx, false)}</div>
+                    <span class="px-2 py-0.5 rounded-full bg-slate-950/80 text-white font-bold text-[11px] whitespace-nowrap border border-white/20 shadow-xs">
+                      ${escapeHtml(name)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+
+    stage.querySelectorAll('[data-duck-sec]').forEach(btn => {
+      btn.onclick = () => {
+        if (this.isSpinning) return;
+        this.duckRaceSec = parseInt(btn.getAttribute('data-duck-sec'), 10) || 8;
+        this.renderDuckRaceStage();
+      };
+    });
+
+    const btnReshuffle = document.getElementById('rp-btn-duck-reshuffle');
+    if (btnReshuffle) {
+      btnReshuffle.onclick = () => {
+        if (this.isSpinning) return;
+        SoundFX.playQuack();
+        this.renderDuckRaceStage();
+      };
+    }
+
+    const btnStart = document.getElementById('rp-btn-start-duck-race');
+    if (btnStart) {
+      btnStart.onclick = () => this.startDuckRace(this.duckRaceSec || 8);
+    }
+  },
+
+  startDuckRace(durationSec = 8) {
+    if (this.isSpinning) return;
+    const racers = this.currentDuckRacers && this.currentDuckRacers.length > 0
+      ? this.currentDuckRacers
+      : this.activeNames.slice(0, 12);
+    if (racers.length === 0) return;
+
+    this.isSpinning = true;
+    SoundFX.init();
+    SoundFX.playQuack();
+
+    const commentaryEl = document.getElementById('rp-duck-commentary');
+    const btnStart = document.getElementById('rp-btn-start-duck-race');
+    if (btnStart) btnStart.disabled = true;
+
+    // Chọn trước thứ tự về đích ngẫu nhiên công bằng
+    const finishOrder = racers.map((name, idx) => ({ name, idx })).sort(() => 0.5 - Math.random());
+    const winnerObj = finishOrder[0];
+
+    // Mỗi chú vịt có các pha bứt tốc ngẫu nhiên trên đường đua
+    const duckStates = racers.map((name, idx) => ({
+      idx,
+      name,
+      pos: 0,
+      phaseOffset: Math.random() * Math.PI * 2,
+      freq: 2.2 + Math.random() * 1.8,
+      targetFinalPos: idx === winnerObj.idx ? 86 : 68 + Math.random() * 15
+    }));
+
+    // Nếu pickCount > 1, đảm bảo top pickCount về đích sát nhau ở vị trí dẫn đầu
+    const pickN = Math.min(this.pickCount || 1, racers.length);
+    for (let rank = 0; rank < pickN; rank++) {
+      const rIdx = finishOrder[rank].idx;
+      duckStates[rIdx].targetFinalPos = 86 - rank * 2.2;
+    }
+
+    const totalMs = durationSec * 1000;
+    const startTime = performance.now();
+    let lastQuackTime = startTime;
+
+    const step = (now) => {
+      const elapsed = now - startTime;
+      const t = Math.min(1, elapsed / totalMs);
+      // Easing có dao động vượt mặt kịch tính
+      const baseEase = t < 0.85 ? (t / 0.85) * 0.82 : 0.82 + ((t - 0.85) / 0.15) * 0.18;
+
+      let currentLeader = duckStates[0];
+      duckStates.forEach(d => {
+        const wave = Math.sin(t * Math.PI * d.freq + d.phaseOffset) * (1 - t) * 9;
+        const currentPos = Math.max(0, Math.min(86, d.targetFinalPos * baseEase + wave));
+        const isTurbo = wave > 3.5 && t > 0.2 && t < 0.92;
+        d.pos = currentPos;
+        if (d.pos > currentLeader.pos) currentLeader = d;
+
+        const el = document.getElementById(`rp-duck-runner-${d.idx}`);
+        if (el) {
+          el.style.left = `${currentPos.toFixed(2)}%`;
+        }
+        const svgWrap = document.getElementById(`rp-duck-svg-${d.idx}`);
+        if (svgWrap && svgWrap.dataset.turbo !== String(isTurbo)) {
+          svgWrap.dataset.turbo = String(isTurbo);
+          svgWrap.innerHTML = this.renderDuckSVG(d.idx, isTurbo);
+        }
+      });
+
+      if (now - lastQuackTime > 650) {
+        lastQuackTime = now;
+        SoundFX.playQuack();
+        if (commentaryEl && currentLeader) {
+          const phrases = [
+            `🎙️ Chú vịt của [${currentLeader.name}] đang bật cánh Turbo dẫn đầu đoàn đua!`,
+            `🎙️ Kịch tính quá! [${currentLeader.name}] đang bứt tốc trên dòng sông xanh!`,
+            `🎙️ Cả lớp cổ vũ nào! Vịt của [${currentLeader.name}] đang tiến sát vạch đích!`
+          ];
+          commentaryEl.textContent = phrases[Math.floor(Math.random() * phrases.length)];
+        }
+      }
+
+      if (t < 1) {
+        requestAnimationFrame(step);
+      } else {
+        this.isSpinning = false;
+        if (btnStart) btnStart.disabled = false;
+        const winners = finishOrder.slice(0, pickN).map(x => x.name);
+        if (commentaryEl) {
+          commentaryEl.textContent = `🏁 QUÁN QUÂN ĐƯỜNG ĐUA VỊT: ${winners.join(', ')}!`;
+        }
+        this.onWinnerSelected(winners, '🦆 Quán Quân Đại Chiến Đua Vịt Đường Sông!');
+      }
+    };
+
+    requestAnimationFrame(step);
+  },
+
+  // ============================================================================
+  // 12. GAME 7: 🧸 MÁY GẮP THÚ BÔNG (ARCADE CLAW MACHINE)
+  // ============================================================================
+  renderClawMachineStage() {
+    const stage = document.getElementById('rp-stage-container');
+    if (!stage) return;
+
+    const capsuleCount = Math.min(14, Math.max(6, this.activeNames.length));
+    const capsules = Array.from({ length: capsuleCount }, (_, i) => {
+      const av = AVATARS[i % AVATARS.length];
+      const studentName = this.activeNames[i % this.activeNames.length];
+      return { idx: i, av, studentName, left: 6 + (i % 7) * 13 + (i >= 7 ? 5 : 0), bottom: i >= 7 ? 42 : 8 };
+    });
+
+    stage.innerHTML = `
+      <div class="flex flex-col items-center justify-center space-y-4 w-full max-w-xl animate-scaleUp">
+        <!-- Tủ Máy Gắp Thú Arcade -->
+        <div class="w-full rounded-3xl bg-gradient-to-b from-pink-500 via-rose-500 to-purple-800 p-3 sm:p-4 border-4 border-pink-300 shadow-2xl">
+          <!-- Bảng hiệu Neon -->
+          <div class="text-center py-1.5 px-4 rounded-2xl bg-slate-950/90 border border-pink-400/50 mb-3 flex items-center justify-between">
+            <span class="text-[11px] font-black text-pink-300 uppercase tracking-wider">🧸 BLOOK PLUSHIE CLAW</span>
+            <span class="text-[11px] font-mono font-bold text-amber-300">${this.activeNames.length} Thú Bông Trong Máy</span>
+          </div>
+
+          <!-- Lồng Kính Máy Gắp -->
+          <div id="rp-claw-glass" class="relative h-72 sm:h-80 rounded-2xl bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 border-4 border-white/30 overflow-hidden shadow-inner">
+            <!-- Thanh ray ngang trên đỉnh -->
+            <div class="absolute top-2 left-0 right-0 h-2 bg-slate-600 border-y border-slate-400"></div>
+
+            <!-- Cụm Càng Gắp Thép (Di chuyển ngang & Thả dây) -->
+            <div id="rp-claw-carriage" class="absolute top-2 z-30 flex flex-col items-center transition-all duration-500 ease-in-out" style="left: 46%;">
+              <!-- Dây cáp -->
+              <div id="rp-claw-cable" class="w-1 bg-slate-300 transition-all duration-500" style="height: 28px;"></div>
+              <!-- Đầu càng gắp SVG -->
+              <svg width="54" height="44" viewBox="0 0 54 44" class="drop-shadow-lg">
+                <rect x="19" y="0" width="16" height="10" rx="3" fill="#F59E0B" stroke="#FEF08A" stroke-width="1.5"/>
+                <path id="rp-claw-left" d="M21,10 C9,14 6,28 15,38" stroke="#E2E8F0" stroke-width="4" fill="none" stroke-linecap="round"/>
+                <path id="rp-claw-right" d="M33,10 C45,14 48,28 39,38" stroke="#E2E8F0" stroke-width="4" fill="none" stroke-linecap="round"/>
+                <circle cx="27" cy="5" r="3" fill="#EF4444"/>
+              </svg>
+              <!-- Quả cầu thú bông đang được kẹp lên -->
+              <div id="rp-claw-grabbed-ball" class="hidden -mt-4 animate-bounce"></div>
+            </div>
+
+            <!-- Các Quả Cầu Thú Bông Blook Ở Đáy Lồng Kính -->
+            <div class="absolute inset-x-2 bottom-2 h-28">
+              ${capsules.map(c => `
+                <div class="rp-capsule-item absolute w-12 h-12 rounded-full p-1 bg-white/20 backdrop-blur-xs border-2 border-white/60 shadow-lg flex items-center justify-center transition-transform hover:scale-110" style="left: ${c.left}%; bottom: ${c.bottom}px;" title="${escapeHtml(c.studentName)}">
+                  ${renderAvatar(c.av.id, 'w-9 h-9 rounded-full')}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Bảng Điều Khiển Cần Gạt Arcade -->
+          <div class="mt-3 flex items-center justify-between gap-3 bg-slate-950/80 p-3 rounded-2xl border border-white/10">
+            <div class="flex items-center gap-2">
+              <button type="button" id="rp-claw-move-left" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-black text-sm border border-white/15 cursor-pointer" title="Sang trái">◀</button>
+              <button type="button" id="rp-claw-move-right" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-black text-sm border border-white/15 cursor-pointer" title="Sang phải">▶</button>
+            </div>
+
+            <button type="button" id="rp-btn-start-claw" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-sm shadow-lg transition transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+              <i class="fa-solid fa-hand-back-fist"></i> BẤM NÚT GẮP THÚ NGẪU NHIÊN!
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    this.clawX = 46;
+    const carriage = document.getElementById('rp-claw-carriage');
+    const btnLeft = document.getElementById('rp-claw-move-left');
+    const btnRight = document.getElementById('rp-claw-move-right');
+    const btnGrab = document.getElementById('rp-btn-start-claw');
+
+    if (btnLeft) {
+      btnLeft.onclick = () => {
+        if (this.isSpinning) return;
+        this.clawX = Math.max(10, (this.clawX || 46) - 12);
+        if (carriage) carriage.style.left = `${this.clawX}%`;
+        SoundFX.playTick();
+      };
+    }
+    if (btnRight) {
+      btnRight.onclick = () => {
+        if (this.isSpinning) return;
+        this.clawX = Math.min(80, (this.clawX || 46) + 12);
+        if (carriage) carriage.style.left = `${this.clawX}%`;
+        SoundFX.playTick();
+      };
+    }
+    if (btnGrab) {
+      btnGrab.onclick = () => this.startClawGrab();
+    }
+  },
+
+  startClawGrab() {
+    if (this.isSpinning || this.activeNames.length === 0) return;
+    this.isSpinning = true;
+    SoundFX.init();
+    SoundFX.playSlotTick();
+
+    const carriage = document.getElementById('rp-claw-carriage');
+    const cable = document.getElementById('rp-claw-cable');
+    const grabbedBall = document.getElementById('rp-claw-grabbed-ball');
+
+    // Bước 1: Di chuyển càng gắp tới toạ độ X ngẫu nhiên
+    const targetX = 14 + Math.floor(Math.random() * 68);
+    if (carriage) carriage.style.left = `${targetX}%`;
+
+    const tickTimer = setInterval(() => SoundFX.playTick(), 120);
+
+    // Bước 2: Hạ dây cáp xuống hố thú bông
+    setTimeout(() => {
+      if (cable) cable.style.height = '155px';
+      SoundFX.playBoxOpen();
+    }, 550);
+
+    // Bước 3: Kẹp quả cầu Blook và kéo lên
+    setTimeout(() => {
+      clearInterval(tickTimer);
+      const randAv = AVATARS[Math.floor(Math.random() * AVATARS.length)];
+      if (grabbedBall) {
+        grabbedBall.innerHTML = `
+          <div class="w-14 h-14 rounded-full p-1 bg-amber-300/30 border-2 border-amber-300 shadow-xl flex items-center justify-center">
+            ${renderAvatar(randAv.id, 'w-11 h-11 rounded-full')}
+          </div>
+        `;
+        grabbedBall.classList.remove('hidden');
+      }
+      if (cable) cable.style.height = '32px';
+      SoundFX.playMagicChime();
+    }, 1150);
+
+    // Bước 4: Mở quả cầu công bố học sinh được gắp trúng
+    setTimeout(() => {
+      this.isSpinning = false;
+      const shuffled = [...this.activeNames].sort(() => 0.5 - Math.random());
+      const winners = shuffled.slice(0, Math.min(this.pickCount || 1, shuffled.length));
+      this.onWinnerSelected(winners, '🧸 Càng gắp vàng đã gắp trúng thú bông mang tên em!');
+    }, 1850);
+  },
+
+  // ============================================================================
+  // 13. GAME 8: 🎴 RÚT THẺ BÀI MA THUẬT (MAGIC FLIP CARDS)
+  // ============================================================================
+  renderMagicCardsStage() {
+    const stage = document.getElementById('rp-stage-container');
+    if (!stage) return;
+
+    const cardCount = Math.min(10, Math.max(4, this.activeNames.length));
+    // Xáo trộn học sinh vào các lá bài
+    const shuffledStudents = [...this.activeNames].sort(() => 0.5 - Math.random());
+    this.magicDeck = Array.from({ length: cardCount }, (_, i) => ({
+      idx: i,
+      student: shuffledStudents[i % shuffledStudents.length],
+      avatar: AVATARS[(i * 3) % AVATARS.length],
+      challenge: this.CHALLENGES[i % this.CHALLENGES.length]
+    }));
+
+    stage.innerHTML = `
+      <div class="w-full space-y-5 animate-fadeIn py-1">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base sm:text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
+              🎴 BỘ BÀI MA THUẬT TAROT BLOOKS
+            </h3>
+            <p class="text-xs text-slate-400">Bấm trực tiếp vào 1 lá bài úp để lật mở dũng sĩ ẩn giấu, hoặc bấm Rút Ngẫu Nhiên!</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="button" id="rp-btn-shuffle-cards" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition cursor-pointer">
+              🔀 Xáo Bài
+            </button>
+            <button type="button" id="rp-btn-draw-magic-card" class="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white text-xs font-black shadow-lg transition hover:scale-105 cursor-pointer">
+              ✨ Rút Lá Bài Định Mệnh
+            </button>
+          </div>
+        </div>
+
+        <div id="rp-magic-cards-grid" class="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4">
+          ${this.magicDeck.map((c, idx) => `
+            <button type="button" data-magic-card="${idx}" class="group relative h-44 rounded-2xl bg-gradient-to-br from-indigo-950 via-purple-900 to-slate-900 border-2 border-amber-400/70 shadow-xl p-3 flex flex-col items-center justify-between text-white transition-all duration-300 hover:-translate-y-1.5 hover:shadow-purple-500/30 hover:border-amber-300 cursor-pointer overflow-hidden">
+              <div class="w-full flex items-center justify-between text-[10px] font-black text-amber-300/80">
+                <span>★ #${idx + 1}</span>
+                <span>✦</span>
+              </div>
+              <div class="w-16 h-16 rounded-full border-2 border-amber-400/50 bg-purple-800/40 flex items-center justify-center text-2xl group-hover:rotate-12 transition">
+                🔮
+              </div>
+              <span class="text-[10px] font-black uppercase tracking-widest text-amber-200">LẬT THẺ BÀI</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+    stage.querySelectorAll('[data-magic-card]').forEach(btn => {
+      btn.onclick = () => {
+        const idx = parseInt(btn.getAttribute('data-magic-card'), 10);
+        this.flipMagicCard(idx, btn);
+      };
+    });
+
+    const btnShuffle = document.getElementById('rp-btn-shuffle-cards');
+    if (btnShuffle) {
+      btnShuffle.onclick = () => {
+        if (this.isSpinning) return;
+        SoundFX.playMagicChime();
+        this.renderMagicCardsStage();
+      };
+    }
+
+    const btnDraw = document.getElementById('rp-btn-draw-magic-card');
+    if (btnDraw) {
+      btnDraw.onclick = () => {
+        if (this.isSpinning) return;
+        const buttons = stage.querySelectorAll('[data-magic-card]');
+        const rIdx = Math.floor(Math.random() * buttons.length);
+        this.flipMagicCard(rIdx, buttons[rIdx]);
+      };
+    }
+  },
+
+  flipMagicCard(idx, cardBtn) {
+    if (this.isSpinning || !this.magicDeck || !this.magicDeck[idx]) return;
+    this.isSpinning = true;
+    SoundFX.init();
+    SoundFX.playMagicChime();
+
+    const card = this.magicDeck[idx];
+    if (cardBtn) {
+      cardBtn.className = 'relative h-44 rounded-2xl bg-gradient-to-br from-amber-100 via-white to-purple-100 dark:from-slate-800 dark:to-purple-950 border-4 border-amber-400 shadow-2xl p-3 flex flex-col items-center justify-center gap-2 scale-105 transition-all duration-300';
+      cardBtn.innerHTML = `
+        ${renderAvatar(card.avatar.id, 'w-14 h-14 rounded-2xl', { badge: true })}
+        <span class="text-xs font-black text-slate-900 dark:text-white text-center line-clamp-2">${escapeHtml(card.student)}</span>
+        <span class="text-[9px] font-bold text-purple-600 dark:text-purple-300 uppercase">${escapeHtml(card.avatar.name)}</span>
+      `;
+    }
+
+    setTimeout(() => {
+      this.isSpinning = false;
+      this.onWinnerSelected([card.student], `🎴 Thẻ bài [${card.avatar.name}]: ${card.challenge}`);
+    }, 750);
+  },
+
+  // ============================================================================
+  // 14. GAME 9: 🔢 BẢNG Ô SỐ BÍ MẬT (LUCKY NUMBER GRID 1..N)
+  // ============================================================================
+  renderLuckyNumbersStage() {
+    const stage = document.getElementById('rp-stage-container');
+    if (!stage) return;
+
+    const total = Math.min(36, this.activeNames.length);
+    const shuffled = [...this.activeNames].sort(() => 0.5 - Math.random()).slice(0, total);
+    this.luckyGridNames = shuffled;
+
+    stage.innerHTML = `
+      <div class="w-full space-y-5 animate-fadeIn py-1">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base sm:text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
+              🔢 BẢNG Ô SỐ BÍ MẬT (1 ➔ ${total})
+            </h3>
+            <p class="text-xs text-slate-400">Mỗi con số ẩn giấu tên của 1 bạn học sinh đã được xáo trộn ngẫu nhiên!</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="button" id="rp-btn-reshuffle-numbers" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition cursor-pointer">
+              🔀 Trộn Lại Ô Số
+            </button>
+            <button type="button" id="rp-btn-random-number" class="px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 text-white text-xs font-black shadow-lg transition hover:scale-105 cursor-pointer">
+              🎲 Mở Ô Số Ngẫu Nhiên
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-4 sm:grid-cols-6 gap-2.5 sm:gap-3 max-h-[380px] overflow-y-auto p-1">
+          ${shuffled.map((name, idx) => {
+            const color = this.PALETTE[idx % this.PALETTE.length];
+            return `
+              <button type="button" data-lucky-num="${idx}" class="h-20 rounded-2xl text-white font-black shadow-md border-2 border-white/30 flex flex-col items-center justify-center gap-1 transition transform hover:scale-105 active:scale-95 cursor-pointer" style="background: linear-gradient(135deg, ${color}, #1e293b);">
+                <span class="text-xl sm:text-2xl font-mono">#${idx + 1}</span>
+                <span class="text-[9px] uppercase tracking-wider opacity-85">Mở Ô Số</span>
+              </button>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+
+    stage.querySelectorAll('[data-lucky-num]').forEach(btn => {
+      btn.onclick = () => {
+        const idx = parseInt(btn.getAttribute('data-lucky-num'), 10);
+        this.openLuckyNumberTile(idx, btn);
+      };
+    });
+
+    const btnReshuffle = document.getElementById('rp-btn-reshuffle-numbers');
+    if (btnReshuffle) {
+      btnReshuffle.onclick = () => {
+        if (this.isSpinning) return;
+        SoundFX.playTick();
+        this.renderLuckyNumbersStage();
+      };
+    }
+
+    const btnRand = document.getElementById('rp-btn-random-number');
+    if (btnRand) {
+      btnRand.onclick = () => {
+        if (this.isSpinning) return;
+        const buttons = stage.querySelectorAll('[data-lucky-num]');
+        const rIdx = Math.floor(Math.random() * buttons.length);
+        this.openLuckyNumberTile(rIdx, buttons[rIdx]);
+      };
+    }
+  },
+
+  openLuckyNumberTile(idx, tileBtn) {
+    if (this.isSpinning || !this.luckyGridNames || !this.luckyGridNames[idx]) return;
+    this.isSpinning = true;
+    SoundFX.init();
+    SoundFX.playBoxOpen();
+
+    const winner = this.luckyGridNames[idx];
+    if (tileBtn) {
+      tileBtn.style.background = 'linear-gradient(135deg, #F59E0B, #D97706)';
+      tileBtn.classList.add('ring-4', 'ring-amber-300');
+      tileBtn.innerHTML = `
+        <span class="text-[10px] font-black uppercase text-slate-950">Ô #${idx + 1}</span>
+        <span class="text-xs font-black text-slate-950 px-1 truncate w-full text-center">${escapeHtml(winner)}</span>
+      `;
+    }
+
+    setTimeout(() => {
+      this.isSpinning = false;
+      this.onWinnerSelected([winner], `🔢 Mở trúng Ô Số Bí Mật #${idx + 1}!`);
+    }, 650);
   },
 
   startThinkingTimer() {

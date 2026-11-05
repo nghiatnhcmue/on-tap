@@ -10,12 +10,12 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261102_82';
-import { Storage } from './storage.js?v=20261102_82';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261102_82';
-import { escapeHtml } from './utils.js?v=20261102_82';
-import { Proctor } from './proctor.js?v=20261102_82';
-import { Gradebook } from './gradebook.js?v=20261102_82';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261102_83';
+import { Storage } from './storage.js?v=20261102_83';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261102_83';
+import { escapeHtml } from './utils.js?v=20261102_83';
+import { Proctor } from './proctor.js?v=20261102_83';
+import { Gradebook } from './gradebook.js?v=20261102_83';
 
 export const LiveVideo = {
   manifest: null,
@@ -51,6 +51,51 @@ export const LiveVideo = {
       if (customUrl && customUrl.trim()) return customUrl.trim().replace(/\/+$/, '');
     }
     return DEFAULT_FIREBASE_DB_URL.trim().replace(/\/+$/, '');
+  },
+
+  // Kiểm tra phòng Live Video có thực sự đang hoạt động không (chống hiển thị phòng ảo / phòng cũ bị treo)
+  isRoomActivelyLive(room, now = Date.now()) {
+    if (!room || !room.roomId) return false;
+    const state = String(room.state || '').toLowerCase();
+    if (state === 'finished' || state === 'closed' || state === 'ended') return false;
+
+    const lastActive = Number(room.hostLastSeen || room.updatedAt || room.createdAt || 0);
+    if (!lastActive) return false;
+
+    const elapsedMs = now - lastActive;
+    // Nếu có heartbeat của Host mà quá 3 phút không phản hồi và quá 15 phút không cập nhật state -> Đã tắt trình duyệt
+    if (room.hostLastSeen && (now - Number(room.hostLastSeen)) > 3 * 60 * 1000 && (now - Number(room.updatedAt || 0)) > 15 * 60 * 1000) {
+      return false;
+    }
+    // Phòng ở trạng thái chờ (waiting) quá 25 phút không có tác động -> Đã bị bỏ quên
+    if (state === 'waiting' && elapsedMs > 25 * 60 * 1000) {
+      return false;
+    }
+    // Bất kỳ phòng nào không có tín hiệu quá 60 phút -> Tự động coi là đã kết thúc
+    if (elapsedMs > 60 * 60 * 1000) {
+      return false;
+    }
+    return true;
+  },
+
+  // Đóng / Xóa phòng Live Video ngay lập tức (dành cho Admin & Giáo viên)
+  async closeOrDeleteRoom(roomId, silent = false) {
+    if (!roomId) return false;
+    try {
+      const dbUrl = this.getBaseDbUrl();
+      await fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state: 'finished', endedAt: Date.now(), updatedAt: Date.now() })
+      });
+      if (!silent) {
+        alert(`Đã đóng phòng học trực tuyến "${roomId}" thành công!`);
+      }
+      return true;
+    } catch (e) {
+      if (!silent) alert(`Không thể đóng phòng: ${e.message}`);
+      return false;
+    }
   },
 
   // =========================================================================
@@ -356,6 +401,7 @@ export const LiveVideo = {
         currentTime: 0,
         currentQuestionIdx: null,
         currentQuestion: null,
+        hostLastSeen: Date.now(),
         createdAt: Date.now(),
         updatedAt: Date.now()
       };
@@ -413,7 +459,7 @@ export const LiveVideo = {
     modalEl.classList.remove('hidden');
   },
 
-  async handleJoinRoomSubmit(customCode = null) {
+  async handleJoinRoomSubmit(customCode = null, options = {}) {
     const input = document.getElementById('live-join-input-code');
     const submitBtn = document.getElementById('btn-confirm-join-live-room');
     const roomId = (customCode || input?.value || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
@@ -431,7 +477,11 @@ export const LiveVideo = {
     }
 
     const user = Auth.getCurrentUser();
-    if (!Auth.isProfileComplete()) {
+    const isAdmin = Auth.isAdmin() || user?.role === 'admin';
+    const isTeacher = Auth.isTeacher() || user?.role === 'teacher';
+    const isPrivileged = isAdmin || isTeacher;
+
+    if (!isPrivileged && !Auth.isProfileComplete()) {
       Auth.openRequiredProfileModal();
       return;
     }
@@ -448,23 +498,70 @@ export const LiveVideo = {
 
       const roomData = await res.json();
       if (!roomData || !roomData.roomId) {
-        alert(`Không tìm thấy phòng trực tuyến "${roomId}"!\nEm vui lòng kiểm tra lại mã phòng do Thầy/Cô cung cấp.`);
+        alert(`Không tìm thấy phòng trực tuyến "${roomId}"!\nVui lòng kiểm tra lại mã phòng.`);
         return;
       }
 
-      // Kiểm tra đối tượng tham gia (Trường & Lớp)
-      if (roomData.school !== 'all' && user.school && roomData.school.toLowerCase() !== user.school.toLowerCase()) {
-        const confirmJoin = confirm(`Phòng học này được Thầy/Cô giao riêng cho trường "${roomData.school}".\nTài khoản của em đang thuộc trường "${user.school}".\nEm có chắc chắn muốn tham gia không?`);
-        if (!confirmJoin) return;
+      const isRoomHost = isAdmin || (isTeacher && roomData.hostEmail && user?.email && roomData.hostEmail.toLowerCase() === user.email.toLowerCase());
+
+      // Nếu phòng đã kết thúc hoặc bị treo quá hạn không còn ai live
+      if (roomData.state === 'finished' || roomData.state === 'closed' || !this.isRoomActivelyLive(roomData)) {
+        if (isRoomHost && roomData.state !== 'finished') {
+          await this.closeOrDeleteRoom(roomId, true);
+        }
+        if (isRoomHost) {
+          const wantReopen = confirm(`Phòng trực tuyến "${roomId}" hiện đã kết thúc hoặc ngừng phát.\n\nBạn đang là Quản trị viên / Giáo viên chủ phòng:\n- Bấm OK để MỞ LẠI & ĐIỀU KHIỂN phòng học này.\n- Bấm Cancel để đóng hẳn phòng.`);
+          if (!wantReopen) {
+            await this.closeOrDeleteRoom(roomId, true);
+            document.getElementById('modal-join-live-video-room')?.classList.add('hidden');
+            if (window.App && typeof window.App.renderStudentAssignedTasks === 'function') {
+              window.App.renderStudentAssignedTasks();
+            }
+            return;
+          }
+          roomData.state = 'waiting';
+          roomData.hostLastSeen = Date.now();
+          roomData.updatedAt = Date.now();
+          await fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ state: 'waiting', hostLastSeen: Date.now(), updatedAt: Date.now() })
+          }).catch(() => {});
+        } else {
+          alert(`Phòng học trực tuyến "${roomId}" hiện đã kết thúc hoặc chưa có Giáo viên phát trực tiếp!`);
+          return;
+        }
       }
 
-      if (roomData.className !== 'all' && user.className && roomData.className.toLowerCase() !== user.className.toLowerCase()) {
-        const confirmJoin = confirm(`Phòng học này được Thầy/Cô giao cho lớp "${roomData.className}".\nLớp của em là "${user.className}".\nEm có muốn tiếp tục tham gia không?`);
-        if (!confirmJoin) return;
+      // Kiểm tra đối tượng tham gia (Trường & Lớp) - CHỈ áp dụng cho Học sinh, Admin & Giáo viên vào thẳng không hỏi!
+      if (!isPrivileged) {
+        if (roomData.school !== 'all' && user.school && roomData.school.toLowerCase() !== user.school.toLowerCase()) {
+          const confirmJoin = confirm(`Phòng học này được Thầy/Cô giao riêng cho trường "${roomData.school}".\nTài khoản của em đang thuộc trường "${user.school}".\nEm có chắc chắn muốn tham gia không?`);
+          if (!confirmJoin) return;
+        }
+
+        if (roomData.className !== 'all' && user.className && roomData.className.toLowerCase() !== user.className.toLowerCase()) {
+          const confirmJoin = confirm(`Phòng học này được Thầy/Cô giao cho lớp "${roomData.className}".\nLớp của em là "${user.className}".\nEm có muốn tiếp tục tham gia không?`);
+          if (!confirmJoin) return;
+        }
       }
 
       // Đóng modal join
       document.getElementById('modal-join-live-video-room')?.classList.add('hidden');
+
+      // Nếu là Admin hoặc Giáo viên chủ phòng (và không chọn chế độ xem như học sinh) -> Vào thẳng Master Console điều khiển!
+      if (isRoomHost && !options?.asStudent) {
+        this.isHost = true;
+        this.activeRoom = roomData;
+        this.questionsList = roomData.checkpoints || [];
+        fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hostLastSeen: Date.now(), updatedAt: Date.now() })
+        }).catch(() => {});
+        await this.openHostMasterConsole(roomData);
+        return;
+      }
 
       // Đăng ký học sinh vào danh sách điểm danh Firebase
       const studentUid = (user.email || user.username || `hs_${Date.now()}`).replace(/[.#$\[\]\/]/g, '_');
@@ -495,7 +592,7 @@ export const LiveVideo = {
       this.questionsList = roomData.checkpoints || [];
 
       // Mở Rạp Chiếu Phim Trực Tuyến Toàn Màn Hình của Học Sinh
-      this.openStudentCinemaStage(roomData);
+      await this.openStudentCinemaStage(roomData);
     } catch (err) {
       console.error('Lỗi vào phòng Live Video:', err);
       alert(`Không thể tham gia phòng: ${err.message}`);
@@ -510,17 +607,18 @@ export const LiveVideo = {
   // =========================================================================
   // 4. BẢNG ĐIỀU KHIỂN MASTER CỦA GIÁO VIÊN (TEACHER MASTER CONSOLE)
   // =========================================================================
-  openHostMasterConsole(room) {
-    const container = document.getElementById('view-interactive-video');
-    if (!container) return;
-
+  async openHostMasterConsole(room) {
     this.isHost = true;
     this.activeRoom = room;
     this.questionsList = room.checkpoints || [];
 
-    if (window.App && typeof window.App.switchTab === 'function') {
-      window.App.switchTab('interactive-video');
+    if (window.App && typeof window.App.switchTab === 'function' && window.App.currentTab !== 'interactive-video') {
+      await window.App.switchTab('interactive-video');
     }
+
+    const container = document.getElementById('view-interactive-video');
+    if (!container) return;
+    container.classList.remove('hidden');
 
     const origin = window.location.origin + window.location.pathname;
     const shareLink = `${origin}?live_video=${encodeURIComponent(room.roomId)}`;
@@ -715,13 +813,17 @@ export const LiveVideo = {
   // =========================================================================
   // 5. MÀN HÌNH RẠP CHIẾU TOÀN MÀN HÌNH CỦA HỌC SINH (STUDENT CINEMA STAGE)
   // =========================================================================
-  openStudentCinemaStage(room) {
+  async openStudentCinemaStage(room) {
+    this.isHost = false;
+    this.activeRoom = room;
+
+    if (window.App && typeof window.App.switchTab === 'function' && window.App.currentTab !== 'interactive-video') {
+      await window.App.switchTab('interactive-video');
+    }
+
     const container = document.getElementById('view-interactive-video');
     if (!container) return;
-
-    if (window.App && typeof window.App.switchTab === 'function') {
-      window.App.switchTab('interactive-video');
-    }
+    container.classList.remove('hidden');
 
     const videoUrl = this.resolveVideoStreamingUrl(room.videoFileName);
 
@@ -920,8 +1022,18 @@ export const LiveVideo = {
       } catch (err) {}
     }, 1500);
 
-    // 3. Heartbeat điểm danh học sinh online mỗi 8 giây
-    if (!this.isHost && this.studentInfo) {
+    // 3. Heartbeat điểm danh trực tuyến (Host mỗi 15 giây, Học sinh mỗi 8 giây)
+    if (this.isHost) {
+      this.heartbeatTimer = setInterval(async () => {
+        try {
+          await fetch(`${dbUrl}/live_video_rooms/${roomId}/hostLastSeen.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(Date.now())
+          });
+        } catch (e) {}
+      }, 15000);
+    } else if (this.studentInfo) {
       this.heartbeatTimer = setInterval(async () => {
         try {
           const uid = this.studentInfo.uid;

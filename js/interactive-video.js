@@ -10,10 +10,10 @@
  * - HỖ TRỢ THIẾT LẬP CÂU HỎI & MỐC DỪNG (Question & Checkpoint Editor): Cho phép Giáo viên & Admin tạo, sửa, xóa mốc dừng và câu hỏi trực tiếp trên web, tự động đồng bộ đám mây realtime!
  */
 
-import { Storage } from './storage.js?v=20261102_82';
-import { Auth } from './auth.js?v=20261102_82';
-import { escapeHtml } from './utils.js?v=20261102_82';
-import { Proctor } from './proctor.js?v=20261102_82';
+import { Storage } from './storage.js?v=20261102_83';
+import { Auth } from './auth.js?v=20261102_83';
+import { escapeHtml } from './utils.js?v=20261102_83';
+import { Proctor } from './proctor.js?v=20261102_83';
 
 export const InteractiveVideo = {
   container: null,
@@ -79,10 +79,14 @@ export const InteractiveVideo = {
     }
 
     this.setupGlobalModalListeners();
-    this.render();
+    if (!(typeof window !== 'undefined' && window.LiveVideo && window.LiveVideo.activeRoom)) {
+      this.render();
+    }
     if (typeof window !== 'undefined' && window.CloudSync) {
       window.CloudSync.syncTeacherVideos().then(() => {
-        if (!this.activeLesson) this.render();
+        if (!this.activeLesson && !(typeof window !== 'undefined' && window.LiveVideo && window.LiveVideo.activeRoom)) {
+          this.render();
+        }
       }).catch(() => {});
     }
   },
@@ -228,6 +232,9 @@ export const InteractiveVideo = {
 
   render() {
     if (!this.container) return;
+    if (typeof window !== 'undefined' && window.LiveVideo && window.LiveVideo.activeRoom) {
+      return;
+    }
 
     if (this.activeLesson) {
       this.renderPlayerView();

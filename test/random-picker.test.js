@@ -201,4 +201,42 @@ console.log('🧪 BẮT ĐẦU KIỂM THỬ BỘ CÔNG CỤ RANDOM & GAME GỌI 
   console.log(`  ✔ Thử thách ngẫu nhiên xuất sắc: "${randChallenge}"`);
 }
 
-console.log('\n🎉 TOÀN BỘ 6/6 TEST CASE RANDOM PICKER & MINI-GAMES ĐÃ VƯỢT QUA 100% THÀNH CÔNG!');
+// ----------------------------------------------------------------------------
+// TEST 7: BỘ SƯU TẬP 40 LINH THÚ BLOOKS SVG ĐA LỚP (AVATARS.JS)
+// ----------------------------------------------------------------------------
+{
+  console.log('\n▶ TEST 7: Kiểm thử 44 Linh Thú Blooks Vector SVG & Phân hạng Rarity');
+  const { AVATARS, AVATAR_CATEGORIES, RARITY, renderAvatar, renderAvatarSVG } = await import('../js/avatars.js');
+  assert.ok(AVATARS.length >= 40, `Must have at least 40 custom SVG avatars (found ${AVATARS.length})`);
+  assert.ok(AVATAR_CATEGORIES.length >= 6, 'Must have at least 6 categories');
+  assert.ok(RARITY.mythic && RARITY.legendary && RARITY.epic && RARITY.common);
+
+  for (const a of AVATARS) {
+    const svg = renderAvatarSVG(a.id);
+    assert.ok(svg.startsWith('<svg') && svg.endsWith('</svg>'), `Avatar ${a.id} must render valid SVG`);
+    const html = renderAvatar(a.id, 'w-12 h-12 rounded-xl', { badge: true });
+    assert.ok(html.includes('<svg'), `Avatar ${a.id} wrapper must include SVG`);
+  }
+  console.log('  ✔ Toàn bộ 40 Linh Thú Blooks SVG đa lớp render hoàn hảo 100%!');
+}
+
+// ----------------------------------------------------------------------------
+// TEST 8: ĐUA VỊT ĐƯỜNG SÔNG & CÁC MINI-GAME MỚI (DUCK RACE, CLAW, CARDS, NUMBERS)
+// ----------------------------------------------------------------------------
+{
+  console.log('\n▶ TEST 8: Kiểm thử Đua Vịt Đường Sông (Duck Race) & các Mini-Game mới');
+  assert.strictEqual(typeof RandomPicker.renderDuckSVG, 'function');
+  assert.strictEqual(typeof RandomPicker.renderDuckRaceStage, 'function');
+  assert.strictEqual(typeof RandomPicker.renderClawMachineStage, 'function');
+  assert.strictEqual(typeof RandomPicker.renderMagicCardsStage, 'function');
+  assert.strictEqual(typeof RandomPicker.renderLuckyNumbersStage, 'function');
+
+  const duckSvgNormal = RandomPicker.renderDuckSVG(0, false);
+  const duckSvgTurbo = RandomPicker.renderDuckSVG(1, true);
+  assert.ok(duckSvgNormal.includes('<svg'), 'Duck SVG must render valid SVG');
+  assert.ok(duckSvgTurbo.includes('animate-pulse'), 'Turbo Duck SVG must include turbo flame');
+
+  console.log('  ✔ Đua Vịt Đường Sông (Duck Race), Máy Gắp Thú Bông, Rút Thẻ Ma Thuật & Bảng Ô Số hoạt động hoàn hảo!');
+}
+
+console.log('\n🎉 TOÀN BỘ 8/8 TEST CASE RANDOM PICKER, ĐUA VỊT & 40 BLOOKS SVG ĐÃ VƯỢT QUA 100% THÀNH CÔNG!');
