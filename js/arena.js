@@ -11,11 +11,11 @@ import defaultGameEngine, {
   SpeedRaceHandler,
   BossRaidHandler,
   ClassicKahootHandler
-} from './game-engine.js?v=20261102_91';
-import { Storage } from './storage.js?v=20261102_91';
-import { Auth } from './auth.js?v=20261102_91';
-import { CloudSync } from './cloud-sync.js?v=20261102_91';
-import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_91';
+} from './game-engine.js?v=20261102_92';
+import { Storage } from './storage.js?v=20261102_92';
+import { Auth } from './auth.js?v=20261102_92';
+import { CloudSync } from './cloud-sync.js?v=20261102_92';
+import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_92';
 import {
   AVATARS,
   AVATAR_CATEGORIES,
@@ -24,7 +24,7 @@ import {
   renderAvatarSVG,
   getAvatar,
   randomAvatarId
-} from './avatars.js?v=20261102_91';
+} from './avatars.js?v=20261102_92';
 
 // Định nghĩa an toàn tuyệt đối cho hàm escapeHtml trong scope của arena.js
 function escapeHtml(str) {
@@ -397,7 +397,8 @@ const Arena = {
             </div>
 
             <!-- Classroom Random Games Banner -->
-            <div class="p-4 rounded-2xl bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white border border-white/10 flex items-center justify-between gap-3 shadow-md">
+            ${isTeacher ? `
+<div class="p-4 rounded-2xl bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white border border-white/10 flex items-center justify-between gap-3 shadow-md">
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center text-xl shrink-0 animate-bounce">
                   🦆
@@ -411,6 +412,7 @@ const Arena = {
                 Mở Ngay ➔
               </button>
             </div>
+` : ''}
           </div>
         </div>
 

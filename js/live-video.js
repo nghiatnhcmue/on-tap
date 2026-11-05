@@ -10,12 +10,12 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261102_91';
-import { Storage } from './storage.js?v=20261102_91';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261102_91';
-import { escapeHtml } from './utils.js?v=20261102_91';
-import { Proctor } from './proctor.js?v=20261102_91';
-import { Gradebook } from './gradebook.js?v=20261102_91';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261102_92';
+import { Storage } from './storage.js?v=20261102_92';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261102_92';
+import { escapeHtml } from './utils.js?v=20261102_92';
+import { Proctor } from './proctor.js?v=20261102_92';
+import { Gradebook } from './gradebook.js?v=20261102_92';
 
 export const LiveVideo = {
   manifest: null,
@@ -46,13 +46,8 @@ export const LiveVideo = {
   },
 
   getBaseDbUrl() {
-    if (typeof Storage !== 'undefined' && typeof Storage.getFirebaseDbUrl === 'function') {
-      const customUrl = Storage.getFirebaseDbUrl();
-      if (customUrl && customUrl.trim() && !customUrl.includes('on-tap-tinhoc-default-rtdb') && !customUrl.includes('firebaseio.com')) {
-        return customUrl.trim().replace(/\/+$/, '');
-      }
-    }
-    return DEFAULT_FIREBASE_DB_URL.trim().replace(/\/+$/, '');
+    // Luôn sử dụng máy chủ Realtime Database chính thức tại asia-southeast1
+    return 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
   },
 
   // Kiểm tra phòng Live Video có thực sự đang hoạt động không (chống hiển thị phòng ảo / phòng cũ bị treo)
@@ -316,7 +311,14 @@ export const LiveVideo = {
     const countdownSel = document.getElementById('live-input-countdown');
     const submitBtn = document.getElementById('btn-confirm-create-live-room');
 
-    const roomId = (codeInput?.value || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    // Dọn dẹp key cấu hình lỗi nếu có trong localStorage
+    try {
+      localStorage.removeItem('tinhoc_cloud_db_url');
+    } catch (e) {}
+
+    // Chuẩn hóa mã phòng: thay khoảng trắng thành gạch ngang (ví dụ: 'LIVE 165' -> 'LIVE-165')
+    const rawCode = (codeInput?.value || '').trim().toUpperCase();
+    const roomId = rawCode.replace(/\s+/g, '-').replace(/[^A-Z0-9_-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
     if (!roomId || roomId.length < 3) {
       alert('Vui lòng nhập Mã phòng hợp lệ (từ 3 ký tự chữ và số, ví dụ LIVE-12E-01)');
       codeInput?.focus();

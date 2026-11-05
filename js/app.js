@@ -3,24 +3,24 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261102_91';
-import { Practice } from './practice.js?v=20261102_91';
-import { Exam } from './exam.js?v=20261102_91';
-import { Search } from './search.js?v=20261102_91';
-import { PrintManager } from './print.js?v=20261102_91';
-import { Auth } from './auth.js?v=20261102_91';
-import { escapeHtml } from './utils.js?v=20261102_91';
-import { Leaderboard } from './leaderboard.js?v=20261102_91';
-import { QuestionsManager } from './questions-manager.js?v=20261102_91';
-import { AdminManager } from './admin-manager.js?v=20261102_91';
-import { ExamRooms } from './exam-rooms.js?v=20261102_91';
-import { Proctor } from './proctor.js?v=20261102_91';
-import { Gradebook } from './gradebook.js?v=20261102_91';
-import { CloudSync } from './cloud-sync.js?v=20261102_91';
-import { InteractiveVideo } from './interactive-video.js?v=20261102_91';
-import { LiveVideo } from './live-video.js?v=20261102_91';
-import Arena from './arena.js?v=20261102_91';
-import RandomPicker from './random-picker.js?v=20261102_91';
+import { Storage } from './storage.js?v=20261102_92';
+import { Practice } from './practice.js?v=20261102_92';
+import { Exam } from './exam.js?v=20261102_92';
+import { Search } from './search.js?v=20261102_92';
+import { PrintManager } from './print.js?v=20261102_92';
+import { Auth } from './auth.js?v=20261102_92';
+import { escapeHtml } from './utils.js?v=20261102_92';
+import { Leaderboard } from './leaderboard.js?v=20261102_92';
+import { QuestionsManager } from './questions-manager.js?v=20261102_92';
+import { AdminManager } from './admin-manager.js?v=20261102_92';
+import { ExamRooms } from './exam-rooms.js?v=20261102_92';
+import { Proctor } from './proctor.js?v=20261102_92';
+import { Gradebook } from './gradebook.js?v=20261102_92';
+import { CloudSync } from './cloud-sync.js?v=20261102_92';
+import { InteractiveVideo } from './interactive-video.js?v=20261102_92';
+import { LiveVideo } from './live-video.js?v=20261102_92';
+import Arena from './arena.js?v=20261102_92';
+import RandomPicker from './random-picker.js?v=20261102_92';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -201,7 +201,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261102_91');
+      const res = await fetch('data/manifest.json?v=20261102_92');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
@@ -454,6 +454,11 @@ class App {
         );
         break;
       case 'random-picker':
+        if (!Auth.isTeacher() && !Auth.isAdmin()) {
+          alert('Tính năng Vòng quay gọi tên & Chia nhóm lớp học chỉ dành riêng cho Thầy/Cô Giáo viên tổ chức hoạt động lớp!');
+          this.switchTab('home');
+          return;
+        }
         document.getElementById('view-random-picker')?.classList.remove('hidden');
         await RandomPicker.init(
           document.getElementById('view-random-picker'),
@@ -607,7 +612,8 @@ class App {
           </div>
 
           <!-- Hàng 3: Mini-Game & Random Picker Lớp Học -->
-          <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white p-5 rounded-3xl border border-white/10 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+          ${(Auth.isTeacher() || Auth.isAdmin()) ? `
+<div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white p-5 rounded-3xl border border-white/10 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
             <div class="flex items-center gap-4">
               <div class="w-12 h-12 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center text-2xl shrink-0 shadow-lg shadow-amber-500/30 animate-bounce">
                 🎲
@@ -626,6 +632,7 @@ class App {
               <i class="fa-solid fa-play"></i> <span>Mở Trò Chơi Ngay</span>
             </button>
           </div>
+` : ''}
         </div>
       `;
 
