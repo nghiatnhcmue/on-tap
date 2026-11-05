@@ -11,11 +11,11 @@ import defaultGameEngine, {
   SpeedRaceHandler,
   BossRaidHandler,
   ClassicKahootHandler
-} from './game-engine.js?v=20261102_92';
-import { Storage } from './storage.js?v=20261102_92';
-import { Auth } from './auth.js?v=20261102_92';
-import { CloudSync } from './cloud-sync.js?v=20261102_92';
-import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_92';
+} from './game-engine.js?v=20261102_93';
+import { Storage } from './storage.js?v=20261102_93';
+import { Auth } from './auth.js?v=20261102_93';
+import { CloudSync } from './cloud-sync.js?v=20261102_93';
+import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_93';
 import {
   AVATARS,
   AVATAR_CATEGORIES,
@@ -24,7 +24,7 @@ import {
   renderAvatarSVG,
   getAvatar,
   randomAvatarId
-} from './avatars.js?v=20261102_92';
+} from './avatars.js?v=20261102_93';
 
 // Định nghĩa an toàn tuyệt đối cho hàm escapeHtml trong scope của arena.js
 function escapeHtml(str) {
@@ -819,8 +819,15 @@ const Arena = {
     const schoolsList = Object.keys(schoolsData);
     const customPackages = Storage.getAllTeacherContributions().filter(p => p.questions && p.questions.length > 0);
 
+    // Trạng thái cục bộ cho modal tạo đấu trường
+    let activeScope = 'all'; // 'all' | 'by_topic' | 'by_lesson' | 'pick_questions'
+    let loadedQuestions = [];
+    let selectedLessonNames = new Set();
+    let pickedQuestionIds = new Set();
+    let currentGrade = '12';
+
     modal.innerHTML = `
-      <div class="bg-white dark:bg-slate-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-6 max-h-[92vh] overflow-y-auto animate-scaleUp">
+      <div class="bg-white dark:bg-slate-800 rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-6 max-h-[92vh] overflow-y-auto animate-scaleUp">
         <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-4">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 text-white flex items-center justify-center text-lg shadow-sm">
@@ -828,7 +835,7 @@ const Arena = {
             </div>
             <div>
               <h3 class="text-base font-black text-slate-800 dark:text-white">Khởi Tạo Đấu Trường Gamification</h3>
-              <p class="text-xs text-slate-400">Kiến trúc Pluggable: Ghép nối ngân hàng đề với các cơ chế game đa dạng</p>
+              <p class="text-xs text-slate-400">Chọn đề thi, bài học hoặc duyệt chọn từng câu hỏi đưa vào trận đấu</p>
             </div>
           </div>
           <button id="btn-close-create-arena" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 transition flex items-center justify-center">
@@ -843,11 +850,17 @@ const Arena = {
             <input type="text" id="arena-create-title" required placeholder="Ví dụ: Đấu Trường Rương Báu Tin Học 12 - Ôn Thi Giữa Kỳ" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-amber-500" />
           </div>
 
-          <!-- BƯỚC 1: CHỌN NGUỒN ĐỀ THI (DECOUPLED QUIZ SET) -->
-          <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 space-y-3">
-            <span class="text-[11px] font-black uppercase text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
-              <i class="fa-solid fa-book-open"></i> Bước 1: Chọn Bộ Đề Thi Giáo Dục (Decoupled Quiz Set)
-            </span>
+          <!-- BƯỚC 1: CHỌN BỘ ĐỀ THI & BÀI HỌC KIỂM TRA (GIỐNG TẠO PHÒNG THI) -->
+          <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 space-y-3.5">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-black uppercase text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-book-open"></i> Bước 1: Chọn Bộ Đề Thi & Bài Học Kiểm Tra
+              </span>
+              <span id="arena-scope-summary-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
+                Toàn khối (Ngân hàng chuẩn)
+              </span>
+            </div>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Ngân Hàng Câu Hỏi *</label>
@@ -869,7 +882,100 @@ const Arena = {
                   <option value="20">20 câu hỏi (Toàn diện 15 phút)</option>
                   <option value="25">25 câu hỏi</option>
                   <option value="30">30 câu hỏi</option>
+                  <option value="40">40 câu hỏi</option>
+                  <option value="all">Toàn bộ câu hỏi phù hợp</option>
                 </select>
+              </div>
+            </div>
+
+            <!-- 4 Chế Độ Phạm Vi Giống Phòng Thi -->
+            <div class="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 space-y-2.5">
+              <label class="block font-bold text-slate-700 dark:text-slate-300 text-xs">
+                Phạm vi kiểm tra & Hình thức chọn câu hỏi:
+              </label>
+              
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <button type="button" data-arena-scope="all" class="arena-scope-btn px-2.5 py-2 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 border-purple-500 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 shadow-sm">
+                  🌐 Toàn khối
+                </button>
+                <button type="button" data-arena-scope="by_topic" class="arena-scope-btn px-2.5 py-2 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 border-slate-200 dark:border-slate-700 hover:border-purple-300 text-slate-600 dark:text-slate-300">
+                  📁 Theo Chủ đề
+                </button>
+                <button type="button" data-arena-scope="by_lesson" class="arena-scope-btn px-2.5 py-2 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 border-slate-200 dark:border-slate-700 hover:border-purple-300 text-slate-600 dark:text-slate-300">
+                  📖 Theo Bài học
+                </button>
+                <button type="button" data-arena-scope="pick_questions" class="arena-scope-btn px-2.5 py-2 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 border-slate-200 dark:border-slate-700 hover:border-purple-300 text-slate-600 dark:text-slate-300">
+                  📝 Chọn từng câu
+                </button>
+              </div>
+
+              <!-- Panel: Theo Chủ đề -->
+              <div id="arena-panel-by-topic" class="hidden p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                <label class="block font-bold text-slate-700 dark:text-slate-300 text-[11px]">Chọn chủ đề kiểm tra:</label>
+                <select id="arena-select-topic" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-800 dark:text-white">
+                  <!-- Đổ động các chủ đề -->
+                </select>
+              </div>
+
+              <!-- Panel: Theo Bài học -->
+              <div id="arena-panel-by-lesson" class="hidden p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-2">
+                <div class="flex items-center justify-between">
+                  <label class="block font-bold text-slate-700 dark:text-slate-300 text-[11px]">Tích chọn các bài học muốn đưa vào đấu trường:</label>
+                  <div class="inline-flex items-center gap-2">
+                    <button type="button" id="btn-arena-select-all-lessons" class="text-[10px] text-purple-600 dark:text-purple-400 font-bold hover:underline">Chọn tất cả</button>
+                    <span class="text-slate-300 dark:text-slate-600">•</span>
+                    <button type="button" id="btn-arena-clear-lessons" class="text-[10px] text-slate-400 hover:underline">Bỏ chọn</button>
+                  </div>
+                </div>
+                <div id="arena-lessons-checklist" class="max-h-48 overflow-y-auto space-y-1.5 pr-1 divide-y divide-slate-100 dark:divide-slate-700/60">
+                  <!-- Đổ động danh sách bài học -->
+                </div>
+              </div>
+
+              <!-- Panel: Đọc & Chọn Từng Câu Hỏi Cụ Thể -->
+              <div id="arena-panel-pick-questions" class="hidden p-3.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-3">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-700/60 pb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-slate-800 dark:text-white text-xs">Duyệt & Tích Chọn Câu Hỏi Ngân Hàng</span>
+                    <span id="arena-qpick-count-badge" class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
+                      Đã chọn: 0 câu
+                    </span>
+                  </div>
+                  <div class="inline-flex items-center gap-2">
+                    <button type="button" id="btn-arena-qpick-select-filtered" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 hover:bg-purple-100 transition">
+                      <i class="fa-solid fa-check-double mr-1"></i> Chọn tất cả đang lọc
+                    </button>
+                    <button type="button" id="btn-arena-qpick-clear" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 hover:bg-slate-200 transition">
+                      Bỏ chọn
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Bộ lọc tìm kiếm câu hỏi -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div>
+                    <input type="text" id="arena-qpick-search" placeholder="Tìm theo từ khóa câu hỏi..." class="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-[11px] text-slate-800 dark:text-white" />
+                  </div>
+                  <div>
+                    <select id="arena-qpick-filter-lesson" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-[11px] text-slate-800 dark:text-white">
+                      <option value="all">Tất cả bài học</option>
+                    </select>
+                  </div>
+                  <div>
+                    <select id="arena-qpick-filter-level" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-[11px] text-slate-800 dark:text-white">
+                      <option value="all">Tất cả mức độ</option>
+                      <option value="1">Mức 1 (Nhận biết)</option>
+                      <option value="2">Mức 2 (Thông hiểu)</option>
+                      <option value="3">Mức 3 (Vận dụng)</option>
+                      <option value="4">Mức 4 (Vận dụng cao)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Danh sách cuộn các câu hỏi -->
+                <div id="arena-qpick-scroll-list" class="max-h-60 overflow-y-auto space-y-2 pr-1 divide-y divide-slate-100 dark:divide-slate-700/60">
+                  <!-- Đổ động danh sách câu hỏi -->
+                </div>
               </div>
             </div>
           </div>
@@ -968,86 +1074,429 @@ const Arena = {
             <button type="button" id="btn-cancel-create-arena" class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-100 transition">
               Hủy
             </button>
-            <button type="submit" id="btn-submit-create-arena" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-black shadow-md transition flex items-center gap-2">
-              <i class="fa-solid fa-play"></i> Khởi Tạo & Vào Phòng Chờ (Host)
+            <button type="submit" id="btn-submit-create-arena" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black shadow-lg shadow-amber-500/25 flex items-center gap-2 transition">
+              <i class="fa-solid fa-bolt"></i> Khởi Tạo & Vào Phòng Chờ (Host)
             </button>
           </div>
         </form>
       </div>
     `;
 
-    const closeModal = () => modal.remove();
-    modal.querySelector('#btn-close-create-arena')?.addEventListener('click', closeModal);
-    modal.querySelector('#btn-cancel-create-arena')?.addEventListener('click', closeModal);
+    modal.classList.remove('hidden');
 
-    // Đánh dấu radio game mode tương ứng với defaultMode và highlight khung
-    const modeRadios = modal.querySelectorAll('input[name="arena-create-mode"]');
+    // Đóng modal
+    const closeModal = () => modal.classList.add('hidden');
+    modal.querySelector('#btn-close-create-arena').onclick = closeModal;
+    modal.querySelector('#btn-cancel-create-arena').onclick = closeModal;
+
+    // Highlight chế độ chơi đã chọn
+    const modeInputs = modal.querySelectorAll('input[name="arena-create-mode"]');
     const updateModeCardsHighlight = () => {
-      modeRadios.forEach(r => {
-        const label = r.closest('label');
-        if (!label) return;
-        if (r.checked) {
-          label.classList.add('border-amber-400', 'bg-amber-50/50', 'dark:bg-amber-950/20');
-          label.classList.remove('border-slate-200', 'dark:border-slate-700');
+      modeInputs.forEach(inp => {
+        const parentLabel = inp.closest('label');
+        if (inp.checked) {
+          parentLabel.classList.add('border-amber-400', 'bg-amber-50/50', 'dark:bg-amber-950/20');
+          parentLabel.classList.remove('border-slate-200', 'dark:border-slate-700');
         } else {
-          label.classList.remove('border-amber-400', 'bg-amber-50/50', 'dark:bg-amber-950/20');
-          label.classList.add('border-slate-200', 'dark:border-slate-700');
+          parentLabel.classList.remove('border-amber-400', 'bg-amber-50/50', 'dark:bg-amber-950/20');
+          parentLabel.classList.add('border-slate-200', 'dark:border-slate-700');
         }
       });
     };
-    modeRadios.forEach(r => {
-      if (r.value === defaultMode) r.checked = true;
-      r.addEventListener('change', updateModeCardsHighlight);
-    });
+    modeInputs.forEach(inp => inp.addEventListener('change', updateModeCardsHighlight));
+    const targetModeRadio = modal.querySelector(`input[name="arena-create-mode"][value="${defaultMode}"]`);
+    if (targetModeRadio) targetModeRadio.checked = true;
     updateModeCardsHighlight();
 
-    // Xử lý tạo phòng
+    // ==================== QUẢN LÝ PHẠM VI & CHỌN CÂU HỎI (GIỐNG PHÒNG THI) ====================
+    const sourceSelect = modal.querySelector('#arena-create-source');
+    const panelTopic = modal.querySelector('#arena-panel-by-topic');
+    const panelLesson = modal.querySelector('#arena-panel-by-lesson');
+    const panelQuestions = modal.querySelector('#arena-panel-pick-questions');
+    const selectTopicEl = modal.querySelector('#arena-select-topic');
+    const checklistLessonsEl = modal.querySelector('#arena-lessons-checklist');
+    const scrollQuestionsEl = modal.querySelector('#arena-qpick-scroll-list');
+    const qCountBadge = modal.querySelector('#arena-create-qcount-badge');
+    const qCountSummaryBadge = modal.querySelector('#arena-scope-summary-badge');
+    const qPickCountBadge = modal.querySelector('#arena-qpick-count-badge');
+    const filterLessonEl = modal.querySelector('#arena-qpick-filter-lesson');
+    const filterLevelEl = modal.querySelector('#arena-qpick-filter-level');
+    const searchQuestionEl = modal.querySelector('#arena-qpick-search');
+    const scopeButtons = modal.querySelectorAll('.arena-scope-btn');
+
+    // Hàm cập nhật giao diện scope buttons
+    const updateScopeButtonsUI = () => {
+      scopeButtons.forEach(btn => {
+        const s = btn.getAttribute('data-arena-scope');
+        if (s === activeScope) {
+          btn.className = 'arena-scope-btn px-2.5 py-2 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 border-purple-500 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 shadow-sm';
+        } else {
+          btn.className = 'arena-scope-btn px-2.5 py-2 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 border-slate-200 dark:border-slate-700 hover:border-purple-300 text-slate-600 dark:text-slate-300';
+        }
+      });
+
+      panelTopic.classList.toggle('hidden', activeScope !== 'by_topic');
+      panelLesson.classList.toggle('hidden', activeScope !== 'by_lesson');
+      panelQuestions.classList.toggle('hidden', activeScope !== 'pick_questions');
+
+      if (activeScope === 'pick_questions') {
+        if (qCountSummaryBadge) qCountSummaryBadge.textContent = `Đã chọn ${pickedQuestionIds.size} câu cụ thể`;
+      } else if (activeScope === 'by_lesson') {
+        if (qCountSummaryBadge) qCountSummaryBadge.textContent = `Theo ${selectedLessonNames.size} bài học`;
+      } else if (activeScope === 'by_topic') {
+        if (qCountSummaryBadge) qCountSummaryBadge.textContent = `Theo Chủ đề đã chọn`;
+      } else {
+        if (qCountSummaryBadge) qCountSummaryBadge.textContent = `Toàn khối (${loadedQuestions.length} câu)`;
+      }
+    };
+
+    // Hàm nạp câu hỏi theo nguồn đã chọn
+    const loadQuestionsForSource = async () => {
+      const src = sourceSelect.value;
+      if (src.startsWith('pkg_')) {
+        const pkgId = src.replace('pkg_', '');
+        const pkg = Storage.getAllTeacherContributions().find(p => p.id === pkgId);
+        loadedQuestions = pkg?.questions ? [...pkg.questions] : [];
+        currentGrade = '12';
+      } else {
+        const g = src.replace('grade_', '');
+        currentGrade = g;
+        try {
+          if (typeof this.loadGradeFn === 'function') {
+            loadedQuestions = await this.loadGradeFn(g);
+          } else if (typeof window !== 'undefined' && typeof window.App?.loadGradeData === 'function') {
+            loadedQuestions = await window.App.loadGradeData(g);
+          } else {
+            const res = await fetch(`data/grade_${g}.json`);
+            if (res.ok) loadedQuestions = await res.json();
+          }
+        } catch (e) {
+          console.warn('Lỗi nạp câu hỏi cho đấu trường:', e);
+          loadedQuestions = [];
+        }
+      }
+
+      // Trích xuất danh sách chủ đề và bài học
+      const topics = [...new Set(loadedQuestions.map(q => q.topic).filter(Boolean))];
+      const lessons = [...new Set(loadedQuestions.map(q => q.lesson).filter(Boolean))];
+
+      // Đổ dropdown chủ đề
+      if (selectTopicEl) {
+        selectTopicEl.innerHTML = topics.map(t => {
+          const count = loadedQuestions.filter(q => q.topic === t).length;
+          return `<option value="${escapeHtml(t)}">${escapeHtml(t)} (${count} câu)</option>`;
+        }).join('');
+      }
+
+      // Đổ checklist bài học
+      selectedLessonNames.clear();
+      if (checklistLessonsEl) {
+        checklistLessonsEl.innerHTML = lessons.map((les, idx) => {
+          const count = loadedQuestions.filter(q => q.lesson === les).length;
+          selectedLessonNames.add(les); // mặc định tích tất cả
+          return `
+            <label class="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer text-xs">
+              <span class="flex items-center gap-2">
+                <input type="checkbox" data-arena-lesson-cb="${escapeHtml(les)}" checked class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500" />
+                <span class="font-medium text-slate-800 dark:text-white">${escapeHtml(les)}</span>
+              </span>
+              <span class="text-[11px] font-bold text-purple-600 dark:text-purple-400 font-mono">${count} câu</span>
+            </label>
+          `;
+        }).join('');
+
+        // Lắng nghe click checklist bài học
+        checklistLessonsEl.querySelectorAll('[data-arena-lesson-cb]').forEach(cb => {
+          cb.onchange = () => {
+            const les = cb.getAttribute('data-arena-lesson-cb');
+            if (cb.checked) selectedLessonNames.add(les);
+            else selectedLessonNames.delete(les);
+            updateScopeButtonsUI();
+          };
+        });
+      }
+
+      // Đổ dropdown filter bài học cho bảng duyệt từng câu
+      if (filterLessonEl) {
+        filterLessonEl.innerHTML = '<option value="all">Tất cả bài học</option>' + lessons.map(les => {
+          return `<option value="${escapeHtml(les)}">${escapeHtml(les)}</option>`;
+        }).join('');
+      }
+
+      // Reset danh sách câu hỏi đã chọn cho scope pick_questions
+      pickedQuestionIds.clear();
+      renderQuestionsList();
+      updateScopeButtonsUI();
+    };
+
+    // Hàm render danh sách câu hỏi trong bảng duyệt từng câu
+    const renderQuestionsList = () => {
+      if (!scrollQuestionsEl) return;
+      const kw = (searchQuestionEl?.value || '').toLowerCase().trim();
+      const filterLes = filterLessonEl?.value || 'all';
+      const filterLev = filterLevelEl?.value || 'all';
+
+      const filtered = loadedQuestions.filter(q => {
+        if (filterLes !== 'all' && q.lesson !== filterLes) return false;
+        if (filterLev !== 'all' && String(q.level) !== String(filterLev)) return false;
+        if (kw) {
+          const text = `${q.question || ''} ${(q.options || []).join(' ')}`.toLowerCase();
+          if (!text.includes(kw)) return false;
+        }
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        scrollQuestionsEl.innerHTML = `
+          <div class="py-8 text-center text-slate-400 text-xs">
+            <i class="fa-solid fa-filter text-xl mb-1.5 block text-slate-300 dark:text-slate-600"></i>
+            Không có câu hỏi nào khớp với bộ lọc hiện tại.
+          </div>
+        `;
+        return;
+      }
+
+      scrollQuestionsEl.innerHTML = filtered.map((q, idx) => {
+        const qId = String(q.id || q.stt || idx);
+        const isChecked = pickedQuestionIds.has(qId);
+        let levelBadge = 'Biết';
+        let levelColor = 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300';
+        if (String(q.level) === '2') { levelBadge = 'Hiểu'; levelColor = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'; }
+        else if (String(q.level) === '3') { levelBadge = 'Vận dụng'; levelColor = 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'; }
+        else if (String(q.level) === '4') { levelBadge = 'Vận dụng cao'; levelColor = 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'; }
+
+        return `
+          <div class="p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/40 transition flex items-start gap-3">
+            <input type="checkbox" data-qpick-id="${escapeHtml(qId)}" ${isChecked ? 'checked' : ''} class="mt-1 w-4 h-4 rounded text-purple-600 focus:ring-purple-500 cursor-pointer" />
+            <div class="flex-1 space-y-1">
+              <div class="flex items-center gap-2 flex-wrap text-[10px]">
+                <span class="font-bold text-slate-400 font-mono">#${idx + 1}</span>
+                <span class="px-2 py-0.5 rounded-full font-bold ${levelColor}">${levelBadge}</span>
+                <span class="text-slate-500 dark:text-slate-400 truncate max-w-[200px]">${escapeHtml(q.lesson || q.topic || '')}</span>
+              </div>
+              <div class="font-bold text-slate-800 dark:text-white text-xs leading-snug">
+                ${escapeHtml(q.question || '')}
+              </div>
+              ${Array.isArray(q.options) && q.options.length > 0 ? `
+                <div class="grid grid-cols-2 gap-1.5 pt-1 text-[11px]">
+                  ${q.options.map((opt, oIdx) => {
+                    const optLetter = String.fromCharCode(65 + oIdx);
+                    const isCorrect = q.answer === optLetter || q.answer === opt || String(q.answer) === String(oIdx + 1);
+                    return `
+                      <div class="px-2 py-1 rounded-lg border ${isCorrect ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 font-bold' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}">
+                        <strong>${optLetter}.</strong> ${escapeHtml(opt)}
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Gắn sự kiện tích chọn cho từng câu hỏi
+      scrollQuestionsEl.querySelectorAll('[data-qpick-id]').forEach(cb => {
+        cb.onchange = () => {
+          const id = cb.getAttribute('data-qpick-id');
+          if (cb.checked) pickedQuestionIds.add(id);
+          else pickedQuestionIds.delete(id);
+          updatePickBadges();
+        };
+      });
+    };
+
+    const updatePickBadges = () => {
+      const count = pickedQuestionIds.size;
+      if (qPickCountBadge) qPickCountBadge.textContent = `Đã chọn: ${count} câu`;
+      if (qCountBadge) qCountBadge.textContent = `Đã chọn: ${count} câu hỏi`;
+      if (activeScope === 'pick_questions' && qCountSummaryBadge) {
+        qCountSummaryBadge.textContent = `Đã chọn ${count} câu cụ thể`;
+      }
+    };
+
+    // Sự kiện chuyển tab Scope
+    scopeButtons.forEach(btn => {
+      btn.onclick = () => {
+        activeScope = btn.getAttribute('data-arena-scope');
+        updateScopeButtonsUI();
+      };
+    });
+
+    // Sự kiện đổi nguồn ngân hàng
+    sourceSelect.onchange = () => {
+      loadQuestionsForSource();
+    };
+
+    // Sự kiện checklist bài học: Chọn tất cả / Bỏ chọn
+    modal.querySelector('#btn-arena-select-all-lessons')?.addEventListener('click', () => {
+      checklistLessonsEl?.querySelectorAll('[data-arena-lesson-cb]').forEach(cb => {
+        cb.checked = true;
+        selectedLessonNames.add(cb.getAttribute('data-arena-lesson-cb'));
+      });
+      updateScopeButtonsUI();
+    });
+
+    modal.querySelector('#btn-arena-clear-lessons')?.addEventListener('click', () => {
+      checklistLessonsEl?.querySelectorAll('[data-arena-lesson-cb]').forEach(cb => {
+        cb.checked = false;
+        selectedLessonNames.delete(cb.getAttribute('data-arena-lesson-cb'));
+      });
+      updateScopeButtonsUI();
+    });
+
+    // Sự kiện lọc trong bảng duyệt câu hỏi
+    searchQuestionEl?.addEventListener('input', renderQuestionsList);
+    filterLessonEl?.addEventListener('change', renderQuestionsList);
+    filterLevelEl?.addEventListener('change', renderQuestionsList);
+
+    // Nút "Chọn tất cả đang lọc" trong bảng duyệt câu hỏi
+    modal.querySelector('#btn-arena-qpick-select-filtered')?.addEventListener('click', () => {
+      scrollQuestionsEl?.querySelectorAll('[data-qpick-id]').forEach(cb => {
+        cb.checked = true;
+        pickedQuestionIds.add(cb.getAttribute('data-qpick-id'));
+      });
+      updatePickBadges();
+    });
+
+    // Nút "Bỏ chọn" trong bảng duyệt câu hỏi
+    modal.querySelector('#btn-arena-qpick-clear')?.addEventListener('click', () => {
+      scrollQuestionsEl?.querySelectorAll('[data-qpick-id]').forEach(cb => {
+        cb.checked = false;
+      });
+      pickedQuestionIds.clear();
+      updatePickBadges();
+    });
+
+    // Nạp câu hỏi ban đầu
+    loadQuestionsForSource();
+
+    // ==================== XỬ LÝ SUBMIT TẠO PHÒNG ĐẤU TRƯỜNG ====================
     const form = modal.querySelector('#form-create-arena-submit');
     if (form) {
       form.onsubmit = async (e) => {
         e.preventDefault();
-        const title = modal.querySelector('#arena-create-title').value.trim();
-        const mode = modal.querySelector('input[name="arena-create-mode"]:checked')?.value || 'resource_quest';
-        const source = modal.querySelector('#arena-create-source').value;
-        const qCount = parseInt(modal.querySelector('#arena-create-qcount').value, 10) || 15;
-        const timerSec = parseInt(modal.querySelector('#arena-create-timer').value, 10) || 20;
-        const goalCap = parseInt(modal.querySelector('#arena-create-goal-cap')?.value, 10) || 0;
-        const powerUpFrequency = modal.querySelector('#arena-create-powerup-freq')?.value || 'normal';
-        const targetClass = modal.querySelector('#arena-create-target-class').value;
+        const submitBtn = modal.querySelector('#btn-submit-create-arena');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang khởi tạo...';
+        }
 
-        closeModal();
-        await this.createNewArenaRoom({ title, mode, source, qCount, timerSec, targetClass, goalCap, powerUpFrequency });
+        try {
+          const title = modal.querySelector('#arena-create-title').value.trim();
+          const mode = modal.querySelector('input[name="arena-create-mode"]:checked')?.value || 'resource_quest';
+          const source = sourceSelect.value;
+          const qCountVal = modal.querySelector('#arena-create-qcount').value;
+          const timerSec = parseInt(modal.querySelector('#arena-create-timer').value, 10) || 20;
+          const goalCap = parseInt(modal.querySelector('#arena-create-goal-cap')?.value, 10) || 0;
+          const powerUpFrequency = modal.querySelector('#arena-create-powerup-freq')?.value || 'normal';
+          const targetClass = modal.querySelector('#arena-create-target-class').value;
+
+          // Xử lý lọc câu hỏi theo Scope mà giáo viên đã chọn
+          let chosenQuestions = [];
+
+          if (activeScope === 'pick_questions') {
+            if (pickedQuestionIds.size < 5) {
+              alert('Thầy/Cô vui lòng tích chọn ít nhất 5 câu hỏi để khởi tạo đấu trường!');
+              if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa-solid fa-bolt"></i> Khởi Tạo & Vào Phòng Chờ (Host)';
+              }
+              return;
+            }
+            chosenQuestions = loadedQuestions.filter(q => pickedQuestionIds.has(String(q.id || q.stt)));
+          } else if (activeScope === 'by_topic') {
+            const selTopic = selectTopicEl?.value;
+            chosenQuestions = loadedQuestions.filter(q => q.topic === selTopic);
+            if (chosenQuestions.length === 0) {
+              alert('Không tìm thấy câu hỏi nào thuộc chủ đề đã chọn!');
+              if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa-solid fa-bolt"></i> Khởi Tạo & Vào Phòng Chờ (Host)';
+              }
+              return;
+            }
+          } else if (activeScope === 'by_lesson') {
+            if (selectedLessonNames.size === 0) {
+              alert('Thầy/Cô vui lòng tích chọn ít nhất một bài học!');
+              if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa-solid fa-bolt"></i> Khởi Tạo & Vào Phòng Chờ (Host)';
+              }
+              return;
+            }
+            chosenQuestions = loadedQuestions.filter(q => selectedLessonNames.has(q.lesson));
+            if (chosenQuestions.length === 0) {
+              alert('Không tìm thấy câu hỏi nào thuộc các bài học đã chọn!');
+              if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa-solid fa-bolt"></i> Khởi Tạo & Vào Phòng Chờ (Host)';
+              }
+              return;
+            }
+          } else {
+            // Toàn khối
+            chosenQuestions = [...loadedQuestions];
+          }
+
+          // Tính số lượng câu hỏi
+          let qCount = qCountVal === 'all' ? chosenQuestions.length : parseInt(qCountVal, 10);
+          if (isNaN(qCount) || qCount <= 0) qCount = 15;
+          qCount = Math.min(qCount, chosenQuestions.length);
+
+          closeModal();
+          await this.createNewArenaRoom({
+            title,
+            mode,
+            source,
+            questions: chosenQuestions,
+            qCount,
+            timerSec,
+            targetClass,
+            goalCap,
+            powerUpFrequency
+          });
+        } catch (err) {
+          console.error('Lỗi khởi tạo đấu trường:', err);
+          alert('Lỗi khởi tạo đấu trường: ' + err.message);
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fa-solid fa-bolt"></i> Khởi Tạo & Vào Phòng Chờ (Host)';
+          }
+        }
       };
     }
   },
 
-  async createNewArenaRoom({ title, mode, source, qCount, timerSec, targetClass, goalCap = 0, powerUpFrequency = 'normal' }) {
+  async createNewArenaRoom({ title, mode, source, questions = null, qCount = 15, timerSec = 20, targetClass = 'all', goalCap = 0, powerUpFrequency = 'normal' }) {
     // 1. Sinh mã PIN 6 số ngẫu nhiên
     const pin = String(Math.floor(100000 + Math.random() * 900000));
 
-    // 2. Lấy câu hỏi theo nguồn
-    let questions = [];
-    if (source.startsWith('pkg_')) {
-      const pkgId = source.replace('pkg_', '');
-      const pkg = Storage.getAllTeacherContributions().find(p => p.id === pkgId);
-      if (pkg && pkg.questions) questions = [...pkg.questions];
-    } else {
-      const grade = source.replace('grade_', '');
-      try {
-        if (typeof this.loadGradeFn === 'function') {
-          questions = await this.loadGradeFn(grade);
-        } else if (typeof window !== 'undefined' && typeof window.App?.loadGradeData === 'function') {
-          questions = await window.App.loadGradeData(grade);
-        } else {
-          const res = await fetch(`data/grade_${grade}.json`);
-          if (res.ok) questions = await res.json();
+    // 2. Lấy câu hỏi theo nguồn nếu chưa truyền vào
+    let candidateQuestions = questions;
+    if (!candidateQuestions || candidateQuestions.length === 0) {
+      if (source.startsWith('pkg_')) {
+        const pkgId = source.replace('pkg_', '');
+        const pkg = Storage.getAllTeacherContributions().find(p => p.id === pkgId);
+        if (pkg && pkg.questions) candidateQuestions = [...pkg.questions];
+      } else {
+        const grade = source.replace('grade_', '');
+        try {
+          if (typeof this.loadGradeFn === 'function') {
+            candidateQuestions = await this.loadGradeFn(grade);
+          } else if (typeof window !== 'undefined' && typeof window.App?.loadGradeData === 'function') {
+            candidateQuestions = await window.App.loadGradeData(grade);
+          } else {
+            const res = await fetch(`data/grade_${grade}.json`);
+            if (res.ok) candidateQuestions = await res.json();
+          }
+        } catch (err) {
+          console.warn('Không tải được câu hỏi khối:', grade, err);
         }
-      } catch (err) {
-        console.warn('Không tải được câu hỏi khối:', grade, err);
       }
     }
 
-    if (!questions || questions.length === 0) {
+    if (!candidateQuestions || candidateQuestions.length === 0) {
       if (typeof alert === 'function') {
         alert('Không tìm thấy câu hỏi cho nguồn đề đã chọn. Vui lòng kiểm tra lại!');
       }
@@ -1055,7 +1504,7 @@ const Arena = {
     }
 
     // Xáo trộn và cắt đúng số lượng câu hỏi giáo dục (Decoupled questions)
-    const shuffledQuestions = [...questions].sort(() => 0.5 - Math.random()).slice(0, qCount);
+    const shuffledQuestions = [...candidateQuestions].sort(() => 0.5 - Math.random()).slice(0, qCount);
     const hostUser = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
 
     // 3. Khởi tạo Normalized Session State thông qua GameEngine
