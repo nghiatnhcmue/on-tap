@@ -4,9 +4,9 @@
  * Cho phép: Thêm, Sửa, Xóa câu hỏi trong ngân hàng đề, lọc và tìm kiếm trực quan.
  */
 
-import { Storage } from './storage.js?v=20261102_85';
-import { Auth } from './auth.js?v=20261102_85';
-import { escapeHtml } from './utils.js?v=20261102_85';
+import { Storage } from './storage.js?v=20261102_86';
+import { Auth } from './auth.js?v=20261102_86';
+import { escapeHtml } from './utils.js?v=20261102_86';
 
 export const QuestionsManager = {
   container: null,

@@ -3,11 +3,42 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content, maximum-scale=5.0" />
-  <title>TinHocHub - Nền Tảng Học & Luyện Thi Tin Học THPT</title>
+  <title>TinHocHub - Cùng học Tin Học</title>
   <meta name="description" content="Nền tảng học tập thông minh môn Tin học THPT với ngân hàng câu hỏi chọn lọc, bài giảng video tương tác và hệ thống thi trực tuyến hiện đại." />
-  
-  <!-- Favicon -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💻</text></svg>" />
+  <meta name="application-name" content="TinHocHub - Cùng học Tin Học" />
+  <meta name="apple-mobile-web-app-title" content="TinHocHub - Cùng học Tin Học" />
+
+  <!-- Open Graph / Social Link Preview (MS Teams, Zalo, Facebook, Messenger, Telegram) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="TinHocHub - Cùng học Tin Học" />
+  <meta property="og:title" content="TinHocHub - Cùng học Tin Học" />
+  <meta property="og:description" content="Nền tảng học tập thông minh môn Tin học THPT với ngân hàng câu hỏi chọn lọc, bài giảng video tương tác và hệ thống thi trực tuyến hiện đại." />
+  <meta property="og:url" content="https://on-tap.nghiaedu.workers.dev/" />
+  <meta property="og:image" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261102_86" />
+  <meta property="og:image:secure_url" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261102_86" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="TinHocHub - Cùng học Tin Học" />
+  <meta property="og:image" content="https://on-tap.nghiaedu.workers.dev/assets/logo.png?v=20261102_86" />
+  <meta property="og:image:width" content="512" />
+  <meta property="og:image:height" content="512" />
+
+  <!-- Twitter / Large Summary Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="TinHocHub - Cùng học Tin Học" />
+  <meta name="twitter:description" content="Nền tảng học tập thông minh môn Tin học THPT với ngân hàng câu hỏi chọn lọc, bài giảng video tương tác và hệ thống thi trực tuyến hiện đại." />
+  <meta name="twitter:image" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261102_86" />
+
+  <!-- Schema.org / Microdata -->
+  <meta itemprop="name" content="TinHocHub - Cùng học Tin Học" />
+  <meta itemprop="description" content="Nền tảng học tập thông minh môn Tin học THPT với ngân hàng câu hỏi chọn lọc, bài giảng video tương tác và hệ thống thi trực tuyến hiện đại." />
+  <meta itemprop="image" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261102_86" />
+
+  <!-- Favicon & App Icons -->
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon.png?v=20261102_86" />
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=20261102_86" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=20261102_86" />
 
   <!-- Preconnect to video CDN (Archive.org & Google CDN) to accelerate media stream buffering -->
   <link rel="preconnect" href="https://archive.org" crossorigin />
@@ -50,7 +81,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261102_85" />
+  <link rel="stylesheet" href="css/style.css?v=20261102_86" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -168,7 +199,7 @@
         });
 
         // Nạp động module Auth để mở Google Popup ngay lập tức
-        import('./js/auth.js?v=20261102_85').then(function(mod) {
+        import('./js/auth.js?v=20261102_86').then(function(mod) {
           if (mod && mod.Auth) {
             window.Auth = mod.Auth;
             mod.Auth.signInWithGoogleFirebase();
@@ -344,15 +375,13 @@
       
       <!-- Brand Logo -->
       <a href="#" data-tab-target="home" class="flex items-center gap-2 sm:gap-3 group shrink-0">
-        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-base sm:text-lg shadow-md shadow-blue-500/20 group-hover:scale-105 transition">
-          <i class="fa-solid fa-laptop-code"></i>
-        </div>
+        <img src="assets/logo-icon.png?v=20261102_86" alt="TinHocHub Logo" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl object-contain bg-white shadow-md shadow-blue-500/15 border border-slate-200/70 dark:border-slate-700 group-hover:scale-105 transition p-0.5" />
         <div>
-          <span class="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white block leading-none">
-            TinHoc<span class="text-blue-600 dark:text-blue-400">Hub</span>
+          <span class="text-base sm:text-lg font-black tracking-tight text-blue-700 dark:text-blue-400 block leading-none">
+            TinHoc<span class="text-emerald-500 dark:text-emerald-400">Hub</span>
           </span>
           <span class="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider text-slate-400 hidden sm:block mt-0.5">
-            Học tập & Luyện thi
+            Cùng học Tin Học
           </span>
         </div>
       </a>
@@ -1695,14 +1724,12 @@
 
       <!-- Header thương hiệu TinHocHub -->
       <div class="text-center mb-6">
-        <div class="w-16 h-16 rounded-3xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center mx-auto mb-3 text-3xl shadow-lg shadow-blue-500/25">
-          <i class="fa-solid fa-graduation-cap"></i>
-        </div>
+        <img src="assets/logo.png?v=20261102_86" alt="TinHocHub - Cùng học Tin Học" class="w-20 h-20 rounded-2xl object-contain bg-white mx-auto mb-3 shadow-lg shadow-blue-500/15 border border-slate-200/70 dark:border-slate-700 p-1" />
         <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[10px] font-black uppercase tracking-wider mb-2">
           <i class="fa-solid fa-shield-halved text-[9px]"></i> Yêu cầu xác thực tài khoản
         </div>
         <h3 class="text-xl sm:text-2xl font-black text-slate-800 dark:text-white mb-1">
-          TinHocHub - Chào Mừng Bạn
+          TinHocHub - Cùng học Tin Học
         </h3>
         <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-sm mx-auto">
           Đăng nhập hoặc đăng ký tài khoản để bắt đầu học tập, làm bài kiểm tra và theo dõi tiến trình của bạn.
@@ -3278,8 +3305,8 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   <footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-8 no-print transition-colors">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center gap-4 text-xs text-slate-500 dark:text-slate-400">
       <div class="flex items-center gap-2">
-        <span class="w-6 h-6 rounded-lg bg-blue-600 text-white font-black flex items-center justify-center text-[10px]">TH</span>
-        <span><strong>TinHocHub</strong> - Nền tảng học tập & luyện thi Tin học THPT</span>
+        <img src="assets/logo-icon.png?v=20261102_86" alt="TinHocHub" class="w-6 h-6 rounded-lg object-contain bg-white border border-slate-200 dark:border-slate-700 p-0.5" />
+        <span><strong>TinHocHub - Cùng học Tin Học</strong> • Nền tảng học tập & luyện thi Tin học THPT</span>
       </div>
 
     </div>
@@ -3294,7 +3321,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261102_85"></script>
+  <script type="module" src="js/app.js?v=20261102_86"></script>
 </body>
 </html>
 
