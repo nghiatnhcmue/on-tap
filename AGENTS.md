@@ -304,7 +304,13 @@ Hệ thống tích hợp mô hình Đấu trường Gamification học tập đ�
   - `TRIGGER_ACTION`: Xử lý nguyên tử các thao tác tương tác đa người chơi (mở rương, cướp vàng có kiểm tra khiên bảo vệ). Nếu nạn nhân có Khiên Thần, khiên sẽ tự động tiêu hao để chặn đòn cướp vàng.
   - `SYNC_STATE`: Tạo delta cập nhật thu gọn (Lightweight Leaderboard Delta) truyền qua WebSocket / Firebase RTDB, tránh nghẽn băng thông mạng.
 - **4. Quy Trình Tạo Trận Đấu 3 Bước Dành Cho Giáo Viên (Host Flow):**
-  - **Bước 1 (Quiz Set):** Chọn ngân hàng câu hỏi (Khối 10, 11, 12 hoặc Gói Đề Excel đóng góp) và số câu hỏi (10, 15, 20, 25, 30 câu).
+  - **Bước 1 (Quiz Set & Question Selector tương tự Phòng thi):**
+    - Chọn ngân hàng câu hỏi (Khối 10, 11, 12 hoặc Gói Đề Excel đóng góp) và số câu hỏi (10, 15, 20, 25, 30, 40 câu hoặc toàn bộ).
+    - Hỗ trợ 4 chế độ phạm vi câu hỏi linh hoạt:
+      - 🌐 **Toàn khối:** Trộn ngẫu nhiên từ toàn bộ ngân hàng câu hỏi của khối.
+      - 📁 **Theo Chủ đề:** Lọc câu hỏi theo từng Chủ đề cụ thể trong chương trình.
+      - 📖 **Theo Bài học (Multi-lessons Checklist):** Danh sách tích chọn nhiều bài học độc lập kèm thống kê số câu của từng bài, nút "Chọn tất cả" / "Bỏ chọn".
+      - 📝 **Chọn từng câu cụ thể:** Bảng duyệt trực tiếp câu hỏi kèm bộ lọc từ khóa, lọc bài học, lọc mức độ nhận thức (Biết, Hiểu, Vận dụng, Vận dụng cao), xem trước 4 phương án A, B, C, D kèm đáp án đúng, tích chọn từng câu hoặc chọn tất cả câu đang lọc.
   - **Bước 2 (Game Mode):** Chọn chế độ chơi (Resource Quest, Speed Race, Boss Raid, Classic Kahoot).
   - **Bước 3 (Mode Parameters):** Thiết lập thời gian mỗi câu (15s-45s), Mục tiêu kết thúc (Goal Cap: 500-2500 vàng hoặc thi hết câu hỏi), Tần suất phần thưởng (Thấp, Tiêu chuẩn, Cao) và Phân lớp ghi sổ điểm tự động.
 - **5. Phía Học Sinh (Student HUD & Action Dynamic Injection):**
