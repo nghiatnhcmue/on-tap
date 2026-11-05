@@ -5,10 +5,10 @@
  * Cơ sở dữ liệu đám mây, Tải lên Video bài giảng Archive.org S3, Dọn dẹp/Sao lưu.
  */
 
-import { Storage } from './storage.js?v=20261102_95';
-import { Auth } from './auth.js?v=20261102_95';
-import { escapeHtml } from './utils.js?v=20261102_95';
-import { CloudSync, DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261102_95';
+import { Storage } from './storage.js?v=20261102_96';
+import { Auth } from './auth.js?v=20261102_96';
+import { escapeHtml } from './utils.js?v=20261102_96';
+import { CloudSync, DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261102_96';
 
 export const AdminManager = {
   container: null,
@@ -1657,11 +1657,12 @@ export const AdminManager = {
     const nameEl = document.getElementById('admin-user-edit-name');
     const emailEl = document.getElementById('admin-user-edit-email');
     const roleEl = document.getElementById('admin-user-edit-role');
-    const gradeEl = document.getElementById('admin-user-edit-grade');
-    const schoolEl = document.getElementById('admin-user-edit-school');
-    const classEl = document.getElementById('admin-user-edit-class');
     const passEl = document.getElementById('admin-user-edit-password');
     const passHintEl = document.getElementById('admin-user-edit-pass-hint');
+
+    const curSchool = user ? (user.school || '') : '';
+    const curGrade = user ? (user.grade || '12') : '12';
+    const curClass = user ? (user.className || '') : '';
 
     if (user) {
       if (titleEl) titleEl.textContent = `Chỉnh Sửa Tài Khoản: ${user.fullName || user.email}`;
@@ -1672,9 +1673,6 @@ export const AdminManager = {
         emailEl.placeholder = 'an.nguyen@emasi.edu.vn';
       }
       if (roleEl) roleEl.value = user.role || 'student';
-      if (gradeEl) gradeEl.value = user.grade || '12';
-      if (schoolEl) schoolEl.value = user.school || '';
-      if (classEl) classEl.value = user.className || '';
       if (passEl) {
         passEl.value = '';
         passEl.required = false;
@@ -1687,15 +1685,26 @@ export const AdminManager = {
       if (nameEl) nameEl.value = '';
       if (emailEl) emailEl.value = '';
       if (roleEl) roleEl.value = 'student';
-      if (gradeEl) gradeEl.value = '12';
-      if (schoolEl) schoolEl.value = '';
-      if (classEl) classEl.value = '';
       if (passEl) {
         passEl.value = '';
         passEl.required = true;
         passEl.placeholder = 'Nhập mật khẩu (tối thiểu 6 ký tự)';
       }
       if (passHintEl) passHintEl.textContent = '(Bắt buộc khi thêm mới, tối thiểu 6 ký tự)';
+    }
+
+    // Thiết lập dropdown chọn Trường - Khối - Lớp chuẩn hóa
+    if (Auth && typeof Auth.setupSchoolClassSync === 'function') {
+      Auth.setupSchoolClassSync({
+        schoolSelectId: 'admin-user-edit-school',
+        customSchoolInputId: 'admin-user-edit-school-custom',
+        gradeSelectId: 'admin-user-edit-grade',
+        classSelectId: 'admin-user-edit-class',
+        customClassInputId: 'admin-user-edit-class-custom',
+        initialSchool: curSchool,
+        initialGrade: curGrade,
+        initialClass: curClass
+      });
     }
 
     modal.classList.remove('hidden');
@@ -1735,15 +1744,31 @@ export const AdminManager = {
       metaSubEl.textContent = `Nộp lúc: ${dateStr} • Mã đề: ${item.examCode || '101'} • Phòng: ${item.roomId || 'Tự do'}`;
     }
     if (nameEl) nameEl.value = item.studentName || '';
-    if (classEl) classEl.value = item.studentClass || '';
-    if (schoolEl) schoolEl.value = item.studentSchool || '';
-    if (gradeEl) gradeEl.value = item.grade || '12';
     if (scoreEl) scoreEl.value = Number(item.score) || 0;
     if (correctEl) correctEl.value = item.correctCount || 0;
     if (totalEl) totalEl.value = item.totalQuestions || 28;
     if (violEl) violEl.value = item.violationCount || 0;
     if (disqEl) disqEl.checked = !!item.isDisqualified;
     if (noteEl) noteEl.value = item.teacherNote || '';
+
+    modal.classList.remove('hidden');
+    const curSchool = item.studentSchool || '';
+    const curGrade = item.grade || '12';
+    const curClass = item.studentClass || '';
+
+    // Thiết lập dropdown chọn Trường - Khối - Lớp chuẩn hóa cho kết quả bài thi
+    if (Auth && typeof Auth.setupSchoolClassSync === 'function') {
+      Auth.setupSchoolClassSync({
+        schoolSelectId: 'admin-result-edit-school',
+        customSchoolInputId: 'admin-result-edit-school-custom',
+        gradeSelectId: 'admin-result-edit-grade',
+        classSelectId: 'admin-result-edit-class',
+        customClassInputId: 'admin-result-edit-class-custom',
+        initialSchool: curSchool,
+        initialGrade: curGrade,
+        initialClass: curClass
+      });
+    }
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');
@@ -2597,8 +2622,13 @@ export const AdminManager = {
         const emailOrUser = document.getElementById('admin-user-edit-email')?.value.trim();
         const role = document.getElementById('admin-user-edit-role')?.value || 'student';
         const grade = document.getElementById('admin-user-edit-grade')?.value || '12';
-        const school = document.getElementById('admin-user-edit-school')?.value.trim();
-        const className = document.getElementById('admin-user-edit-class')?.value.trim();
+        const schoolSelectVal = document.getElementById('admin-user-edit-school')?.value;
+        const customSchoolVal = document.getElementById('admin-user-edit-school-custom')?.value.trim();
+        const school = (schoolSelectVal === '__other__' ? customSchoolVal : schoolSelectVal) || '';
+
+        const classSelectVal = document.getElementById('admin-user-edit-class')?.value;
+        const customClassVal = document.getElementById('admin-user-edit-class-custom')?.value.trim();
+        const className = (classSelectVal === '__other__' ? customClassVal : classSelectVal) || '';
         const password = document.getElementById('admin-user-edit-password')?.value.trim();
 
         if (!fullName || !emailOrUser) {
@@ -2780,8 +2810,13 @@ export const AdminManager = {
         e.preventDefault();
         const id = document.getElementById('admin-result-edit-id')?.value;
         const studentName = document.getElementById('admin-result-edit-name')?.value.trim();
-        const studentClass = document.getElementById('admin-result-edit-class')?.value.trim();
-        const studentSchool = document.getElementById('admin-result-edit-school')?.value.trim();
+        const schoolSelectVal = document.getElementById('admin-result-edit-school')?.value;
+        const customSchoolVal = document.getElementById('admin-result-edit-school-custom')?.value.trim();
+        const studentSchool = (schoolSelectVal === '__other__' ? customSchoolVal : schoolSelectVal) || '';
+
+        const classSelectVal = document.getElementById('admin-result-edit-class')?.value;
+        const customClassVal = document.getElementById('admin-result-edit-class-custom')?.value.trim();
+        const studentClass = (classSelectVal === '__other__' ? customClassVal : classSelectVal) || '';
         const grade = document.getElementById('admin-result-edit-grade')?.value;
         const score = parseFloat(document.getElementById('admin-result-edit-score')?.value);
         const correctCount = parseInt(document.getElementById('admin-result-edit-correct')?.value, 10);
