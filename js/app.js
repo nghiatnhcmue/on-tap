@@ -3,24 +3,24 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261102_86';
-import { Practice } from './practice.js?v=20261102_86';
-import { Exam } from './exam.js?v=20261102_86';
-import { Search } from './search.js?v=20261102_86';
-import { PrintManager } from './print.js?v=20261102_86';
-import { Auth } from './auth.js?v=20261102_86';
-import { escapeHtml } from './utils.js?v=20261102_86';
-import { Leaderboard } from './leaderboard.js?v=20261102_86';
-import { QuestionsManager } from './questions-manager.js?v=20261102_86';
-import { AdminManager } from './admin-manager.js?v=20261102_86';
-import { ExamRooms } from './exam-rooms.js?v=20261102_86';
-import { Proctor } from './proctor.js?v=20261102_86';
-import { Gradebook } from './gradebook.js?v=20261102_86';
-import { CloudSync } from './cloud-sync.js?v=20261102_86';
-import { InteractiveVideo } from './interactive-video.js?v=20261102_86';
-import { LiveVideo } from './live-video.js?v=20261102_86';
-import Arena from './arena.js?v=20261102_86';
-import RandomPicker from './random-picker.js?v=20261102_86';
+import { Storage } from './storage.js?v=20261102_87';
+import { Practice } from './practice.js?v=20261102_87';
+import { Exam } from './exam.js?v=20261102_87';
+import { Search } from './search.js?v=20261102_87';
+import { PrintManager } from './print.js?v=20261102_87';
+import { Auth } from './auth.js?v=20261102_87';
+import { escapeHtml } from './utils.js?v=20261102_87';
+import { Leaderboard } from './leaderboard.js?v=20261102_87';
+import { QuestionsManager } from './questions-manager.js?v=20261102_87';
+import { AdminManager } from './admin-manager.js?v=20261102_87';
+import { ExamRooms } from './exam-rooms.js?v=20261102_87';
+import { Proctor } from './proctor.js?v=20261102_87';
+import { Gradebook } from './gradebook.js?v=20261102_87';
+import { CloudSync } from './cloud-sync.js?v=20261102_87';
+import { InteractiveVideo } from './interactive-video.js?v=20261102_87';
+import { LiveVideo } from './live-video.js?v=20261102_87';
+import Arena from './arena.js?v=20261102_87';
+import RandomPicker from './random-picker.js?v=20261102_87';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -195,7 +195,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261102_86');
+      const res = await fetch('data/manifest.json?v=20261102_87');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;

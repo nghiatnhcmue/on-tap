@@ -3,9 +3,9 @@
  * Quản lý tính năng Ôn tập chuyên đề, luyện tập trắc nghiệm, đúng/sai, trả lời ngắn
  */
 
-import { Storage } from './storage.js?v=20261102_86';
-import { Auth } from './auth.js?v=20261102_86';
-import { escapeHtml } from './utils.js?v=20261102_86';
+import { Storage } from './storage.js?v=20261102_87';
+import { Auth } from './auth.js?v=20261102_87';
+import { escapeHtml } from './utils.js?v=20261102_87';
 
 export const Practice = {
   questions: [],

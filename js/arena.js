@@ -11,11 +11,11 @@ import defaultGameEngine, {
   SpeedRaceHandler,
   BossRaidHandler,
   ClassicKahootHandler
-} from './game-engine.js?v=20261102_86';
-import { Storage } from './storage.js?v=20261102_86';
-import { Auth } from './auth.js?v=20261102_86';
-import { CloudSync } from './cloud-sync.js?v=20261102_86';
-import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_86';
+} from './game-engine.js?v=20261102_87';
+import { Storage } from './storage.js?v=20261102_87';
+import { Auth } from './auth.js?v=20261102_87';
+import { CloudSync } from './cloud-sync.js?v=20261102_87';
+import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_87';
 import {
   AVATARS,
   AVATAR_CATEGORIES,
@@ -24,7 +24,7 @@ import {
   renderAvatarSVG,
   getAvatar,
   randomAvatarId
-} from './avatars.js?v=20261102_86';
+} from './avatars.js?v=20261102_87';
 
 // Định nghĩa an toàn tuyệt đối cho hàm escapeHtml trong scope của arena.js
 function escapeHtml(str) {
@@ -385,16 +385,6 @@ const Arena = {
                     Trải nghiệm cổ điển với biểu đồ cột thống kê đáp án A, B, C, D sau mỗi câu và bục vinh danh Podium 3D trao cúp rực rỡ.
                   </p>
                 </div>
-              </div>
-            </div>
-
-            <!-- LMS Integration Banner -->
-            <div class="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center gap-3">
-              <div class="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center text-base shrink-0">
-                <i class="fa-solid fa-graduation-cap"></i>
-              </div>
-              <div class="text-xs text-emerald-900 dark:text-emerald-200">
-                <strong>Hệ thống LMS Chỉnh Chu:</strong> Tự động đồng bộ điểm số vào Sổ Điểm Điện Tử Lớp, phân tích câu hỏi học sinh hay sai nhiều nhất và xuất file Excel chuẩn quốc tế.
               </div>
             </div>
 
