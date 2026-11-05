@@ -10,12 +10,12 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261102_90';
-import { Storage } from './storage.js?v=20261102_90';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261102_90';
-import { escapeHtml } from './utils.js?v=20261102_90';
-import { Proctor } from './proctor.js?v=20261102_90';
-import { Gradebook } from './gradebook.js?v=20261102_90';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261102_91';
+import { Storage } from './storage.js?v=20261102_91';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261102_91';
+import { escapeHtml } from './utils.js?v=20261102_91';
+import { Proctor } from './proctor.js?v=20261102_91';
+import { Gradebook } from './gradebook.js?v=20261102_91';
 
 export const LiveVideo = {
   manifest: null,
@@ -48,7 +48,9 @@ export const LiveVideo = {
   getBaseDbUrl() {
     if (typeof Storage !== 'undefined' && typeof Storage.getFirebaseDbUrl === 'function') {
       const customUrl = Storage.getFirebaseDbUrl();
-      if (customUrl && customUrl.trim()) return customUrl.trim().replace(/\/+$/, '');
+      if (customUrl && customUrl.trim() && !customUrl.includes('on-tap-tinhoc-default-rtdb') && !customUrl.includes('firebaseio.com')) {
+        return customUrl.trim().replace(/\/+$/, '');
+      }
     }
     return DEFAULT_FIREBASE_DB_URL.trim().replace(/\/+$/, '');
   },

@@ -11,11 +11,11 @@ import defaultGameEngine, {
   SpeedRaceHandler,
   BossRaidHandler,
   ClassicKahootHandler
-} from './game-engine.js?v=20261102_90';
-import { Storage } from './storage.js?v=20261102_90';
-import { Auth } from './auth.js?v=20261102_90';
-import { CloudSync } from './cloud-sync.js?v=20261102_90';
-import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_90';
+} from './game-engine.js?v=20261102_91';
+import { Storage } from './storage.js?v=20261102_91';
+import { Auth } from './auth.js?v=20261102_91';
+import { CloudSync } from './cloud-sync.js?v=20261102_91';
+import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_91';
 import {
   AVATARS,
   AVATAR_CATEGORIES,
@@ -24,7 +24,7 @@ import {
   renderAvatarSVG,
   getAvatar,
   randomAvatarId
-} from './avatars.js?v=20261102_90';
+} from './avatars.js?v=20261102_91';
 
 // Định nghĩa an toàn tuyệt đối cho hàm escapeHtml trong scope của arena.js
 function escapeHtml(str) {
@@ -179,9 +179,11 @@ const Arena = {
   getBaseDbUrl() {
     if (typeof Storage !== 'undefined' && typeof Storage.getFirebaseDbUrl === 'function') {
       const url = Storage.getFirebaseDbUrl();
-      if (url && url.trim()) return url.trim().replace(/\/+$/, '');
+      if (url && url.trim() && !url.includes('on-tap-tinhoc-default-rtdb') && !url.includes('firebaseio.com')) {
+        return url.trim().replace(/\/+$/, '');
+      }
     }
-    return 'https://on-tap-tinhoc-default-rtdb.firebaseio.com';
+    return 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
   },
 
   renderMainView() {

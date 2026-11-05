@@ -2412,10 +2412,15 @@ export const Storage = {
     try {
       const custom = localStorage.getItem('tinhoc_cloud_db_url');
       if (custom && custom.trim().startsWith('http')) {
-        return custom.trim().replace(/\/+$/, '');
+        const u = custom.trim().replace(/\/+$/, '');
+        if (u.includes('on-tap-tinhoc-default-rtdb') || u.includes('firebaseio.com')) {
+          localStorage.removeItem('tinhoc_cloud_db_url');
+        } else {
+          return u;
+        }
       }
     } catch {}
-    return 'https://on-tap-tinhoc-default-rtdb.firebaseio.com';
+    return 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
   },
 
   // --- QUẢN LÝ DANH SÁCH LỚP HỌC CHO BỘ RANDOM GỌI TÊN ---
