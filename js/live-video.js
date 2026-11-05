@@ -10,12 +10,12 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261102_94';
-import { Storage } from './storage.js?v=20261102_94';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261102_94';
-import { escapeHtml } from './utils.js?v=20261102_94';
-import { Proctor } from './proctor.js?v=20261102_94';
-import { Gradebook } from './gradebook.js?v=20261102_94';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261102_95';
+import { Storage } from './storage.js?v=20261102_95';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261102_95';
+import { escapeHtml } from './utils.js?v=20261102_95';
+import { Proctor } from './proctor.js?v=20261102_95';
+import { Gradebook } from './gradebook.js?v=20261102_95';
 
 export const LiveVideo = {
   manifest: null,
@@ -349,43 +349,91 @@ export const LiveVideo = {
       const user = Auth.getCurrentUser();
       const dbUrl = this.getBaseDbUrl();
 
-      // Nạp danh sách câu hỏi dừng của video này
-      let questions = [];
+      // Nạp danh sách câu hỏi dừng của video này (chỉ mốc dừng thực sự > 5 giây)
+      let candidateQuestions = [];
       try {
         // 1. Ưu tiên câu hỏi tùy biến của giáo viên nếu có
         const customQ = Storage.getCustomVideoQuestions(grade, videoFileName);
         if (customQ && Array.isArray(customQ) && customQ.length > 0) {
-          questions = customQ;
+          candidateQuestions = customQ.filter(q => q.video_stop !== null && q.video_stop !== undefined && parseInt(q.video_stop, 10) > 5);
         } else {
           // 2. Nạp từ ngân hàng câu hỏi gốc của khối
+          let allGradeQ = [];
           if (window.App && typeof window.App.loadGradeData === 'function') {
             await window.App.loadGradeData(grade);
-            const allGradeQ = window.App.gradeCache?.[grade] || [];
-            questions = allGradeQ.filter(q => q.video && q.video.toLowerCase() === videoFileName.toLowerCase() && q.video_stop !== undefined);
+            allGradeQ = window.App.gradeCache?.[grade] || [];
           }
-          if (questions.length === 0) {
+          if (allGradeQ.length === 0) {
             const gRes = await fetch(`data/grade_${grade}.json`);
-            if (gRes.ok) {
-              const gAll = await gRes.json();
-              questions = gAll.filter(q => q.video && q.video.toLowerCase() === videoFileName.toLowerCase() && q.video_stop !== undefined);
-            }
+            if (gRes.ok) allGradeQ = await gRes.json();
           }
+          candidateQuestions = allGradeQ.filter(q => {
+            if (!q.video || q.video.toLowerCase() !== videoFileName.toLowerCase()) return false;
+            if (q.video_stop === null || q.video_stop === undefined) return false;
+            const s = parseInt(q.video_stop, 10);
+            return !isNaN(s) && s > 5;
+          });
         }
       } catch (e) {
         console.warn('Lỗi nạp câu hỏi cho Live Room:', e);
       }
 
-      // Xây dựng checkpoints
-      const checkpoints = questions.map((q, idx) => ({
-        index: idx,
-        id: q.id || `q_${idx}`,
-        sec: parseInt(q.video_stop || '0', 10),
-        question: q.question,
-        options: q.options || [],
-        answer: q.answer,
-        level: q.level || '1',
-        timeLimit: parseInt(q.video_time || countdownSec || '20', 10)
-      })).sort((a, b) => a.sec - b.sec);
+      // Nhóm câu hỏi theo từng mốc giây (chỉ mốc > 5 giây) để đảm bảo video chiếu trước rồi mới hiện câu hỏi
+      const groupsBySec = {};
+      candidateQuestions.forEach(q => {
+        const s = parseInt(q.video_stop, 10);
+        if (!groupsBySec[s]) groupsBySec[s] = [];
+        groupsBySec[s].push(q);
+      });
+
+      let sortedSecs = Object.keys(groupsBySec).map(Number).sort((a, b) => a - b);
+      let checkpoints = [];
+
+      if (sortedSecs.length > 0) {
+        checkpoints = sortedSecs.map((sec, idx) => {
+          const pool = groupsBySec[sec];
+          const q = pool[Math.floor(Math.random() * pool.length)] || pool[0];
+          return {
+            index: idx,
+            id: q.id || `q_${idx}`,
+            sec: sec,
+            question: q.question,
+            options: q.options || [],
+            answer: q.answer,
+            level: q.level || '1',
+            timeLimit: parseInt(q.video_time || countdownSec || '20', 10)
+          };
+        });
+      } else {
+        // Fallback: nếu questions chưa gắn video_stop, lấy checkpoints từ manifest và ghép với câu hỏi của bài học
+        const manifest = this.manifest || window.App?.manifest;
+        const vInfo = manifest?.grades?.[grade]?.interactive_videos?.[videoFileName] ||
+                      manifest?.grades?.[grade]?.interactive_videos?.[videoFileName.toLowerCase()];
+        const manifestCps = Array.isArray(vInfo?.checkpoints) ? vInfo.checkpoints.map(Number).filter(s => s > 5).sort((a, b) => a - b) : [];
+        
+        let allGradeQ = window.App?.gradeCache?.[grade] || [];
+        const lessonQuestions = allGradeQ.filter(q => q.lesson && lessonTitle && q.lesson.toLowerCase().includes(lessonTitle.toLowerCase()));
+
+        checkpoints = manifestCps.map((sec, idx) => {
+          const q = lessonQuestions[idx % (lessonQuestions.length || 1)] || {
+            id: `q_gen_${idx}`,
+            question: `Câu hỏi củng cố kiến thức tại mốc ${this.formatTime(sec)}`,
+            options: ['Phương án A', 'Phương án B', 'Phương án C', 'Phương án D'],
+            answer: 'A',
+            level: '1'
+          };
+          return {
+            index: idx,
+            id: q.id || `q_${idx}`,
+            sec: sec,
+            question: q.question,
+            options: q.options || [],
+            answer: q.answer,
+            level: q.level || '1',
+            timeLimit: parseInt(countdownSec || '20', 10)
+          };
+        });
+      }
 
       const requireApprovalEl = document.getElementById('live-input-require-approval');
       const requireApproval = requireApprovalEl ? !!requireApprovalEl.checked : false;
@@ -414,17 +462,29 @@ export const LiveVideo = {
         updatedAt: Date.now()
       };
 
-      // Ghi lên Firebase RTDB
-      const res = await fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(roomPayload)
-      });
-
-      if (!res.ok) {
-        throw new Error(`Firebase RTDB phản hồi HTTP ${res.status}`);
+      // Ghi lên Firebase RTDB (với cơ chế Fallback chống chặn giao diện khi lỗi mạng)
+      let cloudOk = false;
+      try {
+        const res = await fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(roomPayload)
+        });
+        if (res.ok) {
+          cloudOk = true;
+        } else {
+          console.warn(`Firebase RTDB phản hồi HTTP ${res.status}. Hệ thống chuyển sang lưu trữ cục bộ.`);
+        }
+      } catch (cloudErr) {
+        console.warn('Lỗi kết nối Firebase RTDB:', cloudErr);
       }
 
+      // Lưu trữ dự phòng cục bộ để không bao giờ bị mất bài
+      try {
+        const localRooms = JSON.parse(localStorage.getItem('tinhoc_live_video_rooms') || '{}');
+        localRooms[roomId] = roomPayload;
+        localStorage.setItem('tinhoc_live_video_rooms', JSON.stringify(localRooms));
+      } catch (e) {}
       // Đóng modal tạo
       document.getElementById('modal-create-live-video-room')?.classList.add('hidden');
 
@@ -517,6 +577,15 @@ export const LiveVideo = {
             roomData = altData;
           }
         }
+      }
+
+      if (!roomData || !roomData.roomId) {
+        try {
+          const localRooms = JSON.parse(localStorage.getItem("tinhoc_live_video_rooms") || "{}");
+          if (localRooms[resolvedRoomId] || localRooms[`LIVE-${resolvedRoomId}`]) {
+            roomData = localRooms[resolvedRoomId] || localRooms[`LIVE-${resolvedRoomId}`];
+          }
+        } catch (e) {}
       }
 
       if (!roomData || !roomData.roomId) {
@@ -2605,6 +2674,7 @@ export const LiveVideo = {
 
     const btnPlayPause = document.getElementById('btn-master-play-pause');
     if (btnPlayPause) btnPlayPause.onclick = toggleMasterPlayPause;
+    if (video) video.onclick = toggleMasterPlayPause;
 
     const btnHeaderStartPause = document.getElementById('btn-master-header-start-pause');
     if (btnHeaderStartPause) btnHeaderStartPause.onclick = toggleMasterPlayPause;
@@ -2686,11 +2756,13 @@ export const LiveVideo = {
           }).catch(() => {});
         }
 
-        // Bắt mốc dừng tự động nếu video chạy qua checkpoint
-        const nextQ = this.questionsList.find(q => Math.abs(cur - q.sec) < 0.6 && !q.triggered);
-        if (nextQ && !video.paused) {
-          nextQ.triggered = true;
-          this.triggerMasterQuestion(nextQ);
+        // Bắt mốc dừng tự động nếu video chạy qua checkpoint (chỉ khi video đã phát ít nhất 5 giây và mốc q.sec >= 5)
+        if (cur >= 5 && !video.paused) {
+          const nextQ = this.questionsList.find(q => Math.abs(cur - q.sec) < 0.6 && !q.triggered && q.sec >= 5);
+          if (nextQ) {
+            nextQ.triggered = true;
+            this.triggerMasterQuestion(nextQ);
+          }
         }
       };
 
