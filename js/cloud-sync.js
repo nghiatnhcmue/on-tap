@@ -10,7 +10,7 @@
  * 5. Cơ chế Local-First an toàn: Mất mạng vẫn làm bài bình thường, khi có mạng tự động đẩy dữ liệu lên đám mây.
  */
 
-import { Storage } from './storage.js?v=20261102_87';
+import { Storage } from './storage.js?v=20261102_88';
 
 const CLOUD_CONFIG_KEY = 'tinhoc_cloud_config';
 export const DEFAULT_FIREBASE_DB_URL = 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -1095,6 +1095,10 @@ export const CloudSync = {
     } catch (e) {
       console.warn('Lỗi đẩy câu hỏi lên cloud:', e);
     }
+  },
+
+  async pushQuestionsToCloud(grade = null) {
+    return await this.pushCustomQuestionsToCloud(grade);
   },
 
   // 6. ĐẨY TOÀN BỘ DỮ LIỆU LOCAL LÊN ĐÁM MÂY (FORCE PUSH)

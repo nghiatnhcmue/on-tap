@@ -3,9 +3,9 @@
  * Quản lý giao đề thi theo khung giờ, trường học, lớp học, mật khẩu và chống gian lận cho Giáo viên & Admin
  */
 
-import { Storage } from './storage.js?v=20261102_87';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261102_87';
-import { escapeHtml } from './utils.js?v=20261102_87';
+import { Storage } from './storage.js?v=20261102_88';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261102_88';
+import { escapeHtml } from './utils.js?v=20261102_88';
 
 export const ExamRooms = {
   container: null,
@@ -665,7 +665,15 @@ export const ExamRooms = {
     if (btnScopeQuestions) btnScopeQuestions.onclick = () => setScope('questions');
     if (btnScopeImport) btnScopeImport.onclick = () => setScope('import');
 
-    setScope(activeScope);
+    const btnScopeManual = document.getElementById('btn-scope-manual');
+    if (btnScopeManual) {
+      btnScopeManual.onclick = async () => {
+        await setScope('questions');
+        this.openManualQuestionModal();
+      };
+    }
+
+    return setScope(activeScope);
   },
 
   // Đổ danh sách Chủ đề & Bài học vào bộ lọc của khung chọn từng câu
@@ -2227,8 +2235,8 @@ Trí tuệ nhân tạo (AI) thường được ứng dụng phổ biến trong l
 
     const btnScopeManual = document.getElementById('btn-scope-manual');
     if (btnScopeManual) {
-      btnScopeManual.onclick = () => {
-        setScope('questions');
+      btnScopeManual.onclick = async () => {
+        await this.setupScopeSwitcher('questions');
         this.openManualQuestionModal();
       };
     }

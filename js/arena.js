@@ -11,11 +11,11 @@ import defaultGameEngine, {
   SpeedRaceHandler,
   BossRaidHandler,
   ClassicKahootHandler
-} from './game-engine.js?v=20261102_87';
-import { Storage } from './storage.js?v=20261102_87';
-import { Auth } from './auth.js?v=20261102_87';
-import { CloudSync } from './cloud-sync.js?v=20261102_87';
-import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_87';
+} from './game-engine.js?v=20261102_88';
+import { Storage } from './storage.js?v=20261102_88';
+import { Auth } from './auth.js?v=20261102_88';
+import { CloudSync } from './cloud-sync.js?v=20261102_88';
+import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_88';
 import {
   AVATARS,
   AVATAR_CATEGORIES,
@@ -24,7 +24,7 @@ import {
   renderAvatarSVG,
   getAvatar,
   randomAvatarId
-} from './avatars.js?v=20261102_87';
+} from './avatars.js?v=20261102_88';
 
 // Định nghĩa an toàn tuyệt đối cho hàm escapeHtml trong scope của arena.js
 function escapeHtml(str) {
@@ -324,66 +324,114 @@ const Arena = {
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <!-- Mode 1: Gold Quest -->
-              <div class="p-5 rounded-3xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-800 border-2 border-amber-200 dark:border-amber-800/60 space-y-3 relative overflow-hidden group hover:shadow-lg transition">
-                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 text-white flex items-center justify-center text-2xl shadow-sm">
-                  <i class="fa-solid fa-coins"></i>
-                </div>
-                <div>
-                  <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-200/60 dark:bg-amber-950 text-amber-900 dark:text-amber-300 text-[10px] font-bold uppercase">
-                    Blooket Style
+              <div class="p-5 rounded-3xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-800 border-2 border-amber-200 dark:border-amber-800/60 flex flex-col justify-between space-y-3 relative overflow-hidden group hover:shadow-lg transition">
+                <div class="space-y-3">
+                  <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 text-white flex items-center justify-center text-2xl shadow-sm">
+                    <i class="fa-solid fa-coins"></i>
                   </div>
-                  <h4 class="text-base font-black text-slate-800 dark:text-white mt-1">Đào Vàng & Rương Báu</h4>
-                  <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                    Trả lời đúng để mở 1 trong 3 rương báu bí mật: nhận Vàng, x2 Vàng Jackpot, Khiên Thần, hoặc Cướp vàng của bạn khác!
-                  </p>
+                  <div>
+                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-200/60 dark:bg-amber-950 text-amber-900 dark:text-amber-300 text-[10px] font-bold uppercase">
+                      Blooket Style
+                    </div>
+                    <h4 class="text-base font-black text-slate-800 dark:text-white mt-1">Đào Vàng & Rương Báu</h4>
+                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                      Trả lời đúng để mở 1 trong 3 rương báu bí mật: nhận Vàng, x2 Vàng Jackpot, Khiên Thần, hoặc Cướp vàng của bạn khác!
+                    </p>
+                  </div>
+                </div>
+                <div class="pt-2 flex items-center gap-2">
+                  <button type="button" data-solo-arena-mode="resource_quest" class="flex-1 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer">
+                    <i class="fa-solid fa-play"></i> Chơi Thử Ngay
+                  </button>
+                  ${isTeacher ? `
+                    <button type="button" data-host-arena-mode="resource_quest" class="py-2 px-3 rounded-xl bg-white dark:bg-slate-700 hover:bg-amber-100 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-xs font-black transition flex items-center justify-center gap-1 cursor-pointer" title="Tạo phòng cho lớp">
+                      <i class="fa-solid fa-crown"></i> Tạo Phòng
+                    </button>
+                  ` : ''}
                 </div>
               </div>
 
               <!-- Mode 2: Speed Racer -->
-              <div class="p-5 rounded-3xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800 border-2 border-blue-200 dark:border-blue-800/60 space-y-3 relative overflow-hidden group hover:shadow-lg transition">
-                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-600 text-white flex items-center justify-center text-2xl shadow-sm">
-                  <i class="fa-solid fa-bolt-lightning"></i>
-                </div>
-                <div>
-                  <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-200/60 dark:bg-blue-950 text-blue-900 dark:text-blue-300 text-[10px] font-bold uppercase">
-                    Wayground Style
+              <div class="p-5 rounded-3xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800 border-2 border-blue-200 dark:border-blue-800/60 flex flex-col justify-between space-y-3 relative overflow-hidden group hover:shadow-lg transition">
+                <div class="space-y-3">
+                  <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-600 text-white flex items-center justify-center text-2xl shadow-sm">
+                    <i class="fa-solid fa-bolt-lightning"></i>
                   </div>
-                  <h4 class="text-base font-black text-slate-800 dark:text-white mt-1">Đua Top & Combo Power-Ups</h4>
-                  <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                    Tốc độ phản xạ quyết định vị trí! Chuỗi trả lời đúng tạo combo x1.5, x2, x3 và mở khóa thẻ trợ giúp 50/50, Đóng băng đối thủ.
-                  </p>
+                  <div>
+                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-200/60 dark:bg-blue-950 text-blue-900 dark:text-blue-300 text-[10px] font-bold uppercase">
+                      Wayground Style
+                    </div>
+                    <h4 class="text-base font-black text-slate-800 dark:text-white mt-1">Đua Top & Combo Power-Ups</h4>
+                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                      Tốc độ phản xạ quyết định vị trí! Chuỗi trả lời đúng tạo combo x1.5, x2, x3 và mở khóa thẻ trợ giúp 50/50, Đóng băng đối thủ.
+                    </p>
+                  </div>
+                </div>
+                <div class="pt-2 flex items-center gap-2">
+                  <button type="button" data-solo-arena-mode="speed_race" class="flex-1 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer">
+                    <i class="fa-solid fa-play"></i> Chơi Thử Ngay
+                  </button>
+                  ${isTeacher ? `
+                    <button type="button" data-host-arena-mode="speed_race" class="py-2 px-3 rounded-xl bg-white dark:bg-slate-700 hover:bg-blue-100 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700 text-xs font-black transition flex items-center justify-center gap-1 cursor-pointer" title="Tạo phòng cho lớp">
+                      <i class="fa-solid fa-crown"></i> Tạo Phòng
+                    </button>
+                  ` : ''}
                 </div>
               </div>
 
               <!-- Mode 3: Boss Raid -->
-              <div class="p-5 rounded-3xl bg-gradient-to-br from-rose-50 to-red-50 dark:from-slate-800 dark:to-slate-800 border-2 border-rose-200 dark:border-rose-800/60 space-y-3 relative overflow-hidden group hover:shadow-lg transition">
-                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-500 to-red-600 text-white flex items-center justify-center text-2xl shadow-sm">
-                  <i class="fa-solid fa-dragon"></i>
-                </div>
-                <div>
-                  <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-200/60 dark:bg-rose-950 text-rose-900 dark:text-rose-300 text-[10px] font-bold uppercase">
-                    Co-op Battle
+              <div class="p-5 rounded-3xl bg-gradient-to-br from-rose-50 to-red-50 dark:from-slate-800 dark:to-slate-800 border-2 border-rose-200 dark:border-rose-800/60 flex flex-col justify-between space-y-3 relative overflow-hidden group hover:shadow-lg transition">
+                <div class="space-y-3">
+                  <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-500 to-red-600 text-white flex items-center justify-center text-2xl shadow-sm">
+                    <i class="fa-solid fa-dragon"></i>
                   </div>
-                  <h4 class="text-base font-black text-slate-800 dark:text-white mt-1">Hợp Lực Diệt Siêu Trùm Bug</h4>
-                  <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                    Cả lớp cùng nhìn lên máy chiếu hợp sức đánh Siêu Trùm! Mỗi câu đúng phóng một chưởng phép thuật trừ máu Boss trước khi hết giờ.
-                  </p>
+                  <div>
+                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-200/60 dark:bg-rose-950 text-rose-900 dark:text-rose-300 text-[10px] font-bold uppercase">
+                      Co-op Battle
+                    </div>
+                    <h4 class="text-base font-black text-slate-800 dark:text-white mt-1">Hợp Lực Diệt Siêu Trùm Bug</h4>
+                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                      Cả lớp cùng nhìn lên máy chiếu hợp sức đánh Siêu Trùm! Mỗi câu đúng phóng một chưởng phép thuật trừ máu Boss trước khi hết giờ.
+                    </p>
+                  </div>
+                </div>
+                <div class="pt-2 flex items-center gap-2">
+                  <button type="button" data-solo-arena-mode="boss_hunt" class="flex-1 py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer">
+                    <i class="fa-solid fa-play"></i> Chơi Thử Ngay
+                  </button>
+                  ${isTeacher ? `
+                    <button type="button" data-host-arena-mode="boss_hunt" class="py-2 px-3 rounded-xl bg-white dark:bg-slate-700 hover:bg-rose-100 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-700 text-xs font-black transition flex items-center justify-center gap-1 cursor-pointer" title="Tạo phòng cho lớp">
+                      <i class="fa-solid fa-crown"></i> Tạo Phòng
+                    </button>
+                  ` : ''}
                 </div>
               </div>
 
               <!-- Mode 4: Classic Arena -->
-              <div class="p-5 rounded-3xl bg-gradient-to-br from-purple-50 to-pink-50 dark:from-slate-800 dark:to-slate-800 border-2 border-purple-200 dark:border-purple-800/60 space-y-3 relative overflow-hidden group hover:shadow-lg transition">
-                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-500 to-pink-600 text-white flex items-center justify-center text-2xl shadow-sm">
-                  <i class="fa-solid fa-stopwatch"></i>
-                </div>
-                <div>
-                  <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-purple-200/60 dark:bg-purple-950 text-purple-900 dark:text-purple-300 text-[10px] font-bold uppercase">
-                    Kahoot Style
+              <div class="p-5 rounded-3xl bg-gradient-to-br from-purple-50 to-pink-50 dark:from-slate-800 dark:to-slate-800 border-2 border-purple-200 dark:border-purple-800/60 flex flex-col justify-between space-y-3 relative overflow-hidden group hover:shadow-lg transition">
+                <div class="space-y-3">
+                  <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-500 to-pink-600 text-white flex items-center justify-center text-2xl shadow-sm">
+                    <i class="fa-solid fa-stopwatch"></i>
                   </div>
-                  <h4 class="text-base font-black text-slate-800 dark:text-white mt-1">Tốc Độ Cổ Điển & Bảng Điểm</h4>
-                  <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                    Trải nghiệm cổ điển với biểu đồ cột thống kê đáp án A, B, C, D sau mỗi câu và bục vinh danh Podium 3D trao cúp rực rỡ.
-                  </p>
+                  <div>
+                    <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-purple-200/60 dark:bg-purple-950 text-purple-900 dark:text-purple-300 text-[10px] font-bold uppercase">
+                      Kahoot Style
+                    </div>
+                    <h4 class="text-base font-black text-slate-800 dark:text-white mt-1">Tốc Độ Cổ Điển & Bảng Điểm</h4>
+                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                      Trải nghiệm cổ điển với biểu đồ cột thống kê đáp án A, B, C, D sau mỗi câu và bục vinh danh Podium 3D trao cúp rực rỡ.
+                    </p>
+                  </div>
+                </div>
+                <div class="pt-2 flex items-center gap-2">
+                  <button type="button" data-solo-arena-mode="classic" class="flex-1 py-2 px-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer">
+                    <i class="fa-solid fa-play"></i> Chơi Thử Ngay
+                  </button>
+                  ${isTeacher ? `
+                    <button type="button" data-host-arena-mode="classic" class="py-2 px-3 rounded-xl bg-white dark:bg-slate-700 hover:bg-purple-100 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700 text-xs font-black transition flex items-center justify-center gap-1 cursor-pointer" title="Tạo phòng cho lớp">
+                      <i class="fa-solid fa-crown"></i> Tạo Phòng
+                    </button>
+                  ` : ''}
                 </div>
               </div>
             </div>
@@ -399,21 +447,133 @@ const Arena = {
                   <span class="text-[11px] text-slate-300 block">Đua vịt đường sông, gắp thú bông, rút thẻ bài ma thuật, vòng quay, quay xèng & bom hẹn giờ</span>
                 </div>
               </div>
-              <button type="button" onclick="window.AppInstance && window.AppInstance.switchTab('random-picker')" class="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black transition shrink-0 shadow-sm cursor-pointer">
+              <button type="button" id="btn-arena-open-random-picker" class="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black transition shrink-0 shadow-sm cursor-pointer">
                 Mở Ngay ➔
               </button>
             </div>
           </div>
         </div>
+
+        ${this.renderSavedRoomsAndHistoryHtml(isTeacher)}
       </div>
     `;
 
     this.bindMainEvents();
   },
 
+  renderSavedRoomsAndHistoryHtml(isTeacher = false) {
+    const roomsObj = (typeof Storage !== 'undefined' && typeof Storage.getArenaRooms === 'function')
+      ? Storage.getArenaRooms()
+      : {};
+    const activeRooms = Object.values(roomsObj || {})
+      .filter(r => r && r.pin && !r.isSoloPractice && (r.status === 'lobby' || r.status === 'playing'))
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+    const historyList = (typeof Storage !== 'undefined' && typeof Storage.getArenaHistory === 'function')
+      ? Storage.getArenaHistory()
+      : [];
+
+    if (activeRooms.length === 0 && historyList.length === 0) return '';
+
+    return `
+      <div class="grid grid-cols-1 ${activeRooms.length > 0 && historyList.length > 0 ? 'lg:grid-cols-2' : ''} gap-6 pt-2">
+        ${activeRooms.length > 0 ? `
+          <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                <h3 class="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                  Phòng Đấu Trường Đang Mở (${activeRooms.length})
+                </h3>
+              </div>
+              <span class="text-[11px] font-bold text-slate-400">Bấm 1 chạm để tham gia</span>
+            </div>
+            <div class="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+              ${activeRooms.map(r => {
+                const pCount = Object.keys(r.players || {}).length;
+                return `
+                  <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="px-2 py-0.5 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-mono text-xs font-black">
+                          PIN: ${escapeHtml(r.pin)}
+                        </span>
+                        <span class="text-xs font-black text-slate-800 dark:text-white truncate">${escapeHtml(r.title || 'Đấu Trường TinHocHub')}</span>
+                      </div>
+                      <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                        ${this.getModeTitle(r.gameMode)} • ${r.totalQuestions || (r.questions || []).length || 15} câu • 👥 ${pCount} người chơi
+                      </p>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                      <button type="button" data-quick-join-arena-pin="${escapeHtml(r.pin)}" class="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black transition cursor-pointer">
+                        🚀 Vào Ngay
+                      </button>
+                      ${isTeacher ? `
+                        <button type="button" data-reopen-host-pin="${escapeHtml(r.pin)}" class="px-2.5 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-xs font-bold transition cursor-pointer" title="Mở màn hình Máy chiếu (Host)">
+                          <i class="fa-solid fa-tv"></i> Host
+                        </button>
+                        <button type="button" data-delete-arena-room="${escapeHtml(r.pin)}" class="px-2.5 py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300 text-xs font-bold transition cursor-pointer" title="Đóng / Xóa phòng">
+                          <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                      ` : ''}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        ${historyList.length > 0 ? `
+          <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-trophy text-amber-500"></i> Lịch Sử Trận Đấu Gần Đây (${historyList.length})
+              </h3>
+              <span class="text-[11px] font-bold text-slate-400">Lưu tối đa 50 trận</span>
+            </div>
+            <div class="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+              ${historyList.slice(0, 10).map(h => {
+                const hid = h.id || h.pin;
+                const topPlayer = h.rankings && h.rankings[0] ? h.rankings[0].name : 'Chưa có';
+                return `
+                  <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-xs font-black text-slate-800 dark:text-white truncate">${escapeHtml(h.title || 'Trận Đấu Arena')}</span>
+                        <span class="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-[10px] font-bold">
+                          🏆 Top 1: ${escapeHtml(topPlayer)}
+                        </span>
+                      </div>
+                      <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                        ${this.getModeTitle(h.gameMode)} • 👥 ${h.playerCount || (h.rankings || []).length || 0} HS • ${h.finishedAt ? new Date(h.finishedAt).toLocaleDateString('vi-VN') : ''}
+                      </p>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                      ${Array.isArray(h.rankings) && h.rankings.length > 0 ? `
+                        <button type="button" data-export-arena-hist="${escapeHtml(hid)}" class="px-2.5 py-1.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold transition cursor-pointer" title="Xuất báo cáo Excel">
+                          <i class="fa-solid fa-file-excel"></i> Excel
+                        </button>
+                      ` : ''}
+                      ${isTeacher ? `
+                        <button type="button" data-delete-arena-hist="${escapeHtml(hid)}" class="px-2.5 py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300 text-xs font-bold transition cursor-pointer" title="Xóa lịch sử này">
+                          <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                      ` : ''}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  },
+
   bindMainEvents() {
     // 1. Chọn Blook & Lọc Chủ Đề + Ngẫu Nhiên
-    const savedPlayer = Storage.getArenaPlayerInfo() || {};
+    const savedPlayer = Storage.getArenaPlayer() || {};
     let selectedBlookId = (savedPlayer.blookId && this.BLOOKS.some(x => x.id === savedPlayer.blookId))
       ? savedPlayer.blookId
       : this.BLOOKS[0].id;
@@ -512,12 +672,240 @@ const Arena = {
     if (btnSound) {
       btnSound.onclick = () => this.toggleMute();
     }
+
+    // 5. Nút Mở 9 Mini-Game Random Picker
+    const btnRandomPicker = document.getElementById('btn-arena-open-random-picker');
+    if (btnRandomPicker) {
+      btnRandomPicker.onclick = () => {
+        if (window.AppInstance && typeof window.AppInstance.switchTab === 'function') {
+          window.AppInstance.switchTab('random-picker');
+        }
+      };
+    }
+
+    // 6. Các nút Chơi Thử Ngay (Solo Practice) trên 4 thẻ Game Mode
+    this.container.querySelectorAll('[data-solo-arena-mode]').forEach(btn => {
+      btn.onclick = () => {
+        const mode = btn.getAttribute('data-solo-arena-mode') || 'resource_quest';
+        const nameInput = document.getElementById('arena-input-name')?.value.trim();
+        Storage.saveArenaPlayer({
+          pin: savedPlayer.pin || '',
+          name: nameInput || savedPlayer.name || '',
+          blookId: selectedBlookId
+        });
+        this.startSoloArenaGame(mode, selectedBlookId, nameInput);
+      };
+    });
+
+    // 7. Các nút Tạo Phòng theo từng Game Mode trên 4 thẻ
+    this.container.querySelectorAll('[data-host-arena-mode]').forEach(btn => {
+      btn.onclick = () => {
+        const mode = btn.getAttribute('data-host-arena-mode') || 'resource_quest';
+        this.openCreateArenaModal(mode);
+      };
+    });
+
+    // 8. Các nút Vào Nhanh / Mở Host / Xóa Phòng Đấu Trường đang lưu
+    this.container.querySelectorAll('[data-quick-join-arena-pin]').forEach(btn => {
+      btn.onclick = () => {
+        const pin = btn.getAttribute('data-quick-join-arena-pin');
+        const nameInput = document.getElementById('arena-input-name')?.value.trim();
+        const currentUser = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
+        const playerName = nameInput || currentUser?.fullName || savedPlayer.name || 'Chiến Binh Tin Học';
+        Storage.saveArenaPlayer({ pin, name: playerName, blookId: selectedBlookId });
+        this.joinArenaByPin(pin, playerName, selectedBlookId);
+      };
+    });
+
+    this.container.querySelectorAll('[data-reopen-host-pin]').forEach(btn => {
+      btn.onclick = () => {
+        const pin = btn.getAttribute('data-reopen-host-pin');
+        const room = Storage.getArenaRoom(pin);
+        if (room) {
+          this.startHostView(room);
+        }
+      };
+    });
+
+    this.container.querySelectorAll('[data-delete-arena-room]').forEach(btn => {
+      btn.onclick = () => {
+        const pin = btn.getAttribute('data-delete-arena-room');
+        if (confirm(`Bạn có chắc chắn muốn đóng và xóa phòng đấu trường [PIN: ${pin}] không?`)) {
+          Storage.deleteArenaRoom(pin);
+          if (typeof CloudSync !== 'undefined' && typeof CloudSync.deleteArenaRoomFromCloud === 'function') {
+            CloudSync.deleteArenaRoomFromCloud(pin);
+          }
+          this.renderMainView();
+        }
+      };
+    });
+
+    // 9. Các nút Xuất Excel / Xóa Lịch Sử Trận Đấu
+    this.container.querySelectorAll('[data-export-arena-hist]').forEach(btn => {
+      btn.onclick = () => {
+        const hid = btn.getAttribute('data-export-arena-hist');
+        const item = Storage.getArenaHistory().find(h => (h.id || h.pin) === hid);
+        if (item && Array.isArray(item.rankings)) {
+          this.exportMatchToExcel({
+            title: item.title || 'Trận Đấu Arena',
+            gameMode: item.gameMode || 'resource_quest',
+            pin: item.pin || 'HIST',
+            createdAt: item.finishedAt || item.savedAt || Date.now(),
+            totalQuestions: item.totalQuestions || 15
+          }, item.rankings);
+        }
+      };
+    });
+
+    this.container.querySelectorAll('[data-delete-arena-hist]').forEach(btn => {
+      btn.onclick = () => {
+        const hid = btn.getAttribute('data-delete-arena-hist');
+        if (confirm('Xóa kết quả trận đấu này khỏi lịch sử?')) {
+          if (typeof Storage.deleteArenaHistory === 'function') {
+            Storage.deleteArenaHistory(hid);
+          }
+          this.renderMainView();
+        }
+      };
+    });
+  },
+
+  // ==========================================
+  // 2B. CHẾ ĐỘ CHƠI THỬ / TỰ LUYỆN SOLO CÙNG AI BLOOKS
+  // ==========================================
+  async startSoloArenaGame(mode = 'resource_quest', blookId = null, customName = '') {
+    const grade = (typeof window !== 'undefined' && window.AppInstance?.currentGrade) || '12';
+    let questions = [];
+    try {
+      if (typeof this.loadGradeFn === 'function') {
+        questions = await this.loadGradeFn(grade);
+      } else if (typeof window !== 'undefined' && typeof window.AppInstance?.loadGradeData === 'function') {
+        questions = await window.AppInstance.loadGradeData(grade);
+      } else {
+        const res = await fetch(`data/grade_${grade}.json`);
+        if (res.ok) questions = await res.json();
+      }
+    } catch (e) {
+      console.warn('Không tải được câu hỏi cho chế độ tự luyện:', e);
+    }
+
+    const mcqQuestions = (questions || []).filter(q => Array.isArray(q.options) && q.options.length >= 2);
+    if (mcqQuestions.length === 0) {
+      alert('Đang tải ngân hàng câu hỏi, vui lòng thử lại sau giây lát!');
+      return;
+    }
+
+    const shuffled = [...mcqQuestions].sort(() => 0.5 - Math.random()).slice(0, 15);
+    const pin = `SOLO${Math.floor(10 + Math.random() * 89)}`;
+    const currentUser = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
+    const savedPlayer = Storage.getArenaPlayer() || {};
+    const finalName = customName || currentUser?.fullName || savedPlayer.name || 'Chiến Binh Tin Học';
+    const finalBlook = blookId || savedPlayer.blookId || this.BLOOKS[0].id;
+    const uid = (currentUser?.email || currentUser?.username || 'solo_player').replace(/[.#$\[\]\/]/g, '_');
+
+    const session = defaultGameEngine.createSession({
+      pin,
+      hostId: uid,
+      quizId: `grade_${grade}`,
+      gameMode: mode,
+      questions: shuffled,
+      timerSec: 20,
+      goalCap: 0,
+      powerUpFrequency: 'normal',
+      title: `Tự Luyện: ${this.getModeTitle(mode)} (Khối ${grade})`,
+      targetClass: 'all',
+      hostName: finalName,
+      hostEmail: currentUser?.email || ''
+    });
+
+    session.pin = pin;
+    session.title = `Tự Luyện: ${this.getModeTitle(mode)} (Khối ${grade})`;
+    session.isSoloPractice = true;
+    session.status = 'playing';
+    session.currentQuestionIndex = 0;
+
+    // Thêm người chơi chính
+    const playerState = defaultGameEngine.joinPlayer(session, {
+      id: uid,
+      uid,
+      name: finalName,
+      blookId: finalBlook
+    });
+    playerState.uid = uid;
+    playerState.email = currentUser?.email || '';
+    playerState.school = currentUser?.school || '';
+    playerState.className = currentUser?.className || '';
+
+    // Thêm 3 đối thủ / đồng đội AI Blooks để cướp vàng, đua top và hợp sức đánh Boss
+    const aiCompanions = [
+      { id: 'ai_bot_1', uid: 'ai_bot_1', name: 'Minh Khôi AI 🤖', blookId: 'cyber_dragon', isAi: true },
+      { id: 'ai_bot_2', uid: 'ai_bot_2', name: 'Bảo An AI ⚡', blookId: 'kitsune_nine', isAi: true },
+      { id: 'ai_bot_3', uid: 'ai_bot_3', name: 'Quỳnh Anh AI 🌟', blookId: 'astronaut_cat', isAi: true }
+    ];
+    aiCompanions.forEach(ai => {
+      const p = defaultGameEngine.joinPlayer(session, ai);
+      p.uid = ai.uid;
+      p.isAi = true;
+      if (this.isGoldMode(mode)) {
+        p.metadata = p.metadata || {};
+        p.metadata.gold = 50;
+      }
+    });
+
+    this.playerInfo = playerState;
+    this.activeRoom = session;
+    this.activeRole = 'player';
+    this.cleanupRoomListener();
+    this.playStart();
+    this.renderPlayerQuestionView(session.questions[0]);
+  },
+
+  simulateSoloAiTurn(room) {
+    if (!room || !room.isSoloPractice) return;
+    const q = room.questions[room.currentQuestionIndex || 0];
+    if (!q) return;
+
+    Object.values(room.players || {}).forEach(p => {
+      if (!p.isAi) return;
+      const aiUid = p.id || p.uid;
+      if (p.lastSimulatedQ === room.currentQuestionIndex) return;
+      p.lastSimulatedQ = room.currentQuestionIndex;
+
+      // Xác suất AI trả lời đúng ~68%
+      const willBeCorrect = Math.random() < 0.68;
+      let ansIdx = 0;
+      const opts = q.options || ['A', 'B', 'C', 'D'];
+      const rawAns = String(q.answer ?? '0').trim().toUpperCase();
+      const letterMap = { A: 0, B: 1, C: 2, D: 3 };
+      let correctIdx = letterMap[rawAns] !== undefined ? letterMap[rawAns] : parseInt(rawAns, 10);
+      if (isNaN(correctIdx) || correctIdx < 0 || correctIdx >= opts.length) {
+        correctIdx = opts.findIndex(o => String(o).trim().toUpperCase() === rawAns);
+        if (correctIdx < 0) correctIdx = 0;
+      }
+
+      if (willBeCorrect) {
+        ansIdx = correctIdx;
+      } else {
+        ansIdx = (correctIdx + 1 + Math.floor(Math.random() * Math.max(1, opts.length - 1))) % opts.length;
+      }
+
+      const simTime = 2500 + Math.floor(Math.random() * 8000);
+      try {
+        defaultGameEngine.submitAnswer(room, aiUid, ansIdx, simTime);
+        if (willBeCorrect && this.isGoldMode(room.gameMode)) {
+          p.metadata = p.metadata || {};
+          const bonusGold = [20, 35, 50, 75][Math.floor(Math.random() * 4)];
+          p.metadata.gold = (p.metadata.gold || 0) + bonusGold;
+          p.score = p.metadata.gold;
+        }
+      } catch {}
+    });
   },
 
   // ==========================================
   // 3. MODAL TẠO ĐẤU TRƯỜNG DÀNH CHO GIÁO VIÊN (PLUGGABLE FLOW)
   // ==========================================
-  openCreateArenaModal() {
+  openCreateArenaModal(defaultMode = 'resource_quest') {
     let modal = document.getElementById('modal-create-arena');
     if (!modal) {
       modal = document.createElement('div');
@@ -690,6 +1078,27 @@ const Arena = {
     const closeModal = () => modal.remove();
     modal.querySelector('#btn-close-create-arena')?.addEventListener('click', closeModal);
     modal.querySelector('#btn-cancel-create-arena')?.addEventListener('click', closeModal);
+
+    // Đánh dấu radio game mode tương ứng với defaultMode và highlight khung
+    const modeRadios = modal.querySelectorAll('input[name="arena-create-mode"]');
+    const updateModeCardsHighlight = () => {
+      modeRadios.forEach(r => {
+        const label = r.closest('label');
+        if (!label) return;
+        if (r.checked) {
+          label.classList.add('border-amber-400', 'bg-amber-50/50', 'dark:bg-amber-950/20');
+          label.classList.remove('border-slate-200', 'dark:border-slate-700');
+        } else {
+          label.classList.remove('border-amber-400', 'bg-amber-50/50', 'dark:bg-amber-950/20');
+          label.classList.add('border-slate-200', 'dark:border-slate-700');
+        }
+      });
+    };
+    modeRadios.forEach(r => {
+      if (r.value === defaultMode) r.checked = true;
+      r.addEventListener('change', updateModeCardsHighlight);
+    });
+    updateModeCardsHighlight();
 
     // Xử lý tạo phòng
     const form = modal.querySelector('#form-create-arena-submit');
@@ -1673,7 +2082,7 @@ const Arena = {
             <span class="text-xs font-black text-slate-800 dark:text-white truncate max-w-[120px]">${escapeHtml(this.playerInfo.name)}</span>
           </div>
 
-          <div class="flex items-center gap-2.5 font-mono font-bold text-xs">
+          <div class="flex items-center gap-2 font-mono font-bold text-xs">
             ${isGoldMode ? `
               <span class="text-amber-500 font-black"><i class="fa-solid fa-coins mr-1"></i>${currentGold}</span>
               ${currentShields > 0 ? `<span class="px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 text-[10px] font-black"><i class="fa-solid fa-shield-halved mr-1"></i>${currentShields}</span>` : ''}
@@ -1681,7 +2090,10 @@ const Arena = {
               <span class="text-purple-600 font-black"><i class="fa-solid fa-bolt mr-1"></i>${currentScore} đ</span>
               ${currentMultiplier > 1 ? `<span class="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 text-[10px] font-black">x${currentMultiplier}</span>` : ''}
             `}
-            <span class="px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 text-[10px] font-bold">Câu ${qIdx}</span>
+            <span class="px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 text-[10px] font-bold">Câu ${qIdx}/${room.totalQuestions || (room.questions || []).length || 15}</span>
+            <button type="button" id="btn-player-quit-match" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-rose-100 text-slate-500 hover:text-rose-600 text-[10px] font-bold transition cursor-pointer" title="Rời trận đấu">
+              <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
           </div>
         </div>
 
@@ -1720,6 +2132,16 @@ const Arena = {
         this.playerSubmitAnswer(ansIdx, q);
       };
     });
+
+    const btnQuit = document.getElementById('btn-player-quit-match');
+    if (btnQuit) {
+      btnQuit.onclick = () => {
+        if (confirm('Bạn có chắc chắn muốn rời khỏi trận đấu này không?')) {
+          this.cleanupRoomListener();
+          this.renderMainView();
+        }
+      };
+    }
   },
 
   async playerSubmitAnswer(ansIdx, q) {
@@ -1945,21 +2367,112 @@ const Arena = {
   },
 
   renderPlayerFeedback(isCorrect, message) {
+    const room = this.activeRoom;
+    const isSolo = Boolean(room && room.isSoloPractice);
+    if (isSolo) {
+      this.simulateSoloAiTurn(room);
+    }
+
+    const qIdx = (room?.currentQuestionIndex || 0) + 1;
+    const totalQ = room?.totalQuestions || (room?.questions || []).length || 15;
+    const isLastQ = qIdx >= totalQ;
+    const isBoss = room && this.isBossMode(room.gameMode);
+    const bossHp = room?.metadata?.bossCurrentHp ?? room?.bossCurrentHp ?? 0;
+    const bossMax = room?.metadata?.bossMaxHp ?? room?.bossMaxHp ?? 1000;
+    const bossPct = bossMax > 0 ? Math.max(0, Math.min(100, Math.round((bossHp / bossMax) * 100))) : 0;
+
+    let soloHudHtml = '';
+    if (isSolo && room) {
+      const sorted = defaultGameEngine.rankPlayers(room);
+      const isGold = this.isGoldMode(room.gameMode);
+      soloHudHtml = `
+        <div class="p-4 rounded-2xl bg-black/25 text-left space-y-3 mt-3">
+          ${isBoss ? `
+            <div class="space-y-1">
+              <div class="flex items-center justify-between text-[11px] font-black">
+                <span>👾 Máu Siêu Trùm Bug</span>
+                <span>${bossHp} / ${bossMax} HP (${bossPct}%)</span>
+              </div>
+              <div class="w-full h-3 rounded-full bg-black/40 overflow-hidden">
+                <div class="h-full bg-gradient-to-r from-amber-400 to-rose-500 transition-all duration-500" style="width:${bossPct}%"></div>
+              </div>
+            </div>
+          ` : ''}
+          <div class="text-[11px] font-black uppercase text-white/80 flex items-center justify-between">
+            <span>Bảng Xếp Hạng Tạm Thời (Câu ${qIdx}/${totalQ})</span>
+            <span>${isGold ? '🪙 Vàng' : '⚡ Điểm'}</span>
+          </div>
+          <div class="space-y-1.5">
+            ${sorted.slice(0, 4).map((p, idx) => {
+              const val = isGold ? `${p.metadata?.gold ?? p.gold ?? 0} 🪙` : `${p.score || 0} đ`;
+              const isMe = (p.id || p.uid) === this.playerInfo?.uid;
+              return `
+                <div class="px-3 py-1.5 rounded-xl ${isMe ? 'bg-white/25 font-black' : 'bg-white/10'} flex items-center justify-between text-xs">
+                  <span>#${idx + 1} ${escapeHtml(p.name)}</span>
+                  <span class="font-mono font-black">${val}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
     this.container.innerHTML = `
-      <div class="max-w-md mx-auto text-center space-y-6 py-12 animate-fadeIn">
-        <div class="p-8 rounded-3xl ${isCorrect ? 'bg-emerald-600' : 'bg-rose-600'} text-white shadow-2xl space-y-4">
+      <div class="max-w-md mx-auto text-center space-y-6 py-8 animate-fadeIn">
+        <div class="p-6 sm:p-8 rounded-3xl ${isCorrect ? 'bg-emerald-600' : 'bg-rose-600'} text-white shadow-2xl space-y-4">
           <div class="text-5xl animate-bounce">
             ${isCorrect ? '🎉' : '❌'}
           </div>
           <h3 class="text-xl font-black">${isCorrect ? 'CHÍNH XÁC!' : 'CHƯA ĐÚNG!'}</h3>
           <p class="text-xs text-white/90 leading-relaxed">${escapeHtml(message)}</p>
 
-          <div class="pt-4 border-t border-white/20 text-xs font-bold flex items-center justify-center gap-2">
-            <i class="fa-solid fa-spinner fa-spin"></i> Đang chờ câu tiếp theo từ Thầy/Cô...
-          </div>
+          ${soloHudHtml}
+
+          ${isSolo ? `
+            <div class="pt-4 border-t border-white/20 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+              ${(!isLastQ && (!isBoss || bossHp > 0)) ? `
+                <button type="button" id="btn-solo-next-q" class="w-full sm:flex-1 py-3 px-4 rounded-2xl bg-white text-slate-900 hover:bg-amber-100 font-black text-xs transition shadow-lg flex items-center justify-center gap-2 cursor-pointer">
+                  Câu Tiếp Theo (${qIdx + 1}/${totalQ}) <i class="fa-solid fa-arrow-right"></i>
+                </button>
+              ` : ''}
+              <button type="button" id="btn-solo-finish-game" class="w-full sm:w-auto py-3 px-4 rounded-2xl bg-black/30 hover:bg-black/45 text-white font-black text-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-flag-checkered"></i> ${isLastQ || (isBoss && bossHp <= 0) ? 'Xem Bảng Vinh Danh Chung Cuộc' : 'Kết Thúc Sớm'}
+              </button>
+            </div>
+          ` : `
+            <div class="pt-4 border-t border-white/20 text-xs font-bold flex items-center justify-center gap-2">
+              <i class="fa-solid fa-spinner fa-spin"></i> Đang chờ câu tiếp theo từ Thầy/Cô...
+            </div>
+          `}
         </div>
       </div>
     `;
+
+    if (isSolo && room) {
+      const btnNext = document.getElementById('btn-solo-next-q');
+      if (btnNext) {
+        btnNext.onclick = () => {
+          room.currentQuestionIndex = (room.currentQuestionIndex || 0) + 1;
+          this.playerInfo.answeredInCurrentQ = false;
+          this.playerInfo.currentAnswer = null;
+          const nextQ = room.questions[room.currentQuestionIndex];
+          if (nextQ) {
+            this.renderPlayerQuestionView(nextQ);
+          } else {
+            room.status = 'game_over';
+            this.renderPlayerGameOver();
+          }
+        };
+      }
+      const btnFinish = document.getElementById('btn-solo-finish-game');
+      if (btnFinish) {
+        btnFinish.onclick = () => {
+          room.status = 'game_over';
+          this.renderPlayerGameOver();
+        };
+      }
+    }
   },
 
   // ==========================================
@@ -2069,6 +2582,18 @@ const Arena = {
     const room = this.activeRoom;
     const sorted = defaultGameEngine.rankPlayers(room);
 
+    if (room.isSoloPractice && typeof Storage !== 'undefined' && typeof Storage.saveArenaHistory === 'function') {
+      Storage.saveArenaHistory({
+        pin: room.pin,
+        title: room.title,
+        gameMode: room.gameMode,
+        totalQuestions: room.totalQuestions,
+        playerCount: sorted.length,
+        rankings: sorted,
+        finishedAt: Date.now()
+      });
+    }
+
     const myRank = sorted.findIndex(p => (p.id || p.uid) === this.playerInfo.uid) + 1;
     this.playFanfare();
 
@@ -2100,12 +2625,27 @@ const Arena = {
             </div>
           </div>
 
-          <button id="btn-player-finish-back" class="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 font-black text-xs transition">
-            Về Trang Chủ Đấu Trường
-          </button>
+          <div class="flex flex-col sm:flex-row gap-2.5">
+            ${room.isSoloPractice ? `
+              <button id="btn-player-replay-solo" class="flex-1 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition cursor-pointer">
+                🔄 Chơi Lại
+              </button>
+            ` : ''}
+            <button id="btn-player-finish-back" class="flex-1 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 font-black text-xs transition cursor-pointer">
+              Về Trang Chủ Đấu Trường
+            </button>
+          </div>
         </div>
       </div>
     `;
+
+    const btnReplay = document.getElementById('btn-player-replay-solo');
+    if (btnReplay) {
+      btnReplay.onclick = () => {
+        this.cleanupRoomListener();
+        this.startSoloArenaGame(room.gameMode, this.playerInfo?.blookId, this.playerInfo?.name);
+      };
+    }
 
     const btnBack = document.getElementById('btn-player-finish-back');
     if (btnBack) {

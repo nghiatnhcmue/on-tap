@@ -2176,11 +2176,36 @@ export const Storage = {
     }
   },
 
+  getArenaPlayerInfo() {
+    return this.getArenaPlayer();
+  },
+
   saveArenaPlayer(playerData) {
     if (!playerData) return;
     try {
       localStorage.setItem(STORAGE_KEYS.ARENA_PLAYER, JSON.stringify(playerData));
     } catch {}
+  },
+
+  deleteArenaHistory(id) {
+    if (!id) return false;
+    const history = this.getArenaHistory().filter(h => h.id !== id && h.pin !== id);
+    try {
+      localStorage.setItem(STORAGE_KEYS.ARENA_HISTORY, JSON.stringify(history));
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  getFirebaseDbUrl() {
+    try {
+      const custom = localStorage.getItem('tinhoc_cloud_db_url');
+      if (custom && custom.trim().startsWith('http')) {
+        return custom.trim().replace(/\/+$/, '');
+      }
+    } catch {}
+    return 'https://on-tap-tinhoc-default-rtdb.firebaseio.com';
   },
 
   // --- QUẢN LÝ DANH SÁCH LỚP HỌC CHO BỘ RANDOM GỌI TÊN ---

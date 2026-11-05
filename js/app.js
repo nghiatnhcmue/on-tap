@@ -3,29 +3,35 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261102_87';
-import { Practice } from './practice.js?v=20261102_87';
-import { Exam } from './exam.js?v=20261102_87';
-import { Search } from './search.js?v=20261102_87';
-import { PrintManager } from './print.js?v=20261102_87';
-import { Auth } from './auth.js?v=20261102_87';
-import { escapeHtml } from './utils.js?v=20261102_87';
-import { Leaderboard } from './leaderboard.js?v=20261102_87';
-import { QuestionsManager } from './questions-manager.js?v=20261102_87';
-import { AdminManager } from './admin-manager.js?v=20261102_87';
-import { ExamRooms } from './exam-rooms.js?v=20261102_87';
-import { Proctor } from './proctor.js?v=20261102_87';
-import { Gradebook } from './gradebook.js?v=20261102_87';
-import { CloudSync } from './cloud-sync.js?v=20261102_87';
-import { InteractiveVideo } from './interactive-video.js?v=20261102_87';
-import { LiveVideo } from './live-video.js?v=20261102_87';
-import Arena from './arena.js?v=20261102_87';
-import RandomPicker from './random-picker.js?v=20261102_87';
+import { Storage } from './storage.js?v=20261102_88';
+import { Practice } from './practice.js?v=20261102_88';
+import { Exam } from './exam.js?v=20261102_88';
+import { Search } from './search.js?v=20261102_88';
+import { PrintManager } from './print.js?v=20261102_88';
+import { Auth } from './auth.js?v=20261102_88';
+import { escapeHtml } from './utils.js?v=20261102_88';
+import { Leaderboard } from './leaderboard.js?v=20261102_88';
+import { QuestionsManager } from './questions-manager.js?v=20261102_88';
+import { AdminManager } from './admin-manager.js?v=20261102_88';
+import { ExamRooms } from './exam-rooms.js?v=20261102_88';
+import { Proctor } from './proctor.js?v=20261102_88';
+import { Gradebook } from './gradebook.js?v=20261102_88';
+import { CloudSync } from './cloud-sync.js?v=20261102_88';
+import { InteractiveVideo } from './interactive-video.js?v=20261102_88';
+import { LiveVideo } from './live-video.js?v=20261102_88';
+import Arena from './arena.js?v=20261102_88';
+import RandomPicker from './random-picker.js?v=20261102_88';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
   window.Storage = Storage;
+  window.Practice = Practice;
   window.Exam = Exam;
+  window.Search = Search;
+  window.PrintManager = PrintManager;
+  window.Leaderboard = Leaderboard;
+  window.QuestionsManager = QuestionsManager;
+  window.AdminManager = AdminManager;
   window.Proctor = Proctor;
   window.ExamRooms = ExamRooms;
   window.Gradebook = Gradebook;
@@ -195,7 +201,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261102_87');
+      const res = await fetch('data/manifest.json?v=20261102_88');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
@@ -271,6 +277,16 @@ class App {
       this.renderHome();
     } else if (this.currentTab === 'interactive-video') {
       InteractiveVideo.setGrade(grade);
+    } else if (this.currentTab === 'exam-setup') {
+      this.renderExamSetup();
+    } else if (this.currentTab === 'search') {
+      await this.initSearchView();
+    } else if (this.currentTab === 'print') {
+      this.renderPrintSetup();
+    } else if (this.currentTab === 'questions-manage') {
+      QuestionsManager.currentGrade = grade;
+      await QuestionsManager.loadGrade(grade);
+      QuestionsManager.render();
     }
   }
 
@@ -3327,22 +3343,53 @@ class App {
 
   // --- GLOBAL EVENTS ---
   bindGlobalEvents() {
-    // Navigation items
-    document.querySelectorAll('[data-tab-target]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+    // Event delegation cho toàn bộ nút điều hướng & đóng/mở modal (kể cả phần tử render động sau này)
+    document.addEventListener('click', async (e) => {
+      const tabBtn = e.target.closest('[data-tab-target]');
+      if (tabBtn) {
         e.preventDefault();
-        const tab = btn.getAttribute('data-tab-target');
-        this.switchTab(tab);
-      });
-    });
+        const tab = tabBtn.getAttribute('data-tab-target');
+        const mobileMenu = document.getElementById('mobile-nav-drawer');
+        if (mobileMenu && mobileMenu.contains(tabBtn)) {
+          mobileMenu.classList.add('hidden');
+        }
+        await this.switchTab(tab);
+        return;
+      }
 
-    // Grade switcher pills
-    document.querySelectorAll('[data-nav-grade]').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+      const gradeBtn = e.target.closest('[data-nav-grade]');
+      if (gradeBtn) {
         e.preventDefault();
-        const grade = btn.getAttribute('data-nav-grade');
+        const grade = gradeBtn.getAttribute('data-nav-grade');
         await this.switchGrade(grade);
-      });
+        return;
+      }
+
+      const closeModalBtn = e.target.closest('[data-close-modal]');
+      if (closeModalBtn) {
+        const modalId = closeModalBtn.getAttribute('data-close-modal');
+        if (modalId === 'modal-login') {
+          if (Auth.isLoggedIn() && Auth.isProfileComplete()) {
+            this.closeLoginModal();
+          }
+          return;
+        }
+        const m = document.getElementById(modalId);
+        if (m) {
+          m.classList.add('hidden');
+          m.style.removeProperty('display');
+        }
+        return;
+      }
+
+      const openLoginBtn = e.target.closest('[data-open-login-modal]');
+      if (openLoginBtn) {
+        e.preventDefault();
+        const tab = openLoginBtn.getAttribute('data-open-login-modal') || 'login';
+        this.openLoginModal();
+        this.switchAuthModalTab(tab);
+        return;
+      }
     });
 
     // Custom nav event
@@ -3368,11 +3415,6 @@ class App {
     if (mobileMenuBtn && mobileMenu) {
       mobileMenuBtn.addEventListener('click', () => {
         mobileMenu.classList.toggle('hidden');
-      });
-      mobileMenu.querySelectorAll('[data-tab-target]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          mobileMenu.classList.add('hidden');
-        });
       });
     }
   }

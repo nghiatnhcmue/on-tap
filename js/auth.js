@@ -4,8 +4,8 @@
  * Hỗ trợ: Đăng nhập Google Popup, Đồng bộ Firebase Realtime Database, Hồ sơ học sinh.
  */
 
-import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261102_87';
-import { CloudSync } from './cloud-sync.js?v=20261102_87';
+import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261102_88';
+import { CloudSync } from './cloud-sync.js?v=20261102_88';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
 
@@ -1358,6 +1358,49 @@ export const Auth = {
       modal.classList.add('hidden');
       modal.style.removeProperty('display');
     }
+  },
+
+  openLoginModal(tab = 'login') {
+    if (typeof window !== 'undefined' && typeof window.openLoginModal === 'function') {
+      window.openLoginModal();
+    } else {
+      const modal = document.getElementById('modal-login');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.setProperty('display', 'flex', 'important');
+      }
+    }
+    if (window.AppInstance && typeof window.AppInstance.switchAuthModalTab === 'function') {
+      window.AppInstance.switchAuthModalTab(tab);
+    }
+    if (window.AppInstance && typeof window.AppInstance.renderSavedAccountsList === 'function') {
+      window.AppInstance.renderSavedAccountsList();
+    }
+  },
+
+  closeLoginModal() {
+    if (typeof window !== 'undefined' && typeof window.closeLoginModal === 'function') {
+      window.closeLoginModal();
+    } else {
+      const modal = document.getElementById('modal-login');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.style.setProperty('display', 'none', 'important');
+      }
+    }
+  },
+
+  demoLogin(role = 'student') {
+    if (window.AppInstance && typeof window.AppInstance.switchRoleDemo === 'function') {
+      window.AppInstance.switchRoleDemo(role);
+    } else {
+      this.loginWithGoogleDemo({ role });
+      this.closeLoginModal();
+    }
+  },
+
+  switchRoleDemo(role = 'student') {
+    this.demoLogin(role);
   },
   // --- PHÂN CÔNG GIẢNG DẠY & GIỚI HẠN PHẠM VI GIÁO VIÊN ---
   getTeacherAssignments() {
