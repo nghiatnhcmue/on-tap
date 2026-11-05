@@ -11,11 +11,11 @@ import defaultGameEngine, {
   SpeedRaceHandler,
   BossRaidHandler,
   ClassicKahootHandler
-} from './game-engine.js?v=20261102_98';
-import { Storage } from './storage.js?v=20261102_98';
-import { Auth } from './auth.js?v=20261102_98';
-import { CloudSync } from './cloud-sync.js?v=20261102_98';
-import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_98';
+} from './game-engine.js?v=20261102_99';
+import { Storage } from './storage.js?v=20261102_99';
+import { Auth } from './auth.js?v=20261102_99';
+import { CloudSync } from './cloud-sync.js?v=20261102_99';
+import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_99';
 import {
   AVATARS,
   AVATAR_CATEGORIES,
@@ -24,7 +24,7 @@ import {
   renderAvatarSVG,
   getAvatar,
   randomAvatarId
-} from './avatars.js?v=20261102_98';
+} from './avatars.js?v=20261102_99';
 
 // Định nghĩa an toàn tuyệt đối cho hàm escapeHtml trong scope của arena.js
 function escapeHtml(str) {

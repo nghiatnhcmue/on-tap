@@ -10,12 +10,12 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261102_98';
-import { Storage } from './storage.js?v=20261102_98';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261102_98';
-import { escapeHtml } from './utils.js?v=20261102_98';
-import { Proctor } from './proctor.js?v=20261102_98';
-import { Gradebook } from './gradebook.js?v=20261102_98';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261102_99';
+import { Storage } from './storage.js?v=20261102_99';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261102_99';
+import { escapeHtml } from './utils.js?v=20261102_99';
+import { Proctor } from './proctor.js?v=20261102_99';
+import { Gradebook } from './gradebook.js?v=20261102_99';
 
 export const LiveVideo = {
   manifest: null,
@@ -390,18 +390,38 @@ export const LiveVideo = {
       let checkpoints = [];
 
       if (sortedSecs.length > 0) {
+        let globalCounter = 0;
         checkpoints = sortedSecs.map((sec, idx) => {
-          const pool = groupsBySec[sec];
-          const q = pool[Math.floor(Math.random() * pool.length)] || pool[0];
+          const pool = groupsBySec[sec] || [];
+          const questions = pool.map((q, subIdx) => {
+            const gIdx = globalCounter++;
+            return {
+              id: q.id || `q_${idx}_${subIdx}`,
+              globalIndex: gIdx,
+              checkpointIndex: idx,
+              subIndex: subIdx,
+              qKey: `${idx}_${subIdx}`,
+              sec: sec,
+              question: q.question,
+              options: q.options || [],
+              answer: q.answer,
+              level: q.level || '1',
+              timeLimit: parseInt(q.video_time || countdownSec || '20', 10)
+            };
+          });
+          const firstQ = questions[0] || {};
           return {
             index: idx,
-            id: q.id || `q_${idx}`,
+            id: firstQ.id || `q_${idx}`,
             sec: sec,
-            question: q.question,
-            options: q.options || [],
-            answer: q.answer,
-            level: q.level || '1',
-            timeLimit: parseInt(q.video_time || countdownSec || '20', 10)
+            totalInMilestone: questions.length,
+            questions: questions,
+            // Fallback tương thích
+            question: firstQ.question || '',
+            options: firstQ.options || [],
+            answer: firstQ.answer || 'A',
+            level: firstQ.level || '1',
+            timeLimit: firstQ.timeLimit || parseInt(countdownSec || '20', 10)
           };
         });
       } else {
@@ -455,7 +475,8 @@ export const LiveVideo = {
         countdownSec,
         requireApproval,
         streamVideoToStudents, // false: Chế độ máy chiếu lớp học (khuyến nghị tiết kiệm wifi & chống ồn); true: phát video trên máy HS
-        totalQuestions: checkpoints.length,
+        totalQuestions: checkpoints.reduce((sum, cp) => sum + (cp.questions ? cp.questions.length : 1), 0),
+        totalMilestones: checkpoints.length,
         checkpoints,
         state: 'waiting', // 'waiting' | 'playing' | 'paused' | 'question' | 'finished'
         currentTime: 0,
@@ -887,7 +908,10 @@ export const LiveVideo = {
                   </div>
                   <div class="flex items-center gap-2 flex-wrap">
                     <button type="button" id="btn-master-reveal-answer" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-1.5 shadow-lg shadow-emerald-600/30 cursor-pointer">
-                      <i class="fa-solid fa-chart-pie"></i> Khóa & Xem Thống Kê Mốc Này
+                      <i class="fa-solid fa-chart-pie"></i> Khóa & Xem Thống Kê
+                    </button>
+                    <button type="button" id="btn-master-next-q-in-milestone" class="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black transition flex items-center gap-1.5 shadow-lg shadow-purple-600/30 hidden cursor-pointer" title="Phát câu hỏi tiếp theo trong cùng mốc dừng này">
+                      <i class="fa-solid fa-arrow-right"></i> Câu Tiếp Theo Trong Mốc
                     </button>
                     <button type="button" id="btn-master-jump-next-checkpoint" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/30 hidden cursor-pointer" title="Bấm để nhảy ngay sang mốc câu hỏi tiếp theo">
                       <i class="fa-solid fa-forward-step"></i> Tới Mốc Câu Hỏi Tiếp Theo
@@ -1419,7 +1443,14 @@ export const LiveVideo = {
     for (let mIdx = 0; mIdx <= targetIdx; mIdx++) {
       const cp = checkpoints[mIdx] || (mIdx === remote?.currentQuestion?.index ? remote.currentQuestion : { index: mIdx, question: `Mốc câu hỏi ${mIdx + 1}`, answer: 'A', sec: 0 });
       const correctLetter = this.normalizeAnswerLetter(cp.answer);
-      const qResps = responsesAll[mIdx] || {};
+      // Tập hợp phản hồi của mốc này (hỗ trợ cả mIdx và các câu con mIdx_0, mIdx_1...)
+      const qResps = {};
+      if (responsesAll[mIdx]) Object.assign(qResps, responsesAll[mIdx]);
+      Object.keys(responsesAll).forEach(k => {
+        if (k.startsWith(mIdx + '_') && responsesAll[k]) {
+          Object.assign(qResps, responsesAll[k]);
+        }
+      });
       const entries = Object.values(qResps);
       const tally = { A: 0, B: 0, C: 0, D: 0 };
       let correctCount = 0;
@@ -1804,12 +1835,29 @@ export const LiveVideo = {
     if (!modal || !qText || !optionsGrid) return;
 
     modal.classList.remove('hidden');
-    if (qNumEl) qNumEl.textContent = (q.index || 0) + 1;
+    const qKey = q.qKey || `${q.index}_${q.subIndex || 0}`;
+
+    // Tự động reset trạng thái câu hỏi khi chuyển sang câu mới
+    if (this.currentRenderedQKey !== qKey) {
+      this.currentRenderedQKey = qKey;
+      this.hasSubmittedCurrentQuestion = false;
+      this.selectedAnswer = null;
+      this.confettiPlayedForQ = false;
+    }
+
+    if (qNumEl) {
+      if (q.totalInMilestone > 1) {
+        qNumEl.textContent = `Mốc ${(q.index || 0) + 1} • Câu ${(q.subIndex !== undefined ? q.subIndex + 1 : 1)}/${q.totalInMilestone}`;
+      } else {
+        qNumEl.textContent = (q.index || 0) + 1;
+      }
+    }
     qText.textContent = q.question;
 
     // Khởi động đồng hồ đếm ngược nếu chưa chạy cho câu hỏi này
-    if (this.activeQuestionIdx !== q.index || !this.countdownInterval) {
+    if (this.activeQuestionKey !== qKey || !this.countdownInterval) {
       this.activeQuestionIdx = q.index;
+      this.activeQuestionKey = qKey;
       this.startQuestionCountdown(q);
     }
 
@@ -1818,7 +1866,8 @@ export const LiveVideo = {
 
     // Kiểm tra xem học sinh này đã nộp bài trước đó chưa
     const myUid = this.studentInfo?.uid;
-    const prevSub = responsesForQ?.[myUid];
+    const responsesForCurrentQ = remote?.responses?.[qKey] || remote?.responses?.[q.index] || responsesForQ || {};
+    const prevSub = responsesForCurrentQ?.[myUid];
     if (prevSub && prevSub.selected) {
       this.hasSubmittedCurrentQuestion = true;
       this.selectedAnswer = prevSub.selected;
@@ -1835,7 +1884,7 @@ export const LiveVideo = {
 
       btn.onclick = () => {
         if (q.revealed || this.hasSubmittedCurrentQuestion) return;
-        this.submitStudentAnswer(q.index, letter, q.answer);
+        this.submitStudentAnswer(qKey, letter, q.answer);
       };
     });
 
@@ -1996,6 +2045,7 @@ export const LiveVideo = {
   },
 
   async submitStudentAnswer(qIndex, selectedOption, correctAnswer) {
+    const qKey = String(qIndex);
     if (this.hasSubmittedCurrentQuestion || !this.activeRoom || !this.studentInfo) return;
 
     this.hasSubmittedCurrentQuestion = true;
@@ -2042,7 +2092,7 @@ export const LiveVideo = {
         timestamp: Date.now()
       };
 
-      await fetch(`${dbUrl}/live_video_rooms/${roomId}/responses/${qIndex}/${uid}.json`, {
+      await fetch(`${dbUrl}/live_video_rooms/${roomId}/responses/${qKey}/${uid}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(responsePayload)
@@ -2052,7 +2102,7 @@ export const LiveVideo = {
       if (!this.remoteState) this.remoteState = { ...(this.activeRoom || {}) };
       if (!this.remoteState.responses) this.remoteState.responses = {};
       if (!this.remoteState.responses[qIndex]) this.remoteState.responses[qIndex] = {};
-      this.remoteState.responses[qIndex][uid] = responsePayload;
+      this.remoteState.responses[qKey][uid] = responsePayload;
 
       let totalCorrect = 0;
       Object.values(this.remoteState.responses).forEach(qResp => {
@@ -2320,9 +2370,10 @@ export const LiveVideo = {
     if (remote.state === 'question' && remote.currentQuestion) {
       if (questionOverlay) questionOverlay.classList.remove('hidden');
       const q = remote.currentQuestion;
-      const responses = remote.responses?.[q.index] || {};
+      const qKey = q.qKey || `${q.index}_${q.subIndex || 0}`;
+      const responses = remote.responses?.[qKey] || remote.responses?.[q.index] || {};
       const submittedCount = Object.keys(responses).length;
-      const totalCheckpoints = Number(remote.totalQuestions || this.questionsList.length || 1);
+      const totalMilestones = Number(remote.totalMilestones || (this.questionsList ? this.questionsList.length : 1));
 
       const qNumEl = document.getElementById('master-q-number');
       const qTimeBadge = document.getElementById('master-q-time-badge');
@@ -2330,15 +2381,23 @@ export const LiveVideo = {
       const subCountEl = document.getElementById('master-q-submitted-count');
       const totStudEl = document.getElementById('master-q-total-students');
 
-      if (qNumEl) qNumEl.textContent = (q.index + 1);
-      if (qTimeBadge) qTimeBadge.textContent = `Mốc dừng: ${this.formatTime(q.sec || 0)}`;
+      const levelLabel = q.level === '1' ? 'Mức 1 (Nhận biết)' : (q.level === '2' ? 'Mức 2 (Thông hiểu)' : (q.level === '3' ? 'Mức 3 (Vận dụng)' : 'Mức 4 (Vận dụng cao)'));
+      if (qNumEl) {
+        if (q.totalInMilestone > 1) {
+          qNumEl.textContent = `Mốc #${q.index + 1} • Câu ${(q.subIndex || 0) + 1}/${q.totalInMilestone}`;
+        } else {
+          qNumEl.textContent = `Mốc #${q.index + 1}`;
+        }
+      }
+      if (qTimeBadge) qTimeBadge.textContent = `Mốc dừng: ${this.formatTime(q.sec || 0)} • ${levelLabel}`;
       if (qTextEl) qTextEl.textContent = q.question;
       if (subCountEl) subCountEl.textContent = submittedCount;
       if (totStudEl) totStudEl.textContent = studentEntries.length;
 
-      // Khởi động đồng hồ đếm ngược trên máy Thầy Cô nếu chưa chạy
-      if (this.activeQuestionIdx !== q.index || !this.countdownInterval) {
+      // Khởi động đồng hồ đếm ngược trên máy Thầy Cô nếu chưa chạy cho câu hỏi này
+      if (this.activeQuestionKey !== qKey || !this.countdownInterval) {
         this.activeQuestionIdx = q.index;
+        this.activeQuestionKey = qKey;
         this.startQuestionCountdown(q);
       }
 
@@ -2346,30 +2405,54 @@ export const LiveVideo = {
       this.renderLivePollChart('master-poll-bars', responses, q.revealed ? normAns : null);
 
       const btnReveal = document.getElementById('btn-master-reveal-answer');
+      const btnNextInMilestone = document.getElementById('btn-master-next-q-in-milestone');
       const btnResume = document.getElementById('btn-master-resume-video');
       const btnFinishAll = document.getElementById('btn-master-finish-all-milestones');
       const statsPanel = document.getElementById('master-milestone-stats-panel');
-
       const btnJumpNext = document.getElementById('btn-master-jump-next-checkpoint');
+
+      const hasNextInMilestone = (q.subIndex !== undefined) && ((q.subIndex + 1) < (q.totalInMilestone || 1));
+      const isLastMilestone = (q.index + 1) >= totalMilestones;
+
       if (q.revealed) {
         if (btnReveal) btnReveal.classList.add('hidden');
-        if (btnResume) btnResume.classList.remove('hidden');
-        const isLastMilestone = (q.index + 1) >= totalCheckpoints;
+
+        if (btnNextInMilestone) {
+          btnNextInMilestone.classList.toggle('hidden', !hasNextInMilestone);
+          if (hasNextInMilestone) {
+            btnNextInMilestone.innerHTML = `<i class="fa-solid fa-arrow-right"></i> Câu Tiếp Theo Trong Mốc (${(q.subIndex || 0) + 2}/${q.totalInMilestone})`;
+          }
+        }
+
+        if (btnResume) {
+          btnResume.classList.remove('hidden');
+          if (hasNextInMilestone) {
+            btnResume.innerHTML = `<i class="fa-solid fa-play"></i> Bỏ Qua & Tiếp Tục Chiếu Video`;
+            btnResume.className = 'px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer';
+          } else {
+            btnResume.innerHTML = `<i class="fa-solid fa-play"></i> Tiếp Tục Chiếu Video`;
+            btnResume.className = 'px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black transition flex items-center gap-1.5 shadow-lg shadow-blue-600/30 cursor-pointer';
+          }
+        }
+
         if (btnJumpNext) {
           btnJumpNext.classList.toggle('hidden', isLastMilestone);
           if (!isLastMilestone) {
-            btnJumpNext.innerHTML = `<i class="fa-solid fa-forward-step"></i> Tới Mốc Câu Hỏi #${q.index + 2}`;
+            btnJumpNext.innerHTML = `<i class="fa-solid fa-forward-step"></i> Tới Mốc Dừng Kế Tiếp (#${q.index + 2})`;
           }
         }
+
         if (btnFinishAll) {
-          btnFinishAll.classList.toggle('hidden', !isLastMilestone);
+          btnFinishAll.classList.toggle('hidden', !isLastMilestone || hasNextInMilestone);
         }
+
         if (statsPanel) {
           statsPanel.classList.remove('hidden');
-          this.renderMasterMilestoneStatsPanel(statsPanel, remote, q.index);
+          this.renderMasterMilestoneStatsPanel(statsPanel, remote, qKey);
         }
       } else {
         if (btnReveal) btnReveal.classList.remove('hidden');
+        if (btnNextInMilestone) btnNextInMilestone.classList.add('hidden');
         if (btnResume) btnResume.classList.add('hidden');
         if (btnJumpNext) btnJumpNext.classList.add('hidden');
         if (btnFinishAll) btnFinishAll.classList.add('hidden');
@@ -3075,6 +3158,18 @@ export const LiveVideo = {
       btnReveal.onclick = revealCurrentQuestionAnswer;
     }
 
+    // 7. Nút Chuyển Sang Câu Hỏi Tiếp Theo Trong Cùng Mốc (btnNextInMilestone)
+    const btnNextInMilestone = document.getElementById('btn-master-next-q-in-milestone');
+    if (btnNextInMilestone) {
+      btnNextInMilestone.onclick = () => {
+        const curQ = this.remoteState?.currentQuestion || this.activeRoom?.currentQuestion;
+        if (!curQ) return;
+        const curCp = this.questionsList?.find(item => item.index === curQ.index) || curQ;
+        const nextSubIdx = (curQ.subIndex || 0) + 1;
+        this.triggerMasterQuestion(curCp, nextSubIdx);
+      };
+    }
+
     // 7a. Nút Nhảy Sang Mốc Câu Hỏi Kế Tiếp Trực Tiếp (btnJumpNext)
     const btnJumpNext = document.getElementById('btn-master-jump-next-checkpoint');
     if (btnJumpNext && video) {
@@ -3202,14 +3297,14 @@ export const LiveVideo = {
     pinsContainer.innerHTML = this.questionsList.map((q, idx) => {
       const pct = Math.min(100, Math.max(0, (q.sec / dur) * 100));
       return `
-        <div class="absolute top-0 bottom-0 w-1.5 bg-amber-400 rounded-full cursor-pointer hover:w-2 hover:bg-white transition" style="left: ${pct}%" title="Mốc câu hỏi số ${idx + 1} (${this.formatTime(q.sec)})">
+        <div class="absolute top-0 bottom-0 w-1.5 bg-amber-400 rounded-full cursor-pointer hover:w-2 hover:bg-white transition" style="left: ${pct}%" title="Mốc câu hỏi số ${idx + 1} (${this.formatTime(q.sec)}) - ${q.totalInMilestone || (q.questions ? q.questions.length : 1)} câu hỏi">
           <span class="absolute -top-3 -translate-x-1/2 text-[9px]">🚩</span>
         </div>
       `;
     }).join('');
   },
 
-  triggerMasterQuestion(q) {
+  triggerMasterQuestion(checkpointOrQ, subIndex = 0) {
     const video = this.videoElem || document.getElementById('live-master-video');
     const dbUrl = this.getBaseDbUrl();
     const roomId = this.activeRoom?.roomId;
@@ -3217,15 +3312,34 @@ export const LiveVideo = {
 
     if (video && !video.paused) video.pause();
 
-    const totalSec = parseInt(q.timeLimit || q.countdown || this.activeRoom?.countdownSec || '20', 10);
+    let cp = checkpointOrQ;
+    if (!cp || !cp.questions || !Array.isArray(cp.questions)) {
+      const found = this.questionsList?.find(item => item.index === (checkpointOrQ?.checkpointIndex ?? checkpointOrQ?.index));
+      if (found) cp = found;
+    }
+
+    const qList = (cp && cp.questions && cp.questions.length > 0) ? cp.questions : [cp || checkpointOrQ];
+    const sIdx = Math.min(qList.length - 1, Math.max(0, subIndex));
+    const targetQ = qList[sIdx] || cp || checkpointOrQ;
+    const totalInMilestone = qList.length;
+
+    const totalSec = parseInt(targetQ.timeLimit || targetQ.countdown || this.activeRoom?.countdownSec || '20', 10);
     const now = Date.now();
+    const cpIndex = cp?.index !== undefined ? cp.index : (targetQ.index || 0);
+    const qKey = targetQ.qKey || `${cpIndex}_${sIdx}`;
+
     const questionPayload = {
-      index: q.index !== undefined ? q.index : 0,
-      id: q.id || `q_${q.index || 0}`,
-      sec: q.sec || 0,
-      question: q.question,
-      options: q.options || [],
-      answer: q.answer,
+      index: cpIndex,
+      subIndex: sIdx,
+      totalInMilestone: totalInMilestone,
+      globalIndex: targetQ.globalIndex !== undefined ? targetQ.globalIndex : cpIndex,
+      qKey: qKey,
+      id: targetQ.id || `q_${cpIndex}_${sIdx}`,
+      sec: cp?.sec || targetQ.sec || 0,
+      question: targetQ.question,
+      options: targetQ.options || [],
+      answer: targetQ.answer,
+      level: targetQ.level || '1',
       revealed: false,
       countdown: totalSec,
       startTimestamp: now,
@@ -3234,6 +3348,7 @@ export const LiveVideo = {
 
     // Bắt đầu đếm ngược thời gian ngay lập tức
     this.activeQuestionIdx = questionPayload.index;
+    this.activeQuestionKey = qKey;
     this.startQuestionCountdown(questionPayload);
 
     fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
@@ -3241,7 +3356,7 @@ export const LiveVideo = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         state: 'question',
-        currentTime: Number(video?.currentTime || q.sec || 0),
+        currentTime: Number(video?.currentTime || cp?.sec || targetQ.sec || 0),
         currentQuestion: questionPayload,
         updatedAt: now
       })
