@@ -73,7 +73,7 @@ Dự án áp dụng chính sách **bắt buộc đăng ký / đăng nhập trư�
      - Hiển thị thanh cố định `#auth-gatekeeper-overlay` nhắc nhở đăng nhập ngay trên giao diện với nút bấm 1 chạm.
    - Nếu `Auth.isLoggedIn()` nhưng `!Auth.isProfileComplete()`:
      - Giao diện chính vẫn bị khóa làm mờ.
-     - Tự động mở `#modal-required-profile` yêu cầu học sinh bổ sung: **Họ và tên, Lớp, Trường** (kèm nút "Đổi tài khoản khác / Đăng xuất" `#btn-cancel-profile-logout` để không bao giờ bị kẹt).
+     - Tự động mở `#modal-required-profile` yêu cầu học sinh bổ sung: **Họ và tên, Lớp, Trường** (chỉ áp dụng duy nhất trong lần đầu tiên học sinh mới đăng nhập vào hệ thống; nếu học sinh đã có thông tin trong hệ thống thì không hiện lại, học sinh có thể tự bấm nút "Cập nhật hồ sơ" hoặc "Đổi Lớp/Trường" bất cứ lúc nào).
    - Nếu `Auth.isLoggedIn()` và `Auth.isProfileComplete()`:
      - Mở khóa toàn bộ giao diện, xóa hiệu ứng mờ, ẩn banner nhắc nhở, khôi phục tương tác bình thường.
 2. Khi người dùng bấm **Đăng xuất** (`Auth.logout()`):

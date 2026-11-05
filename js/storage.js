@@ -445,6 +445,8 @@ export const Storage = {
         school: 'TT GDNN GDTX Chu Văn An',
         avatar: 'https://ui-avatars.com/api/?name=Nguyen+Minh+Khoi&background=3b82f6&color=fff',
         role: 'student',
+        profileCompleted: true,
+        firstLoginDone: true,
         createdAt: '2026-10-30T00:00:00.000Z',
         lastActive: '2026-10-30T02:00:00.000Z'
       },
@@ -513,7 +515,8 @@ export const Storage = {
         avatar: user.avatar || '',
         role: user.role || 'student',
         password: user.password || (idx >= 0 ? list[idx].password : '') || '',
-        profileCompleted: Boolean(user.profileCompleted || user.profileUpdatedAt || (idx >= 0 && list[idx].profileCompleted)),
+        profileCompleted: Boolean(user.profileCompleted || user.profileUpdatedAt || (idx >= 0 && list[idx].profileCompleted) || (user.school && user.className)),
+        firstLoginDone: Boolean(user.firstLoginDone || (idx >= 0 && list[idx].firstLoginDone) || (user.school && user.className) || user.profileCompleted),
         profileUpdatedAt: user.profileUpdatedAt || (idx >= 0 ? list[idx].profileUpdatedAt : null) || null,
         lastActive: user.lastActive || new Date().toISOString()
       };

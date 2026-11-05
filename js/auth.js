@@ -4,8 +4,8 @@
  * Hỗ trợ: Đăng nhập Google Popup, Đồng bộ Firebase Realtime Database, Hồ sơ học sinh.
  */
 
-import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261102_93';
-import { CloudSync } from './cloud-sync.js?v=20261102_93';
+import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261102_94';
+import { CloudSync } from './cloud-sync.js?v=20261102_94';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
 
@@ -77,6 +77,40 @@ export const Auth = {
       const data = localStorage.getItem(AUTH_STORAGE_KEY);
       if (data) {
         this.currentUser = JSON.parse(data);
+        if (this.currentUser) {
+          // Chuẩn hóa tự động: Nếu đã có trường và lớp thì coi như đã hoàn tất hồ sơ
+          if (this.currentUser.school && this.currentUser.className) {
+            if (!this.currentUser.profileCompleted || !this.currentUser.firstLoginDone) {
+              this.currentUser.profileCompleted = true;
+              this.currentUser.firstLoginDone = true;
+              localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(this.currentUser));
+            }
+          } else {
+            // Kiểm tra tìm trong cơ sở dữ liệu accounts hệ thống nếu là tài khoản đã có sẵn
+            try {
+              if (typeof Storage !== 'undefined' && typeof Storage.getAccountsList === 'function') {
+                const email = (this.currentUser.email || '').trim().toLowerCase();
+                const uid = (this.currentUser.uid || '').trim().toLowerCase();
+                const uname = (this.currentUser.username || '').trim().toLowerCase();
+                const accounts = Storage.getAccountsList();
+                const found = accounts.find(a =>
+                  (email && a.email && a.email.toLowerCase() === email) ||
+                  (uid && a.uid && a.uid.toLowerCase() === uid) ||
+                  (uname && a.username && a.username.toLowerCase() === uname)
+                );
+                if (found && (found.school && found.className)) {
+                  this.currentUser.school = found.school;
+                  this.currentUser.className = found.className;
+                  this.currentUser.grade = found.grade || this.currentUser.grade || '12';
+                  this.currentUser.fullName = found.fullName || this.currentUser.fullName || 'Học sinh';
+                  this.currentUser.profileCompleted = true;
+                  this.currentUser.firstLoginDone = true;
+                  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(this.currentUser));
+                }
+              }
+            } catch (e) {}
+          }
+        }
       } else {
         this.currentUser = null;
       }
@@ -165,6 +199,7 @@ export const Auth = {
 
   isProfileComplete() {
     if (!this.currentUser) return false;
+    // 1. Quản trị viên và Giáo viên luôn hoàn tất hồ sơ
     if (this.currentUser.role === 'admin' || this.currentUser.role === 'teacher') {
       if (!this.currentUser.fullName) this.currentUser.fullName = this.currentUser.role === 'admin' ? 'Quản trị viên TinHocHub' : 'Giáo viên TinHocHub';
       if (!this.currentUser.school) this.currentUser.school = this.currentUser.role === 'admin' ? 'Ban Quản Trị TinHocHub' : 'THPT Thực Hành HCMUE';
@@ -172,11 +207,56 @@ export const Auth = {
       if (!this.currentUser.grade) this.currentUser.grade = '12';
       return true;
     }
-    const hasName = Boolean(this.currentUser.fullName && this.currentUser.fullName.trim());
-    const hasSchool = Boolean(this.currentUser.school && this.currentUser.school.trim());
-    const hasClass = Boolean(this.currentUser.className && this.currentUser.className.trim());
-    const hasConfirmed = Boolean(this.currentUser.profileCompleted || this.currentUser.profileUpdatedAt);
-    return hasName && hasSchool && hasClass && hasConfirmed;
+
+    // 2. Học sinh đã có Trường và Lớp -> ĐÃ HOÀN TẤT
+    const hasSchool = Boolean(this.currentUser.school && String(this.currentUser.school).trim());
+    const hasClass = Boolean(this.currentUser.className && String(this.currentUser.className).trim());
+    if (hasSchool && hasClass) {
+      if (!this.currentUser.profileCompleted || !this.currentUser.firstLoginDone) {
+        this.currentUser.profileCompleted = true;
+        this.currentUser.firstLoginDone = true;
+        try { localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(this.currentUser)); } catch (e) {}
+      }
+      return true;
+    }
+
+    // 3. Học sinh đã từng hoàn tất hoặc đã qua lần đăng nhập đầu tiên
+    if (this.currentUser.profileCompleted || this.currentUser.firstLoginDone) {
+      return true;
+    }
+
+    // 4. Kiểm tra tài khoản trong danh sách hệ thống (Storage.getAccountsList)
+    try {
+      if (typeof Storage !== 'undefined' && typeof Storage.getAccountsList === 'function') {
+        const email = (this.currentUser.email || '').trim().toLowerCase();
+        const uid = (this.currentUser.uid || '').trim().toLowerCase();
+        const uname = (this.currentUser.username || '').trim().toLowerCase();
+        const accounts = Storage.getAccountsList();
+        const found = accounts.find(a =>
+          (email && a.email && a.email.toLowerCase() === email) ||
+          (uid && a.uid && a.uid.toLowerCase() === uid) ||
+          (uname && a.username && a.username.toLowerCase() === uname)
+        );
+
+        if (found) {
+          // Học sinh đã có trong hệ thống -> Tự động khôi phục và không tự bật modal bắt buộc
+          this.currentUser.school = found.school || this.currentUser.school || 'TT GDNN GDTX Chu Văn An';
+          this.currentUser.className = found.className || this.currentUser.className || '12A1';
+          this.currentUser.grade = found.grade || this.currentUser.grade || '12';
+          this.currentUser.fullName = found.fullName || this.currentUser.fullName || 'Học sinh';
+          this.currentUser.profileCompleted = true;
+          this.currentUser.firstLoginDone = true;
+          try {
+            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(this.currentUser));
+            Storage.saveAccountRecord(this.currentUser);
+          } catch (e) {}
+          return true;
+        }
+      }
+    } catch (e) {}
+
+    // Chỉ trả về false khi là học sinh hoàn toàn mới đăng nhập lần đầu tiên chưa từng có trong hệ thống
+    return false;
   },
 
   // ==================== FIREBASE AUTHENTICATION (GOOGLE SIGN-IN) ====================
@@ -704,14 +784,15 @@ export const Auth = {
         CloudSync.syncAccounts().then(() => {
           const syncedAccounts = Storage.getAccountsList();
           const remoteFound = syncedAccounts.find(a => a.email && a.email.toLowerCase() === email);
-          if (remoteFound && (remoteFound.profileCompleted || remoteFound.profileUpdatedAt) && remoteFound.school && remoteFound.className) {
+          if (remoteFound && ((remoteFound.school && remoteFound.className) || remoteFound.profileCompleted || remoteFound.firstLoginDone)) {
             this.currentUser = {
               ...this.currentUser,
               fullName: remoteFound.fullName || this.currentUser.fullName,
               grade: remoteFound.grade || this.currentUser.grade || '12',
-              school: remoteFound.school,
-              className: remoteFound.className,
+              school: remoteFound.school || this.currentUser.school || 'TT GDNN GDTX Chu Văn An',
+              className: remoteFound.className || this.currentUser.className || '12A1',
               profileCompleted: true,
+              firstLoginDone: true,
               profileUpdatedAt: remoteFound.profileUpdatedAt || new Date().toISOString()
             };
             localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(this.currentUser));
@@ -752,22 +833,23 @@ export const Auth = {
     const savedAccounts = Storage.getAccountsList();
     const found = savedAccounts.find(a => a.email && a.email.toLowerCase() === cleanEmail);
     const curSame = (this.currentUser && this.currentUser.email && this.currentUser.email.toLowerCase() === cleanEmail) ? this.currentUser : null;
-    const existing = (curSame && (curSame.profileCompleted || curSame.profileUpdatedAt)) ? curSame : (found || curSame);
+    const existing = (curSame && (curSame.profileCompleted || curSame.profileUpdatedAt || (curSame.school && curSame.className))) ? curSame : (found || curSame);
 
     const userRole = isAdminEmail ? 'admin' : (existing?.role || (cleanEmail.includes('giaovien') || cleanEmail.includes('gv') ? 'teacher' : 'student'));
-    const hasConfirmedProfile = Boolean(existing && (existing.profileCompleted || existing.profileUpdatedAt) && existing.school && existing.className);
+    const hasExistingProfile = Boolean(existing && existing.school && existing.className);
 
     const profile = {
       uid: sub ? ('google_' + sub) : (existing?.uid || 'google_' + Date.now()),
       email: cleanEmail,
-      fullName: (hasConfirmedProfile && existing?.fullName) ? existing.fullName : (cleanName || existing?.fullName || (isAdminEmail ? 'Thầy Nghĩa (Quản trị viên)' : 'Học sinh Google')),
+      fullName: (hasExistingProfile && existing?.fullName) ? existing.fullName : (cleanName || existing?.fullName || (isAdminEmail ? 'Thầy Nghĩa (Quản trị viên)' : 'Học sinh Google')),
       avatar: avatar,
       grade: existing?.grade || '12',
-      className: isAdminEmail ? (existing?.className || 'Quản trị hệ thống') : (userRole === 'teacher' ? (existing?.className || 'Tổ Tin học') : (hasConfirmedProfile ? existing.className : '')),
-      school: isAdminEmail ? (existing?.school || 'Ban Quản Trị TinHocHub') : (userRole === 'teacher' ? (existing?.school || 'THPT Thực Hành HCMUE') : (hasConfirmedProfile ? existing.school : '')),
+      className: isAdminEmail ? (existing?.className || 'Quản trị hệ thống') : (userRole === 'teacher' ? (existing?.className || 'Tổ Tin học') : (existing?.className || '')),
+      school: isAdminEmail ? (existing?.school || 'Ban Quản Trị TinHocHub') : (userRole === 'teacher' ? (existing?.school || 'THPT Thực Hành HCMUE') : (existing?.school || '')),
       role: userRole,
-      profileCompleted: isAdminEmail || userRole === 'teacher' || hasConfirmedProfile,
-      profileUpdatedAt: existing?.profileUpdatedAt || null,
+      profileCompleted: Boolean(isAdminEmail || userRole === 'teacher' || hasExistingProfile || existing?.profileCompleted || existing?.firstLoginDone),
+      firstLoginDone: Boolean(hasExistingProfile || existing?.firstLoginDone || existing?.profileCompleted),
+      profileUpdatedAt: existing?.profileUpdatedAt || (hasExistingProfile ? new Date().toISOString() : null),
       lastActive: new Date().toISOString(),
       createdAt: existing?.createdAt || new Date().toISOString()
     };
@@ -867,6 +949,15 @@ export const Auth = {
         code: 'WRONG_PASSWORD',
         message: 'Mật khẩu không chính xác! Vui lòng kiểm tra lại mật khẩu của bạn.'
       };
+    }
+
+    if ((match.school && match.className) || match.profileCompleted || match.firstLoginDone) {
+      match.profileCompleted = true;
+      match.firstLoginDone = true;
+    } else if (match.role === 'student') {
+      // Tài khoản đã có trong hệ thống -> Đánh dấu không tự động chặn modal
+      match.firstLoginDone = true;
+      match.profileCompleted = true;
     }
 
     this.saveUser(match);
@@ -969,6 +1060,7 @@ export const Auth = {
       school: cleanSchool,
       role: finalRole,
       profileCompleted: true,
+      firstLoginDone: true,
       profileUpdatedAt: nowIso,
       createdAt: nowIso
     };
@@ -987,6 +1079,7 @@ export const Auth = {
     if (!target) {
       return { success: false, message: 'Không tìm thấy tài khoản!' };
     }
+    const hasProfile = Boolean((target.school && target.className) || target.profileCompleted || target.firstLoginDone);
     const user = {
       uid: target.uid || 'user_' + Date.now(),
       username: target.username || (target.email ? target.email.split('@')[0] : ''),
@@ -998,7 +1091,8 @@ export const Auth = {
       className: target.className || '',
       school: target.school || '',
       role: target.role || 'student',
-      profileCompleted: Boolean(target.profileCompleted || target.profileUpdatedAt),
+      profileCompleted: hasProfile,
+      firstLoginDone: hasProfile,
       profileUpdatedAt: target.profileUpdatedAt || null,
       createdAt: target.createdAt || new Date().toISOString()
     };
@@ -1036,6 +1130,7 @@ export const Auth = {
       className: newClassName,
       school: newSchool,
       profileCompleted: true,
+      firstLoginDone: true,
       profileUpdatedAt: nowIso,
       lastActive: nowIso
     };
