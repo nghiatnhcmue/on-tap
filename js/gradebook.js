@@ -4,9 +4,9 @@
  * đánh giá xu hướng tiến độ (Đang tiến bộ 🚀 / Cần cố gắng ⚠️ / Xuất sắc 🏆), và xuất file Excel chuẩn.
  */
 
-import { Storage } from './storage.js?v=20261102_89';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261102_89';
-import { escapeHtml } from './utils.js?v=20261102_89';
+import { Storage } from './storage.js?v=20261102_90';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261102_90';
+import { escapeHtml } from './utils.js?v=20261102_90';
 
 export const Gradebook = {
   container: null,
@@ -763,6 +763,7 @@ export const Gradebook = {
                 <th class="py-3 px-3 text-center">Giám sát vi phạm</th>
                 <th class="py-3 px-3">Thời gian</th>
                 <th class="py-3 px-3">Thời điểm nộp</th>
+                ${(Auth.isAdmin() || Auth.isTeacher()) ? '<th class="py-3 px-3 text-right">Thao tác</th>' : ''}
               </tr>
             </thead>
             <tbody id="gradebook-table-body" class="divide-y divide-slate-100 dark:divide-slate-700/60 font-medium">
@@ -824,6 +825,18 @@ export const Gradebook = {
                     <td class="py-3 px-3 text-center">${proctorBadge}</td>
                     <td class="py-3 px-3 text-slate-400 font-mono">${mins}p ${secs}s</td>
                     <td class="py-3 px-3 text-slate-400">${date}</td>
+                    ${(Auth.isAdmin() || Auth.isTeacher()) ? `
+                      <td class="py-3 px-3 text-right">
+                        <div class="inline-flex items-center gap-1.5 justify-end">
+                          <button type="button" data-gb-edit-result="${escapeHtml(item.id)}" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-950/50 dark:text-amber-300 transition" title="Sửa điểm/thông tin bài thi">
+                            <i class="fa-solid fa-pen-to-square"></i> Sửa
+                          </button>
+                          <button type="button" data-gb-delete-result="${escapeHtml(item.id)}" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300 transition" title="Xóa bài thi">
+                            <i class="fa-solid fa-trash-can"></i> Xóa
+                          </button>
+                        </div>
+                      </td>
+                    ` : ''}
                   </tr>
                 `;
               }).join('')}
@@ -835,6 +848,98 @@ export const Gradebook = {
   },
 
   // --- SỰ KIỆN GIAO DIỆN ---
+  
+  // --- MODAL: SỬA KẾT QUẢ BÀI THI TỪ SỔ ĐIỂM ---
+  openResultEditorModal(resultId) {
+    const modal = document.getElementById('modal-admin-result-editor');
+    if (!modal) return;
+
+    const history = Storage.getExamHistory();
+    const item = history.find(h => String(h.id) === String(resultId));
+    if (!item) {
+      alert('Không tìm thấy kết quả bài thi này!');
+      return;
+    }
+
+    const idEl = document.getElementById('admin-result-edit-id');
+    const metaTitleEl = document.getElementById('admin-result-meta-title');
+    const metaSubEl = document.getElementById('admin-result-meta-sub');
+    const nameEl = document.getElementById('admin-result-edit-name');
+    const classEl = document.getElementById('admin-result-edit-class');
+    const schoolEl = document.getElementById('admin-result-edit-school');
+    const gradeEl = document.getElementById('admin-result-edit-grade');
+    const scoreEl = document.getElementById('admin-result-edit-score');
+    const correctEl = document.getElementById('admin-result-edit-correct');
+    const totalEl = document.getElementById('admin-result-edit-total');
+    const violEl = document.getElementById('admin-result-edit-violations');
+    const disqEl = document.getElementById('admin-result-edit-disqualified');
+    const noteEl = document.getElementById('admin-result-edit-note');
+
+    if (idEl) idEl.value = item.id;
+    if (metaTitleEl) metaTitleEl.textContent = item.title || 'Đề thi';
+    if (metaSubEl) {
+      const dateStr = item.date ? new Date(item.date).toLocaleString('vi-VN') : '-';
+      metaSubEl.textContent = `Nộp lúc: ${dateStr} • Mã đề: ${item.examCode || '101'} • Phòng: ${item.roomId || 'Tự do'}`;
+    }
+    if (nameEl) nameEl.value = item.studentName || '';
+    if (classEl) classEl.value = item.studentClass || '';
+    if (schoolEl) schoolEl.value = item.studentSchool || '';
+    if (gradeEl) gradeEl.value = item.grade || '12';
+    if (scoreEl) scoreEl.value = Number(item.score) || 0;
+    if (correctEl) correctEl.value = item.correctCount || 0;
+    if (totalEl) totalEl.value = item.totalQuestions || 28;
+    if (violEl) violEl.value = item.violationCount || 0;
+    if (disqEl) disqEl.checked = !!item.isDisqualified;
+    if (noteEl) noteEl.value = item.teacherNote || '';
+
+    // Gắn handler submit cho form khi mở từ Sổ điểm
+    const formResultEditor = document.getElementById('form-admin-result-editor');
+    if (formResultEditor) {
+      formResultEditor.onsubmit = (e) => {
+        e.preventDefault();
+        const id = document.getElementById('admin-result-edit-id')?.value;
+        const studentName = document.getElementById('admin-result-edit-name')?.value.trim();
+        const studentClass = document.getElementById('admin-result-edit-class')?.value.trim();
+        const studentSchool = document.getElementById('admin-result-edit-school')?.value.trim();
+        const grade = document.getElementById('admin-result-edit-grade')?.value;
+        const score = parseFloat(document.getElementById('admin-result-edit-score')?.value);
+        const correctCount = parseInt(document.getElementById('admin-result-edit-correct')?.value, 10);
+        const totalQuestions = parseInt(document.getElementById('admin-result-edit-total')?.value, 10);
+        const violationCount = parseInt(document.getElementById('admin-result-edit-violations')?.value, 10) || 0;
+        const isDisqualified = document.getElementById('admin-result-edit-disqualified')?.checked || false;
+        const teacherNote = document.getElementById('admin-result-edit-note')?.value.trim();
+
+        if (isNaN(score) || score < 0 || score > 10) {
+          alert('Điểm số phải nằm trong khoảng từ 0.0 đến 10.0!');
+          return;
+        }
+
+        const res = Storage.updateExamResult(id, {
+          studentName,
+          studentClass,
+          studentSchool,
+          grade,
+          score,
+          correctCount: isNaN(correctCount) ? undefined : correctCount,
+          totalQuestions: isNaN(totalQuestions) ? undefined : totalQuestions,
+          violationCount,
+          isDisqualified,
+          teacherNote
+        });
+
+        alert(res.message);
+        if (res.success) {
+          modal.classList.add('hidden');
+          modal.classList.remove('flex');
+          this.render();
+        }
+      };
+    }
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  },
+
   bindEvents(history, studentsProgress) {
     if (!this.container) return;
 
@@ -940,6 +1045,34 @@ export const Gradebook = {
     }
 
     // Nút xuất Excel toàn bộ bài thi
+    // Nút Sửa Kết QuẢ Bài Thi từ Sổ Điểm
+    document.querySelectorAll('[data-gb-edit-result]').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-gb-edit-result');
+        this.openResultEditorModal(id);
+      };
+    });
+
+    // Nút Xóa Kết Quả Bài Thi từ Sổ Điểm
+    document.querySelectorAll('[data-gb-delete-result]').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-gb-delete-result');
+        const historyList = Storage.getExamHistory();
+        const item = historyList.find(h => String(h.id) === String(id));
+        if (!confirm(`Thầy/Cô có chắc chắn muốn xóa vĩnh viễn kết quả bài thi này của thí sinh [${item?.studentName || 'Thí sinh'}] (${item?.score || 0} điểm)?`)) {
+          return;
+        }
+        const res = Storage.deleteExamResult(id);
+        alert(res.message);
+        if (res.success) {
+          document.getElementById('modal-student-progress')?.classList.add('hidden');
+          this.render();
+        }
+      };
+    });
+
     const btnExpSessions = this.container.querySelector('#btn-export-sessions-excel');
     if (btnExpSessions) {
       btnExpSessions.onclick = () => this.exportSessionsToExcel(history);
@@ -1041,9 +1174,43 @@ export const Gradebook = {
             </td>
             <td class="py-2.5 px-3 text-slate-400 font-mono">${mins}p ${secs}s</td>
             <td class="py-2.5 px-3 text-slate-400">${date}</td>
+            ${(Auth.isAdmin() || Auth.isTeacher()) ? `
+              <td class="py-2.5 px-3 text-right">
+                <div class="inline-flex items-center gap-1 justify-end">
+                  <button type="button" data-gb-edit-result="${escapeHtml(ex.id)}" class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-950/50 dark:text-amber-300 transition" title="Sửa bài thi">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </button>
+                  <button type="button" data-gb-delete-result="${escapeHtml(ex.id)}" class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300 transition" title="Xóa bài thi">
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                </div>
+              </td>
+            ` : ''}
           </tr>
         `;
       }).join('');
+
+      examsTableBody.querySelectorAll('[data-gb-edit-result]').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute('data-gb-edit-result');
+          this.openResultEditorModal(id);
+        };
+      });
+      examsTableBody.querySelectorAll('[data-gb-delete-result]').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute('data-gb-delete-result');
+          if (confirm('Thầy/Cô có chắc chắn muốn xóa bài thi này không?')) {
+            const res = Storage.deleteExamResult(id);
+            alert(res.message);
+            if (res.success) {
+              modal.classList.add('hidden');
+              this.render();
+            }
+          }
+        };
+      });
     }
 
     modal.classList.remove('hidden');

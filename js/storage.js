@@ -566,6 +566,96 @@ export const Storage = {
     }
   },
 
+  updateAccount(emailOrUid, updatedData) {
+    if (!emailOrUid || !updatedData) return null;
+    try {
+      const target = String(emailOrUid).trim().toLowerCase();
+      let list = this.getAccountsList();
+      const user = list.find(u =>
+        (u.email && u.email.toLowerCase() === target) ||
+        (u.uid && u.uid.toLowerCase() === target) ||
+        (u.username && u.username.toLowerCase() === target)
+      );
+      if (!user) return null;
+
+      if (updatedData.fullName !== undefined) user.fullName = String(updatedData.fullName).trim();
+      if (updatedData.email !== undefined && String(updatedData.email).trim()) {
+        user.email = String(updatedData.email).trim().toLowerCase();
+      }
+      if (updatedData.username !== undefined && String(updatedData.username).trim()) {
+        user.username = String(updatedData.username).trim().toLowerCase();
+      }
+      if (updatedData.grade !== undefined) user.grade = String(updatedData.grade).trim();
+      if (updatedData.className !== undefined) user.className = String(updatedData.className).trim();
+      if (updatedData.school !== undefined) user.school = String(updatedData.school).trim();
+      if (updatedData.role !== undefined) user.role = String(updatedData.role).trim();
+      if (updatedData.password !== undefined && String(updatedData.password).trim()) {
+        user.password = String(updatedData.password).trim();
+      }
+      user.profileCompleted = true;
+      user.profileUpdatedAt = new Date().toISOString();
+      user.lastActive = new Date().toISOString();
+
+      localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(list));
+      localStorage.setItem('tinhoc_user_accounts', JSON.stringify(list));
+
+      const cs = this.getCloudSync();
+      if (cs && typeof cs.pushAccountToCloud === 'function') {
+        cs.pushAccountToCloud(user).catch(() => {});
+      }
+
+      // Cập nhật session hiện tại nếu tài khoản đang đăng nhập
+      const currentUserStr = localStorage.getItem('tinhoc_user');
+      if (currentUserStr) {
+        try {
+          const cur = JSON.parse(currentUserStr);
+          if ((cur.email && cur.email.toLowerCase() === target) || (cur.uid && cur.uid.toLowerCase() === target)) {
+            const updatedCur = { ...cur, ...user };
+            localStorage.setItem('tinhoc_user', JSON.stringify(updatedCur));
+          }
+        } catch (e) {}
+      }
+
+      return user;
+    } catch (e) {
+      console.error('Error updating account', e);
+      return null;
+    }
+  },
+
+  deleteAccount(emailOrUid) {
+    if (!emailOrUid) return false;
+    try {
+      const target = String(emailOrUid).trim().toLowerCase();
+      let list = this.getAccountsList();
+      const userToDelete = list.find(u =>
+        (u.email && u.email.toLowerCase() === target) ||
+        (u.uid && u.uid.toLowerCase() === target) ||
+        (u.username && u.username.toLowerCase() === target)
+      );
+      if (!userToDelete) return false;
+
+      const filtered = list.filter(u =>
+        (u.email && u.email.toLowerCase() === target) ? false :
+        (u.uid && u.uid.toLowerCase() === target) ? false :
+        (u.username && u.username.toLowerCase() === target) ? false : true
+      );
+
+      localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(filtered));
+      localStorage.setItem('tinhoc_user_accounts', JSON.stringify(filtered));
+
+      const cs = this.getCloudSync();
+      if (cs && typeof cs.deleteAccountFromCloud === 'function') {
+        cs.deleteAccountFromCloud(userToDelete.email || userToDelete.uid || userToDelete.username).catch(() => {});
+      }
+
+      return true;
+    } catch (e) {
+      console.error('Error deleting account', e);
+      return false;
+    }
+  },
+
   // --- QUẢN LÝ PHÒNG THI / GIAO ĐỀ THI (THỜI GIAN, PASSWORD, CHỐNG GIAN LẬN) ---
   getExamRooms() {
     try {
@@ -1300,6 +1390,126 @@ export const Storage = {
 
   clearExamHistory() {
     localStorage.removeItem(STORAGE_KEYS.EXAM_HISTORY);
+  },
+
+  deleteExamResult(id) {
+    if (!id) return false;
+    try {
+      let history = this.getExamHistory();
+      const targetItem = history.find(item => item.id === id);
+      if (!targetItem) return false;
+
+      history = history.filter(item => item.id !== id);
+      localStorage.setItem(STORAGE_KEYS.EXAM_HISTORY, JSON.stringify(history));
+
+      const cs = this.getCloudSync();
+      if (cs && typeof cs.deleteExamResultFromCloud === 'function') {
+        cs.deleteExamResultFromCloud(targetItem).catch(() => {});
+      }
+      this.notifyUserProgressChanged();
+      return true;
+    } catch (e) {
+      console.error('Error deleting exam result', e);
+      return false;
+    }
+  },
+
+  updateExamResult(id, updatedData) {
+    if (!id || !updatedData) return null;
+    try {
+      const history = this.getExamHistory();
+      const idx = history.findIndex(item => item.id === id);
+      if (idx < 0) return null;
+
+      const item = history[idx];
+      if (updatedData.score !== undefined) {
+        item.score = Number(Number(updatedData.score).toFixed(2));
+      }
+      if (updatedData.correctCount !== undefined) {
+        item.correctCount = parseInt(updatedData.correctCount, 10);
+      }
+      if (updatedData.totalQuestions !== undefined) {
+        item.totalQuestions = parseInt(updatedData.totalQuestions, 10);
+      }
+      if (updatedData.studentName !== undefined) {
+        item.studentName = String(updatedData.studentName).trim();
+      }
+      if (updatedData.studentClass !== undefined || updatedData.className !== undefined) {
+        const c = String(updatedData.studentClass || updatedData.className || '').trim();
+        item.studentClass = c;
+        item.className = c;
+      }
+      if (updatedData.studentSchool !== undefined || updatedData.school !== undefined) {
+        const s = String(updatedData.studentSchool || updatedData.school || '').trim();
+        item.studentSchool = s;
+        item.school = s;
+      }
+      if (updatedData.grade !== undefined) {
+        item.grade = String(updatedData.grade).trim();
+      }
+      if (updatedData.title !== undefined) {
+        item.title = String(updatedData.title).trim();
+      }
+      if (updatedData.examCode !== undefined) {
+        item.examCode = String(updatedData.examCode).trim();
+      }
+      if (updatedData.roomId !== undefined) {
+        item.roomId = String(updatedData.roomId).trim() || null;
+      }
+      if (updatedData.violationCount !== undefined) {
+        item.violationCount = parseInt(updatedData.violationCount, 10) || 0;
+      }
+      if (updatedData.isDisqualified !== undefined) {
+        item.isDisqualified = Boolean(updatedData.isDisqualified);
+      }
+      if (updatedData.disqualifiedReason !== undefined) {
+        item.disqualifiedReason = String(updatedData.disqualifiedReason).trim();
+      }
+      item.updatedAt = new Date().toISOString();
+
+      localStorage.setItem(STORAGE_KEYS.EXAM_HISTORY, JSON.stringify(history));
+
+      const cs = this.getCloudSync();
+      if (cs && typeof cs.pushExamResultToCloud === 'function') {
+        cs.pushExamResultToCloud(item).catch(() => {});
+      }
+      this.notifyUserProgressChanged();
+      return item;
+    } catch (e) {
+      console.error('Error updating exam result', e);
+      return null;
+    }
+  },
+
+  deleteExamResultsBulk(idsOrFilterFn) {
+    try {
+      let history = this.getExamHistory();
+      let toDelete = [];
+      if (Array.isArray(idsOrFilterFn)) {
+        const idSet = new Set(idsOrFilterFn);
+        toDelete = history.filter(item => idSet.has(item.id));
+        history = history.filter(item => !idSet.has(item.id));
+      } else if (typeof idsOrFilterFn === 'function') {
+        toDelete = history.filter(idsOrFilterFn);
+        history = history.filter(item => !idsOrFilterFn(item));
+      } else {
+        return false;
+      }
+
+      localStorage.setItem(STORAGE_KEYS.EXAM_HISTORY, JSON.stringify(history));
+
+      const cs = this.getCloudSync();
+      if (cs && typeof cs.deleteExamResultFromCloud === 'function') {
+        toDelete.forEach(item => {
+          cs.deleteExamResultFromCloud(item).catch(() => {});
+        });
+      }
+      this.notifyUserProgressChanged();
+      return toDelete.length;
+    } catch (e) {
+      console.error('Error bulk deleting exam results', e);
+      return false;
+    }
   },
 
   // --- LƯU NHÁP & KHÔI PHỤC BÀI THI ĐANG LÀM DỞ (AUTO-SAVE SESSION) ---

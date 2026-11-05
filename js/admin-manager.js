@@ -5,10 +5,10 @@
  * Cơ sở dữ liệu đám mây, Tải lên Video bài giảng Archive.org S3, Dọn dẹp/Sao lưu.
  */
 
-import { Storage } from './storage.js?v=20261102_89';
-import { Auth } from './auth.js?v=20261102_89';
-import { escapeHtml } from './utils.js?v=20261102_89';
-import { CloudSync, DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261102_89';
+import { Storage } from './storage.js?v=20261102_90';
+import { Auth } from './auth.js?v=20261102_90';
+import { escapeHtml } from './utils.js?v=20261102_90';
+import { CloudSync, DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261102_90';
 
 export const AdminManager = {
   container: null,
@@ -24,6 +24,13 @@ export const AdminManager = {
   videoGradeFilter: 'all',
   videoSearchQuery: '',
   uploadProgressStats: { totalBytes: 0, loadedBytes: 0, startTime: 0 },
+  userSearchQuery: '',
+  userRoleFilter: 'all',
+  userSchoolFilter: 'all',
+  resultSearchQuery: '',
+  resultGradeFilter: 'all',
+  resultSchoolFilter: 'all',
+  resultStatusFilter: 'all',
 
   async init(containerEl, manifest = null) {
     this.container = containerEl;
@@ -237,59 +244,146 @@ export const AdminManager = {
         <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 pb-4">
             <div>
+              <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 text-xs font-bold uppercase tracking-wider mb-1.5">
+                <i class="fa-solid fa-users-gear"></i> Tài Khoản & Phân Quyền
+              </div>
               <h3 class="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                <i class="fa-solid fa-users-gear text-blue-600"></i> Phân Quyền Thành Viên (Học Sinh, Giáo Viên, Admin)
+                <i class="fa-solid fa-users text-blue-600"></i> Quản Lý Tài Khoản Thành Viên & Phân Quyền Hệ Thống
               </h3>
               <p class="text-xs text-slate-400 mt-0.5">
-                Chỉ Admin có quyền chỉ định ai là Giáo viên (được can thiệp câu hỏi) hoặc Admin (toàn quyền).
+                Admin có toàn quyền Thêm mới, Chỉnh sửa thông tin/mật khẩu, Xóa tài khoản hoặc phân vai trò (Học sinh, Giáo viên, Admin).
               </p>
             </div>
-            <button id="btn-admin-refresh-users" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center gap-1.5 self-start">
-              <i class="fa-solid fa-rotate-right"></i> Làm mới danh sách
-            </button>
+            <div class="flex items-center gap-2 flex-wrap">
+              <button id="btn-admin-add-user" type="button" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-blue-500/20">
+                <i class="fa-solid fa-user-plus"></i> Thêm Tài Khoản Mới
+              </button>
+              <button id="btn-admin-export-users" type="button" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center gap-1.5">
+                <i class="fa-solid fa-file-excel text-emerald-600"></i> Xuất Danh Sách
+              </button>
+              <button id="btn-admin-refresh-users" type="button" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center gap-1.5">
+                <i class="fa-solid fa-rotate-right"></i> Làm mới
+              </button>
+            </div>
           </div>
 
+          <!-- Thanh tìm kiếm & bộ lọc thành viên -->
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 text-xs">
+            <div class="sm:col-span-6 relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+              <input type="text" id="admin-search-users" value="${escapeHtml(this.userSearchQuery || '')}" placeholder="Tìm theo tên, email, tên tài khoản, lớp..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div class="sm:col-span-3">
+              <select id="admin-filter-user-role" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="all" ${this.userRoleFilter === 'all' ? 'selected' : ''}>Tất cả vai trò</option>
+                <option value="student" ${this.userRoleFilter === 'student' ? 'selected' : ''}>Chỉ Học sinh</option>
+                <option value="teacher" ${this.userRoleFilter === 'teacher' ? 'selected' : ''}>Chỉ Giáo viên</option>
+                <option value="admin" ${this.userRoleFilter === 'admin' ? 'selected' : ''}>Chỉ Admin</option>
+              </select>
+            </div>
+            <div class="sm:col-span-3">
+              <select id="admin-filter-user-school" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="all">Tất cả các trường</option>
+                ${Object.keys(schoolsData).map(k => `
+                  <option value="${escapeHtml(schoolsData[k].name)}" ${this.userSchoolFilter === schoolsData[k].name ? 'selected' : ''}>${escapeHtml(schoolsData[k].name)}</option>
+                `).join('')}
+              </select>
+            </div>
+          </div>
+
+          <!-- Bảng danh sách thành viên -->
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
               <thead>
-                <tr class="border-b border-slate-200 dark:border-slate-700 text-slate-400 font-semibold uppercase tracking-wider">
-                  <th class="py-3 px-3">Họ và tên</th>
-                  <th class="py-3 px-3">Email</th>
-                  <th class="py-3 px-3">Lớp & Trường</th>
-                  <th class="py-3 px-3">Vai trò hiện tại</th>
-                  <th class="py-3 px-3 text-right">Phân quyền trực tiếp</th>
+                <tr class="border-b border-slate-200 dark:border-slate-700 text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
+                  <th class="py-3 px-3">Thành viên</th>
+                  <th class="py-3 px-3">Tài khoản / Email</th>
+                  <th class="py-3 px-3">Lớp & Khối</th>
+                  <th class="py-3 px-3">Trường học</th>
+                  <th class="py-3 px-3">Vai trò</th>
+                  <th class="py-3 px-3 text-center">Đổi vai trò</th>
+                  <th class="py-3 px-3 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100 dark:divide-slate-700/60">
-                ${accounts.length === 0 ? `
-                  <tr>
-                    <td colspan="5" class="py-8 text-center text-slate-400">
-                      Chưa có tài khoản nào được ghi nhận. Hãy đăng nhập tài khoản Google để xuất hiện tại đây.
-                    </td>
-                  </tr>
-                ` : accounts.map(user => {
-                  let badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">Học sinh (HS)</span>';
-                  if (user.role === 'teacher') badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">Giáo viên (GV)</span>';
-                  else if (user.role === 'admin') badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">Quản trị viên (Admin)</span>';
+                ${(() => {
+                  const uq = (this.userSearchQuery || '').toLowerCase().trim();
+                  const filteredUsers = accounts.filter(u => {
+                    if (this.userRoleFilter !== 'all' && u.role !== this.userRoleFilter) return false;
+                    if (this.userSchoolFilter !== 'all' && (u.school || '') !== this.userSchoolFilter) return false;
+                    if (uq) {
+                      const text = `${u.fullName || ''} ${u.email || ''} ${u.username || ''} ${u.className || ''} ${u.school || ''}`.toLowerCase();
+                      if (!text.includes(uq)) return false;
+                    }
+                    return true;
+                  });
 
-                  return `
-                    <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition">
-                      <td class="py-3 px-3 font-bold text-slate-800 dark:text-white">
-                        ${escapeHtml(user.fullName)}
-                      </td>
-                      <td class="py-3 px-3 text-slate-500 font-mono">${user.email ? escapeHtml(user.email) : '<span class="italic text-slate-400">Đăng ký trực tiếp</span>'}</td>
-                      <td class="py-3 px-3 text-slate-500">${escapeHtml(user.className || '-')} • ${escapeHtml(user.school || '-')}</td>
-                      <td class="py-3 px-3">${badge}</td>
-                      <td class="py-3 px-3 text-right">
-                        <select data-user-role-select="${escapeHtml(user.email || user.uid)}" class="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-800 dark:text-white">
-                          <option value="student" ${user.role === 'student' ? 'selected' : ''}>Học sinh</option>
-                          <option value="teacher" ${user.role === 'teacher' ? 'selected' : ''}>Giáo viên</option>
-                          <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
-                        </select>
-                      </td>
-                    </tr>
-                  `;
-                }).join('')}
+                  if (filteredUsers.length === 0) {
+                    return `
+                      <tr>
+                        <td colspan="7" class="py-8 text-center text-slate-400">
+                          <i class="fa-solid fa-user-slash text-2xl mb-2 text-slate-300 dark:text-slate-600 block"></i>
+                          Không tìm thấy tài khoản nào phù hợp với bộ lọc hiện tại.
+                        </td>
+                      </tr>
+                    `;
+                  }
+
+                  return filteredUsers.map(user => {
+                    let badge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">Học sinh</span>';
+                    if (user.role === 'teacher') badge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">Giáo viên</span>';
+                    else if (user.role === 'admin') badge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">Admin</span>';
+
+                    const userKey = user.email || user.username || user.uid;
+                    const initials = (user.fullName || 'User').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+                    return `
+                      <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition">
+                        <td class="py-3 px-3">
+                          <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+                              ${initials}
+                            </div>
+                            <div>
+                              <div class="font-bold text-slate-800 dark:text-white">${escapeHtml(user.fullName || 'Chưa đặt tên')}</div>
+                              <div class="text-[10px] text-slate-400">UID: <span class="font-mono">${escapeHtml(user.uid || '-')}</span></div>
+                            </div>
+                          </div>
+                        </td>
+                        <td class="py-3 px-3 text-slate-600 dark:text-slate-300 font-mono text-[11px]">
+                          ${user.email ? escapeHtml(user.email) : (user.username ? `<span class="font-bold text-indigo-600 dark:text-indigo-400">${escapeHtml(user.username)}</span>` : '<span class="italic text-slate-400">Chưa có</span>')}
+                        </td>
+                        <td class="py-3 px-3">
+                          <span class="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold">
+                            Lớp ${escapeHtml(user.className || 'Tự do')}
+                          </span>
+                          <span class="text-[10px] text-slate-400 block mt-0.5 font-bold">Khối ${escapeHtml(user.grade || '12')}</span>
+                        </td>
+                        <td class="py-3 px-3 text-slate-600 dark:text-slate-300 max-w-[150px] truncate" title="${escapeHtml(user.school || '-')}">
+                          ${escapeHtml(user.school || '-')}
+                        </td>
+                        <td class="py-3 px-3">${badge}</td>
+                        <td class="py-3 px-3 text-center">
+                          <select data-user-role-select="${escapeHtml(userKey)}" class="px-2 py-1 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-800 dark:text-white">
+                            <option value="student" ${user.role === 'student' ? 'selected' : ''}>Học sinh</option>
+                            <option value="teacher" ${user.role === 'teacher' ? 'selected' : ''}>Giáo viên</option>
+                            <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+                          </select>
+                        </td>
+                        <td class="py-3 px-3 text-right">
+                          <div class="inline-flex items-center gap-1.5 justify-end">
+                            <button type="button" data-admin-edit-user="${escapeHtml(userKey)}" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950/50 dark:text-blue-300 transition" title="Chỉnh sửa thông tin & mật khẩu">
+                              <i class="fa-solid fa-pen-to-square"></i> Sửa
+                            </button>
+                            <button type="button" data-admin-delete-user="${escapeHtml(userKey)}" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300 transition" title="Xóa tài khoản vĩnh viễn">
+                              <i class="fa-solid fa-trash-can"></i> Xóa
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('');
+                })()}
               </tbody>
             </table>
           </div>
@@ -859,6 +953,204 @@ export const AdminManager = {
           </div>
         </div>
 
+        <!-- 1C. QUẢN LÝ KẾT QUẢ THI & SỔ ĐIỂM TOÀN HỆ THỐNG -->
+        <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 pb-4">
+            <div>
+              <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 text-xs font-bold uppercase tracking-wider mb-1.5">
+                <i class="fa-solid fa-award"></i> Quản Trị Kết Quả Thi & Sổ Điểm
+              </div>
+              <h3 class="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-file-signature text-amber-500"></i> Quản Lý Toàn Bộ Kết Quả Làm Bài & Phúc Khảo Điểm Số
+              </h3>
+              <p class="text-xs text-slate-400 mt-0.5">
+                Admin và Thầy/Cô có thể tra cứu, sửa điểm số (phúc khảo), điều chỉnh số câu đúng, gỡ bỏ vi phạm hoặc xóa bài thi bị lỗi/gian lận.
+              </p>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <button id="btn-admin-export-results-excel" type="button" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20">
+                <i class="fa-solid fa-file-excel"></i> Xuất Bảng Điểm (Excel UTF-8)
+              </button>
+              <button id="btn-admin-delete-filtered-results" type="button" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-xs font-bold transition flex items-center gap-1.5">
+                <i class="fa-solid fa-trash-can"></i> Xóa các bài đang lọc
+              </button>
+            </div>
+          </div>
+
+          <!-- 4 Card thống kê kết quả thi toàn hệ thống -->
+          ${(() => {
+            const rawH = Storage.getExamHistory();
+            const totalCount = rawH.length;
+            const avg = totalCount > 0 ? (rawH.reduce((acc, cur) => acc + (Number(cur.score) || 0), 0) / totalCount).toFixed(2) : '0.00';
+            const goodCount = rawH.filter(h => Number(h.score) >= 8.0).length;
+            const warningCount = rawH.filter(h => (h.violationCount && h.violationCount > 0) || h.isDisqualified).length;
+
+            return `
+              <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div class="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                  <span class="text-slate-400 text-xs font-medium block">Tổng lượt bài đã nộp</span>
+                  <span class="text-xl sm:text-2xl font-black text-slate-800 dark:text-white mt-1 block font-mono">${totalCount}</span>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                  <span class="text-slate-400 text-xs font-medium block">Điểm TB toàn hệ thống</span>
+                  <span class="text-xl sm:text-2xl font-black text-blue-600 dark:text-blue-400 mt-1 block font-mono">${avg}đ</span>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                  <span class="text-slate-400 text-xs font-medium block">Bài thi Đạt Giỏi (≥ 8.0đ)</span>
+                  <span class="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block font-mono">${goodCount}</span>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                  <span class="text-slate-400 text-xs font-medium block">Cảnh báo / Đình chỉ thi</span>
+                  <span class="text-xl sm:text-2xl font-black text-rose-600 dark:text-rose-400 mt-1 block font-mono">${warningCount}</span>
+                </div>
+              </div>
+            `;
+          })()}
+
+          <!-- Thanh tìm kiếm & bộ lọc kết quả thi -->
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 text-xs">
+            <div class="sm:col-span-5 relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+              <input type="text" id="admin-search-results" value="${escapeHtml(this.resultSearchQuery || '')}" placeholder="Tìm theo tên học sinh, đề thi, mã đề, phòng..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            </div>
+            <div class="sm:col-span-2">
+              <select id="admin-filter-result-grade" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <option value="all" ${this.resultGradeFilter === 'all' ? 'selected' : ''}>Tất cả khối</option>
+                <option value="12" ${this.resultGradeFilter === '12' ? 'selected' : ''}>Khối 12</option>
+                <option value="11" ${this.resultGradeFilter === '11' ? 'selected' : ''}>Khối 11</option>
+                <option value="10" ${this.resultGradeFilter === '10' ? 'selected' : ''}>Khối 10</option>
+              </select>
+            </div>
+            <div class="sm:col-span-3">
+              <select id="admin-filter-result-school" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <option value="all">Tất cả các trường</option>
+                ${Object.keys(schoolsData).map(k => `
+                  <option value="${escapeHtml(schoolsData[k].name)}" ${this.resultSchoolFilter === schoolsData[k].name ? 'selected' : ''}>${escapeHtml(schoolsData[k].name)}</option>
+                `).join('')}
+              </select>
+            </div>
+            <div class="sm:col-span-2">
+              <select id="admin-filter-result-status" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <option value="all" ${this.resultStatusFilter === 'all' ? 'selected' : ''}>Tất cả vi phạm</option>
+                <option value="clean" ${this.resultStatusFilter === 'clean' ? 'selected' : ''}>0 vi phạm (Chuẩn)</option>
+                <option value="warn" ${this.resultStatusFilter === 'warn' ? 'selected' : ''}>Có cảnh báo</option>
+                <option value="suspended" ${this.resultStatusFilter === 'suspended' ? 'selected' : ''}>Bị đình chỉ</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Bảng danh sách kết quả bài thi -->
+          <div class="overflow-x-auto max-h-[520px] overflow-y-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="sticky top-0 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-slate-400 font-semibold uppercase tracking-wider text-[11px] z-10">
+                <tr>
+                  <th class="py-3 px-3">STT</th>
+                  <th class="py-3 px-3">Thí sinh</th>
+                  <th class="py-3 px-3">Lớp & Khối</th>
+                  <th class="py-3 px-3">Trường học</th>
+                  <th class="py-3 px-3">Bài thi & Mã đề</th>
+                  <th class="py-3 px-3">Phòng thi</th>
+                  <th class="py-3 px-3 text-center">Điểm số</th>
+                  <th class="py-3 px-3 text-center">Giám sát</th>
+                  <th class="py-3 px-3">Thời gian nộp</th>
+                  <th class="py-3 px-3 text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 dark:divide-slate-700/60 font-medium">
+                ${(() => {
+                  const rq = (this.resultSearchQuery || '').toLowerCase().trim();
+                  const filtered = history.filter(item => {
+                    if (this.resultGradeFilter !== 'all' && String(item.grade) !== String(this.resultGradeFilter)) return false;
+                    if (this.resultSchoolFilter !== 'all' && (item.studentSchool || '') !== this.resultSchoolFilter) return false;
+                    if (this.resultStatusFilter === 'clean' && ((item.violationCount && item.violationCount > 0) || item.isDisqualified)) return false;
+                    if (this.resultStatusFilter === 'warn' && (!item.violationCount || item.violationCount === 0 || item.isDisqualified)) return false;
+                    if (this.resultStatusFilter === 'suspended' && !item.isDisqualified) return false;
+                    if (rq) {
+                      const text = `${item.studentName || ''} ${item.studentClass || ''} ${item.studentSchool || ''} ${item.title || ''} ${item.examCode || ''} ${item.roomId || ''}`.toLowerCase();
+                      if (!text.includes(rq)) return false;
+                    }
+                    return true;
+                  });
+
+                  if (filtered.length === 0) {
+                    return `
+                      <tr>
+                        <td colspan="10" class="py-8 text-center text-slate-400">
+                          <i class="fa-solid fa-clipboard-question text-2xl mb-2 text-slate-300 dark:text-slate-600 block"></i>
+                          Không tìm thấy kết quả bài thi nào khớp với bộ lọc.
+                        </td>
+                      </tr>
+                    `;
+                  }
+
+                  return filtered.map((item, idx) => {
+                    const dateStr = item.date ? new Date(item.date).toLocaleString('vi-VN') : '-';
+                    const score = Number(item.score) || 0;
+                    let scoreBadge = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300';
+                    if (score < 5.0) scoreBadge = 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300';
+                    else if (score < 6.5) scoreBadge = 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300';
+                    else if (score < 8.0) scoreBadge = 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300';
+
+                    let proctorBadge = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"><i class="fa-solid fa-check text-[9px]"></i> 0 vi phạm</span>';
+                    if (item.isDisqualified) {
+                      proctorBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300"><i class="fa-solid fa-ban text-[9px]"></i> Đình chỉ (${item.violationCount || 0})</span>`;
+                    } else if (item.violationCount > 0) {
+                      proctorBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"><i class="fa-solid fa-triangle-exclamation text-[9px]"></i> ${item.violationCount} vi phạm</span>`;
+                    }
+
+                    return `
+                      <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition">
+                        <td class="py-3 px-3 text-slate-400 font-mono">${idx + 1}</td>
+                        <td class="py-3 px-3 font-bold text-slate-800 dark:text-white">
+                          ${escapeHtml(item.studentName || 'Thí sinh')}
+                        </td>
+                        <td class="py-3 px-3">
+                          <span class="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold">
+                            Lớp ${escapeHtml(item.studentClass || 'Tự do')}
+                          </span>
+                          <span class="text-[10px] text-slate-400 block mt-0.5 font-bold">Khối ${escapeHtml(item.grade || '12')}</span>
+                        </td>
+                        <td class="py-3 px-3 text-slate-600 dark:text-slate-300 max-w-[130px] truncate" title="${escapeHtml(item.studentSchool || '-')}">
+                          ${escapeHtml(item.studentSchool || '-')}
+                        </td>
+                        <td class="py-3 px-3 max-w-[180px]">
+                          <div class="font-bold text-slate-700 dark:text-slate-300 truncate" title="${escapeHtml(item.title || 'Đề thi')}">${escapeHtml(item.title || 'Đề thi')}</div>
+                          <div class="text-[10px] text-amber-600 dark:text-amber-400 font-mono font-bold">Mã đề: ${escapeHtml(item.examCode || '101')} • ${item.correctCount || 0}/${item.totalQuestions || 28} câu đúng</div>
+                        </td>
+                        <td class="py-3 px-3">
+                          ${item.roomId ? `
+                            <span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                              ${escapeHtml(item.roomId)}
+                            </span>
+                          ` : `<span class="text-slate-400 italic">Tự do</span>`}
+                        </td>
+                        <td class="py-3 px-3 text-center">
+                          <span class="px-2.5 py-1 rounded-lg font-black font-mono ${scoreBadge}">
+                            ${score.toFixed(1)}đ
+                          </span>
+                        </td>
+                        <td class="py-3 px-3 text-center">${proctorBadge}</td>
+                        <td class="py-3 px-3 text-slate-400 text-[11px] whitespace-nowrap">${dateStr}</td>
+                        <td class="py-3 px-3 text-right">
+                          <div class="inline-flex items-center gap-1.5 justify-end">
+                            <button type="button" data-admin-edit-result="${escapeHtml(item.id)}" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-950/50 dark:text-amber-300 transition" title="Sửa điểm số & thông tin phúc khảo">
+                              <i class="fa-solid fa-pen-to-square"></i> Sửa
+                            </button>
+                            <button type="button" data-admin-delete-result="${escapeHtml(item.id)}" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300 transition" title="Xóa kết quả bài thi này">
+                              <i class="fa-solid fa-trash-can"></i> Xóa
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('');
+                })()}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        
         <!-- 2. KẾT NỐI CƠ SỞ DỮ LIỆU ĐÁM MÂY (CLOUD DATABASE / REALTIME BACKEND) -->
         <div id="admin-cloud-sync-card" class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 pb-4">
@@ -1352,6 +1644,185 @@ export const AdminManager = {
         </tr>
       `;
     }).join('');
+  },
+
+  
+  // --- HELPER: MỞ MODAL SỬA HOẶC THÊM TÀI KHOẢN ---
+  openUserEditorModal(user = null) {
+    const modal = document.getElementById('modal-admin-user-editor');
+    if (!modal) return;
+
+    const titleEl = document.getElementById('admin-user-editor-title');
+    const origIdEl = document.getElementById('admin-user-edit-orig-id');
+    const nameEl = document.getElementById('admin-user-edit-name');
+    const emailEl = document.getElementById('admin-user-edit-email');
+    const roleEl = document.getElementById('admin-user-edit-role');
+    const gradeEl = document.getElementById('admin-user-edit-grade');
+    const schoolEl = document.getElementById('admin-user-edit-school');
+    const classEl = document.getElementById('admin-user-edit-class');
+    const passEl = document.getElementById('admin-user-edit-password');
+    const passHintEl = document.getElementById('admin-user-edit-pass-hint');
+
+    if (user) {
+      if (titleEl) titleEl.textContent = `Chỉnh Sửa Tài Khoản: ${user.fullName || user.email}`;
+      if (origIdEl) origIdEl.value = user.email || user.username || user.uid || '';
+      if (nameEl) nameEl.value = user.fullName || '';
+      if (emailEl) {
+        emailEl.value = user.email || user.username || '';
+        emailEl.placeholder = 'an.nguyen@emasi.edu.vn';
+      }
+      if (roleEl) roleEl.value = user.role || 'student';
+      if (gradeEl) gradeEl.value = user.grade || '12';
+      if (schoolEl) schoolEl.value = user.school || '';
+      if (classEl) classEl.value = user.className || '';
+      if (passEl) {
+        passEl.value = '';
+        passEl.required = false;
+        passEl.placeholder = 'Để trống nếu giữ nguyên mật khẩu cũ';
+      }
+      if (passHintEl) passHintEl.textContent = '(Để trống nếu giữ nguyên mật khẩu cũ)';
+    } else {
+      if (titleEl) titleEl.textContent = 'Thêm Tài Khoản Mới';
+      if (origIdEl) origIdEl.value = '';
+      if (nameEl) nameEl.value = '';
+      if (emailEl) emailEl.value = '';
+      if (roleEl) roleEl.value = 'student';
+      if (gradeEl) gradeEl.value = '12';
+      if (schoolEl) schoolEl.value = '';
+      if (classEl) classEl.value = '';
+      if (passEl) {
+        passEl.value = '';
+        passEl.required = true;
+        passEl.placeholder = 'Nhập mật khẩu (tối thiểu 6 ký tự)';
+      }
+      if (passHintEl) passHintEl.textContent = '(Bắt buộc khi thêm mới, tối thiểu 6 ký tự)';
+    }
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  },
+
+  // --- HELPER: MỞ MODAL SỬA KẾT QUẢ BÀI THI ---
+  openResultEditorModal(resultId) {
+    const modal = document.getElementById('modal-admin-result-editor');
+    if (!modal) return;
+
+    const history = Storage.getExamHistory();
+    const item = history.find(h => String(h.id) === String(resultId));
+    if (!item) {
+      alert('Không tìm thấy kết quả bài thi này!');
+      return;
+    }
+
+    const idEl = document.getElementById('admin-result-edit-id');
+    const metaTitleEl = document.getElementById('admin-result-meta-title');
+    const metaSubEl = document.getElementById('admin-result-meta-sub');
+    const nameEl = document.getElementById('admin-result-edit-name');
+    const classEl = document.getElementById('admin-result-edit-class');
+    const schoolEl = document.getElementById('admin-result-edit-school');
+    const gradeEl = document.getElementById('admin-result-edit-grade');
+    const scoreEl = document.getElementById('admin-result-edit-score');
+    const correctEl = document.getElementById('admin-result-edit-correct');
+    const totalEl = document.getElementById('admin-result-edit-total');
+    const violEl = document.getElementById('admin-result-edit-violations');
+    const disqEl = document.getElementById('admin-result-edit-disqualified');
+    const noteEl = document.getElementById('admin-result-edit-note');
+
+    if (idEl) idEl.value = item.id;
+    if (metaTitleEl) metaTitleEl.textContent = item.title || 'Đề thi';
+    if (metaSubEl) {
+      const dateStr = item.date ? new Date(item.date).toLocaleString('vi-VN') : '-';
+      metaSubEl.textContent = `Nộp lúc: ${dateStr} • Mã đề: ${item.examCode || '101'} • Phòng: ${item.roomId || 'Tự do'}`;
+    }
+    if (nameEl) nameEl.value = item.studentName || '';
+    if (classEl) classEl.value = item.studentClass || '';
+    if (schoolEl) schoolEl.value = item.studentSchool || '';
+    if (gradeEl) gradeEl.value = item.grade || '12';
+    if (scoreEl) scoreEl.value = Number(item.score) || 0;
+    if (correctEl) correctEl.value = item.correctCount || 0;
+    if (totalEl) totalEl.value = item.totalQuestions || 28;
+    if (violEl) violEl.value = item.violationCount || 0;
+    if (disqEl) disqEl.checked = !!item.isDisqualified;
+    if (noteEl) noteEl.value = item.teacherNote || '';
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  },
+
+  // --- HELPER: XUẤT DANH SÁCH TÀI KHOẢN CSV (BOM UTF-8) ---
+  exportUsersToCsv(users) {
+    if (!users || users.length === 0) {
+      alert('Không có tài khoản nào để xuất!');
+      return;
+    }
+    let csv = '\uFEFF';
+    csv += 'STT,Họ và tên,Tài khoản / Email,Vai trò,Khối,Lớp,Trường học,UID\n';
+    users.forEach((u, i) => {
+      const row = [
+        i + 1,
+        `"${(u.fullName || '').replace(/"/g, '""')}"`,
+        `"${(u.email || u.username || '').replace(/"/g, '""')}"`,
+        u.role || 'student',
+        u.grade || '12',
+        `"${(u.className || '').replace(/"/g, '""')}"`,
+        `"${(u.school || '').replace(/"/g, '""')}"`,
+        `"${(u.uid || '').replace(/"/g, '""')}"`
+      ];
+      csv += row.join(',') + '\n';
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Danh_Sach_Tai_Khoan_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+
+  // --- HELPER: XUẤT KẾT QUẢ THI CSV (BOM UTF-8) ---
+  exportResultsToCsv(results) {
+    if (!results || results.length === 0) {
+      alert('Không có kết quả bài thi nào để xuất!');
+      return;
+    }
+    let csv = '\uFEFF';
+    csv += 'STT,Thí sinh,Lớp,Khối,Trường học,Đề thi,Mã đề,Phòng thi,Điểm số,Số câu đúng,Tổng câu,Số lần vi phạm,Đình chỉ,Thời gian làm bài,Thời điểm nộp\n';
+    results.forEach((item, i) => {
+      const dateStr = item.date ? new Date(item.date).toLocaleString('vi-VN') : '-';
+      const mins = Math.floor((item.timeSpentSeconds || 0) / 60);
+      const secs = (item.timeSpentSeconds || 0) % 60;
+      const row = [
+        i + 1,
+        `"${(item.studentName || '').replace(/"/g, '""')}"`,
+        `"${(item.studentClass || '').replace(/"/g, '""')}"`,
+        item.grade || '12',
+        `"${(item.studentSchool || '').replace(/"/g, '""')}"`,
+        `"${(item.title || '').replace(/"/g, '""')}"`,
+        `"${(item.examCode || '101').replace(/"/g, '""')}"`,
+        `"${(item.roomId || 'Tự do').replace(/"/g, '""')}"`,
+        Number(item.score) || 0,
+        item.correctCount || 0,
+        item.totalQuestions || 28,
+        item.violationCount || 0,
+        item.isDisqualified ? 'Có' : 'Không',
+        `"${mins}p ${secs}s"`,
+        `"${dateStr}"`
+      ];
+      csv += row.join(',') + '\n';
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Ket_Qua_Bai_Thi_Admin_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   },
 
   bindEvents() {
@@ -2029,9 +2500,323 @@ export const AdminManager = {
     });
 
     // Làm mới danh sách user
+    // Làm mới danh sách user
     this.container.querySelector('#btn-admin-refresh-users')?.addEventListener('click', () => {
       this.render();
     });
+
+    // --- BỘ LỌC TÀI KHOẢN ---
+    const searchUserEl = this.container.querySelector('#admin-search-users');
+    if (searchUserEl) {
+      searchUserEl.addEventListener('input', (e) => {
+        this.userSearchQuery = e.target.value;
+        this.render();
+      });
+    }
+
+    const filterRoleEl = this.container.querySelector('#admin-filter-user-role');
+    if (filterRoleEl) {
+      filterRoleEl.addEventListener('change', (e) => {
+        this.userRoleFilter = e.target.value;
+        this.render();
+      });
+    }
+
+    const filterSchoolEl = this.container.querySelector('#admin-filter-user-school');
+    if (filterSchoolEl) {
+      filterSchoolEl.addEventListener('change', (e) => {
+        this.userSchoolFilter = e.target.value;
+        this.render();
+      });
+    }
+
+    // Nút Thêm Tài Khoản Mới
+    this.container.querySelector('#btn-admin-add-user')?.addEventListener('click', () => {
+      this.openUserEditorModal(null);
+    });
+
+    // Nút Sửa Tài Khoản
+    this.container.querySelectorAll('[data-admin-edit-user]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.getAttribute('data-admin-edit-user');
+        const accounts = Storage.getAccountsList();
+        const user = accounts.find(a => (a.email && a.email === key) || (a.username && a.username === key) || a.uid === key);
+        if (user) {
+          this.openUserEditorModal(user);
+        } else {
+          alert('Không tìm thấy tài khoản: ' + key);
+        }
+      });
+    });
+
+    // Nút Xóa Tài Khoản
+    this.container.querySelectorAll('[data-admin-delete-user]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.getAttribute('data-admin-delete-user');
+        const accounts = Storage.getAccountsList();
+        const user = accounts.find(a => (a.email && a.email === key) || (a.username && a.username === key) || a.uid === key);
+        const currentUser = Auth.getCurrentUser();
+        const isSelf = currentUser && ((currentUser.email && currentUser.email === key) || currentUser.uid === key);
+
+        if (isSelf) {
+          if (!confirm('CẢNH BÁO NGUY HIỂM: Thầy/Cô đang chuẩn bị xóa CHÍNH TÀI KHOẢN ADMIN đang đăng nhập hiện tại! Sau khi xóa, Thầy/Cô sẽ bị đăng xuất ngay lập tức. Có chắc chắn muốn xóa không?')) {
+            return;
+          }
+        } else {
+          if (!confirm(`Thầy/Cô có chắc chắn muốn xóa vĩnh viễn tài khoản [${user?.fullName || key}] không?\n\nToàn bộ dữ liệu của tài khoản này trên thiết bị và Cloud Firebase sẽ bị xóa hoàn toàn.`)) {
+            return;
+          }
+        }
+
+        const res = Storage.deleteAccount(key);
+        alert(res.message);
+        if (res.success) {
+          if (isSelf) {
+            Auth.logout();
+            location.reload();
+          } else {
+            this.render();
+          }
+        }
+      });
+    });
+
+    // Nút Xuất Danh Sách Tài Khoản
+    this.container.querySelector('#btn-admin-export-users')?.addEventListener('click', () => {
+      const accounts = Storage.getAccountsList();
+      this.exportUsersToCsv(accounts);
+    });
+
+    // Submit form Sửa / Thêm Tài Khoản
+    const formUserEditor = document.getElementById('form-admin-user-editor');
+    if (formUserEditor) {
+      formUserEditor.onsubmit = (e) => {
+        e.preventDefault();
+        const origId = document.getElementById('admin-user-edit-orig-id')?.value.trim();
+        const fullName = document.getElementById('admin-user-edit-name')?.value.trim();
+        const emailOrUser = document.getElementById('admin-user-edit-email')?.value.trim();
+        const role = document.getElementById('admin-user-edit-role')?.value || 'student';
+        const grade = document.getElementById('admin-user-edit-grade')?.value || '12';
+        const school = document.getElementById('admin-user-edit-school')?.value.trim();
+        const className = document.getElementById('admin-user-edit-class')?.value.trim();
+        const password = document.getElementById('admin-user-edit-password')?.value.trim();
+
+        if (!fullName || !emailOrUser) {
+          alert('Vui lòng điền đầy đủ Họ và tên cùng Email/Tên tài khoản!');
+          return;
+        }
+
+        if (origId) {
+          // Cập nhật tài khoản hiện có
+          const res = Storage.updateAccount(origId, {
+            fullName,
+            email: emailOrUser.includes('@') ? emailOrUser : undefined,
+            username: !emailOrUser.includes('@') ? emailOrUser : undefined,
+            role,
+            grade,
+            school,
+            className,
+            password: password || undefined,
+            isProfileComplete: true
+          });
+          alert(res.message);
+          if (res.success) {
+            document.getElementById('modal-admin-user-editor')?.classList.add('hidden');
+            document.getElementById('modal-admin-user-editor')?.classList.remove('flex');
+            this.render();
+          }
+        } else {
+          // Thêm tài khoản mới
+          if (!password || password.length < 6) {
+            alert('Mật khẩu cho tài khoản mới phải có tối thiểu 6 ký tự!');
+            return;
+          }
+          const accounts = Storage.getAccountsList();
+          const exists = accounts.some(a => (a.email && a.email.toLowerCase() === emailOrUser.toLowerCase()) || (a.username && a.username.toLowerCase() === emailOrUser.toLowerCase()));
+          if (exists) {
+            alert(`Email hoặc tên tài khoản [${emailOrUser}] đã tồn tại trong hệ thống! Vui lòng chọn tài khoản khác.`);
+            return;
+          }
+
+          const newAccount = {
+            uid: 'acc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            fullName,
+            email: emailOrUser.includes('@') ? emailOrUser.toLowerCase() : '',
+            username: !emailOrUser.includes('@') ? emailOrUser.toLowerCase() : '',
+            password,
+            role,
+            grade,
+            school,
+            className,
+            isProfileComplete: true,
+            createdAt: new Date().toISOString()
+          };
+
+          Storage.saveAccount(newAccount);
+          CloudSync.saveAccountToCloud(newAccount);
+          alert(`Đã tạo tài khoản thành công cho [${fullName}] (${role.toUpperCase()})!`);
+          document.getElementById('modal-admin-user-editor')?.classList.add('hidden');
+          document.getElementById('modal-admin-user-editor')?.classList.remove('flex');
+          this.render();
+        }
+      };
+    }
+
+    // --- BỘ LỌC KẾT QUẢ BÀI THI ---
+    const searchResEl = this.container.querySelector('#admin-search-results');
+    if (searchResEl) {
+      searchResEl.addEventListener('input', (e) => {
+        this.resultSearchQuery = e.target.value;
+        this.render();
+      });
+    }
+
+    const filterResGradeEl = this.container.querySelector('#admin-filter-result-grade');
+    if (filterResGradeEl) {
+      filterResGradeEl.addEventListener('change', (e) => {
+        this.resultGradeFilter = e.target.value;
+        this.render();
+      });
+    }
+
+    const filterResSchoolEl = this.container.querySelector('#admin-filter-result-school');
+    if (filterResSchoolEl) {
+      filterResSchoolEl.addEventListener('change', (e) => {
+        this.resultSchoolFilter = e.target.value;
+        this.render();
+      });
+    }
+
+    const filterResStatusEl = this.container.querySelector('#admin-filter-result-status');
+    if (filterResStatusEl) {
+      filterResStatusEl.addEventListener('change', (e) => {
+        this.resultStatusFilter = e.target.value;
+        this.render();
+      });
+    }
+
+    // Nút Sửa Kết Quả Bài Thi
+    this.container.querySelectorAll('[data-admin-edit-result]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-admin-edit-result');
+        this.openResultEditorModal(id);
+      });
+    });
+
+    // Nút Xóa Kết Quả Bài Thi
+    this.container.querySelectorAll('[data-admin-delete-result]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-admin-delete-result');
+        const history = Storage.getExamHistory();
+        const item = history.find(h => String(h.id) === String(id));
+        if (!confirm(`Thầy/Cô có chắc chắn muốn xóa vĩnh viễn kết quả bài thi này của thí sinh [${item?.studentName || 'Thí sinh'}] (${item?.score || 0} điểm)?`)) {
+          return;
+        }
+        const res = Storage.deleteExamResult(id);
+        alert(res.message);
+        if (res.success) {
+          this.render();
+        }
+      });
+    });
+
+    // Nút Xóa Toàn Bộ Bài Thi Đang Lọc
+    this.container.querySelector('#btn-admin-delete-filtered-results')?.addEventListener('click', () => {
+      const history = Storage.getExamHistory();
+      const rq = (this.resultSearchQuery || '').toLowerCase().trim();
+      const filtered = history.filter(item => {
+        if (this.resultGradeFilter !== 'all' && String(item.grade) !== String(this.resultGradeFilter)) return false;
+        if (this.resultSchoolFilter !== 'all' && (item.studentSchool || '') !== this.resultSchoolFilter) return false;
+        if (this.resultStatusFilter === 'clean' && ((item.violationCount && item.violationCount > 0) || item.isDisqualified)) return false;
+        if (this.resultStatusFilter === 'warn' && (!item.violationCount || item.violationCount === 0 || item.isDisqualified)) return false;
+        if (this.resultStatusFilter === 'suspended' && !item.isDisqualified) return false;
+        if (rq) {
+          const text = `${item.studentName || ''} ${item.studentClass || ''} ${item.studentSchool || ''} ${item.title || ''} ${item.examCode || ''} ${item.roomId || ''}`.toLowerCase();
+          if (!text.includes(rq)) return false;
+        }
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        alert('Không có bài thi nào khớp với bộ lọc hiện tại để xóa!');
+        return;
+      }
+
+      if (!confirm(`CẢNH BÁO NGUY HIỂM: Thầy/Cô có chắc chắn muốn xóa vĩnh viễn ${filtered.length} bài thi đang được lọc không?\n\nHành động này sẽ xóa dữ liệu cả trên thiết bị và Firebase Cloud, không thể khôi phục!`)) {
+        return;
+      }
+
+      const idsToDelete = filtered.map(f => f.id);
+      const res = Storage.deleteExamResultsBulk(idsToDelete);
+      alert(res.message);
+      if (res.success) {
+        this.render();
+      }
+    });
+
+    // Nút Xuất Excel Kết Quả Bài Thi
+    this.container.querySelector('#btn-admin-export-results-excel')?.addEventListener('click', () => {
+      const history = Storage.getExamHistory();
+      const rq = (this.resultSearchQuery || '').toLowerCase().trim();
+      const filtered = history.filter(item => {
+        if (this.resultGradeFilter !== 'all' && String(item.grade) !== String(this.resultGradeFilter)) return false;
+        if (this.resultSchoolFilter !== 'all' && (item.studentSchool || '') !== this.resultSchoolFilter) return false;
+        if (this.resultStatusFilter === 'clean' && ((item.violationCount && item.violationCount > 0) || item.isDisqualified)) return false;
+        if (this.resultStatusFilter === 'warn' && (!item.violationCount || item.violationCount === 0 || item.isDisqualified)) return false;
+        if (this.resultStatusFilter === 'suspended' && !item.isDisqualified) return false;
+        if (rq) {
+          const text = `${item.studentName || ''} ${item.studentClass || ''} ${item.studentSchool || ''} ${item.title || ''} ${item.examCode || ''} ${item.roomId || ''}`.toLowerCase();
+          if (!text.includes(rq)) return false;
+        }
+        return true;
+      });
+      this.exportResultsToCsv(filtered);
+    });
+
+    // Submit form Sửa Kết Quả Bài Thi
+    const formResultEditor = document.getElementById('form-admin-result-editor');
+    if (formResultEditor) {
+      formResultEditor.onsubmit = (e) => {
+        e.preventDefault();
+        const id = document.getElementById('admin-result-edit-id')?.value;
+        const studentName = document.getElementById('admin-result-edit-name')?.value.trim();
+        const studentClass = document.getElementById('admin-result-edit-class')?.value.trim();
+        const studentSchool = document.getElementById('admin-result-edit-school')?.value.trim();
+        const grade = document.getElementById('admin-result-edit-grade')?.value;
+        const score = parseFloat(document.getElementById('admin-result-edit-score')?.value);
+        const correctCount = parseInt(document.getElementById('admin-result-edit-correct')?.value, 10);
+        const totalQuestions = parseInt(document.getElementById('admin-result-edit-total')?.value, 10);
+        const violationCount = parseInt(document.getElementById('admin-result-edit-violations')?.value, 10) || 0;
+        const isDisqualified = document.getElementById('admin-result-edit-disqualified')?.checked || false;
+        const teacherNote = document.getElementById('admin-result-edit-note')?.value.trim();
+
+        if (isNaN(score) || score < 0 || score > 10) {
+          alert('Điểm số phải nằm trong khoảng từ 0.0 đến 10.0!');
+          return;
+        }
+
+        const res = Storage.updateExamResult(id, {
+          studentName,
+          studentClass,
+          studentSchool,
+          grade,
+          score,
+          correctCount: isNaN(correctCount) ? undefined : correctCount,
+          totalQuestions: isNaN(totalQuestions) ? undefined : totalQuestions,
+          violationCount,
+          isDisqualified,
+          teacherNote
+        });
+
+        alert(res.message);
+        if (res.success) {
+          document.getElementById('modal-admin-result-editor')?.classList.add('hidden');
+          document.getElementById('modal-admin-result-editor')?.classList.remove('flex');
+          this.render();
+        }
+      };
+    }
+
 
     // Xuất backup
     this.container.querySelector('#btn-admin-export-backup')?.addEventListener('click', () => {

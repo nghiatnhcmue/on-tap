@@ -10,7 +10,7 @@
  * 5. Cơ chế Local-First an toàn: Mất mạng vẫn làm bài bình thường, khi có mạng tự động đẩy dữ liệu lên đám mây.
  */
 
-import { Storage } from './storage.js?v=20261102_89';
+import { Storage } from './storage.js?v=20261102_90';
 
 const CLOUD_CONFIG_KEY = 'tinhoc_cloud_config';
 export const DEFAULT_FIREBASE_DB_URL = 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -383,6 +383,11 @@ export const CloudSync = {
       Object.entries(remoteData).forEach(([key, remoteAcc]) => {
         if (!remoteAcc || typeof remoteAcc !== 'object') return;
         const cleanKey = this.getCleanKey(remoteAcc.email || remoteAcc.uid || key);
+        if (remoteAcc.isDeleted) {
+          if (localMap.has(cleanKey)) { localMap.delete(cleanKey); updated = true; }
+          if (localMap.has(key)) { localMap.delete(key); updated = true; }
+          return;
+        }
         const localAcc = localMap.get(cleanKey) || localMap.get(key);
         if (!localAcc) {
           localMap.set(cleanKey, remoteAcc);
@@ -410,6 +415,7 @@ export const CloudSync = {
 
       // Đẩy ngược các tài khoản local đã hoàn tất hồ sơ nhưng chưa có trên Cloud
       for (const [key, localAcc] of localMap.entries()) {
+        if (!localAcc || localAcc.isDeleted) continue;
         const canPush = localAcc && (localAcc.role !== 'student' || localAcc.profileCompleted || localAcc.profileUpdatedAt);
         if (!remoteData[key] && canPush) {
           this.pushAccountToCloud(localAcc).catch(() => {});
@@ -433,6 +439,24 @@ export const CloudSync = {
       });
     } catch (e) {
       console.warn('Lỗi push tài khoản lên cloud:', e);
+    }
+  },
+
+  async deleteAccountFromCloud(emailOrUid) {
+    if (!emailOrUid) return;
+    const key = this.getCleanKey(emailOrUid);
+    const url = this.getBaseUrl();
+    try {
+      await fetch(`${url}/accounts/${key}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailOrUid, isDeleted: true, updatedAt: new Date().toISOString() })
+      });
+      setTimeout(() => {
+        fetch(`${url}/accounts/${key}.json`, { method: 'DELETE' }).catch(() => {});
+      }, 5000);
+    } catch (e) {
+      console.warn('Lỗi xóa tài khoản trên cloud:', e);
     }
   },
 
@@ -562,6 +586,21 @@ export const CloudSync = {
       Object.entries(remoteData).forEach(([rKey, remoteItem]) => {
         if (!remoteItem) return;
         const key = this.getResultUniqueKey(remoteItem);
+        if (remoteItem.isDeleted) {
+          if (localMap.has(key)) {
+            localMap.delete(key);
+            updated = true;
+          }
+          if (remoteItem.id) {
+            for (const [lKey, lItem] of localMap.entries()) {
+              if (lItem.id === remoteItem.id) {
+                localMap.delete(lKey);
+                updated = true;
+              }
+            }
+          }
+          return;
+        }
         if (!localMap.has(key)) {
           localMap.set(key, remoteItem);
           updated = true;
@@ -578,6 +617,7 @@ export const CloudSync = {
 
       // Đẩy ngược kết quả thi local lên Cloud
       for (const [key, localItem] of localMap.entries()) {
+        if (!localItem || localItem.isDeleted) continue;
         const cleanKey = this.getCleanKey(key);
         if (!remoteData[cleanKey]) {
           this.pushExamResultToCloud(localItem).catch(() => {});
@@ -610,6 +650,25 @@ export const CloudSync = {
       });
     } catch (e) {
       console.warn('Lỗi push điểm thi lên cloud:', e);
+    }
+  },
+
+  async deleteExamResultFromCloud(resultOrId) {
+    if (!resultOrId) return;
+    const idVal = typeof resultOrId === 'object' ? (resultOrId.id || '') : String(resultOrId);
+    const key = this.getCleanKey(typeof resultOrId === 'object' ? this.getResultUniqueKey(resultOrId) : String(resultOrId));
+    const url = this.getBaseUrl();
+    try {
+      await fetch(`${url}/exam_history/${key}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: idVal, isDeleted: true, updatedAt: new Date().toISOString() })
+      });
+      setTimeout(() => {
+        fetch(`${url}/exam_history/${key}.json`, { method: 'DELETE' }).catch(() => {});
+      }, 5000);
+    } catch (e) {
+      console.warn('Lỗi xóa kết quả thi trên cloud:', e);
     }
   },
 
