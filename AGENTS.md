@@ -14,7 +14,7 @@ Tài liệu này được biên soạn nhằm giúp các Agent AI kế nhiệm n
 - **Triển khai & Hosting:** Cloudflare Pages / Workers kết nối tự động với GitHub Repository:
   - GitHub Repo: `https://github.com/nghiatnhcmue/on-tap.git` (nhánh `main`).
   - **Production URL DUY NHẤT:** https://on-tap.nghiaedu.workers.dev/ (Tập trung toàn bộ vào domain này).
-  - **Bản phát hành chuẩn hóa:** 20261102_102 (Đồng bộ toàn diện Live Video, Trường Lớp Dropdown, Gamification).
+  - **Bản phát hành chuẩn hóa:** 20261102_103 (Đồng bộ toàn diện Live Video, Trường Lớp Dropdown, Gamification).
 
 ---
 

@@ -544,7 +544,8 @@ const Arena = {
     if (formJoin) {
       formJoin.onsubmit = (e) => {
         e.preventDefault();
-        const pin = document.getElementById('arena-input-pin')?.value.trim();
+        const rawPin = document.getElementById('arena-input-pin')?.value || '';
+        const pin = String(rawPin).replace(/[\s\-_]/g, '').trim();
         const name = document.getElementById('arena-input-name')?.value.trim();
         if (!pin || pin.length < 4) {
           alert('Vui lòng nhập đúng mã PIN trận đấu (tối thiểu 4-6 số)!');
@@ -610,7 +611,8 @@ const Arena = {
     // 8. Các nút Vào Nhanh / Mở Host / Xóa Phòng Đấu Trường đang lưu
     this.container.querySelectorAll('[data-quick-join-arena-pin]').forEach(btn => {
       btn.onclick = () => {
-        const pin = btn.getAttribute('data-quick-join-arena-pin');
+        const rawPin = btn.getAttribute('data-quick-join-arena-pin') || '';
+        const pin = String(rawPin).replace(/[\s\-_]/g, '').trim();
         const nameInput = document.getElementById('arena-input-name')?.value.trim();
         const currentUser = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
         const playerName = nameInput || currentUser?.fullName || savedPlayer.name || 'Chiến Binh Tin Học';
@@ -2303,7 +2305,8 @@ const Arena = {
   // 9. MÀN HÌNH HỌC SINH (PLAYER CONTROLLER - MOBILE/PC)
   // ==========================================
   async joinArenaByPin(pin, studentName = null, blookId = 'bot') {
-    pin = pin.trim();
+    if (!pin) return;
+    pin = String(pin).replace(/[\s\-_]/g, '').trim();
     const dbUrl = this.getBaseDbUrl();
 
     // Lấy thông tin phòng từ Firebase hoặc Storage
@@ -2311,7 +2314,9 @@ const Arena = {
     try {
       const res = await fetch(`${dbUrl}/arena_rooms/${pin}.json`, { cache: 'no-cache' });
       if (res.ok) room = await res.json();
-    } catch {}
+    } catch (e) {
+      console.warn('Lỗi kết nối máy chủ Firebase khi tìm phòng đấu trường:', e);
+    }
 
     if (!room) room = Storage.getArenaRoom(pin);
 
@@ -2319,6 +2324,10 @@ const Arena = {
       alert(`Không tìm thấy phòng đấu trường có mã PIN [${pin}]. Vui lòng kiểm tra lại!`);
       return;
     }
+
+    // Đảm bảo cấu trúc phòng hợp lệ
+    room.players = room.players || {};
+    room.pin = room.pin || pin;
 
     const currentUser = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
     const finalName = studentName || currentUser?.fullName || 'Học sinh ẩn danh';

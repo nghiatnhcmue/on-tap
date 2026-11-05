@@ -676,6 +676,8 @@ export class GameSessionManager {
    * @returns {object} PlayerState
    */
   joinPlayer(session, playerParams) {
+    if (!session) return null;
+    session.players = session.players || {};
     const id = String(playerParams.id || playerParams.uid || `player_${Date.now()}`);
     const name = playerParams.name || 'Dũng sĩ Blook';
     const blookId = playerParams.blookId || 'bot';
@@ -711,6 +713,7 @@ export class GameSessionManager {
    * @returns {{ isCorrect: boolean, rewardPayload: object, deltaUpdate: object }}
    */
   submitAnswer(session, playerId, answerIndex, responseTime = 2000) {
+    session.players = session.players || {};
     const player = session.players[playerId];
     if (!player) {
       throw new Error(`Player ${playerId} not found in session ${session.id}`);
@@ -843,6 +846,8 @@ export class GameSessionManager {
    * @returns {Array<object>}
    */
   rankPlayers(session) {
+    if (!session) return [];
+    session.players = session.players || {};
     const handler = this.getModeHandler(session.gameMode);
     return handler.rankPlayers(session.players);
   }
