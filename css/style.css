@@ -674,3 +674,30 @@ button:active:not(:disabled) {
 }
 
 
+
+/* Master Video Stage Fullscreen Styling */
+#master-video-stage-card:fullscreen,
+#master-video-stage-card:-webkit-full-screen {
+  border-radius: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  background-color: #000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#master-video-stage-card:fullscreen #live-master-video,
+#master-video-stage-card:-webkit-full-screen #live-master-video {
+  max-height: 100vh !important;
+  height: 100vh !important;
+  width: 100vw !important;
+  object-fit: contain !important;
+}
+
+#master-video-stage-card:fullscreen #master-question-active-overlay,
+#master-video-stage-card:-webkit-full-screen #master-question-active-overlay {
+  border-radius: 0 !important;
+  max-height: 100vh !important;
+}

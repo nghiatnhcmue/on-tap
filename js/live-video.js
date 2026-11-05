@@ -824,8 +824,14 @@ export const LiveVideo = {
           <div class="lg:col-span-8 space-y-4">
             
             <!-- Video Stage Card -->
-            <div class="bg-black rounded-3xl overflow-hidden shadow-2xl border border-slate-800 relative group min-h-[420px] sm:min-h-[480px] flex items-center justify-center">
+            <div id="master-video-stage-card" class="bg-black rounded-3xl overflow-hidden shadow-2xl border border-slate-800 relative group min-h-[420px] sm:min-h-[480px] flex items-center justify-center">
               <video id="live-master-video" src="${videoUrl}" playsinline preload="metadata" class="w-full h-full object-contain max-h-[540px]"></video>
+
+              <!-- Nút Phóng To Toàn Màn Hình Nổi (Floating Fullscreen Button) -->
+              <button type="button" id="btn-master-floating-fullscreen" class="absolute top-4 right-4 z-40 px-3.5 py-2 rounded-2xl bg-black/60 hover:bg-black/90 text-white backdrop-blur-md border border-white/20 flex items-center gap-2 text-xs font-bold shadow-xl transition-all hover:scale-105 cursor-pointer select-none" title="Phóng to toàn màn hình bài giảng (Phím tắt: F)">
+                <i class="fa-solid fa-expand text-amber-400"></i>
+                <span class="hidden sm:inline font-mono">Toàn Màn Hình (F)</span>
+              </button>
 
               <!-- 1. SẢNH ĐỢI & HÀNG ĐỢI TRUY CẬP PHÒNG LIVE (HIỂN THỊ KHI CHƯA BẮT ĐẦU) -->
               <div id="master-waiting-lobby-overlay" class="${room.state === 'waiting' ? '' : 'hidden'} absolute inset-0 bg-gradient-to-br from-slate-950/95 via-indigo-950/95 to-slate-900/95 backdrop-blur-md p-5 sm:p-7 flex flex-col justify-between z-20 overflow-y-auto">
@@ -992,6 +998,10 @@ export const LiveVideo = {
                   <button type="button" id="btn-master-deck-toggle-stream" class="px-3.5 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border border-indigo-400/50 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 shadow-sm" title="Chuyển đổi: Phát video trên thiết bị HS hoặc Tắt để dùng Máy Chiếu lớp học">
                     <i class="fa-solid fa-desktop text-indigo-500"></i>
                     <span id="master-deck-stream-text">Máy chiếu: Video HS <strong>TẮT</strong></span>
+                  </button>
+                  <button type="button" id="btn-master-deck-fullscreen" class="px-3.5 py-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-700 text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Phóng to video toàn màn hình cho cả lớp cùng xem (Phím F)">
+                    <i class="fa-solid fa-expand text-indigo-500"></i>
+                    <span>Toàn Màn Hình</span>
                   </button>
                   <button type="button" id="btn-master-next-checkpoint" class="px-3.5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black transition shadow-lg shadow-indigo-600/25 flex items-center gap-1.5 cursor-pointer" title="Tua nhanh tới mốc câu hỏi kế tiếp">
                     Tới Mốc Kế Tiếp <i class="fa-solid fa-forward-step"></i>
@@ -1438,14 +1448,23 @@ export const LiveVideo = {
 
     // Xác định mốc hiện tại cần thống kê (0-based)
     let targetIdx = upToQuestionIdx;
-    if (targetIdx === null || targetIdx === undefined) {
-      if (remote?.currentQuestion?.index !== undefined) {
+    if (typeof targetIdx === 'string' && targetIdx.includes('_')) {
+      targetIdx = parseInt(targetIdx.split('_')[0], 10);
+    } else if (targetIdx !== null && targetIdx !== undefined) {
+      targetIdx = Number(targetIdx);
+    }
+
+    if (targetIdx === null || targetIdx === undefined || isNaN(targetIdx)) {
+      if (remote?.currentQuestion?.checkpointIndex !== undefined) {
+        targetIdx = Number(remote.currentQuestion.checkpointIndex);
+      } else if (remote?.currentQuestion?.index !== undefined) {
         targetIdx = Number(remote.currentQuestion.index);
       } else {
         const answeredIndices = Object.keys(responsesAll).map(k => parseInt(k, 10)).filter(n => !isNaN(n));
         targetIdx = answeredIndices.length > 0 ? Math.max(...answeredIndices) : Math.max(0, totalMilestones - 1);
       }
     }
+    if (isNaN(targetIdx)) targetIdx = 0;
     targetIdx = Math.max(0, Math.min(targetIdx, Math.max(0, totalMilestones - 1)));
 
     // Tập hợp toàn bộ học sinh (từ danh sách điểm danh + danh sách đã nộp đáp án)
@@ -3362,6 +3381,52 @@ export const LiveVideo = {
     if (btnFinishAll) {
       btnFinishAll.onclick = () => finishLiveSession(false);
     }
+
+    // 9. Nút Phóng to Toàn màn hình Video (Fullscreen) trên Máy Chiếu / Bảng tương tác
+    const btnFloatFs = document.getElementById('btn-master-floating-fullscreen');
+    const btnDeckFs = document.getElementById('btn-master-deck-fullscreen');
+    const stageCard = document.getElementById('master-video-stage-card');
+
+    const handleToggleFullscreen = () => {
+      if (stageCard) {
+        this.toggleFullscreenSafe(stageCard);
+      } else if (video) {
+        this.toggleFullscreenSafe(video);
+      }
+    };
+
+    if (btnFloatFs) btnFloatFs.onclick = handleToggleFullscreen;
+    if (btnDeckFs) btnDeckFs.onclick = handleToggleFullscreen;
+
+    const onFullscreenChange = () => {
+      const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      if (btnFloatFs) {
+        btnFloatFs.innerHTML = isFs
+          ? '<i class="fa-solid fa-compress text-amber-400"></i> <span class="hidden sm:inline font-mono">Thu Nhỏ (F)</span>'
+          : '<i class="fa-solid fa-expand text-amber-400"></i> <span class="hidden sm:inline font-mono">Toàn Màn Hình (F)</span>';
+      }
+      if (btnDeckFs) {
+        btnDeckFs.innerHTML = isFs
+          ? '<i class="fa-solid fa-compress text-indigo-500"></i> <span>Thu Nhỏ (F)</span>'
+          : '<i class="fa-solid fa-expand text-indigo-500"></i> <span>Toàn Màn Hình</span>';
+      }
+    };
+
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+
+    // Phím tắt F tiện lợi khi Thầy/Cô đang điều khiển lớp học
+    if (this.masterFsKeyHandler) {
+      window.removeEventListener('keydown', this.masterFsKeyHandler);
+    }
+    this.masterFsKeyHandler = (e) => {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) return;
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        handleToggleFullscreen();
+      }
+    };
+    window.addEventListener('keydown', this.masterFsKeyHandler);
   },
 
   // Hàm tua Master Video an toàn, cập nhật đồng bộ cho cả lớp
@@ -4155,6 +4220,10 @@ export const LiveVideo = {
   },
 
   cleanupSync() {
+    if (this.masterFsKeyHandler) {
+      window.removeEventListener('keydown', this.masterFsKeyHandler);
+      this.masterFsKeyHandler = null;
+    }
     if (this.eventSource) {
       this.eventSource.close();
       this.eventSource = null;
