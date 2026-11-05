@@ -3,24 +3,24 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261102_83';
-import { Practice } from './practice.js?v=20261102_83';
-import { Exam } from './exam.js?v=20261102_83';
-import { Search } from './search.js?v=20261102_83';
-import { PrintManager } from './print.js?v=20261102_83';
-import { Auth } from './auth.js?v=20261102_83';
-import { escapeHtml } from './utils.js?v=20261102_83';
-import { Leaderboard } from './leaderboard.js?v=20261102_83';
-import { QuestionsManager } from './questions-manager.js?v=20261102_83';
-import { AdminManager } from './admin-manager.js?v=20261102_83';
-import { ExamRooms } from './exam-rooms.js?v=20261102_83';
-import { Proctor } from './proctor.js?v=20261102_83';
-import { Gradebook } from './gradebook.js?v=20261102_83';
-import { CloudSync } from './cloud-sync.js?v=20261102_83';
-import { InteractiveVideo } from './interactive-video.js?v=20261102_83';
-import { LiveVideo } from './live-video.js?v=20261102_83';
-import Arena from './arena.js?v=20261102_83';
-import RandomPicker from './random-picker.js?v=20261102_83';
+import { Storage } from './storage.js?v=20261102_84';
+import { Practice } from './practice.js?v=20261102_84';
+import { Exam } from './exam.js?v=20261102_84';
+import { Search } from './search.js?v=20261102_84';
+import { PrintManager } from './print.js?v=20261102_84';
+import { Auth } from './auth.js?v=20261102_84';
+import { escapeHtml } from './utils.js?v=20261102_84';
+import { Leaderboard } from './leaderboard.js?v=20261102_84';
+import { QuestionsManager } from './questions-manager.js?v=20261102_84';
+import { AdminManager } from './admin-manager.js?v=20261102_84';
+import { ExamRooms } from './exam-rooms.js?v=20261102_84';
+import { Proctor } from './proctor.js?v=20261102_84';
+import { Gradebook } from './gradebook.js?v=20261102_84';
+import { CloudSync } from './cloud-sync.js?v=20261102_84';
+import { InteractiveVideo } from './interactive-video.js?v=20261102_84';
+import { LiveVideo } from './live-video.js?v=20261102_84';
+import Arena from './arena.js?v=20261102_84';
+import RandomPicker from './random-picker.js?v=20261102_84';
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -195,7 +195,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261102_83');
+      const res = await fetch('data/manifest.json?v=20261102_84');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
@@ -898,9 +898,14 @@ class App {
               <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 text-xs font-bold uppercase tracking-wider mb-1.5 border border-rose-200/60 dark:border-rose-900/60">
                 <i class="fa-solid fa-list-check"></i> Nhiệm vụ & Bài tập Thầy / Cô giao
               </div>
-              <h3 class="text-lg sm:text-xl font-black text-slate-800 dark:text-white">
-                Bài Kiểm Tra Của Lớp ${escapeHtml(user?.className || 'Của Em')} ${user?.school ? `• ${escapeHtml(user.school)}` : ''}
-              </h3>
+              <div class="flex flex-wrap items-center gap-2">
+                <h3 class="text-lg sm:text-xl font-black text-slate-800 dark:text-white">
+                  Bài Kiểm Tra Của Lớp ${escapeHtml(user?.className || 'Của Em')} ${user?.school ? `• ${escapeHtml(user.school)}` : ''}
+                </h3>
+                <button type="button" onclick="window.openEditProfileModal()" class="px-2.5 py-1 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 text-[11px] font-bold border border-blue-200 dark:border-blue-800 transition flex items-center gap-1" title="Đổi Lớp hoặc Trường học">
+                  <i class="fa-solid fa-pen-to-square"></i> Đổi Lớp / Trường
+                </button>
+              </div>
               <p class="text-xs text-slate-400 mt-0.5">
                 Các đề kiểm tra định kỳ, 15 phút và bài tập do Giáo viên phân công cho lớp
               </p>
@@ -2024,7 +2029,10 @@ class App {
           </div>
           <h4 class="text-sm font-bold text-slate-800 dark:text-white">Hiện tại chưa có bài kiểm tra mới nào được giao cho lớp ${escapeHtml(user?.className || '')}</h4>
           <p class="text-xs text-slate-400 max-w-md mx-auto">Khi Thầy/Cô tạo bài kiểm tra cho lớp, danh sách sẽ hiển thị ngay tại đây. Em có thể sang tab Ôn tập để tự ôn luyện kiến thức hoặc tự thi thử nhé!</p>
-          <div class="pt-2">
+          <div class="pt-2 flex flex-wrap items-center justify-center gap-2">
+            <button type="button" onclick="window.openEditProfileModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition">
+              <i class="fa-solid fa-pen-to-square mr-1"></i> Đổi Lớp / Trường (${escapeHtml(user?.className || '')})
+            </button>
             <button type="button" data-tab-target="practice" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-sm">
               <i class="fa-solid fa-book-open mr-1"></i> Sang Tab Ôn Tập & Tự Thi Thử
             </button>
@@ -2781,8 +2789,12 @@ class App {
           alert('Hệ thống yêu cầu Đăng ký hoặc Đăng nhập để truy cập trang web!');
           return;
         }
-        if (modalId === 'modal-required-profile' && !Auth.isProfileComplete()) {
-          alert('Bạn bắt buộc phải điền đầy đủ Họ và tên, Lớp, Trường để tiếp tục!');
+        if (modalId === 'modal-required-profile') {
+          if (!Auth.isProfileComplete()) {
+            alert('Bạn bắt buộc phải điền đầy đủ Họ và tên, Lớp, Trường để tiếp tục!');
+            return;
+          }
+          Auth.closeRequiredProfileModal();
           return;
         }
         document.getElementById(modalId)?.classList.add('hidden');
@@ -2924,7 +2936,9 @@ class App {
     // Nút Sửa hồ sơ học sinh
     const editProfileBtn = document.getElementById('btn-edit-profile');
     if (editProfileBtn) {
-      editProfileBtn.addEventListener('click', () => {
+      editProfileBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('user-profile-dropdown')?.classList.add('hidden');
         Auth.openRequiredProfileModal();
       });
     }
@@ -2932,7 +2946,7 @@ class App {
     // Form lưu thông tin bắt buộc: Họ và tên, Lớp, Trường
     const formProfile = document.getElementById('form-required-profile');
     if (formProfile) {
-      formProfile.addEventListener('submit', (e) => {
+      formProfile.addEventListener('submit', async (e) => {
         e.preventDefault();
         const fullName = document.getElementById('profile-input-fullname')?.value || '';
         const grade = document.getElementById('profile-input-grade')?.value || '12';
@@ -2956,7 +2970,15 @@ class App {
 
         Auth.updateProfile({ fullName, grade, className, school });
         Auth.closeRequiredProfileModal();
-        alert('Cập nhật thông tin học sinh thành công! Chúc bạn ôn tập tốt.');
+
+        if (grade && grade !== this.currentGrade) {
+          await this.switchGrade(grade);
+        }
+        this.renderHome();
+        if (this.currentTab === 'exam-setup') {
+          this.renderExamSetup();
+        }
+        alert(`✅ Đã cập nhật thông tin học sinh thành công!\n• Họ tên: ${fullName.trim()}\n• Trường: ${school}\n• Khối ${grade} - Lớp: ${className}`);
         this.enforceAuthentication();
       });
     }
@@ -3171,7 +3193,9 @@ class App {
       }
       if (closeBtn) closeBtn.classList.remove('hidden');
       if (gatekeeperOverlay) gatekeeperOverlay.classList.add('hidden');
-      Auth.closeRequiredProfileModal();
+      if (!Auth.isEditingProfile) {
+        Auth.closeRequiredProfileModal();
+      }
 
       // Nếu học sinh truy cập qua link phòng live video (?live_video=XYZ)
       if (this.pendingLiveVideoParam) {

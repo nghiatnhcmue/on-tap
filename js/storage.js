@@ -513,7 +513,8 @@ export const Storage = {
         avatar: user.avatar || '',
         role: user.role || 'student',
         password: user.password || (idx >= 0 ? list[idx].password : '') || '',
-        lastActive: new Date().toISOString()
+        profileUpdatedAt: user.profileUpdatedAt || (idx >= 0 ? list[idx].profileUpdatedAt : null) || null,
+        lastActive: user.lastActive || new Date().toISOString()
       };
       if (idx >= 0) {
         list[idx] = { ...list[idx], ...record };

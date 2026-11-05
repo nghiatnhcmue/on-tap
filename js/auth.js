@@ -4,8 +4,8 @@
  * Hỗ trợ: Đăng nhập Google Popup, Đồng bộ Firebase Realtime Database, Hồ sơ học sinh.
  */
 
-import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261102_83';
-import { CloudSync } from './cloud-sync.js?v=20261102_83';
+import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261102_84';
+import { CloudSync } from './cloud-sync.js?v=20261102_84';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
 
@@ -40,6 +40,7 @@ export const Auth = {
   isFirebaseInitialized: false,
   onAuthChangeCallbacks: [],
   isSigningIn: false,
+  isEditingProfile: false,
 
   init() {
     this.loadUserFromStorage();
@@ -696,9 +697,9 @@ export const Auth = {
       modalLogin.style.setProperty('display', 'none', 'important');
     }
     const profileModal = document.getElementById('modal-required-profile');
-    if (profileModal) {
+    if (profileModal && !this.isEditingProfile) {
       profileModal.classList.add('hidden');
-      profileModal.style.setProperty('display', 'none', 'important');
+      profileModal.style.removeProperty('display');
     }
     const gatekeeperOverlay = document.getElementById('auth-gatekeeper-overlay');
     if (gatekeeperOverlay) {
@@ -726,22 +727,26 @@ export const Auth = {
                          cleanEmail.startsWith('admin') ||
                          cleanEmail.includes('nghiatnhcmue');
 
-    // Tìm xem tài khoản Gmail này đã từng đăng ký trên thiết bị chưa
+    // Tìm xem tài khoản Gmail này đã từng đăng ký hoặc cập nhật trên thiết bị chưa
     const savedAccounts = Storage.getAccountsList();
     const found = savedAccounts.find(a => a.email && a.email.toLowerCase() === cleanEmail);
+    const curSame = (this.currentUser && this.currentUser.email && this.currentUser.email.toLowerCase() === cleanEmail) ? this.currentUser : null;
+    const existing = (curSame && (curSame.profileUpdatedAt || curSame.school)) ? curSame : (found || curSame);
 
-    const userRole = isAdminEmail ? 'admin' : (found?.role || (cleanEmail.includes('giaovien') || cleanEmail.includes('gv') ? 'teacher' : 'student'));
+    const userRole = isAdminEmail ? 'admin' : (existing?.role || (cleanEmail.includes('giaovien') || cleanEmail.includes('gv') ? 'teacher' : 'student'));
 
     const profile = {
-      uid: sub ? ('google_' + sub) : (found?.uid || 'google_' + Date.now()),
+      uid: sub ? ('google_' + sub) : (existing?.uid || 'google_' + Date.now()),
       email: cleanEmail,
-      fullName: cleanName || found?.fullName || (isAdminEmail ? 'Thầy Nghĩa (Quản trị viên)' : 'Học sinh Google'),
+      fullName: (existing?.profileUpdatedAt && existing?.fullName) ? existing.fullName : (cleanName || existing?.fullName || (isAdminEmail ? 'Thầy Nghĩa (Quản trị viên)' : 'Học sinh Google')),
       avatar: avatar,
-      grade: found?.grade || '12',
-      className: found?.className || (isAdminEmail ? 'Quản trị hệ thống' : (userRole === 'teacher' ? 'Tổ Tin học' : '12A1')),
-      school: found?.school || (isAdminEmail ? 'Ban Quản Trị TinHocHub' : (userRole === 'teacher' ? 'THPT Thực Hành HCMUE' : 'TT GDNN GDTX Chu Văn An')),
+      grade: existing?.grade || '12',
+      className: existing?.className || (isAdminEmail ? 'Quản trị hệ thống' : (userRole === 'teacher' ? 'Tổ Tin học' : '12A1')),
+      school: existing?.school || (isAdminEmail ? 'Ban Quản Trị TinHocHub' : (userRole === 'teacher' ? 'THPT Thực Hành HCMUE' : 'TT GDNN GDTX Chu Văn An')),
       role: userRole,
-      createdAt: found?.createdAt || new Date().toISOString()
+      profileUpdatedAt: existing?.profileUpdatedAt || null,
+      lastActive: existing?.lastActive || new Date().toISOString(),
+      createdAt: existing?.createdAt || new Date().toISOString()
     };
 
     this.saveUser(profile);
@@ -990,16 +995,56 @@ export const Auth = {
   updateProfile(profileData) {
     if (!this.currentUser) return false;
 
+    const nowIso = new Date().toISOString();
+    const newFullName = (profileData.fullName || this.currentUser.fullName || '').trim();
+    const newGrade = String(profileData.grade || this.currentUser.grade || '12').trim();
+    const newClassName = (profileData.className || this.currentUser.className || '').trim();
+    const newSchool = (profileData.school || this.currentUser.school || '').trim();
+
     this.currentUser = {
       ...this.currentUser,
-      fullName: profileData.fullName.trim(),
-      grade: profileData.grade || this.currentUser.grade,
-      className: profileData.className.trim(),
-      school: profileData.school.trim()
+      fullName: newFullName,
+      grade: newGrade,
+      className: newClassName,
+      school: newSchool,
+      profileUpdatedAt: nowIso,
+      lastActive: nowIso
     };
 
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(this.currentUser));
     Storage.saveAccountRecord(this.currentUser);
+
+    // Đồng bộ cập nhật Lớp & Trường vào lịch sử bài thi của học sinh này (để Sổ điểm & Bảng vinh danh cập nhật tức thì)
+    try {
+      const userEmail = (this.currentUser.email || '').trim().toLowerCase();
+      const userUid = (this.currentUser.uid || '').trim().toLowerCase();
+      const history = Storage.getExamHistory ? Storage.getExamHistory() : [];
+      let historyChanged = false;
+      history.forEach(h => {
+        const hEmail = (h.studentEmail || '').trim().toLowerCase();
+        const hUid = (h.studentUid || '').trim().toLowerCase();
+        if ((userEmail && hEmail === userEmail) || (userUid && hUid === userUid)) {
+          h.studentName = newFullName || h.studentName;
+          h.school = newSchool || h.school;
+          h.className = newClassName || h.className;
+          historyChanged = true;
+          if (CloudSync && typeof CloudSync.pushExamResultToCloud === 'function') {
+            CloudSync.pushExamResultToCloud(h).catch(() => {});
+          }
+        }
+      });
+      if (historyChanged) {
+        localStorage.setItem('tinhoc_exam_history', JSON.stringify(history));
+      }
+    } catch (e) {}
+
+    if (CloudSync && typeof CloudSync.pushAccountToCloud === 'function') {
+      CloudSync.pushAccountToCloud(this.currentUser).catch(() => {});
+    }
+    if (CloudSync && typeof CloudSync.syncUserProgress === 'function') {
+      CloudSync.syncUserProgress(null, this.currentUser).catch(() => {});
+    }
+
     this.notifyAuthChange();
     return true;
   },
@@ -1043,9 +1088,20 @@ export const Auth = {
 
     if (!schoolSelect || !classSelect) return;
 
+    // 1. Nạp động danh sách các trường học từ Storage.getSchoolsData() để luôn đầy đủ trường mới
+    const schoolsObj = Storage.getSchoolsData ? Storage.getSchoolsData() : SCHOOLS_DATA;
+    const schoolNames = Object.keys(schoolsObj || {});
+    let schoolOptionsHtml = `<option value="">-- Chọn trường học --</option>`;
+    schoolNames.forEach(sName => {
+      const safeVal = String(sName).replace(/"/g, '&quot;');
+      schoolOptionsHtml += `<option value="${safeVal}">${sName}</option>`;
+    });
+    schoolOptionsHtml += `<option value="__other__">Trường khác (Tự nhập)...</option>`;
+    schoolSelect.innerHTML = schoolOptionsHtml;
+
     let isInternalUpdate = false;
 
-    const renderClassDropdown = (preferredClass = '') => {
+    const renderClassDropdown = (preferredClass = '', allowCustomFallback = false) => {
       const selectedSchool = schoolSelect.value;
       const selectedGrade = gradeSelect ? gradeSelect.value : '12';
 
@@ -1103,13 +1159,14 @@ export const Auth = {
       html += `<option value="__other__">Lớp khác (Tự nhập)...</option>`;
       classSelect.innerHTML = html;
 
-      const target = preferredClass || classSelect.dataset.prevClass || '';
-      const hasTarget = allSchoolClasses.some(c => c.name === target);
+      const target = preferredClass || '';
+      const hasTarget = Boolean(target && allSchoolClasses.some(c => c.name === target));
 
       if (hasTarget) {
         classSelect.value = target;
+        classSelect.dataset.prevClass = target;
         if (customClassInput) customClassInput.classList.add('hidden');
-      } else if (target && target !== '__other__') {
+      } else if (allowCustomFallback && target && target !== '__other__') {
         classSelect.value = '__other__';
         if (customClassInput) {
           customClassInput.classList.remove('hidden');
@@ -1117,9 +1174,11 @@ export const Auth = {
         }
       } else if (gradeClasses.length > 0) {
         classSelect.value = gradeClasses[0];
+        classSelect.dataset.prevClass = gradeClasses[0];
         if (customClassInput) customClassInput.classList.add('hidden');
       } else if (allSchoolClasses.length > 0) {
         classSelect.value = allSchoolClasses[0].name;
+        classSelect.dataset.prevClass = allSchoolClasses[0].name;
         if (customClassInput) customClassInput.classList.add('hidden');
       } else {
         classSelect.value = '__other__';
@@ -1128,22 +1187,26 @@ export const Auth = {
     };
 
     schoolSelect.onchange = () => {
+      classSelect.dataset.prevClass = '';
       if (schoolSelect.value === '__other__') {
         if (customSchoolInput) {
           customSchoolInput.classList.remove('hidden');
           customSchoolInput.focus();
         }
-        renderClassDropdown('__other__');
+        renderClassDropdown('__other__', true);
       } else {
         if (customSchoolInput) customSchoolInput.classList.add('hidden');
-        renderClassDropdown();
+        if (customClassInput) customClassInput.classList.add('hidden');
+        renderClassDropdown('', false);
       }
     };
 
     if (gradeSelect) {
       gradeSelect.onchange = () => {
         if (!isInternalUpdate && schoolSelect.value && schoolSelect.value !== '__other__') {
-          renderClassDropdown();
+          classSelect.dataset.prevClass = '';
+          if (customClassInput) customClassInput.classList.add('hidden');
+          renderClassDropdown('', false);
         }
       };
     }
@@ -1168,13 +1231,14 @@ export const Auth = {
         if (detectedGrade && gradeSelect && gradeSelect.value !== detectedGrade) {
           isInternalUpdate = true;
           gradeSelect.value = detectedGrade;
-          renderClassDropdown(val);
+          renderClassDropdown(val, false);
           isInternalUpdate = false;
         }
       }
     };
 
     // Áp dụng trạng thái ban đầu
+    classSelect.dataset.prevClass = initialClass || '';
     if (initialSchool) {
       const stdSchool = this.normalizeSchoolName(initialSchool);
       if (SCHOOLS_DATA[stdSchool]) {
@@ -1187,24 +1251,28 @@ export const Auth = {
           customSchoolInput.value = initialSchool;
         }
       }
+    } else if (schoolNames.length > 0) {
+      schoolSelect.value = schoolNames[0];
     }
 
     if (gradeSelect && initialGrade) {
-      gradeSelect.value = initialGrade;
+      gradeSelect.value = String(initialGrade);
     }
 
-    renderClassDropdown(initialClass);
+    renderClassDropdown(initialClass, Boolean(initialClass));
   },
 
   openRequiredProfileModal() {
     const modal = document.getElementById('modal-required-profile');
     if (!modal) return;
 
+    this.isEditingProfile = true;
+
     const emailEl = document.getElementById('profile-email-display');
     const nameInput = document.getElementById('profile-input-fullname');
 
     if (this.currentUser) {
-      if (emailEl) emailEl.textContent = this.currentUser.email || '';
+      if (emailEl) emailEl.textContent = this.currentUser.email || this.currentUser.username || this.currentUser.uid || '-';
       if (nameInput) nameInput.value = this.currentUser.fullName || '';
       this.setupSchoolClassSync({
         schoolSelectId: 'profile-input-school',
@@ -1212,18 +1280,23 @@ export const Auth = {
         gradeSelectId: 'profile-input-grade',
         classSelectId: 'profile-input-class',
         customClassInputId: 'profile-input-class-custom',
-        initialSchool: this.currentUser.school || '',
+        initialSchool: this.currentUser.school || 'TT GDNN GDTX Chu Văn An',
         initialGrade: this.currentUser.grade || '12',
-        initialClass: this.currentUser.className || ''
+        initialClass: this.currentUser.className || '12A1'
       });
     }
 
     modal.classList.remove('hidden');
+    modal.style.setProperty('display', 'flex', 'important');
   },
 
   closeRequiredProfileModal() {
+    this.isEditingProfile = false;
     const modal = document.getElementById('modal-required-profile');
-    if (modal) modal.classList.add('hidden');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.style.removeProperty('display');
+    }
   },
   // --- PHÂN CÔNG GIẢNG DẠY & GIỚI HẠN PHẠM VI GIÁO VIÊN ---
   getTeacherAssignments() {

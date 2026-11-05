@@ -50,7 +50,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261102_83" />
+  <link rel="stylesheet" href="css/style.css?v=20261102_84" />
 
   <!-- Instant Auth Gatekeeper Engine (Zero-delay pure CSS/JS) -->
   <script>
@@ -104,9 +104,9 @@
           m.style.setProperty('display', 'none', 'important');
         }
         var mp = document.getElementById('modal-required-profile');
-        if (mp) {
+        if (mp && !(window.Auth && window.Auth.isEditingProfile)) {
           mp.classList.add('hidden');
-          mp.style.setProperty('display', 'none', 'important');
+          mp.style.removeProperty('display');
         }
         var overlay = document.getElementById('auth-gatekeeper-overlay');
         if (overlay) {
@@ -121,6 +121,30 @@
           desktopNav.querySelectorAll('button').forEach(function(b) {
             b.classList.remove('pointer-events-none', 'opacity-40');
           });
+        }
+      };
+
+      window.openEditProfileModal = function() {
+        if (window.Auth && typeof window.Auth.openRequiredProfileModal === 'function') {
+          window.Auth.openRequiredProfileModal();
+        } else {
+          var mp = document.getElementById('modal-required-profile');
+          if (mp) {
+            mp.classList.remove('hidden');
+            mp.style.setProperty('display', 'flex', 'important');
+          }
+        }
+      };
+
+      window.closeEditProfileModal = function() {
+        if (window.Auth && typeof window.Auth.closeRequiredProfileModal === 'function') {
+          window.Auth.closeRequiredProfileModal();
+        } else {
+          var mp = document.getElementById('modal-required-profile');
+          if (mp) {
+            mp.classList.add('hidden');
+            mp.style.removeProperty('display');
+          }
         }
       };
 
@@ -139,7 +163,7 @@
         });
 
         // Nạp động module Auth để mở Google Popup ngay lập tức
-        import('./js/auth.js?v=20261102_83').then(function(mod) {
+        import('./js/auth.js?v=20261102_84').then(function(mod) {
           if (mod && mod.Auth) {
             window.Auth = mod.Auth;
             mod.Auth.signInWithGoogleFirebase();
@@ -413,7 +437,7 @@
               <span id="dropdown-user-email" class="block text-[11px] text-slate-400 mt-1 truncate">hocsinh@example.com</span>
             </div>
 
-            <button id="btn-edit-profile" class="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
+            <button id="btn-edit-profile" onclick="window.openEditProfileModal()" class="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
               <i class="fa-solid fa-user-pen text-blue-600 w-4"></i> Cập nhật Họ tên, Lớp, Trường
             </button>
             <button data-tab-target="history" class="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
@@ -1915,28 +1939,31 @@
   <!-- ==================== MODAL: BẮT BUỘC ĐIỀN THÔNG TIN HỌC SINH ==================== -->
   <div id="modal-required-profile" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
     <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[90dvh] overflow-y-auto">
+      <button type="button" id="btn-close-profile-modal" data-close-modal="modal-required-profile" onclick="window.closeEditProfileModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition" title="Đóng">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
       
-      <div class="flex items-center gap-3 mb-4">
+      <div class="flex items-center gap-3 mb-4 pr-8">
         <div class="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center text-lg shrink-0">
           <i class="fa-solid fa-id-card"></i>
         </div>
         <div>
           <h3 class="text-base sm:text-lg font-bold text-slate-800 dark:text-white">
-            Hoàn Tất Hồ Sơ Học Sinh
+            Cập Nhật Hồ Sơ Học Sinh (Lớp & Trường)
           </h3>
           <span class="inline-block text-[11px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">
-            Bắt buộc điền đầy đủ để lưu kết quả thi
+            Đồng bộ chính xác Trường, Khối, Lớp để nhận đề kiểm tra và tính điểm
           </span>
         </div>
       </div>
 
       <p class="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-        Quy định hệ thống: Để kết quả thi thử và bài kiểm tra được tính điểm chính xác và xếp loại theo lớp, vui lòng nhập chính xác thông tin bên dưới:
+        Vui lòng chọn đúng <strong>Trường học</strong>, <strong>Khối lớp</strong> và <strong>Lớp học</strong> của em để nhận đúng bài kiểm tra, phòng Live và xếp hạng theo lớp:
       </p>
 
       <form id="form-required-profile" class="space-y-4">
         <div>
-          <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Tài khoản Email Google</label>
+          <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Tài khoản đang đăng nhập</label>
           <div class="px-4 py-2.5 bg-slate-100 dark:bg-slate-900 rounded-xl text-xs font-mono text-slate-600 dark:text-slate-300 flex items-center gap-2">
             <i class="fa-solid fa-envelope text-slate-400"></i>
             <span id="profile-email-display">-</span>
@@ -1988,11 +2015,14 @@
         </div>
 
         <div class="pt-3 flex flex-col sm:flex-row items-center gap-2">
-          <button type="button" id="btn-cancel-profile-logout" onclick="window.logoutAndOpenLogin()" class="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-xs transition flex items-center justify-center gap-1.5 shrink-0">
-            <i class="fa-solid fa-arrow-right-from-bracket"></i> Đổi tài khoản khác
+          <button type="button" id="btn-cancel-profile-close" onclick="window.closeEditProfileModal()" class="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-xs transition flex items-center justify-center gap-1.5 shrink-0">
+            <i class="fa-solid fa-xmark"></i> Đóng
+          </button>
+          <button type="button" id="btn-cancel-profile-logout" onclick="window.logoutAndOpenLogin()" class="w-full sm:w-auto px-4 py-2.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-300 font-bold rounded-2xl text-xs transition flex items-center justify-center gap-1.5 shrink-0">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Đổi tài khoản
           </button>
           <button type="submit" class="w-full sm:flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs transition shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2">
-            <i class="fa-solid fa-check"></i> Xác Nhận Thông Tin & Bắt Đầu Học
+            <i class="fa-solid fa-floppy-disk"></i> Lưu Cập Nhật Lớp & Trường
           </button>
         </div>
       </form>
@@ -3237,7 +3267,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261102_83"></script>
+  <script type="module" src="js/app.js?v=20261102_84"></script>
 </body>
 </html>
 
