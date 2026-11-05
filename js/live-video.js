@@ -45,6 +45,23 @@ export const LiveVideo = {
     this.bindGlobalEvents();
   },
 
+  // Tiện ích: Luôn trả về danh sách Checkpoints chuẩn dạng Array an toàn
+  getCheckpointsList() {
+    if (Array.isArray(this.questionsList) && this.questionsList.length > 0) {
+      return this.questionsList;
+    }
+    if (Array.isArray(this.remoteState?.checkpoints) && this.remoteState.checkpoints.length > 0) {
+      return this.remoteState.checkpoints;
+    }
+    if (this.questionsList && typeof this.questionsList === 'object') {
+      return Object.values(this.questionsList);
+    }
+    if (this.remoteState?.checkpoints && typeof this.remoteState.checkpoints === 'object') {
+      return Object.values(this.remoteState.checkpoints);
+    }
+    return [];
+  },
+
   getBaseDbUrl() {
     // Luôn sử dụng máy chủ Realtime Database chính thức tại asia-southeast1
     return 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -2043,9 +2060,20 @@ export const LiveVideo = {
         });
       } else {
         if (submittedBanner) submittedBanner.classList.add('hidden');
+        const defaultBtnClasses = {
+          'A': 'student-opt-btn p-4 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-bold text-sm sm:text-base transition shadow-lg shadow-rose-600/25 flex items-center gap-3.5 border-2 border-transparent active:scale-[0.98]',
+          'B': 'student-opt-btn p-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-white font-bold text-sm sm:text-base transition shadow-lg shadow-indigo-600/25 flex items-center gap-3.5 border-2 border-transparent active:scale-[0.98]',
+          'C': 'student-opt-btn p-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm sm:text-base transition shadow-lg shadow-amber-500/25 flex items-center gap-3.5 border-2 border-transparent active:scale-[0.98]',
+          'D': 'student-opt-btn p-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold text-sm sm:text-base transition shadow-lg shadow-emerald-600/25 flex items-center gap-3.5 border-2 border-transparent active:scale-[0.98]'
+        };
         optionBtns.forEach(btn => {
+          const letter = btn.getAttribute('data-student-option');
           btn.disabled = false;
-          btn.classList.remove('ring-4', 'ring-white', 'ring-emerald-400', 'scale-[1.02]', 'opacity-40', 'opacity-50', 'opacity-60', 'opacity-30', 'border-4');
+          if (defaultBtnClasses[letter]) {
+            btn.className = defaultBtnClasses[letter];
+          } else {
+            btn.classList.remove('ring-4', 'ring-white', 'ring-emerald-400', 'scale-[1.02]', 'opacity-40', 'opacity-50', 'opacity-60', 'opacity-30', 'border-4');
+          }
         });
       }
     }
@@ -3077,7 +3105,7 @@ export const LiveVideo = {
 
         // Bắt mốc dừng tự động: phạm vi rộng (từ q.sec - 0.4s đến q.sec + 1.2s) đảm bảo không bao giờ bỏ sót mốc
         if (cur >= 5 && !video.paused) {
-          const nextQ = this.questionsList.find(q => (cur >= q.sec - 0.4 && cur <= q.sec + 1.2) && !q.triggered && q.sec >= 5);
+          const nextQ = this.getCheckpointsList().find(q => (cur >= q.sec - 0.4 && cur <= q.sec + 1.2) && !q.triggered && q.sec >= 5);
           if (nextQ) {
             nextQ.triggered = true;
             this.activeCheckpointSec = nextQ.sec;
@@ -3123,9 +3151,9 @@ export const LiveVideo = {
     if (btnTriggerQ && video) {
       btnTriggerQ.onclick = () => {
         const cur = Number(video.currentTime || 0);
-        let targetQ = this.questionsList.find(q => q.sec >= cur - 2 && !q.triggered);
+        let targetQ = this.getCheckpointsList().find(q => q.sec >= cur - 2 && !q.triggered);
         if (!targetQ) {
-          targetQ = this.questionsList.find(q => !q.triggered) || this.questionsList[0];
+          targetQ = this.getCheckpointsList().find(q => !q.triggered) || this.questionsList[0];
         }
         if (!targetQ) {
           alert('Không tìm thấy câu hỏi tương tác nào trong bài học này!');
@@ -3141,7 +3169,7 @@ export const LiveVideo = {
     if (btnNextCp && video) {
       btnNextCp.onclick = () => {
         const cur = Number(video.currentTime || 0);
-        const next = this.questionsList.find(q => q.sec > cur + 1 && !q.triggered) || this.questionsList.find(q => q.sec > cur + 1);
+        const next = this.getCheckpointsList().find(q => q.sec > cur + 1 && !q.triggered) || this.questionsList.find(q => q.sec > cur + 1);
         if (next) {
           video.currentTime = next.sec;
           next.triggered = true;
@@ -3181,20 +3209,20 @@ export const LiveVideo = {
         masterCountdown.className = 'px-3 py-1 rounded-full bg-emerald-700 text-white text-xs font-black font-mono';
       }
 
+      // Cập nhật trạng thái cục bộ NGAY LẬP TỨC trên máy Thầy Cô (Optimistic Update)
+      if (currentQ) currentQ.revealed = true;
+      if (this.remoteState?.currentQuestion) this.remoteState.currentQuestion.revealed = true;
+      if (this.activeRoom?.currentQuestion) this.activeRoom.currentQuestion.revealed = true;
+
+      if (this.remoteState) {
+        this.updateMasterUI(this.remoteState);
+      }
+
       fetch(`${dbUrl}/live_video_rooms/${roomId}/currentQuestion/revealed.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(true)
       }).catch(err => console.warn('Lỗi công bố đáp án:', err));
-
-      if (currentQ) {
-        currentQ.revealed = true;
-        const responses = this.remoteState?.responses?.[currentQ.index] || {};
-        this.renderLivePollChart('master-poll-bars', responses, currentQ.answer);
-        if (this.remoteState) {
-          this.renderMasterMilestoneStatsPanel(this.remoteState, currentQ);
-        }
-      }
     };
 
     this.revealCurrentQuestionAnswer = revealCurrentQuestionAnswer;
@@ -3209,8 +3237,10 @@ export const LiveVideo = {
       btnNextInMilestone.onclick = () => {
         const curQ = this.remoteState?.currentQuestion || this.activeRoom?.currentQuestion;
         if (!curQ) return;
-        const curCp = this.questionsList?.find(item => item.index === curQ.index) || curQ;
-        const nextSubIdx = (curQ.subIndex || 0) + 1;
+        const allCps = this.getCheckpointsList();
+        const targetCpIdx = curQ.checkpointIndex !== undefined ? curQ.checkpointIndex : curQ.index;
+        const curCp = allCps.find(item => String(item.index) === String(targetCpIdx) || (item.sec !== undefined && item.sec === curQ.sec)) || curQ;
+        const nextSubIdx = (Number(curQ.subIndex) || 0) + 1;
         this.triggerMasterQuestion(curCp, nextSubIdx);
       };
     }
@@ -3221,8 +3251,9 @@ export const LiveVideo = {
       btnJumpNext.onclick = async () => {
         const curCheckpoint = this.remoteState?.currentQuestion || this.activeRoom?.currentQuestion;
         const curSec = Number(curCheckpoint?.sec || video.currentTime || this.savedPlaybackTime || 0);
-        const nextQ = this.questionsList.find(q => q.sec > curSec + 1 && !q.triggered) ||
-                      this.questionsList.find(q => q.sec > curSec + 1);
+        const allCps = this.getCheckpointsList();
+        const nextQ = allCps.find(q => q.sec > curSec + 1 && !q.triggered) ||
+                      allCps.find(q => q.sec > curSec + 1);
 
         if (nextQ) {
           if (this.countdownInterval) {
@@ -3425,24 +3456,27 @@ export const LiveVideo = {
     if (video && !video.paused) video.pause();
 
     let cp = checkpointOrQ;
+    const allCps = this.getCheckpointsList();
     if (!cp || !cp.questions || !Array.isArray(cp.questions)) {
-      const found = this.questionsList?.find(item => item.index === (checkpointOrQ?.checkpointIndex ?? checkpointOrQ?.index));
+      const targetCpIdx = checkpointOrQ?.checkpointIndex ?? checkpointOrQ?.index;
+      const found = allCps.find(item => String(item.index) === String(targetCpIdx) || (item.sec !== undefined && checkpointOrQ?.sec !== undefined && item.sec === checkpointOrQ.sec));
       if (found) cp = found;
     }
 
-    const qList = (cp && cp.questions && cp.questions.length > 0) ? cp.questions : [cp || checkpointOrQ];
-    const sIdx = Math.min(qList.length - 1, Math.max(0, subIndex));
+    const qList = (cp && cp.questions && Array.isArray(cp.questions) && cp.questions.length > 0) ? cp.questions : [cp || checkpointOrQ];
+    const sIdx = Math.min(qList.length - 1, Math.max(0, Number(subIndex) || 0));
     const targetQ = qList[sIdx] || cp || checkpointOrQ;
     const totalInMilestone = qList.length;
 
     const totalSec = parseInt(targetQ.timeLimit || targetQ.countdown || this.activeRoom?.countdownSec || '20', 10);
     const now = Date.now();
-    const cpIndex = cp?.index !== undefined ? cp.index : (targetQ.index || 0);
+    const cpIndex = cp?.index !== undefined ? Number(cp.index) : (Number(targetQ.checkpointIndex ?? targetQ.index) || 0);
     const qKey = targetQ.qKey || `${cpIndex}_${sIdx}`;
 
     const questionPayload = {
       index: cpIndex,
       subIndex: sIdx,
+      checkpointIndex: cpIndex,
       totalInMilestone: totalInMilestone,
       globalIndex: targetQ.globalIndex !== undefined ? targetQ.globalIndex : cpIndex,
       qKey: qKey,
@@ -3458,20 +3492,43 @@ export const LiveVideo = {
       timestamp: now
     };
 
-    // Bắt đầu đếm ngược thời gian ngay lập tức
+    // 1. CẬP NHẬT CỤC BỘ NGAY LẬP TỨC TRÊN MÁY THẦY CÔ (Optimistic Update)
+    if (!this.remoteState) this.remoteState = {};
+    this.remoteState.state = 'question';
+    this.remoteState.currentTime = Number(video?.currentTime || cp?.sec || targetQ.sec || 0);
+    this.remoteState.currentQuestion = questionPayload;
+    this.remoteState.updatedAt = now;
+
+    if (this.activeRoom) {
+      this.activeRoom.state = 'question';
+      this.activeRoom.currentQuestion = questionPayload;
+    }
+
     this.activeQuestionIdx = questionPayload.index;
     this.activeQuestionKey = qKey;
+
+    // Bắt đầu đếm ngược thời gian ngay lập tức
     this.startQuestionCountdown(questionPayload);
 
-    fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
-      method: 'PATCH',
+    // Cập nhật giao diện bảng điều khiển Thầy Cô lập tức
+    this.updateMasterUI(this.remoteState);
+
+    // 2. GỬI ĐỒNG BỘ LÊN FIREBASE REALTIME DATABASE
+    // Gửi PUT cho node currentQuestion để xóa sạch triệt để mọi dữ liệu cũ của câu trước
+    fetch(`${dbUrl}/live_video_rooms/${roomId}/currentQuestion.json`, {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        state: 'question',
-        currentTime: Number(video?.currentTime || cp?.sec || targetQ.sec || 0),
-        currentQuestion: questionPayload,
-        updatedAt: now
-      })
+      body: JSON.stringify(questionPayload)
+    }).then(() => {
+      return fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          state: 'question',
+          currentTime: Number(video?.currentTime || cp?.sec || targetQ.sec || 0),
+          updatedAt: now
+        })
+      });
     }).catch(err => console.warn('Lỗi gửi câu hỏi lên Firebase:', err));
   },
 
@@ -3485,7 +3542,11 @@ export const LiveVideo = {
     const totalSec = Number(q.countdown || q.timeLimit || 20);
 
     const tick = () => {
-      if (q.revealed || this.remoteState?.currentQuestion?.revealed) {
+      const isCurRevealed = (this.remoteState?.currentQuestion?.qKey === q.qKey)
+        ? !!this.remoteState.currentQuestion.revealed
+        : !!q.revealed;
+
+      if (isCurRevealed) {
         if (this.countdownInterval) {
           clearInterval(this.countdownInterval);
           this.countdownInterval = null;
