@@ -246,6 +246,20 @@ Phục vụ nhu cầu theo dõi tiến độ, đánh giá năng lực học tậ
 - **Kiến trúc Đồng bộ Thời gian thực Đám mây (Firebase RTDB + SSE + Short Polling):**
   - Node đám mây: `/live_video_rooms/{roomId}`.
   - Hỗ trợ luồng dữ liệu hai chiều: Server-Sent Events (`EventSource`) kết hợp heartbeat và short-polling 1.2s đảm bảo hoạt động ổn định trên 100% mạng trường học, WiFi, 4G/5G mà không bị chặn tường lửa WebSocket.
+- **Cơ Chế Bật/Tắt Video Trên Máy Học Sinh (`streamVideoToStudents`):**
+  - **Chế độ Máy Chiếu Lớp Học (Mặc định khuyến nghị - `streamVideoToStudents = false`):**
+    - Phù hợp với mô hình lớp học phổ thông tại Việt Nam (Thầy/Cô chiếu video lên TV/Máy chiếu lớn đầu lớp cho cả lớp 40 học sinh cùng xem).
+    - Máy học sinh **hoàn toàn KHÔNG tải file video nặng và KHÔNG phát âm thanh**, giúp tiết kiệm 100% băng thông Wifi trường học và tránh tiếng ồn hỗn loạn.
+    - Màn hình học sinh hiển thị **Bảng Đồng Hành Lớp Học (Projector Companion Screen)**: hiển thị hướng dẫn nhìn máy chiếu, tiến trình mốc dừng, STT hàng đợi và thành tích cá nhân.
+    - **Khi đến mốc dừng câu hỏi:** Màn hình học sinh **tự động bung popup câu hỏi trắc nghiệm A, B, C, D toàn màn hình** để học sinh bấm chọn và nộp bài!
+  - **Chế độ Trực Tuyến Độc Lập (`streamVideoToStudents = true`):**
+    - Phù hợp khi học sinh học online tại nhà hoặc trên máy tính riêng.
+    - Video phát trên từng máy học sinh, tự động tắt tiếng (`muted = true`) để chống vọng âm.
+  - **Nút Chuyển Đổi Tức Thời 1 Chạm:** Nút `[ 🖥️ Máy Chiếu / 🎬 Video máy HS ]` trên Header Bảng Điều Khiển Master cho phép Giáo viên chuyển đổi trạng thái bất cứ lúc nào trong buổi học mà không cần tạo lại phòng.
+- **Cơ Chế Đồng Bộ Khung Hình Siêu Chính Xác (Frame-Precision Synchronization):**
+  - Khi Giáo viên bấm **Tạm dừng (Pause)** hoặc **Seek (Tua Seekbar / ±10s)**: Lập tức truyền `currentTime` và `state: 'paused'` lên Firebase.
+  - Máy học sinh áp dụng thuật toán `applyPreciseSync`: cưỡng chế seek đúng vị trí `currentTime` của Giáo viên (sai số < 0.3s) ngay cả khi video chưa load xong metadata qua listener `loadedmetadata`/`canplay`, triệt tiêu hoàn toàn hiện tượng lệch slide/khung hình giữa máy Thầy/Cô và máy Học sinh.
+  - Tần suất phát sóng thời gian của Giáo viên được tối ưu còn 1.8s/lần khi đang phát.
 - **Bảng Điều Khiển Master Của Giáo Viên (Teacher Master Cockpit):**
   - **Tạo phòng:** Phân quyền theo Trường, Khối (10, 11, 12), Lớp cụ thể (vd: EMASI 12E, PTNK 12TOAN, Chu Văn An 10A1...) và chọn bài giảng video từ ngân hàng 93 bài học.
   - Cấp mã phòng ngắn gọn (vd: `LIVE-892`) và link mời trực tiếp (`${origin}?live_video=LIVE-892`).
