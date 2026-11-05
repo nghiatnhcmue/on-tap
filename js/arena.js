@@ -11,11 +11,11 @@ import defaultGameEngine, {
   SpeedRaceHandler,
   BossRaidHandler,
   ClassicKahootHandler
-} from './game-engine.js?v=20261102_88';
-import { Storage } from './storage.js?v=20261102_88';
-import { Auth } from './auth.js?v=20261102_88';
-import { CloudSync } from './cloud-sync.js?v=20261102_88';
-import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_88';
+} from './game-engine.js?v=20261102_89';
+import { Storage } from './storage.js?v=20261102_89';
+import { Auth } from './auth.js?v=20261102_89';
+import { CloudSync } from './cloud-sync.js?v=20261102_89';
+import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_89';
 import {
   AVATARS,
   AVATAR_CATEGORIES,
@@ -24,7 +24,7 @@ import {
   renderAvatarSVG,
   getAvatar,
   randomAvatarId
-} from './avatars.js?v=20261102_88';
+} from './avatars.js?v=20261102_89';
 
 // Định nghĩa an toàn tuyệt đối cho hàm escapeHtml trong scope của arena.js
 function escapeHtml(str) {
@@ -256,61 +256,19 @@ const Arena = {
                 <input type="text" id="arena-input-name" required value="${escapeHtml(currentUser?.fullName || savedPlayer.name || '')}" placeholder="Nhập họ tên (Ví dụ: Nguyễn Minh Khôi)" class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-purple-500" />
               </div>
 
-              <!-- Chọn Linh Thú Blook (Bộ Sưu Tập 40 Linh Thú Vector Đa Lớp) -->
-              <div class="space-y-2.5">
-                <div class="flex items-center justify-between">
-                  <label class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <span>Chọn Linh Thú Blook (${this.BLOOKS.length} Nhân Vật)</span>
-                  </label>
-                  <button type="button" id="btn-arena-random-blook" class="px-2.5 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 dark:bg-purple-950/60 dark:hover:bg-purple-900 text-purple-700 dark:text-purple-300 text-[11px] font-black transition flex items-center gap-1 cursor-pointer">
-                    <i class="fa-solid fa-shuffle"></i> Ngẫu Nhiên
-                  </button>
+              <!-- Gợi ý chọn Linh Thú tại Hàng Đợi Phòng Chờ -->
+              <div class="p-3.5 rounded-2xl bg-purple-50/80 dark:bg-purple-950/30 border border-purple-200/70 dark:border-purple-800/50 flex items-center gap-3">
+                <div class="shrink-0">
+                  ${this.renderBlookIcon(savedPlayer.blookId || this.BLOOKS[0].id, 'w-11 h-11 rounded-xl', { badge: true })}
                 </div>
-
-                <!-- Khung Preview Linh Thú Đang Chọn -->
-                <div id="arena-blook-preview-card" class="p-3 rounded-2xl bg-gradient-to-r from-purple-50 via-indigo-50 to-pink-50 dark:from-slate-900 dark:via-purple-950/30 dark:to-slate-900 border border-purple-200/80 dark:border-purple-800/50 flex items-center gap-3.5">
-                  <div id="arena-selected-blook-avatar" class="shrink-0">
-                    ${this.renderBlookIcon(savedPlayer.blookId || this.BLOOKS[0].id, 'w-14 h-14 rounded-2xl', { badge: true })}
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-2 flex-wrap">
-                      <span id="arena-selected-blook-name" class="text-sm font-black text-slate-800 dark:text-white truncate">${escapeHtml((getAvatar(savedPlayer.blookId || this.BLOOKS[0].id)).name)}</span>
-                      <span id="arena-selected-blook-rarity" class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-gradient-to-r ${(RARITY[(getAvatar(savedPlayer.blookId || this.BLOOKS[0].id)).rarity] || RARITY.common).badge} text-white shadow-xs">
-                        ${escapeHtml((RARITY[(getAvatar(savedPlayer.blookId || this.BLOOKS[0].id)).rarity] || RARITY.common).label)}
-                      </span>
-                    </div>
-                    <p id="arena-selected-blook-desc" class="text-[11px] text-slate-600 dark:text-slate-400 font-medium mt-0.5 truncate">
-                      ✨ Tuyệt kỹ: ${escapeHtml((getAvatar(savedPlayer.blookId || this.BLOOKS[0].id)).desc)}
-                    </p>
-                  </div>
-                </div>
-
-                <!-- Bộ Lọc Chủ Đề Linh Thú -->
-                <div id="arena-blook-cat-tabs" class="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
-                  ${AVATAR_CATEGORIES.map(c => `
-                    <button type="button" data-blook-cat="${c.id}" class="blook-cat-btn px-2.5 py-1 rounded-xl text-[10px] font-black whitespace-nowrap transition cursor-pointer ${c.id === 'all' ? 'bg-purple-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}">
-                      ${c.icon} ${escapeHtml(c.name)}
-                    </button>
-                  `).join('')}
-                </div>
-                
-                <!-- Lưới 40 Linh Thú Vector SVG -->
-                <div id="arena-blook-grid" class="grid grid-cols-4 sm:grid-cols-5 gap-2 p-2.5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 max-h-60 overflow-y-auto">
-                  ${this.BLOOKS.map((b, idx) => {
-                    const isSelected = savedPlayer.blookId ? b.id === savedPlayer.blookId : idx === 0;
-                    const rar = RARITY[b.rarity] || RARITY.common;
-                    return `
-                      <button type="button" data-blook-id="${b.id}" data-blook-cat="${b.category || 'cute'}" class="blook-select-btn p-1.5 rounded-2xl flex flex-col items-center gap-1 transition cursor-pointer ${isSelected ? 'bg-purple-100 dark:bg-purple-900/70 ring-2 ring-purple-500 scale-[1.03]' : 'hover:bg-slate-200/70 dark:hover:bg-slate-800'}" title="${escapeHtml(b.name)} (${rar.label}) - ${escapeHtml(b.desc)}">
-                        ${this.renderBlookIcon(b.id, 'w-11 h-11 rounded-xl')}
-                        <span class="text-[9px] font-bold text-slate-700 dark:text-slate-300 truncate w-full text-center leading-tight">${escapeHtml(b.name)}</span>
-                      </button>
-                    `;
-                  }).join('')}
+                <div class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                  <strong class="font-black text-purple-700 dark:text-purple-300 block">🎭 Chọn Nhân Vật Ở Hàng Đợi Phòng Chờ</strong>
+                  Sau khi kết nối vào phòng chờ, em sẽ tự do chọn & đổi giữa <strong>${this.BLOOKS.length} Linh Thú Blook</strong> trong lúc đợi Thầy/Cô bấm Bắt đầu!
                 </div>
               </div>
 
-              <button type="submit" id="btn-submit-join-arena" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-black text-sm transition shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]">
-                <i class="fa-solid fa-rocket"></i> VÀO ĐẤU TRƯỜNG NGAY
+              <button type="submit" id="btn-submit-join-arena" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-black text-sm transition shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] cursor-pointer">
+                <i class="fa-solid fa-rocket"></i> KẾT NỐI VÀO PHÒNG CHỜ NGAY
               </button>
             </form>
           </div>
@@ -572,70 +530,10 @@ const Arena = {
   },
 
   bindMainEvents() {
-    // 1. Chọn Blook & Lọc Chủ Đề + Ngẫu Nhiên
     const savedPlayer = Storage.getArenaPlayer() || {};
-    let selectedBlookId = (savedPlayer.blookId && this.BLOOKS.some(x => x.id === savedPlayer.blookId))
+    const selectedBlookId = (savedPlayer.blookId && this.BLOOKS.some(x => x.id === savedPlayer.blookId))
       ? savedPlayer.blookId
       : this.BLOOKS[0].id;
-
-    const selectBlookById = (id, playSound = true) => {
-      const found = this.BLOOKS.find(x => x.id === id) || this.BLOOKS[0];
-      selectedBlookId = found.id;
-      this.container.querySelectorAll('.blook-select-btn').forEach(b => {
-        const match = b.getAttribute('data-blook-id') === selectedBlookId;
-        b.classList.toggle('bg-purple-100', match);
-        b.classList.toggle('dark:bg-purple-900/70', match);
-        b.classList.toggle('ring-2', match);
-        b.classList.toggle('ring-purple-500', match);
-        b.classList.toggle('scale-[1.03]', match);
-      });
-      const nameEl = document.getElementById('arena-selected-blook-name');
-      const descEl = document.getElementById('arena-selected-blook-desc');
-      const avatarEl = document.getElementById('arena-selected-blook-avatar');
-      const rarityEl = document.getElementById('arena-selected-blook-rarity');
-      const rar = RARITY[found.rarity] || RARITY.common;
-      if (nameEl) nameEl.textContent = found.name;
-      if (descEl) descEl.textContent = `✨ Tuyệt kỹ: ${found.desc}`;
-      if (avatarEl) avatarEl.innerHTML = this.renderBlookIcon(found.id, 'w-14 h-14 rounded-2xl', { badge: true });
-      if (rarityEl) {
-        rarityEl.className = `px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-gradient-to-r ${rar.badge} text-white shadow-xs`;
-        rarityEl.textContent = rar.label;
-      }
-      if (playSound) this.playTone(620, 0.08, 'sine');
-    };
-
-    this.container.querySelectorAll('.blook-select-btn').forEach(btn => {
-      btn.onclick = () => selectBlookById(btn.getAttribute('data-blook-id'), true);
-    });
-
-    // Lọc danh mục Blook
-    this.container.querySelectorAll('.blook-cat-btn').forEach(catBtn => {
-      catBtn.onclick = () => {
-        const cat = catBtn.getAttribute('data-blook-cat') || 'all';
-        this.container.querySelectorAll('.blook-cat-btn').forEach(b => {
-          const active = b.getAttribute('data-blook-cat') === cat;
-          b.className = `blook-cat-btn px-2.5 py-1 rounded-xl text-[10px] font-black whitespace-nowrap transition cursor-pointer ${active ? 'bg-purple-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`;
-        });
-        this.container.querySelectorAll('.blook-select-btn').forEach(item => {
-          const itemCat = item.getAttribute('data-blook-cat');
-          item.style.display = (cat === 'all' || itemCat === cat) ? '' : 'none';
-        });
-        this.playTone(500, 0.05, 'triangle');
-      };
-    });
-
-    // Nút Chọn Ngẫu Nhiên Blook
-    const btnRandomBlook = document.getElementById('btn-arena-random-blook');
-    if (btnRandomBlook) {
-      btnRandomBlook.onclick = () => {
-        const rId = randomAvatarId();
-        selectBlookById(rId, true);
-        const targetBtn = this.container.querySelector(`.blook-select-btn[data-blook-id="${rId}"]`);
-        if (targetBtn && targetBtn. style.display !== 'none') {
-          targetBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-      };
-    }
 
     // 2. Submit Vào Phòng
     const formJoin = document.getElementById('form-join-arena');
@@ -821,7 +719,7 @@ const Arena = {
     session.pin = pin;
     session.title = `Tự Luyện: ${this.getModeTitle(mode)} (Khối ${grade})`;
     session.isSoloPractice = true;
-    session.status = 'playing';
+    session.status = 'lobby';
     session.currentQuestionIndex = 0;
 
     // Thêm người chơi chính
@@ -856,8 +754,7 @@ const Arena = {
     this.activeRoom = session;
     this.activeRole = 'player';
     this.cleanupRoomListener();
-    this.playStart();
-    this.renderPlayerQuestionView(session.questions[0]);
+    this.renderPlayerLobby();
   },
 
   simulateSoloAiTurn(room) {
@@ -2014,41 +1911,252 @@ const Arena = {
   renderPlayerLobby() {
     const room = this.activeRoom;
     const blook = this.BLOOKS.find(b => b.id === this.playerInfo.blookId) || this.BLOOKS[0];
+    const rarInfo = RARITY[blook.rarity] || RARITY.common;
+    const playersList = Object.values(room.players || {});
 
     this.container.innerHTML = `
-      <div class="max-w-md mx-auto text-center space-y-6 py-8 animate-fadeIn">
-        <div class="p-8 rounded-3xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl space-y-5">
-          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-xs font-bold uppercase tracking-wider">
-            <i class="fa-solid fa-circle-check"></i> Đã Tham Gia Phòng
+      <div class="max-w-3xl mx-auto space-y-6 py-4 animate-fadeIn">
+        <div class="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl space-y-6">
+          
+          <!-- Header Trạng thái kết nối hàng đợi -->
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 pb-4">
+            <div class="flex items-center gap-2.5">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-xs font-black uppercase tracking-wider">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Đang Ở Hàng Đợi Phòng Chờ
+              </span>
+              <span class="px-2.5 py-1 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-mono text-xs font-black">
+                PIN: ${escapeHtml(room.pin)}
+              </span>
+            </div>
+            <div class="text-xs font-bold text-slate-500 dark:text-slate-400">
+              👥 Hàng đợi: <strong id="lobby-player-queue-count" class="text-purple-600 dark:text-purple-400 font-black">${playersList.length}</strong> người chơi
+            </div>
           </div>
 
-          <!-- Blook Bouncing Animation -->
-          <div class="mx-auto flex justify-center animate-bounce">
-            ${this.renderBlookIcon(blook.id, 'w-24 h-24 rounded-3xl', { badge: true })}
+          <!-- Thông tin người chơi & Linh thú đại diện hiện tại -->
+          <div class="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-purple-50 via-indigo-50 to-pink-50 dark:from-slate-900 dark:via-purple-950/30 dark:to-slate-900 border border-purple-200/80 dark:border-purple-800/50 flex flex-col sm:flex-row items-center gap-4">
+            <div id="lobby-selected-blook-avatar" class="shrink-0 animate-bounce">
+              ${this.renderBlookIcon(blook.id, 'w-20 h-20 rounded-3xl', { badge: true })}
+            </div>
+            <div class="min-w-0 flex-1 text-center sm:text-left space-y-1">
+              <div class="text-[11px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                Chiến Binh: <span class="text-slate-800 dark:text-white font-black">${escapeHtml(this.playerInfo.name)}</span>
+              </div>
+              <div class="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+                <h3 id="lobby-selected-blook-name" class="text-lg sm:text-xl font-black text-slate-800 dark:text-white">${escapeHtml(blook.name)}</h3>
+                <span id="lobby-selected-blook-rarity" class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-gradient-to-r ${rarInfo.badge} text-white shadow-xs">
+                  ${escapeHtml(rarInfo.label)}
+                </span>
+              </div>
+              <p id="lobby-selected-blook-desc" class="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                ✨ Tuyệt kỹ: ${escapeHtml(blook.desc)}
+              </p>
+            </div>
+            <div class="p-3 rounded-2xl bg-white/80 dark:bg-slate-800/90 border border-slate-200/70 dark:border-slate-700 text-center sm:text-right shrink-0">
+              <span class="text-[10px] text-slate-400 font-bold uppercase block">Đấu Trường</span>
+              <strong class="text-xs text-slate-800 dark:text-white block max-w-[180px] truncate">${escapeHtml(room.title)}</strong>
+              <span class="text-[11px] text-amber-600 dark:text-amber-400 font-black block mt-0.5">${this.getModeTitle(room.gameMode)}</span>
+            </div>
           </div>
 
-          <div>
-            <h3 class="text-xl font-black text-slate-800 dark:text-white">${escapeHtml(this.playerInfo.name)}</h3>
-            <p class="text-xs font-bold text-purple-600 dark:text-purple-400 mt-0.5">Linh Thú: ${escapeHtml(blook.name)} • <span class="text-amber-500">${escapeHtml(blook.desc)}</span></p>
+          <!-- BỘ CHỌN / ĐỔI LINH THÚ BLOOK TRỰC TIẾP TRONG HÀNG ĐỢI PHÒNG CHỜ -->
+          <div class="space-y-3 text-left">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <label class="text-xs sm:text-sm font-black text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-wand-magic-sparkles text-purple-600"></i>
+                <span>Đổi Nhân Vật Linh Thú Blook Trong Lúc Chờ (${this.BLOOKS.length} Nhân Vật)</span>
+              </label>
+              <button type="button" id="btn-arena-random-blook" class="px-3 py-1.5 rounded-xl bg-purple-100 hover:bg-purple-200 dark:bg-purple-950/70 dark:hover:bg-purple-900 text-purple-700 dark:text-purple-300 text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-xs">
+                <i class="fa-solid fa-shuffle"></i> Chọn Ngẫu Nhiên
+              </button>
+            </div>
+
+            <!-- Bộ Lọc Chủ Đề Linh Thú -->
+            <div id="arena-blook-cat-tabs" class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+              ${AVATAR_CATEGORIES.map(c => `
+                <button type="button" data-blook-cat="${c.id}" class="blook-cat-btn px-3 py-1.5 rounded-xl text-[11px] font-black whitespace-nowrap transition cursor-pointer ${c.id === 'all' ? 'bg-purple-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}">
+                  ${c.icon} ${escapeHtml(c.name)}
+                </button>
+              `).join('')}
+            </div>
+
+            <!-- Lưới 44 Linh Thú Vector SVG -->
+            <div id="arena-blook-grid" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 max-h-72 overflow-y-auto">
+              ${this.BLOOKS.map(b => {
+                const isSelected = b.id === blook.id;
+                const rar = RARITY[b.rarity] || RARITY.common;
+                return `
+                  <button type="button" data-blook-id="${b.id}" data-blook-cat="${b.category || 'animals'}" class="blook-select-btn p-2 rounded-2xl flex flex-col items-center gap-1 transition cursor-pointer ${isSelected ? 'bg-purple-100 dark:bg-purple-900/70 ring-2 ring-purple-500 scale-[1.04]' : 'hover:bg-slate-200/70 dark:hover:bg-slate-800'}" title="${escapeHtml(b.name)} (${rar.label}) - ${escapeHtml(b.desc)}">
+                    <div class="pointer-events-none">
+                      ${this.renderBlookIcon(b.id, 'w-12 h-12 rounded-xl')}
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate w-full text-center leading-tight pointer-events-none">${escapeHtml(b.name)}</span>
+                  </button>
+                `;
+              }).join('')}
+            </div>
           </div>
 
-          <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 space-y-1">
-            <span class="text-[11px] text-slate-400 font-bold uppercase block">Đấu Trường</span>
-            <strong class="text-sm text-slate-800 dark:text-white block">${escapeHtml(room.title)}</strong>
-            <span class="text-xs text-amber-600 dark:text-amber-400 font-bold block">${this.getModeTitle(room.gameMode)}</span>
+          <!-- Danh sách bạn học đang cùng ở trong hàng đợi -->
+          <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700 text-left space-y-2">
+            <span class="text-[11px] font-black uppercase text-slate-400 block">Các chiến binh đang ở phòng chờ</span>
+            <div id="lobby-players-list" class="flex flex-wrap gap-2">
+              ${playersList.map(p => {
+                const pb = this.BLOOKS.find(x => x.id === p.blookId) || this.BLOOKS[0];
+                const isMe = (p.id || p.uid) === this.playerInfo.uid;
+                return `
+                  <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl ${isMe ? 'bg-purple-100 dark:bg-purple-950/80 border border-purple-300 dark:border-purple-700' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700'} text-xs">
+                    ${this.renderBlookIcon(pb.id, 'w-5 h-5 rounded-md')}
+                    <span class="font-bold text-slate-700 dark:text-slate-200">${escapeHtml(p.name)}</span>
+                  </div>
+                `;
+              }).join('')}
+            </div>
           </div>
 
-          <div class="py-2 text-xs text-slate-400 flex items-center justify-center gap-2">
-            <i class="fa-solid fa-spinner fa-spin text-purple-600"></i> Hãy nhìn lên máy chiếu của Thầy/Cô, trận đấu sắp bắt đầu!
+          <!-- Footer hành động ở phòng chờ -->
+          <div class="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+            ${room.isSoloPractice ? `
+              <button type="button" id="btn-solo-start-from-lobby" class="w-full sm:flex-1 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-white font-black text-sm shadow-lg transition flex items-center justify-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-play"></i> BẮT ĐẦU VÀO TRẬN ĐẤU NGAY
+              </button>
+            ` : `
+              <div class="flex-1 py-2 text-xs font-bold text-purple-600 dark:text-purple-400 flex items-center justify-center sm:justify-start gap-2">
+                <i class="fa-solid fa-spinner fa-spin text-base"></i> Đã sẵn sàng! Đang đợi Thầy/Cô bấm Bắt đầu trên máy chiếu...
+              </div>
+            `}
+            <button type="button" id="btn-player-leave-room" class="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-rose-600 text-xs font-bold transition cursor-pointer">
+              Rời Phòng Chờ
+            </button>
           </div>
-
-          <button id="btn-player-leave-room" class="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-rose-600 text-xs font-bold transition">
-            Rời Phòng
-          </button>
         </div>
       </div>
     `;
 
+    // Hàm cập nhật Linh Thú Blook của học sinh ngay trong phòng chờ & đồng bộ lên Firebase
+    const selectLobbyBlook = async (newBlookId, playSound = true) => {
+      const found = this.BLOOKS.find(x => x.id === newBlookId) || this.BLOOKS[0];
+      this.playerInfo.blookId = found.id;
+      if (room.players && room.players[this.playerInfo.uid]) {
+        room.players[this.playerInfo.uid].blookId = found.id;
+      }
+
+      // Lưu vào LocalStorage
+      Storage.saveArenaPlayer({
+        pin: room.pin,
+        name: this.playerInfo.name,
+        blookId: found.id
+      });
+      if (typeof Storage.saveArenaRoom === 'function') {
+        Storage.saveArenaRoom(room);
+      }
+
+      // Cập nhật giao diện thẻ preview & lưới
+      this.container.querySelectorAll('.blook-select-btn').forEach(b => {
+        const match = b.getAttribute('data-blook-id') === found.id;
+        b.classList.toggle('bg-purple-100', match);
+        b.classList.toggle('dark:bg-purple-900/70', match);
+        b.classList.toggle('ring-2', match);
+        b.classList.toggle('ring-purple-500', match);
+        b.classList.toggle('scale-[1.04]', match);
+      });
+
+      const rar = RARITY[found.rarity] || RARITY.common;
+      const avatarEl = document.getElementById('lobby-selected-blook-avatar');
+      const nameEl = document.getElementById('lobby-selected-blook-name');
+      const rarityEl = document.getElementById('lobby-selected-blook-rarity');
+      const descEl = document.getElementById('lobby-selected-blook-desc');
+
+      if (avatarEl) avatarEl.innerHTML = this.renderBlookIcon(found.id, 'w-20 h-20 rounded-3xl', { badge: true });
+      if (nameEl) nameEl.textContent = found.name;
+      if (rarityEl) {
+        rarityEl.className = `px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-gradient-to-r ${rar.badge} text-white shadow-xs`;
+        rarityEl.textContent = rar.label;
+      }
+      if (descEl) descEl.textContent = `✨ Tuyệt kỹ: ${found.desc}`;
+
+      // Cập nhật danh sách hàng đợi nhỏ
+      const listEl = document.getElementById('lobby-players-list');
+      if (listEl) {
+        listEl.innerHTML = Object.values(room.players || {}).map(p => {
+          const pb = this.BLOOKS.find(x => x.id === p.blookId) || this.BLOOKS[0];
+          const isMe = (p.id || p.uid) === this.playerInfo.uid;
+          return `
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl ${isMe ? 'bg-purple-100 dark:bg-purple-950/80 border border-purple-300 dark:border-purple-700' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700'} text-xs">
+              ${this.renderBlookIcon(pb.id, 'w-5 h-5 rounded-md')}
+              <span class="font-bold text-slate-700 dark:text-slate-200">${escapeHtml(p.name)}</span>
+            </div>
+          `;
+        }).join('');
+      }
+
+      if (playSound) this.playTone(620, 0.08, 'sine');
+
+      // Đồng bộ tức thì lên Firebase để màn hình Máy chiếu của Giáo viên đổi nhân vật theo thời gian thực
+      if (!room.isSoloPractice) {
+        const dbUrl = this.getBaseDbUrl();
+        try {
+          await fetch(`${dbUrl}/arena_rooms/${room.pin}/players/${this.playerInfo.uid}.json`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ blookId: found.id })
+          });
+        } catch {}
+      }
+    };
+
+    // Gắn sự kiện click cho từng nút nhân vật
+    this.container.querySelectorAll('.blook-select-btn').forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        const id = btn.getAttribute('data-blook-id');
+        if (id) selectLobbyBlook(id, true);
+      };
+    });
+
+    // Gắn sự kiện lọc danh mục nhân vật
+    this.container.querySelectorAll('.blook-cat-btn').forEach(catBtn => {
+      catBtn.onclick = (e) => {
+        e.preventDefault();
+        const cat = catBtn.getAttribute('data-blook-cat') || 'all';
+        this.container.querySelectorAll('.blook-cat-btn').forEach(b => {
+          const active = b.getAttribute('data-blook-cat') === cat;
+          b.className = `blook-cat-btn px-3 py-1.5 rounded-xl text-[11px] font-black whitespace-nowrap transition cursor-pointer ${active ? 'bg-purple-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`;
+        });
+        this.container.querySelectorAll('.blook-select-btn').forEach(item => {
+          const itemCat = item.getAttribute('data-blook-cat');
+          item.style.display = (cat === 'all' || itemCat === cat) ? '' : 'none';
+        });
+        this.playTone(500, 0.05, 'triangle');
+      };
+    });
+
+    // Nút Chọn Ngẫu Nhiên
+    const btnRandomBlook = document.getElementById('btn-arena-random-blook');
+    if (btnRandomBlook) {
+      btnRandomBlook.onclick = (e) => {
+        e.preventDefault();
+        const rId = randomAvatarId();
+        selectLobbyBlook(rId, true);
+        const targetBtn = this.container.querySelector(`.blook-select-btn[data-blook-id="${rId}"]`);
+        if (targetBtn && targetBtn.style.display !== 'none') {
+          targetBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      };
+    }
+
+    // Nút Bắt đầu ngay (nếu đang ở chế độ Tự Luyện Solo)
+    const btnSoloStart = document.getElementById('btn-solo-start-from-lobby');
+    if (btnSoloStart) {
+      btnSoloStart.onclick = () => {
+        room.status = 'playing';
+        room.currentQuestionIndex = 0;
+        this.playStart();
+        this.renderPlayerQuestionView(room.questions[0]);
+      };
+    }
+
+    // Nút Rời phòng chờ
     const btnLeave = document.getElementById('btn-player-leave-room');
     if (btnLeave) {
       btnLeave.onclick = () => {
@@ -2509,13 +2617,38 @@ const Arena = {
     const oldQIndex = this.activeRoom ? this.activeRoom.currentQuestionIndex : -1;
     this.activeRoom = remoteRoom;
 
-    // Đảm bảo playerInfo không bị mất khi nhận remoteRoom
+    // Đảm bảo playerInfo và blookId vừa chọn ở hàng đợi không bị ghi đè khi nhận remoteRoom
     if (this.activeRole === 'player' && this.playerInfo) {
       remoteRoom.players = remoteRoom.players || {};
+      const currentChosenBlook = this.playerInfo.blookId;
       if (!remoteRoom.players[this.playerInfo.uid]) {
         remoteRoom.players[this.playerInfo.uid] = this.playerInfo;
       } else {
-        this.playerInfo = { ...remoteRoom.players[this.playerInfo.uid], uid: this.playerInfo.uid };
+        this.playerInfo = {
+          ...remoteRoom.players[this.playerInfo.uid],
+          uid: this.playerInfo.uid,
+          blookId: currentChosenBlook || remoteRoom.players[this.playerInfo.uid].blookId
+        };
+        remoteRoom.players[this.playerInfo.uid].blookId = this.playerInfo.blookId;
+      }
+
+      if (remoteRoom.status === 'lobby') {
+        const playersArr = Object.values(remoteRoom.players || {});
+        const qCountEl = document.getElementById('lobby-player-queue-count');
+        if (qCountEl) qCountEl.textContent = playersArr.length;
+        const listEl = document.getElementById('lobby-players-list');
+        if (listEl) {
+          listEl.innerHTML = playersArr.map(p => {
+            const pb = this.BLOOKS.find(x => x.id === p.blookId) || this.BLOOKS[0];
+            const isMe = (p.id || p.uid) === this.playerInfo.uid;
+            return `
+              <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl ${isMe ? 'bg-purple-100 dark:bg-purple-950/80 border border-purple-300 dark:border-purple-700' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700'} text-xs">
+                ${this.renderBlookIcon(pb.id, 'w-5 h-5 rounded-md')}
+                <span class="font-bold text-slate-700 dark:text-slate-200">${escapeHtml(p.name)}</span>
+              </div>
+            `;
+          }).join('');
+        }
       }
     }
 
