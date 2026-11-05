@@ -13,7 +13,8 @@ Tài liệu này được biên soạn nhằm giúp các Agent AI kế nhiệm n
 - **Dữ liệu ngân hàng câu hỏi:** 4.098 câu hỏi chuẩn trắc nghiệm 4 lựa chọn (MCQ) và Đúng/Sai (DS) lưu tại thư mục `data/` (`grade_10.json`, `grade_11.json`, `grade_12.json`, `manifest.json`), được trích xuất và chuẩn hóa từ file Excel gốc `Ngan Hang de.xlsx`.
 - **Triển khai & Hosting:** Cloudflare Pages / Workers kết nối tự động với GitHub Repository:
   - GitHub Repo: `https://github.com/nghiatnhcmue/on-tap.git` (nhánh `main`).
-  - **Production URL DUY NHẤT:** `https://on-tap.nghiaedu.workers.dev/` (Tập trung toàn bộ vào domain này).
+  - **Production URL DUY NHẤT:** https://on-tap.nghiaedu.workers.dev/ (Tập trung toàn bộ vào domain này).
+  - **Bản phát hành chuẩn hóa:** 20261102_98 (Đồng bộ toàn diện Live Video, Trường Lớp Dropdown, Gamification).
 
 ---
 

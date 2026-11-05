@@ -10,10 +10,10 @@
  * - HỖ TRỢ THIẾT LẬP CÂU HỎI & MỐC DỪNG (Question & Checkpoint Editor): Cho phép Giáo viên & Admin tạo, sửa, xóa mốc dừng và câu hỏi trực tiếp trên web, tự động đồng bộ đám mây realtime!
  */
 
-import { Storage } from './storage.js?v=20261102_97';
-import { Auth } from './auth.js?v=20261102_97';
-import { escapeHtml } from './utils.js?v=20261102_97';
-import { Proctor } from './proctor.js?v=20261102_97';
+import { Storage } from './storage.js?v=20261102_98';
+import { Auth } from './auth.js?v=20261102_98';
+import { escapeHtml } from './utils.js?v=20261102_98';
+import { Proctor } from './proctor.js?v=20261102_98';
 
 export const InteractiveVideo = {
   container: null,

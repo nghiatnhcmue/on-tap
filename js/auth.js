@@ -4,8 +4,8 @@
  * Hỗ trợ: Đăng nhập Google Popup, Đồng bộ Firebase Realtime Database, Hồ sơ học sinh.
  */
 
-import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261102_97';
-import { CloudSync } from './cloud-sync.js?v=20261102_97';
+import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261102_98';
+import { CloudSync } from './cloud-sync.js?v=20261102_98';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
 
@@ -1185,10 +1185,29 @@ export const Auth = {
   normalizeSchoolName(schoolName) {
     if (!schoolName) return '';
     const clean = schoolName.trim().toLowerCase();
-    for (const [key, data] of Object.entries(SCHOOLS_DATA)) {
+    const schoolsObj = (typeof Storage !== 'undefined' && Storage.getSchoolsData) ? Storage.getSchoolsData() : (typeof SCHOOLS_DATA !== 'undefined' ? SCHOOLS_DATA : {});
+
+    // 1. So khớp chính xác
+    for (const [key, data] of Object.entries(schoolsObj)) {
       if (key.toLowerCase() === clean) return key;
-      if (data.aliases && data.aliases.some(a => a.toLowerCase() === clean || clean.includes(a.toLowerCase()))) {
-        return key;
+      if (data.name && data.name.toLowerCase() === clean) return key;
+    }
+
+    // 2. So khớp mờ / bao hàm 2 chiều (ví dụ: 'TT GDNN GDTX Chu' khớp 'TT GDNN GDTX Chu Văn An')
+    for (const [key, data] of Object.entries(schoolsObj)) {
+      const keyLower = key.toLowerCase();
+      if (keyLower.includes(clean) || clean.includes(keyLower)) return key;
+      if (data.name) {
+        const nameLower = data.name.toLowerCase();
+        if (nameLower.includes(clean) || clean.includes(nameLower)) return key;
+      }
+      if (data.aliases && Array.isArray(data.aliases)) {
+        if (data.aliases.some(a => {
+          const aLower = String(a).toLowerCase();
+          return aLower === clean || aLower.includes(clean) || clean.includes(aLower);
+        })) {
+          return key;
+        }
       }
     }
     return schoolName.trim();
@@ -1365,7 +1384,8 @@ export const Auth = {
     classSelect.dataset.prevClass = initialClass || '';
     if (initialSchool) {
       const stdSchool = this.normalizeSchoolName(initialSchool);
-      if (SCHOOLS_DATA[stdSchool]) {
+      const schoolsObj = (typeof Storage !== 'undefined' && Storage.getSchoolsData) ? Storage.getSchoolsData() : SCHOOLS_DATA;
+      if (schoolsObj && schoolsObj[stdSchool]) {
         schoolSelect.value = stdSchool;
         if (customSchoolInput) customSchoolInput.classList.add('hidden');
       } else {
