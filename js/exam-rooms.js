@@ -1,12 +1,12 @@
-import { ensureXLSX, ensureMammoth } from './lazy-libs.js?v=20261111_205';
+import { ensureXLSX, ensureMammoth } from './lazy-libs.js?v=20261112_210';
 /**
  * TIN HỌC HUB - EXAM ROOMS & ASSIGNMENT CONTROLLER
  * Quản lý giao đề thi theo khung giờ, trường học, lớp học, mật khẩu và chống gian lận cho Giáo viên & Admin
  */
 
-import { Storage } from './storage.js?v=20261111_205';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261111_205';
-import { escapeHtml } from './utils.js?v=20261111_205';
+import { Storage } from './storage.js?v=20261112_210';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261112_210';
+import { escapeHtml } from './utils.js?v=20261112_210';
 
 export const ExamRooms = {
   container: null,
@@ -1376,7 +1376,7 @@ export const ExamRooms = {
         if (nameLabel) nameLabel.textContent = `Tệp đã chọn: ${file.name}`;
 
         const reader = new FileReader();
-        reader.onload = (ev) => {
+        reader.onload = async (ev) => {
           try {
             const XLSX = await ensureXLSX();
         if (XLSX) {
@@ -1653,7 +1653,7 @@ Trí tuệ nhân tạo (AI) thường được ứng dụng phổ biến trong l
   },
 
   // Tải file mẫu Excel (.xlsx) chuẩn
-  downloadExcelTemplate() {
+  async downloadExcelTemplate() {
     const XLSX = await ensureXLSX();
         if (XLSX) {
       try {

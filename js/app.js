@@ -3,54 +3,54 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261111_205';
-import { getAvatarDataUrl } from './avatars.js?v=20261111_205';
-import { authedFetch } from './api.js?v=20261111_205';
-import { Practice } from './practice.js?v=20261111_205';
-import { Exam } from './exam.js?v=20261111_205';
-import { Search } from './search.js?v=20261111_205';
-import { PrintManager } from './print.js?v=20261111_205';
-import { Auth } from './auth.js?v=20261111_205';
-import { escapeHtml } from './utils.js?v=20261111_205';
-import { Leaderboard } from './leaderboard.js?v=20261111_205';
-import { QuestionsManager } from './questions-manager.js?v=20261111_205';
-import { ExamRooms } from './exam-rooms.js?v=20261111_205';
-import { Proctor } from './proctor.js?v=20261111_205';
-import { Gradebook } from './gradebook.js?v=20261111_205';
-import { CloudSync } from './cloud-sync.js?v=20261111_205';
+import { Storage } from './storage.js?v=20261112_210';
+import { getAvatarDataUrl } from './avatars.js?v=20261112_210';
+import { authedFetch } from './api.js?v=20261112_210';
+import { Practice } from './practice.js?v=20261112_210';
+import { Exam } from './exam.js?v=20261112_210';
+import { Search } from './search.js?v=20261112_210';
+import { PrintManager } from './print.js?v=20261112_210';
+import { Auth } from './auth.js?v=20261112_210';
+import { escapeHtml } from './utils.js?v=20261112_210';
+import { Leaderboard } from './leaderboard.js?v=20261112_210';
+import { QuestionsManager } from './questions-manager.js?v=20261112_210';
+import { ExamRooms } from './exam-rooms.js?v=20261112_210';
+import { Proctor } from './proctor.js?v=20261112_210';
+import { Gradebook } from './gradebook.js?v=20261112_210';
+import { CloudSync } from './cloud-sync.js?v=20261112_210';
 
 // Dynamic loaders cho các module đồ sộ (chỉ tải khi mở tính năng tương ứng)
 async function getAdminManager() {
   if (window.AdminManager) return window.AdminManager;
-  const mod = await import('./admin-manager.js?v=20261111_205');
+  const mod = await import('./admin-manager.js?v=20261112_210');
   window.AdminManager = mod.AdminManager;
   return mod.AdminManager;
 }
 
 async function getInteractiveVideo() {
   if (window.InteractiveVideo) return window.InteractiveVideo;
-  const mod = await import('./interactive-video.js?v=20261111_205');
+  const mod = await import('./interactive-video.js?v=20261112_210');
   window.InteractiveVideo = mod.InteractiveVideo;
   return mod.InteractiveVideo;
 }
 
 async function getLiveVideo() {
   if (window.LiveVideo) return window.LiveVideo;
-  const mod = await import('./live-video.js?v=20261111_205');
+  const mod = await import('./live-video.js?v=20261112_210');
   window.LiveVideo = mod.LiveVideo;
   return mod.LiveVideo;
 }
 
 async function getArena() {
   if (window.Arena) return window.Arena;
-  const mod = await import('./arena.js?v=20261111_205');
+  const mod = await import('./arena.js?v=20261112_210');
   window.Arena = mod.default || mod.Arena;
   return window.Arena;
 }
 
 async function getRandomPicker() {
   if (window.RandomPicker) return window.RandomPicker;
-  const mod = await import('./random-picker.js?v=20261111_205');
+  const mod = await import('./random-picker.js?v=20261112_210');
   window.RandomPicker = mod.default || mod.RandomPicker;
   return window.RandomPicker;
 }
@@ -64,15 +64,10 @@ if (typeof window !== 'undefined') {
   window.PrintManager = PrintManager;
   window.Leaderboard = Leaderboard;
   window.QuestionsManager = QuestionsManager;
-  window.AdminManager = AdminManager;
   window.Proctor = Proctor;
   window.ExamRooms = ExamRooms;
   window.Gradebook = Gradebook;
   window.CloudSync = CloudSync;
-  window.InteractiveVideo = InteractiveVideo;
-  window.LiveVideo = LiveVideo;
-  window.Arena = Arena;
-  window.RandomPicker = RandomPicker;
 }
 
 class App {
@@ -116,8 +111,8 @@ class App {
       } else if (this.currentTab === 'questions-manage') {
         if (typeof QuestionsManager !== 'undefined') QuestionsManager.render();
       } else if (this.currentTab === 'admin-system') {
-        if (typeof AdminManager !== 'undefined' && typeof AdminManager.syncS3InputsFromStorage === 'function') {
-          AdminManager.syncS3InputsFromStorage();
+        if (window.AdminManager && typeof window.AdminManager.syncS3InputsFromStorage === 'function') {
+          window.AdminManager.syncS3InputsFromStorage();
         }
       }
       this.renderSavedAccountsInLoginModal();
@@ -227,7 +222,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261111_205');
+      const res = await fetch('data/manifest.json?v=20261112_210');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
@@ -302,7 +297,7 @@ class App {
     } else if (this.currentTab === 'home') {
       this.renderHome();
     } else if (this.currentTab === 'interactive-video') {
-      InteractiveVideo.setGrade(grade);
+      if (window.InteractiveVideo) window.InteractiveVideo.setGrade(grade);
     } else if (this.currentTab === 'exam-setup') {
       this.renderExamSetup();
     } else if (this.currentTab === 'search') {
@@ -327,12 +322,12 @@ class App {
 
     // Tự động dọn dẹp phòng học video tương tác nếu rời tab
     if (this.currentTab === 'interactive-video' && tab !== 'interactive-video') {
-      if (typeof InteractiveVideo !== 'undefined' && InteractiveVideo.activeLesson) {
-        InteractiveVideo.cleanupActivePlayer();
-        InteractiveVideo.activeLesson = null;
+      if (window.InteractiveVideo && window.InteractiveVideo.activeLesson) {
+        window.InteractiveVideo.cleanupActivePlayer();
+        window.InteractiveVideo.activeLesson = null;
       }
-      if (typeof LiveVideo !== 'undefined' && LiveVideo.activeRoom) {
-        LiveVideo.cleanupSession();
+      if (window.LiveVideo && window.LiveVideo.activeRoom) {
+        window.LiveVideo.cleanupSession();
       }
     }
 
@@ -862,13 +857,13 @@ class App {
           const list = Object.values(liveData);
           activeLiveRoom = list.find(r => {
             if (!r || r.state === 'finished' || r.state === 'closed') return false;
-            const isActivelyLive = (typeof LiveVideo !== 'undefined' && typeof LiveVideo.isRoomActivelyLive === 'function')
-              ? LiveVideo.isRoomActivelyLive(r)
+            const isActivelyLive = (window.LiveVideo && typeof window.LiveVideo.isRoomActivelyLive === 'function')
+              ? window.LiveVideo.isRoomActivelyLive(r)
               : ((Date.now() - Number(r.updatedAt || r.createdAt || 0)) < 30 * 60 * 1000);
             if (!isActivelyLive) {
               // Tự động đóng ngầm phòng cũ bị treo để không bao giờ hiện nhầm là đang Live
-              if (typeof LiveVideo !== 'undefined' && typeof LiveVideo.closeOrDeleteRoom === 'function' && r.roomId) {
-                LiveVideo.closeOrDeleteRoom(r.roomId, true);
+              if (window.LiveVideo && typeof window.LiveVideo.closeOrDeleteRoom === 'function' && r.roomId) {
+                window.LiveVideo.closeOrDeleteRoom(r.roomId, true);
               }
               return false;
             }
@@ -3576,7 +3571,7 @@ class App {
     // Nút tạo phòng live video tại Hub Giáo Viên ở trang chủ
     const homeLiveBtn = document.getElementById('btn-home-teacher-live-video');
     if (homeLiveBtn) {
-      homeLiveBtn.addEventListener('click', () => {
+      homeLiveBtn.addEventListener('click', async () => {
         if (!Auth.isTeacher() && !Auth.isAdmin()) {
           alert('Chức năng tạo phòng học video trực tuyến chỉ dành riêng cho Giáo viên (GV) và Quản trị viên (Admin)!\nHọc sinh chỉ có quyền tham gia phòng học do Thầy/Cô cung cấp.');
           return;
