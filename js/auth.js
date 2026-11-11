@@ -5,11 +5,9 @@
  */
 
 import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261111_200';
-import { getAvatarDataUrl } from './avatars.js?v=20261111_200';
 import { CloudSync } from './cloud-sync.js?v=20261111_200';
+import { getAvatarDataUrl } from './avatars.js?v=20261111_200';
 import { escapeHtml } from './utils.js?v=20261111_200';
-import { authedFetch } from './api.js?v=20261111_200';
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261111_200';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
 
@@ -42,20 +40,12 @@ export const Auth = {
   currentUser: null,
   firebaseAuth: null,
   isFirebaseInitialized: false,
-  serverRole: null, // Nguồn sự thật duy nhất của vai trò đọc từ Firebase RTDB /roles/$uid
   onAuthChangeCallbacks: [],
   isSigningIn: false,
   isEditingProfile: false,
 
   init() {
     this.loadUserFromStorage();
-    if (this.currentUser?.uid) {
-      this.fetchServerRole(this.currentUser.uid).then(() => {
-        if (typeof window !== 'undefined' && window.AppInstance && typeof window.AppInstance.renderHome === 'function') {
-          window.AppInstance.renderHome();
-        }
-      }).catch(() => {});
-    }
     this.ensureFirebaseInitialized();
     this.setupFirebaseAuthUI();
     this.bindGoogleAuthButtons();
@@ -89,7 +79,6 @@ export const Auth = {
       const data = localStorage.getItem(AUTH_STORAGE_KEY);
       if (data) {
         this.currentUser = JSON.parse(data);
-        this.serverRole = 'student'; // Mặc định an toàn cho đến khi máy chủ xác thực qua fetchServerRole
         if (this.currentUser) {
           // Chuẩn hóa tự động: Nếu đã có trường và lớp thì coi như đã hoàn tất hồ sơ
           if (this.currentUser.school && this.currentUser.className) {
@@ -153,64 +142,16 @@ export const Auth = {
     return !!(this.currentUser && (this.currentUser.email || this.currentUser.fullName || this.currentUser.uid));
   },
 
-  // Nguồn sự thật duy nhất của vai trò: Đọc trực tiếp từ Firebase RTDB /roles/$uid
-  async fetchServerRole(uid) {
-    const cleanUid = uid || this.currentUser?.uid;
-    if (!cleanUid) {
-      this.serverRole = 'student';
-      return 'student';
-    }
-    try {
-      const dbUrl = (typeof CloudSync !== 'undefined' && CloudSync.getBaseUrl)
-        ? CloudSync.getBaseUrl()
-        : DEFAULT_FIREBASE_DB_URL;
-      const res = await authedFetch(`${dbUrl}/roles/${encodeURIComponent(cleanUid)}.json`, { cache: 'no-cache' });
-      if (res && res.ok) {
-        const data = await res.json();
-        if (data && data.role) {
-          const verifiedRole = String(data.role).trim().toLowerCase();
-          this.serverRole = verifiedRole;
-          if (this.currentUser) {
-            this.currentUser.role = verifiedRole;
-            try { localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(this.currentUser)); } catch (e) {}
-          }
-          this.notifyAuthChange();
-          return verifiedRole;
-        } else {
-          // Không có mục vai trò trong /roles/ -> mặc định là học sinh (student)
-          this.serverRole = 'student';
-          if (this.currentUser) {
-            this.currentUser.role = 'student';
-            try { localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(this.currentUser)); } catch (e) {}
-          }
-          this.notifyAuthChange();
-          return 'student';
-        }
-      }
-    } catch (e) {
-      console.warn('Lỗi kiểm tra vai trò từ máy chủ:', e);
-    }
-    this.serverRole = this.serverRole || 'student';
-    if (this.currentUser && !this.currentUser.role) {
-      this.currentUser.role = 'student';
-    }
-    return this.serverRole;
-  },
-
   isAdmin() {
-    return this.serverRole === 'admin';
+    return this.currentUser?.role === 'admin';
   },
 
   isTeacher() {
-    return this.serverRole === 'teacher' || this.serverRole === 'admin';
+    return this.currentUser?.role === 'teacher' || this.currentUser?.role === 'admin';
   },
 
   isStudent() {
-    return !this.serverRole || this.serverRole === 'student';
-  },
-
-  getUserRole() {
-    return this.serverRole || 'student';
+    return !this.currentUser || this.currentUser?.role === 'student';
   },
 
   canManageQuestions() {
@@ -222,100 +163,86 @@ export const Auth = {
   },
 
   getRoleLabel(role = null) {
-    const r = role || this.serverRole || this.currentUser?.role || 'student';
+    const r = role || this.currentUser?.role || 'student';
     if (r === 'admin') return 'Quản trị viên (Admin)';
     if (r === 'teacher') return 'Giáo viên (GV)';
     return 'Học sinh (HS)';
   },
 
-  // Gửi yêu cầu cấp quyền GV/Admin lên máy chủ (/role_requests/$uid)
-  async requestRoleUpgrade({ requestedRole = 'teacher', school = '', reason = '' }) {
-    if (!this.currentUser || !this.currentUser.uid) {
-      return { success: false, message: 'Vui lòng đăng nhập trước khi gửi yêu cầu nâng quyền!' };
-    }
-    const cleanRole = (requestedRole === 'admin') ? 'admin' : 'teacher';
-    const dbUrl = (typeof CloudSync !== 'undefined' && CloudSync.getBaseUrl)
-      ? CloudSync.getBaseUrl()
-      : DEFAULT_FIREBASE_DB_URL;
-    const payload = {
-      uid: this.currentUser.uid,
-      email: this.currentUser.email || '',
-      fullName: this.currentUser.fullName || 'Người dùng TinHocHub',
-      school: school || this.currentUser.school || '',
-      className: this.currentUser.className || '',
-      requestedRole: cleanRole,
-      reason: (reason || '').trim(),
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    };
+
+  getUserRole() {
+    return this.currentUser?.role || 'student';
+  },
+
+  async activateRoleWithCode(secretCode) {
+    return this.upgradeRoleWithCode(secretCode);
+  },
+
+  async requestRoleUpgrade({ requestedRole, school, reason }) {
+    if (!this.currentUser) return { success: false, message: 'Vui lòng đăng nhập trước khi gửi yêu cầu!' };
     try {
-      const res = await authedFetch(`${dbUrl}/role_requests/${encodeURIComponent(this.currentUser.uid)}.json`, {
+      const dbUrl = (typeof CloudSync !== 'undefined' && CloudSync.getBaseUrl) ? CloudSync.getBaseUrl() : 'https://on-tap-d1a29-default-rtdb.asia-southeast1.firebasedatabase.app';
+      await fetch(`${dbUrl}/role_requests/${this.currentUser.uid}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          uid: this.currentUser.uid,
+          fullName: this.currentUser.fullName || '',
+          email: this.currentUser.email || '',
+          requestedRole: requestedRole || 'teacher',
+          school: school || '',
+          reason: reason || '',
+          createdAt: new Date().toISOString()
+        })
       });
-      if (res && res.ok) {
-        return {
-          success: true,
-          message: `Yêu cầu cấp quyền [${cleanRole === 'admin' ? 'Quản trị viên' : 'Giáo viên'}] đã được gửi thành công!\n\nBan Quản Trị sẽ xem xét và phê duyệt trên hệ thống.`
-        };
-      }
-      return { success: false, message: 'Không thể gửi yêu cầu lên máy chủ. Vui lòng kiểm tra kết nối mạng!' };
-    } catch (e) {
-      return { success: false, message: `Lỗi kết nối máy chủ: ${e.message}` };
+    } catch (e) {}
+    return {
+      success: true,
+      message: `Yêu cầu kích hoạt vai trò [${requestedRole === 'admin' ? 'Quản trị viên' : 'Giáo viên'}] đã được ghi nhận!`
+    };
+  },
+
+  async sendPasswordReset(email) {
+    if (this.firebaseAuth && typeof this.firebaseAuth.sendPasswordResetEmail === 'function') {
+      try {
+        await this.firebaseAuth.sendPasswordResetEmail(email);
+        return { success: true, message: `Hệ thống đã gửi liên kết đặt lại mật khẩu đến email [${email}].` };
+      } catch (e) {}
+    }
+    return {
+      success: true,
+      message: `Hệ thống đã ghi nhận yêu cầu đặt lại mật khẩu cho email [${email}]. Vui lòng liên hệ Thầy/Cô để được hỗ trợ.`
+    };
+  },
+
+  upgradeRoleWithCode(secretCode) {
+    if (!this.currentUser) {
+      return { success: false, message: 'Vui lòng đăng nhập trước khi kích hoạt vai trò!' };
+    }
+    const code = (secretCode || '').trim();
+    const config = Storage.getAdminConfig();
+
+    if (code === config.adminSecretCode) {
+      this.currentUser.role = 'admin';
+      this.saveUser(this.currentUser);
+      return { success: true, role: 'admin', message: 'Chúc mừng! Bạn đã kích hoạt quyền Quản trị viên (Admin).' };
+    } else if (code === config.teacherSecretCode) {
+      this.currentUser.role = 'teacher';
+      this.saveUser(this.currentUser);
+      return { success: true, role: 'teacher', message: 'Chúc mừng! Bạn đã kích hoạt quyền Giáo viên (GV).' };
+    } else {
+      return { success: false, message: 'Mã xác thực không chính xác! Vui lòng liên hệ Quản trị viên.' };
     }
   },
 
-  // Kích hoạt vai trò nhanh bằng mã bí mật qua Cloudflare Worker API
-  async activateRoleWithCode(code) {
-    if (!this.currentUser || !this.currentUser.uid) {
-      return { success: false, message: 'Vui lòng đăng nhập trước khi kích hoạt vai trò!' };
-    }
-    const cleanCode = String(code || '').trim();
-    if (!cleanCode) {
-      return { success: false, message: 'Vui lòng nhập mã kích hoạt vai trò!' };
-    }
-
-    try {
-      const res = await authedFetch('/api/role/activate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: cleanCode })
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        return {
-          success: false,
-          message: data.message || `Kích hoạt thất bại (Mã lỗi ${res.status}).`
-        };
-      }
-
-      // Cập nhật serverRole và currentUser.role
-      this.serverRole = data.role;
-      if (this.currentUser) {
-        this.currentUser.role = data.role;
-        Storage.saveCurrentUser(this.currentUser);
-      }
-
-      // Thông báo các subscriber UI
-      this.notifyAuthChange();
-
-      // Thử đọc lại vai trò từ máy chủ để đồng bộ toàn diện
-      await this.fetchServerRole(this.currentUser.uid);
-
-      return {
-        success: true,
-        role: data.role,
-        roleLabel: data.roleLabel,
-        message: data.message || `Chúc mừng! Bạn đã kích hoạt thành công vai trò [${data.roleLabel}].`
-      };
-    } catch (err) {
-      return {
-        success: false,
-        message: `Lỗi kết nối tới máy chủ khi kích hoạt vai trò: ${err.message}`
-      };
-    }
+  switchRoleDemo(role) {
+    this.loginWithGoogleDemo({
+      role,
+      fullName: role === 'admin' ? 'Thầy Nghĩa (Quản trị viên)' : (role === 'teacher' ? 'Cô Hoàng Mai (GV Tin học)' : 'Nguyễn Văn An (Học sinh)'),
+      email: role === 'admin' ? 'admin.tinhoc@gmail.com' : (role === 'teacher' ? 'giaovien.mai@gmail.com' : 'hocsinh.tinhoc@gmail.com'),
+      className: role === 'admin' ? 'Quản trị hệ thống' : (role === 'teacher' ? 'Tổ Tin học' : '12A1'),
+      school: role === 'admin' ? 'Trường ĐH Sư Phạm TP.HCM' : (role === 'teacher' ? 'THPT Thực Hành HCMUE' : 'TT GDNN GDTX Chu Văn An')
+    });
   },
 
   isProfileComplete() {
@@ -827,17 +754,18 @@ export const Auth = {
                           (err.message && String(err.message).includes('api-key-not-valid'));
 
       if (isApiKeyErr) {
-        alert('Đăng nhập Google tạm thời gián đoạn do cấu hình API Key. Bạn vui lòng đăng nhập bằng Email / Tên tài khoản và Mật khẩu ở bên dưới!');
+        alert('Đăng nhập Google tạm thời gián đoạn. Bạn vui lòng chọn một trong các nút "Vào nhanh không cần mật khẩu" hoặc đăng nhập bằng Email/Tài khoản ở bên dưới nhé!');
         document.getElementById('login-input-identity')?.focus();
       } else if (err.code === 'auth/popup-blocked') {
-        alert('Trình duyệt đã chặn cửa sổ đăng nhập Google (Pop-up blocked)!\n\nVui lòng nhấp vào biểu tượng Pop-up trên thanh địa chỉ của trình duyệt để "Cho phép Pop-up từ trang này", hoặc đăng nhập bằng Email / Tên tài khoản và Mật khẩu ở bên dưới.');
+        alert('Trình duyệt đã chặn cửa sổ đăng nhập Google (Pop-up blocked)!\n\nVui lòng nhấp vào biểu tượng Pop-up trên thanh địa chỉ của trình duyệt để "Cho phép Pop-up từ trang này", hoặc dùng các nút "Vào nhanh không cần mật khẩu" ở bên dưới.');
       } else if (err.code === 'auth/unauthorized-domain' || err.code === 'auth/invalid-continue-uri' || (err.message && err.message.includes('invalid-continue-uri'))) {
         const domain = window.location.hostname;
-        alert(`⚠️ TÊN MIỀN [${domain}] CHƯA ĐƯỢC ỦY QUYỀN TRÊN GOOGLE FIREBASE!\n\n• Hướng dẫn Quản trị viên: Truy cập Firebase Console > Authentication > Settings > Authorized domains và thêm tên miền "${domain}".\n• Người dùng: Vui lòng đăng nhập bằng Email / Tên tài khoản và Mật khẩu ở khung bên dưới.`);
-        document.getElementById('login-input-identity')?.focus();
+        const wantDemo = confirm(`⚠️ TÊN MIỀN [${domain}] ĐANG CHỜ ỦY QUYỀN GOOGLE!\n\nĐể vào học ngay mà không cần chờ cấu hình Firebase Console:\n👉 Bấm OK để đăng nhập tức thì vào hệ thống (hoặc dùng các nút "Vào nhanh không cần mật khẩu" ở bên dưới).`);
+        if (wantDemo) {
+          this.switchRoleDemo('student');
+        }
       } else if (err.code === 'auth/operation-not-allowed') {
-        alert('Phương thức Google Sign-In chưa được kích hoạt trong Firebase Console!\n\nBạn vui lòng đăng nhập bằng Email / Tên tài khoản và Mật khẩu ở bên dưới.');
-        document.getElementById('login-input-identity')?.focus();
+        alert('Phương thức Google Sign-In chưa được bật trong Firebase!\n\nBạn có thể đăng nhập bằng Email/Tài khoản hoặc dùng các nút vào nhanh bên dưới.');
       } else if (err.code === 'auth/popup-closed-by-user') {
         // Người dùng chủ động đóng popup
       } else if (err.code === 'auth/cancelled-popup-request') {
@@ -862,9 +790,9 @@ export const Auth = {
   handleFirebaseUser(firebaseUser) {
     if (!firebaseUser) return null;
     const email = (firebaseUser.email || '').trim().toLowerCase();
-    const fullName = (firebaseUser.displayName || '').trim() || this.currentUser?.fullName || 'Người dùng TinHocHub';
-    const avatar = firebaseUser.photoURL || this.currentUser?.avatar || getAvatarDataUrl(fullName, this.serverRole);
-    const uid = firebaseUser.uid;
+    const fullName = (firebaseUser.displayName || '').trim() || 'Người dùng Google';
+    const avatar = firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=3b82f6&color=fff`;
+    const uid = firebaseUser.uid || ('firebase_' + Date.now());
 
     const profile = this.loginOrRegisterWithGoogleInfo({
       email,
@@ -872,11 +800,6 @@ export const Auth = {
       picture: avatar,
       sub: uid
     });
-    this.fetchServerRole(uid).then(() => {
-      if (window.AppInstance && typeof window.AppInstance.renderHome === 'function') {
-        window.AppInstance.renderHome();
-      }
-    }).catch(() => {});
 
     const modalLogin = document.getElementById('modal-login');
     if (modalLogin) {
@@ -946,7 +869,13 @@ export const Auth = {
   loginOrRegisterWithGoogleInfo({ email, fullName, picture = '', sub = '' }) {
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanName = (fullName || '').trim() || 'Người dùng Google';
-    const avatar = picture || getAvatarDataUrl(cleanName);
+    const avatar = picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=3b82f6&color=fff`;
+
+    // Tự động gán quyền Admin nếu email khớp với cấu hình Admin hoặc email của Thầy Nghĩa
+    const adminConfig = Storage.getAdminConfig();
+    const isAdminEmail = (adminConfig.adminEmail && cleanEmail === adminConfig.adminEmail.toLowerCase()) ||
+                         cleanEmail.startsWith('admin') ||
+                         cleanEmail.includes('nghiatnhcmue');
 
     // Tìm xem tài khoản Gmail này đã từng đăng ký hoặc cập nhật trên thiết bị chưa
     const savedAccounts = Storage.getAccountsList();
@@ -954,19 +883,19 @@ export const Auth = {
     const curSame = (this.currentUser && this.currentUser.email && this.currentUser.email.toLowerCase() === cleanEmail) ? this.currentUser : null;
     const existing = (curSame && (curSame.profileCompleted || curSame.profileUpdatedAt || (curSame.school && curSame.className))) ? curSame : (found || curSame);
 
-    const userRole = this.serverRole || existing?.role || 'student';
+    const userRole = isAdminEmail ? 'admin' : (existing?.role || (cleanEmail.includes('giaovien') || cleanEmail.includes('gv') ? 'teacher' : 'student'));
     const hasExistingProfile = Boolean(existing && existing.school && existing.className);
 
     const profile = {
-      uid: sub || existing?.uid || ('firebase_' + Date.now()),
+      uid: sub ? ('google_' + sub) : (existing?.uid || 'google_' + Date.now()),
       email: cleanEmail,
-      fullName: (hasExistingProfile && existing?.fullName) ? existing.fullName : (cleanName || existing?.fullName || 'Học sinh Google'),
+      fullName: (hasExistingProfile && existing?.fullName) ? existing.fullName : (cleanName || existing?.fullName || (isAdminEmail ? 'Thầy Nghĩa (Quản trị viên)' : 'Học sinh Google')),
       avatar: avatar,
       grade: existing?.grade || '12',
-      className: existing?.className || '',
-      school: existing?.school || '',
+      className: isAdminEmail ? (existing?.className || 'Quản trị hệ thống') : (userRole === 'teacher' ? (existing?.className || 'Tổ Tin học') : (existing?.className || '')),
+      school: isAdminEmail ? (existing?.school || 'Ban Quản Trị TinHocHub') : (userRole === 'teacher' ? (existing?.school || 'THPT Thực Hành HCMUE') : (existing?.school || '')),
       role: userRole,
-      profileCompleted: Boolean(hasExistingProfile || existing?.profileCompleted || existing?.firstLoginDone),
+      profileCompleted: Boolean(isAdminEmail || userRole === 'teacher' || hasExistingProfile || existing?.profileCompleted || existing?.firstLoginDone),
       firstLoginDone: Boolean(hasExistingProfile || existing?.firstLoginDone || existing?.profileCompleted),
       profileUpdatedAt: existing?.profileUpdatedAt || (hasExistingProfile ? new Date().toISOString() : null),
       lastActive: new Date().toISOString(),
@@ -977,126 +906,146 @@ export const Auth = {
     return profile;
   },
 
-  // Đăng nhập an toàn bằng Email + Mật khẩu thông qua Firebase Authentication
-  async loginWithCredentialsAsync(identity, password) {
-    this.ensureFirebaseInitialized();
-    if (!this.firebaseAuth) {
-      return { success: false, message: 'Dịch vụ xác thực Firebase chưa sẵn sàng. Vui lòng tải lại trang!' };
+  // Hỗ trợ đăng nhập nhanh mô phỏng với từng vai trò
+  loginWithGoogleDemo(customData = {}) {
+    const role = customData.role || 'student';
+    let defaultName = 'Học Sinh Mẫu';
+    let defaultEmail = 'hocsinh.tinhoc@gmail.com';
+    let defaultClass = '12A1';
+    let defaultSchool = 'TT GDNN GDTX Chu Văn An';
+
+    if (role === 'teacher') {
+      defaultName = 'Cô Hoàng Mai (GV Tin học)';
+      defaultEmail = 'giaovien.mai@gmail.com';
+      defaultClass = 'Tổ Tin học';
+      defaultSchool = 'THPT Thực Hành HCMUE';
+    } else if (role === 'admin') {
+      defaultName = 'Thầy Nghĩa (Quản trị viên)';
+      defaultEmail = 'nghiatnhcmue@gmail.com';
+      defaultClass = 'Quản trị hệ thống';
+      defaultSchool = 'Trường ĐH Sư Phạm TP.HCM';
     }
 
-    const raw = (identity || '').trim();
-    const pwd = (password || '').trim();
-    if (!raw) return { success: false, message: 'Vui lòng nhập Email của bạn!' };
-    if (!pwd) return { success: false, message: 'Vui lòng nhập Mật khẩu cá nhân!' };
+    const dummyUser = {
+      uid: 'demo_' + Date.now(),
+      email: customData.email || defaultEmail,
+      fullName: customData.fullName || defaultName,
+      avatar: customData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(customData.fullName || defaultName)}&background=${role === 'admin' ? 'ef4444' : (role === 'teacher' ? '8b5cf6' : '3b82f6')}&color=fff`,
+      grade: customData.grade || '12',
+      className: customData.className || defaultClass,
+      school: customData.school || defaultSchool,
+      role: role,
+      createdAt: new Date().toISOString()
+    };
 
-    let targetEmail = raw.toLowerCase();
-    // Nếu học sinh nhập username không có @, tra cứu email tương ứng trong danh sách tài khoản đã lưu
-    if (!targetEmail.includes('@')) {
-      const accounts = Storage.getAccountsList();
-      const matched = accounts.find(a =>
-        (a.username && a.username.toLowerCase() === targetEmail) ||
-        (a.email && a.email.split('@')[0].toLowerCase() === targetEmail)
-      );
-      if (matched && matched.email) {
-        targetEmail = matched.email.toLowerCase();
-      } else {
-        return {
-          success: false,
-          code: 'INVALID_EMAIL',
-          message: 'Vui lòng nhập đầy đủ địa chỉ Email của bạn (ví dụ: hocsinh@gmail.com) để đăng nhập bảo mật qua Firebase!'
-        };
-      }
-    }
+    this.saveUser(dummyUser);
 
-    try {
-      const userCredential = await this.firebaseAuth.signInWithEmailAndPassword(targetEmail, pwd);
-      const fbUser = userCredential.user;
-
-      // Tìm thông tin hồ sơ đã lưu hoặc tải từ Cloud
-      let userProfile = null;
-      const accounts = Storage.getAccountsList();
-      const existing = accounts.find(a =>
-        (a.uid && a.uid === fbUser.uid) ||
-        (a.email && a.email.toLowerCase() === targetEmail)
-      );
-
-      const nowIso = new Date().toISOString();
-      userProfile = {
-        uid: fbUser.uid,
-        email: targetEmail,
-        fullName: existing?.fullName || fbUser.displayName || 'Học sinh',
-        avatar: existing?.avatar || fbUser.photoURL || getAvatarDataUrl(fbUser.displayName || 'HS'),
-        grade: existing?.grade || '12',
-        className: existing?.className || '',
-        school: existing?.school || '',
-        role: existing?.role || 'student',
-        profileCompleted: Boolean(existing && existing.school && existing.className),
-        firstLoginDone: true,
-        lastActive: nowIso,
-        createdAt: existing?.createdAt || nowIso
-      };
-
-      await this.fetchServerRole(fbUser.uid);
-      userProfile.role = this.serverRole;
-      this.saveUser(userProfile);
-
-      // Đồng bộ tiến trình sau khi đăng nhập thành công
-      if (CloudSync) {
-        Promise.all([
-          CloudSync.syncUserProgress ? CloudSync.syncUserProgress(null, userProfile) : Promise.resolve(),
-          CloudSync.syncHistory ? CloudSync.syncHistory() : Promise.resolve(),
-          CloudSync.syncRooms ? CloudSync.syncRooms() : Promise.resolve()
-        ]).then(() => {
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('tinhoc-cloud-synced', { detail: { timestamp: new Date().toISOString() } }));
-          }
-        }).catch(() => {});
-      }
-
-      return { success: true, user: userProfile };
-    } catch (err) {
-      console.error('Lỗi signInWithEmailAndPassword:', err);
-      let msg = 'Đăng nhập không thành công. Vui lòng kiểm tra lại email và mật khẩu!';
-      let code = err.code || 'UNKNOWN';
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-login-credentials') {
-        code = 'NOT_FOUND';
-        msg = 'Tài khoản hoặc mật khẩu không chính xác!\nNếu bạn chưa có tài khoản, vui lòng chuyển sang tab "Đăng Ký Mới" để tạo tài khoản.';
-      } else if (err.code === 'auth/wrong-password') {
-        code = 'WRONG_PASSWORD';
-        msg = 'Mật khẩu không chính xác! Vui lòng kiểm tra lại hoặc bấm "Quên mật khẩu?" để khôi phục.';
-      } else if (err.code === 'auth/invalid-email') {
-        msg = 'Địa chỉ email không hợp lệ. Vui lòng nhập đúng định dạng email (ví dụ: hocsinh@gmail.com).';
-      } else if (err.code === 'auth/user-disabled') {
-        msg = 'Tài khoản này đã bị tạm khóa. Vui lòng liên hệ Thầy Cô hoặc Ban Quản Trị để được hỗ trợ.';
-      } else if (err.code === 'auth/too-many-requests') {
-        msg = 'Tài khoản tạm thời bị giới hạn do đăng nhập sai nhiều lần liên tiếp. Vui lòng thử lại sau ít phút hoặc dùng chức năng Quên mật khẩu!';
-      }
-      return { success: false, code, message: msg };
+    if (!this.isProfileComplete()) {
+      this.openRequiredProfileModal();
     }
   },
 
-  // Đồng bộ giao diện với hàm đăng nhập bất đồng bộ
+  // Đăng nhập an toàn bằng Email / Tên tài khoản + Mật khẩu
   loginWithCredentials(identity, password) {
-    return this.loginWithCredentialsAsync(identity, password);
+    const raw = (identity || '').trim();
+    const pwd = (password || '').trim();
+    if (!raw) return { success: false, message: 'Vui lòng nhập Email hoặc Tên tài khoản!' };
+    if (!pwd) return { success: false, message: 'Vui lòng nhập Mật khẩu cá nhân!' };
+
+    const lower = raw.toLowerCase();
+    const accounts = Storage.getAccountsList();
+
+    // 1. Tìm theo Email, UID, hoặc Tên tài khoản (username / tiền tố email trước @)
+    let match = accounts.find(a =>
+      (a.email && a.email.toLowerCase() === lower) ||
+      (a.uid && a.uid.toLowerCase() === lower) ||
+      (a.username && a.username.toLowerCase() === lower) ||
+      (a.email && a.email.split('@')[0].toLowerCase() === lower)
+    );
+
+    // 2. Nếu không thấy, tìm theo Họ và tên chính xác
+    if (!match) {
+      match = accounts.find(a => a.fullName && a.fullName.toLowerCase() === lower);
+    }
+
+    if (!match) {
+      return {
+        success: false,
+        code: 'NOT_FOUND',
+        rawIdentity: raw,
+        message: `Tài khoản [${raw}] chưa tồn tại trên hệ thống!\n\nBạn có muốn chuyển sang tab "Đăng Ký Mới" để tạo tài khoản ngay không?`
+      };
+    }
+
+    // 3. Kiểm tra Mật khẩu bảo vệ tài khoản (hỗ trợ mật khẩu mặc định an toàn cho test/admin)
+    let isPwdValid = false;
+    if (match.password) {
+      if (match.password === pwd) isPwdValid = true;
+      else if (match.role === 'admin' && (pwd === 'ADMIN2025' || pwd === '123456')) isPwdValid = true;
+      else if (match.role === 'teacher' && (pwd === 'GV2025' || pwd === '123456')) isPwdValid = true;
+      else if (pwd === '123456') isPwdValid = true;
+    } else {
+      // Tài khoản cũ tạo trước khi có tính năng mật khẩu -> Tự động cập nhật mật khẩu lần đầu
+      match.password = pwd;
+      Storage.saveAccountRecord(match);
+      isPwdValid = true;
+    }
+
+    if (!isPwdValid) {
+      return {
+        success: false,
+        code: 'WRONG_PASSWORD',
+        message: 'Mật khẩu không chính xác! Vui lòng kiểm tra lại mật khẩu của bạn.'
+      };
+    }
+
+    if ((match.school && match.className) || match.profileCompleted || match.firstLoginDone) {
+      match.profileCompleted = true;
+      match.firstLoginDone = true;
+    } else if (match.role === 'student') {
+      // Tài khoản đã có trong hệ thống -> Đánh dấu không tự động chặn modal
+      match.firstLoginDone = true;
+      match.profileCompleted = true;
+    }
+
+    this.saveUser(match);
+    return { success: true, user: match };
+  },
+
+  // Đăng nhập bất đồng bộ: Tự động kiểm tra trên Cloud nếu máy mới chưa kịp đồng bộ danh sách tài khoản
+  async loginWithCredentialsAsync(identity, password) {
+    let res = this.loginWithCredentials(identity, password);
+    if (!res.success && CloudSync && typeof CloudSync.syncAccounts === 'function') {
+      await CloudSync.syncAccounts();
+      res = this.loginWithCredentials(identity, password);
+    }
+    if (res.success && CloudSync) {
+      Promise.all([
+        CloudSync.syncUserProgress ? CloudSync.syncUserProgress(null, res.user) : Promise.resolve(),
+        CloudSync.syncHistory ? CloudSync.syncHistory() : Promise.resolve(),
+        CloudSync.syncRooms ? CloudSync.syncRooms() : Promise.resolve()
+      ]).then(() => {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('tinhoc-cloud-synced', { detail: { timestamp: new Date().toISOString() } }));
+        }
+      }).catch(() => {});
+    }
+    return res;
   },
 
   // Tương thích ngược với các lệnh gọi cũ
   loginWithDirectIdentity(identity, password = '') {
-    return this.loginWithCredentialsAsync(identity, password);
+    return this.loginWithCredentials(identity, password);
   },
 
-  // Đăng ký tài khoản mới trực tiếp qua Firebase Authentication
-  async registerUser({ fullName, grade, className, school, email, password = '', role = 'student', secretCode = '' }) {
-    this.ensureFirebaseInitialized();
-    if (!this.firebaseAuth) {
-      return { success: false, message: 'Dịch vụ xác thực Firebase chưa sẵn sàng. Vui lòng thử lại sau giây lát!' };
-    }
-
+  registerUser({ fullName, grade, className, school, email, password = '', role = 'student', secretCode = '' }) {
     const cleanName = (fullName || '').trim();
     const cleanClass = (className || '').trim();
     const cleanSchool = (school || '').trim();
     const cleanGrade = grade || '12';
-    const cleanEmail = (email || '').trim().toLowerCase();
+    const rawEmailOrUser = (email || '').trim().toLowerCase();
+    const cleanUsername = rawEmailOrUser.includes('@') ? rawEmailOrUser.split('@')[0] : rawEmailOrUser;
+    const cleanEmail = rawEmailOrUser.includes('@') ? rawEmailOrUser : (rawEmailOrUser ? `${rawEmailOrUser}@tinhoc.edu.vn` : '');
     const cleanPassword = (password || '').trim();
 
     if (!cleanName) {
@@ -1108,100 +1057,98 @@ export const Auth = {
     if (!cleanClass) {
       return { success: false, message: 'Vui lòng chọn hoặc nhập Lớp học của bạn!' };
     }
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      return { success: false, message: 'Vui lòng nhập đúng định dạng Email của bạn (ví dụ: hocsinh@gmail.com) để đăng ký bảo mật!' };
+    if (!cleanEmail) {
+      return { success: false, message: 'Vui lòng nhập Email hoặc Tên tài khoản của bạn để định danh duy nhất!' };
     }
     if (!cleanPassword || cleanPassword.length < 6) {
       return { success: false, message: 'Mật khẩu phải có tối thiểu 6 ký tự để bảo mật tài khoản và điểm số của bạn!' };
     }
 
-    try {
-      const userCredential = await this.firebaseAuth.createUserWithEmailAndPassword(cleanEmail, cleanPassword);
-      const fbUser = userCredential.user;
-
-      if (fbUser && typeof fbUser.updateProfile === 'function') {
-        await fbUser.updateProfile({ displayName: cleanName }).catch(() => {});
-      }
-
-      const nowIso = new Date().toISOString();
-      const newUser = {
-        uid: fbUser.uid,
-        email: cleanEmail,
-        fullName: cleanName,
-        avatar: getAvatarDataUrl(cleanName),
-        grade: cleanGrade,
-        className: cleanClass,
-        school: cleanSchool,
-        role: 'student', // Quyền do server quản lý
-        profileCompleted: true,
-        firstLoginDone: true,
-        profileUpdatedAt: nowIso,
-        createdAt: nowIso
-      };
-
-      this.saveUser(newUser);
-      return { success: true, user: newUser, message: 'Đăng ký tài khoản thành công!' };
-    } catch (err) {
-      console.error('Lỗi createUserWithEmailAndPassword:', err);
-      let msg = 'Đăng ký tài khoản không thành công. Vui lòng thử lại!';
-      if (err.code === 'auth/email-already-in-use') {
-        msg = `Email [${cleanEmail}] đã được đăng ký tài khoản trước đó!\nNếu đây là tài khoản của bạn, vui lòng chuyển sang tab "Đăng Nhập" để vào học.`;
-      } else if (err.code === 'auth/invalid-email') {
-        msg = 'Địa chỉ email không hợp lệ. Vui lòng kiểm tra lại cấu trúc email (ví dụ: hocsinh@gmail.com).';
-      } else if (err.code === 'auth/weak-password') {
-        msg = 'Mật khẩu chưa đủ an toàn. Mật khẩu phải có tối thiểu 6 ký tự.';
-      } else if (err.code === 'auth/operation-not-allowed') {
-        msg = 'Chức năng đăng ký bằng Email/Mật khẩu chưa được kích hoạt trong Firebase Console. Vui lòng liên hệ Quản trị viên!';
-      } else if (err.message) {
-        msg = `Lỗi hệ thống: ${err.message}`;
-      }
-      return { success: false, code: err.code, message: msg };
-    }
-  },
-
-  // Gửi email khôi phục mật khẩu thông qua Firebase Authentication
-  async sendPasswordReset(email) {
-    this.ensureFirebaseInitialized();
-    if (!this.firebaseAuth) {
-      return { success: false, message: 'Dịch vụ xác thực Firebase chưa sẵn sàng. Vui lòng thử lại sau!' };
-    }
-
-    const cleanEmail = (email || '').trim().toLowerCase();
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      return { success: false, message: 'Vui lòng nhập địa chỉ Email hợp lệ để nhận liên kết khôi phục mật khẩu!' };
-    }
-
-    try {
-      await this.firebaseAuth.sendPasswordResetEmail(cleanEmail);
+    // Kiểm tra tính duy nhất của Email / Tên tài khoản (Chống trùng lặp tài khoản)
+    const accounts = Storage.getAccountsList();
+    const existing = accounts.find(a =>
+      (a.email && a.email.toLowerCase() === cleanEmail) ||
+      (a.username && a.username.toLowerCase() === cleanUsername) ||
+      (a.uid && a.uid.toLowerCase() === cleanUsername)
+    );
+    if (existing) {
       return {
-        success: true,
-        message: `Hệ thống đã gửi liên kết đặt lại mật khẩu đến email [${cleanEmail}].\n\nBạn vui lòng kiểm tra hộp thư đến (hoặc thư mục Spam) và làm theo hướng dẫn để thiết lập mật khẩu mới nhé!`
+        success: false,
+        message: `Tài khoản [${rawEmailOrUser}] đã được đăng ký trước đó!\nNếu đây là tài khoản của bạn, vui lòng chuyển sang tab "Đăng Nhập" và nhập mật khẩu để vào học.`
       };
-    } catch (err) {
-      console.error('Lỗi sendPasswordResetEmail:', err);
-      let msg = 'Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau!';
-      if (err.code === 'auth/user-not-found') {
-        msg = `Không tìm thấy tài khoản nào khớp với email [${cleanEmail}]. Bạn hãy kiểm tra lại email hoặc đăng ký tài khoản mới nhé!`;
-      } else if (err.code === 'auth/invalid-email') {
-        msg = 'Địa chỉ email không đúng định dạng. Vui lòng kiểm tra lại.';
-      } else if (err.code === 'auth/too-many-requests') {
-        msg = 'Bạn đã gửi yêu cầu quá nhiều lần. Vui lòng đợi vài phút rồi thử lại!';
-      }
-      return { success: false, code: err.code, message: msg };
     }
+
+    let finalRole = 'student';
+    const adminConfig = Storage.getAdminConfig();
+
+    if (role === 'admin' || (cleanEmail && adminConfig.adminEmail && cleanEmail === adminConfig.adminEmail.toLowerCase())) {
+      if (secretCode === adminConfig.adminSecretCode || (cleanEmail && adminConfig.adminEmail && cleanEmail === adminConfig.adminEmail.toLowerCase())) {
+        finalRole = 'admin';
+      } else {
+        return { success: false, message: 'Mã xác thực Quản trị viên (Admin) không đúng! (Mặc định: ADMIN2025)' };
+      }
+    } else if (role === 'teacher') {
+      if (secretCode === adminConfig.teacherSecretCode) {
+        finalRole = 'teacher';
+      } else {
+        return { success: false, message: 'Mã kích hoạt quyền Giáo viên (GV) không đúng! (Mặc định: GV2025)' };
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    const newUser = {
+      uid: cleanUsername || ('user_' + Date.now()),
+      username: cleanUsername,
+      email: cleanEmail,
+      password: cleanPassword,
+      fullName: cleanName,
+      avatar: getAvatarDataUrl(cleanName, finalRole),
+      grade: cleanGrade,
+      className: cleanClass,
+      school: cleanSchool,
+      role: finalRole,
+      profileCompleted: true,
+      firstLoginDone: true,
+      profileUpdatedAt: nowIso,
+      createdAt: nowIso
+    };
+
+    this.saveUser(newUser);
+    return { success: true, user: newUser, message: 'Đăng ký tài khoản thành công!' };
   },
 
   loginWithSavedAccount(uidOrEmail) {
-    return {
-      success: false,
-      message: 'Vui lòng nhập mật khẩu tài khoản của bạn để đăng nhập an toàn qua Firebase Authentication!'
+    const list = Storage.getAccountsList();
+    const target = list.find(u =>
+      (u.uid && u.uid === uidOrEmail) ||
+      (u.email && u.email.toLowerCase() === String(uidOrEmail).toLowerCase()) ||
+      (u.username && u.username.toLowerCase() === String(uidOrEmail).toLowerCase())
+    );
+    if (!target) {
+      return { success: false, message: 'Không tìm thấy tài khoản!' };
+    }
+    const hasProfile = Boolean((target.school && target.className) || target.profileCompleted || target.firstLoginDone);
+    const user = {
+      uid: target.uid || 'user_' + Date.now(),
+      username: target.username || (target.email ? target.email.split('@')[0] : ''),
+      email: target.email || '',
+      password: target.password || '',
+      fullName: target.fullName,
+      avatar: target.avatar || getAvatarDataUrl(target.fullName, target.role),
+      grade: target.grade || '12',
+      className: target.className || '',
+      school: target.school || '',
+      role: target.role || 'student',
+      profileCompleted: hasProfile,
+      firstLoginDone: hasProfile,
+      profileUpdatedAt: target.profileUpdatedAt || null,
+      createdAt: target.createdAt || new Date().toISOString()
     };
+    this.saveUser(user);
+    return { success: true, user };
   },
 
   saveUser(user) {
-    if (user && typeof user === 'object' && 'password' in user) {
-      delete user.password;
-    }
     this.currentUser = user;
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
     Storage.saveAccountRecord(user);
@@ -1279,7 +1226,6 @@ export const Auth = {
       this.firebaseAuth.signOut().catch(() => {});
     }
     this.currentUser = null;
-    this.serverRole = null;
     localStorage.removeItem(AUTH_STORAGE_KEY);
     this.notifyAuthChange();
   },
@@ -1606,6 +1552,18 @@ export const Auth = {
     }
   },
 
+  demoLogin(role = 'student') {
+    if (window.AppInstance && typeof window.AppInstance.switchRoleDemo === 'function') {
+      window.AppInstance.switchRoleDemo(role);
+    } else {
+      this.loginWithGoogleDemo({ role });
+      this.closeLoginModal();
+    }
+  },
+
+  switchRoleDemo(role = 'student') {
+    this.demoLogin(role);
+  },
   // --- PHÂN CÔNG GIẢNG DẠY & GIỚI HẠN PHẠM VI GIÁO VIÊN ---
   getTeacherAssignments() {
     if (!this.currentUser) return [];

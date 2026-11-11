@@ -416,6 +416,7 @@ export const Storage = {
         uid: 'admin',
         username: 'admin',
         email: 'admin.tinhoc@gmail.com',
+        password: '123456',
         fullName: 'Thầy Nghĩa (Quản trị viên)',
         grade: '12',
         className: 'Quản trị hệ thống',
@@ -429,6 +430,7 @@ export const Storage = {
         uid: 'tesths',
         username: 'tesths',
         email: 'tesths@tinhoc.edu.vn',
+        password: '123456',
         fullName: 'Nguyễn Minh Khôi (tesths)',
         grade: '12',
         className: '12A1',
@@ -444,6 +446,7 @@ export const Storage = {
         uid: 'testgv',
         username: 'testgv',
         email: 'testgv@tinhoc.edu.vn',
+        password: '123456',
         fullName: 'Thầy Trần Văn Minh (testgv)',
         grade: '12',
         className: '12A1',
@@ -462,13 +465,6 @@ export const Storage = {
       const list = data ? JSON.parse(data) : [];
       const defaults = this.getDefaultTestAccounts();
       let changed = false;
-      // Tự động dọn dẹp triệt để bất kỳ trường password nào còn sót lại từ phiên bản cũ
-      list.forEach(u => {
-        if (u && typeof u === 'object' && 'password' in u) {
-          delete u.password;
-          changed = true;
-        }
-      });
       if (localStorage.getItem('tinhoc_accounts')) {
         localStorage.removeItem('tinhoc_accounts');
         changed = true;
@@ -514,6 +510,7 @@ export const Storage = {
         school: user.school || '',
         avatar: user.avatar || '',
         role: user.role || 'student',
+        password: user.password || (idx >= 0 ? list[idx].password : '') || '',
         profileCompleted: Boolean(user.profileCompleted || user.profileUpdatedAt || (idx >= 0 && list[idx].profileCompleted) || (user.school && user.className)),
         firstLoginDone: Boolean(user.firstLoginDone || (idx >= 0 && list[idx].firstLoginDone) || (user.school && user.className) || user.profileCompleted),
         profileUpdatedAt: user.profileUpdatedAt || (idx >= 0 ? list[idx].profileUpdatedAt : null) || null,
@@ -591,8 +588,8 @@ export const Storage = {
       if (updatedData.className !== undefined) user.className = String(updatedData.className).trim();
       if (updatedData.school !== undefined) user.school = String(updatedData.school).trim();
       if (updatedData.role !== undefined) user.role = String(updatedData.role).trim();
-      if ('password' in user) {
-        delete user.password;
+      if (updatedData.password !== undefined && String(updatedData.password).trim()) {
+        user.password = String(updatedData.password).trim();
       }
       user.profileCompleted = true;
       user.profileUpdatedAt = new Date().toISOString();
