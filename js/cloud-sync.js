@@ -10,7 +10,8 @@
  * 5. Cơ chế Local-First an toàn: Mất mạng vẫn làm bài bình thường, khi có mạng tự động đẩy dữ liệu lên đám mây.
  */
 
-import { Storage } from './storage.js?v=20261102_100';
+import { Storage } from './storage.js?v=20261111_200';
+import { authedFetch } from './api.js?v=20261111_200';
 
 const CLOUD_CONFIG_KEY = 'tinhoc_cloud_config';
 export const DEFAULT_FIREBASE_DB_URL = 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -171,7 +172,7 @@ export const CloudSync = {
         client: 'TinHocHub-Web'
       };
 
-      const putRes = await fetch(pingUrl, {
+      const putRes = await authedFetch(pingUrl, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(testData)
@@ -184,7 +185,7 @@ export const CloudSync = {
         };
       }
 
-      const getRes = await fetch(pingUrl);
+      const getRes = await authedFetch(pingUrl);
       const data = await getRes.json();
 
       if (data && data.client === 'TinHocHub-Web') {
@@ -283,7 +284,7 @@ export const CloudSync = {
     if (!url || !url.startsWith('http')) return;
 
     try {
-      const res = await fetch(`${url}/config/auth.json`, { cache: 'no-cache' });
+      const res = await authedFetch(`${url}/config/auth.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const remoteAuth = await res.json();
       const localAuth = Storage.getFirebaseAuthConfig ? Storage.getFirebaseAuthConfig() : {};
@@ -325,7 +326,7 @@ export const CloudSync = {
     };
 
     try {
-      const res = await fetch(`${url}/config/auth.json`, {
+      const res = await authedFetch(`${url}/config/auth.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -342,7 +343,7 @@ export const CloudSync = {
     const url = (baseUrl || this.config?.databaseUrl || DEFAULT_FIREBASE_DB_URL).trim().replace(/\/+$/, '');
     if (!url || !url.startsWith('http')) return null;
     try {
-      const res = await fetch(`${url}/config/auth.json`, { cache: 'no-cache' });
+      const res = await authedFetch(`${url}/config/auth.json`, { cache: 'no-cache' });
       if (!res.ok) return null;
       const remote = await res.json();
       if (remote && remote.apiKey && typeof remote.apiKey === 'string' && remote.apiKey.startsWith('AIza')) {
@@ -367,7 +368,7 @@ export const CloudSync = {
   async syncAccounts(baseUrl) {
     const url = baseUrl || this.getBaseUrl();
     try {
-      const res = await fetch(`${url}/accounts.json`, { cache: 'no-cache' });
+      const res = await authedFetch(`${url}/accounts.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const remoteData = await res.json() || {};
       
@@ -388,6 +389,7 @@ export const CloudSync = {
           if (localMap.has(key)) { localMap.delete(key); updated = true; }
           return;
         }
+        if ('password' in remoteAcc) delete remoteAcc.password;
         const localAcc = localMap.get(cleanKey) || localMap.get(key);
         if (!localAcc) {
           localMap.set(cleanKey, remoteAcc);
@@ -428,14 +430,16 @@ export const CloudSync = {
 
   async pushAccountToCloud(user) {
     if (!user) return;
-    const key = this.getCleanKey(user.email || user.uid);
+    const key = this.getCleanKey(user.uid || user.email);
     if (!key) return;
     const url = this.getBaseUrl();
     try {
-      await fetch(`${url}/accounts/${key}.json`, {
+      const sanitizedUser = { ...user };
+      delete sanitizedUser.password;
+      await authedFetch(`${url}/accounts/${key}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(user)
+        body: JSON.stringify(sanitizedUser)
       });
     } catch (e) {
       console.warn('Lỗi push tài khoản lên cloud:', e);
@@ -447,13 +451,13 @@ export const CloudSync = {
     const key = this.getCleanKey(emailOrUid);
     const url = this.getBaseUrl();
     try {
-      await fetch(`${url}/accounts/${key}.json`, {
+      await authedFetch(`${url}/accounts/${key}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: emailOrUid, isDeleted: true, updatedAt: new Date().toISOString() })
       });
       setTimeout(() => {
-        fetch(`${url}/accounts/${key}.json`, { method: 'DELETE' }).catch(() => {});
+        authedFetch(`${url}/accounts/${key}.json`, { method: 'DELETE' }).catch(() => {});
       }, 5000);
     } catch (e) {
       console.warn('Lỗi xóa tài khoản trên cloud:', e);
@@ -464,7 +468,7 @@ export const CloudSync = {
   async syncRooms(baseUrl) {
     const url = baseUrl || this.getBaseUrl();
     try {
-      const res = await fetch(`${url}/exam_rooms.json`, { cache: 'no-cache' });
+      const res = await authedFetch(`${url}/exam_rooms.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const remoteData = await res.json() || {};
 
@@ -519,7 +523,7 @@ export const CloudSync = {
     const key = this.getCleanKey(room.id);
     const url = this.getBaseUrl();
     try {
-      await fetch(`${url}/exam_rooms/${key}.json`, {
+      await authedFetch(`${url}/exam_rooms/${key}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(room)
@@ -535,13 +539,13 @@ export const CloudSync = {
     const url = this.getBaseUrl();
     try {
       // Đánh dấu isDeleted trên Cloud và sau đó xóa
-      await fetch(`${url}/exam_rooms/${key}.json`, {
+      await authedFetch(`${url}/exam_rooms/${key}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: roomId, isDeleted: true, updatedAt: new Date().toISOString() })
       });
       setTimeout(() => {
-        fetch(`${url}/exam_rooms/${key}.json`, { method: 'DELETE' }).catch(() => {});
+        authedFetch(`${url}/exam_rooms/${key}.json`, { method: 'DELETE' }).catch(() => {});
       }, 5000);
     } catch (e) {
       console.warn('Lỗi xóa phòng thi trên cloud:', e);
@@ -554,7 +558,7 @@ export const CloudSync = {
     const key = this.getCleanKey(roomId);
     const url = this.getBaseUrl();
     try {
-      const res = await fetch(`${url}/exam_rooms/${key}.json`, { cache: 'no-cache' });
+      const res = await authedFetch(`${url}/exam_rooms/${key}.json`, { cache: 'no-cache' });
       if (!res.ok) return null;
       const room = await res.json();
       if (room && room.id && !room.isDeleted) {
@@ -571,7 +575,7 @@ export const CloudSync = {
   async syncHistory(baseUrl) {
     const url = baseUrl || this.getBaseUrl();
     try {
-      const res = await fetch(`${url}/exam_history.json`, { cache: 'no-cache' });
+      const res = await authedFetch(`${url}/exam_history.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const remoteData = await res.json() || {};
 
@@ -643,7 +647,7 @@ export const CloudSync = {
     const key = this.getCleanKey(this.getResultUniqueKey(result));
     const url = this.getBaseUrl();
     try {
-      await fetch(`${url}/exam_history/${key}.json`, {
+      await authedFetch(`${url}/exam_history/${key}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(result)
@@ -659,13 +663,13 @@ export const CloudSync = {
     const key = this.getCleanKey(typeof resultOrId === 'object' ? this.getResultUniqueKey(resultOrId) : String(resultOrId));
     const url = this.getBaseUrl();
     try {
-      await fetch(`${url}/exam_history/${key}.json`, {
+      await authedFetch(`${url}/exam_history/${key}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: idVal, isDeleted: true, updatedAt: new Date().toISOString() })
       });
       setTimeout(() => {
-        fetch(`${url}/exam_history/${key}.json`, { method: 'DELETE' }).catch(() => {});
+        authedFetch(`${url}/exam_history/${key}.json`, { method: 'DELETE' }).catch(() => {});
       }, 5000);
     } catch (e) {
       console.warn('Lỗi xóa kết quả thi trên cloud:', e);
@@ -692,7 +696,7 @@ export const CloudSync = {
     if (!userKey) return null;
     const url = baseUrl || this.getBaseUrl();
     try {
-      const res = await fetch(`${url}/user_progress/${userKey}.json`, { cache: 'no-cache' });
+      const res = await authedFetch(`${url}/user_progress/${userKey}.json`, { cache: 'no-cache' });
       if (!res.ok) return null;
       const remoteSnap = await res.json();
       const localSnap = Storage.getUserProgressSnapshot ? Storage.getUserProgressSnapshot() : null;
@@ -750,7 +754,7 @@ export const CloudSync = {
         videoProgress: cleanVidProg,
         updatedAt: new Date().toISOString()
       };
-      const res = await fetch(`${url}/user_progress/${userKey}.json`, {
+      const res = await authedFetch(`${url}/user_progress/${userKey}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -767,27 +771,16 @@ export const CloudSync = {
     return String(cleanKey).replace(/_(mp4|webm|ogg|mov|mkv)$/i, '.$1');
   },
 
-  // --- ĐỒNG BỘ CẤU HÌNH VIDEO ARCHIVE.ORG & KHÓA S3 ĐA THIẾT BỊ ---
+  // --- ĐỒNG BỘ CẤU HÌNH VIDEO ARCHIVE.ORG ĐA THIẾT BỊ (KHÔNG LƯU KHÓA S3 TRÊN RTDB) ---
   async syncVideoConfig(baseUrl) {
     const url = baseUrl || this.getBaseUrl();
     try {
-      const [resVideo, resS3] = await Promise.all([
-        fetch(`${url}/config/video.json`, { cache: 'no-cache' }).catch(() => null),
-        fetch(`${url}/config/s3_keys.json`, { cache: 'no-cache' }).catch(() => null)
-      ]);
+      const resVideo = await authedFetch(`${url}/config/video.json`, { cache: 'no-cache' }).catch(() => null);
 
       const remoteConfig = (resVideo && resVideo.ok) ? await resVideo.json() : null;
-      const remoteS3 = (resS3 && resS3.ok) ? await resS3.json() : null;
       const localConfig = Storage.getVideoConfig();
 
-      const remoteAccess = String(remoteS3?.archiveAccessKey || remoteConfig?.archiveAccessKey || '').trim();
-      const remoteSecret = String(remoteS3?.archiveSecretKey || remoteConfig?.archiveSecretKey || '').trim();
-      const localAccess = String(localConfig?.archiveAccessKey || '').trim();
-      const localSecret = String(localConfig?.archiveSecretKey || '').trim();
-
-      const finalAccessKey = remoteAccess || localAccess || '';
-      const finalSecretKey = remoteSecret || localSecret || '';
-      const finalIdentifier = String(remoteConfig?.archiveIdentifier || remoteS3?.archiveIdentifier || localConfig?.archiveIdentifier || 'tinhoc-hub-thpt').trim();
+      const finalIdentifier = String(remoteConfig?.archiveIdentifier || localConfig?.archiveIdentifier || 'tinhoc-hub-thpt').trim();
 
       let cleanBaseUrl = String(remoteConfig?.videoBaseUrl || localConfig?.videoBaseUrl || `https://archive.org/cors/${finalIdentifier}/`).trim();
       if (cleanBaseUrl.includes('archive.org/download/')) {
@@ -811,23 +804,14 @@ export const CloudSync = {
         ...(remoteConfig || {}),
         archiveIdentifier: finalIdentifier,
         videoBaseUrl: cleanBaseUrl,
-        archiveAccessKey: finalAccessKey,
-        archiveSecretKey: finalSecretKey,
+        archiveAccessKey: '',
+        archiveSecretKey: '',
         uploadedVideos: restoredUploadedVideos
       };
 
       localStorage.setItem('tinhoc_video_config', JSON.stringify(merged));
 
-      // Tự động cập nhật ngay các ô nhập liệu trên giao diện Admin nếu đang mở (và người dùng không đang gõ)
       if (typeof document !== 'undefined') {
-        const elAccess = document.getElementById('archive-cfg-access-key');
-        if (elAccess && document.activeElement !== elAccess && finalAccessKey) {
-          elAccess.value = finalAccessKey;
-        }
-        const elSecret = document.getElementById('archive-cfg-secret-key');
-        if (elSecret && document.activeElement !== elSecret && finalSecretKey) {
-          elSecret.value = finalSecretKey;
-        }
         const elId = document.getElementById('archive-cfg-identifier');
         if (elId && document.activeElement !== elId && finalIdentifier) {
           elId.value = finalIdentifier;
@@ -838,19 +822,9 @@ export const CloudSync = {
         }
         const statusBadge = document.getElementById('s3-cloud-sync-badge');
         if (statusBadge) {
-          if (finalAccessKey && finalSecretKey) {
-            statusBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300';
-            statusBadge.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Đã đồng bộ Khóa S3 trên Cloud';
-          } else {
-            statusBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300';
-            statusBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Chưa có Khóa S3 trên Cloud';
-          }
+          statusBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300';
+          statusBadge.innerHTML = '<i class="fa-solid fa-server"></i> Quản lý bảo mật qua Worker (Giai đoạn 2)';
         }
-      }
-
-      // Nếu máy này đã có khóa S3 mà trên Cloud chưa có -> tự động đẩy lên Cloud lưu vĩnh viễn!
-      if ((localAccess && !remoteAccess) || (localSecret && !remoteSecret)) {
-        await this.pushVideoConfigToCloud(merged);
       }
 
       return merged;
@@ -865,82 +839,41 @@ export const CloudSync = {
     const url = this.getBaseUrl();
     try {
       const cleanId = String(config.archiveIdentifier || 'tinhoc-hub-thpt').trim();
-      const cleanAccess = String(config.archiveAccessKey || '').trim();
-      const cleanSecret = String(config.archiveSecretKey || '').trim();
       let cleanBaseUrl = String(config.videoBaseUrl || `https://archive.org/cors/${cleanId}/`).trim().replace('archive.org/download/', 'archive.org/cors/');
       if (!cleanBaseUrl.endsWith('/')) cleanBaseUrl += '/';
 
-      // Dùng PATCH thay vì PUT và CHỈ ghi đè khóa S3 khi có giá trị thực (ngăn máy khác chưa có khóa ghi đè rỗng làm mất khóa trên Cloud)
+      // TUYỆT ĐỐI KHÔNG gửi khóa S3 lên RTDB. Chỉ đồng bộ identifier & videoBaseUrl
       const payload = {
         archiveIdentifier: cleanId,
         videoBaseUrl: cleanBaseUrl,
         updatedAt: new Date().toISOString()
       };
-      if (cleanAccess) payload.archiveAccessKey = cleanAccess;
-      if (cleanSecret) payload.archiveSecretKey = cleanSecret;
 
-      const sendRequests = async () => {
-        const reqs = [
-          fetch(`${url}/config/video.json`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          }).catch(err => {
-            console.warn('Lỗi push /config/video.json:', err);
-            return null;
-          })
-        ];
+      const res = await authedFetch(`${url}/config/video.json`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(err => {
+        console.warn('Lỗi push /config/video.json:', err);
+        return null;
+      });
 
-        // Lưu thêm vào nhánh chuyên biệt /config/s3_keys.json khi có khóa S3 để bảo toàn tuyệt đối
-        if (cleanAccess || cleanSecret) {
-          const s3Payload = {
-            archiveIdentifier: cleanId,
-            updatedAt: payload.updatedAt
-          };
-          if (cleanAccess) s3Payload.archiveAccessKey = cleanAccess;
-          if (cleanSecret) s3Payload.archiveSecretKey = cleanSecret;
-          reqs.push(
-            fetch(`${url}/config/s3_keys.json`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(s3Payload)
-            }).catch(err => {
-              console.warn('Lỗi push /config/s3_keys.json:', err);
-              return null;
-            })
-          );
-        }
-
-        const results = await Promise.all(reqs);
-        return results.some(r => r && (r.ok || r.status === 200));
-      };
-
-      let anyOk = await sendRequests();
-      // Nếu thất bại lần 1, thử lại lần 2 sau 350ms phòng trường hợp mạng chập chờn
-      if (!anyOk) {
-        await new Promise(res => setTimeout(res, 350));
-        anyOk = await sendRequests();
-      }
-
-      // Đồng bộ danh sách video đã tải lên ở nhánh con độc lập (đã làm sạch dấu chấm .mp4 -> _mp4)
+      // Đồng bộ danh sách video đã tải lên ở nhánh con độc lập
       if (config.uploadedVideos && Object.keys(config.uploadedVideos).length > 0) {
         const cleanUploaded = {};
         Object.entries(config.uploadedVideos).forEach(([k, val]) => {
           cleanUploaded[this.getCleanKey(k)] = val;
         });
-        fetch(`${url}/config/video/uploadedVideos.json`, {
+        authedFetch(`${url}/config/video/uploadedVideos.json`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(cleanUploaded)
         }).catch(() => null);
       }
 
-      if (anyOk) {
-        console.log('✅ Đã lưu đồng bộ cấu hình S3 Video lên máy chủ đám mây thành công!');
-      }
-      return anyOk;
+      return Boolean(res && (res.ok || res.status === 200));
     } catch (e) {
-      console.warn('Lỗi đẩy cấu hình video lên cloud:', e);
+      console.warn('Lỗi pushVideoConfigToCloud:', e);
       return false;
     }
   },
@@ -949,7 +882,7 @@ export const CloudSync = {
   async syncCustomVideoQuestions(baseUrl) {
     const url = baseUrl || this.getBaseUrl();
     try {
-      const res = await fetch(`${url}/custom_video_questions.json`, { cache: 'no-cache' });
+      const res = await authedFetch(`${url}/custom_video_questions.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const remoteData = await res.json();
       if (!remoteData || typeof remoteData !== 'object') return;
@@ -986,7 +919,7 @@ export const CloudSync = {
     const key = this.getCleanKey(videoFile);
     const url = this.getBaseUrl();
     try {
-      await fetch(`${url}/custom_video_questions/${grade}/${key}.json`, {
+      await authedFetch(`${url}/custom_video_questions/${grade}/${key}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(questionsList || [])
@@ -1002,7 +935,7 @@ export const CloudSync = {
     const key = this.getCleanKey(videoFile);
     const url = this.getBaseUrl();
     try {
-      await fetch(`${url}/custom_video_questions/${grade}/${key}.json`, {
+      await authedFetch(`${url}/custom_video_questions/${grade}/${key}.json`, {
         method: 'DELETE'
       });
     } catch (e) {
@@ -1014,7 +947,7 @@ export const CloudSync = {
   async syncCustomVideoUrls(baseUrl) {
     const url = baseUrl || this.getBaseUrl();
     try {
-      const res = await fetch(`${url}/config/custom_video_urls.json`, { cache: 'no-cache' });
+      const res = await authedFetch(`${url}/config/custom_video_urls.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const remoteData = await res.json();
       if (!remoteData || typeof remoteData !== 'object') return;
@@ -1045,13 +978,13 @@ export const CloudSync = {
     const url = this.getBaseUrl();
     try {
       if (videoUrl && videoUrl.trim()) {
-        await fetch(`${url}/config/custom_video_urls/${key}.json`, {
+        await authedFetch(`${url}/config/custom_video_urls/${key}.json`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(videoUrl.trim())
         });
       } else {
-        await fetch(`${url}/config/custom_video_urls/${key}.json`, {
+        await authedFetch(`${url}/config/custom_video_urls/${key}.json`, {
           method: 'DELETE'
         });
       }
@@ -1064,7 +997,7 @@ export const CloudSync = {
   async syncCustomQuestions(baseUrl) {
     const url = baseUrl || this.getBaseUrl();
     try {
-      const res = await fetch(`${url}/custom_questions.json`, { cache: 'no-cache' });
+      const res = await authedFetch(`${url}/custom_questions.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const remoteData = await res.json();
       if (!remoteData) {
@@ -1145,7 +1078,7 @@ export const CloudSync = {
         deleted: Storage.getDeletedQuestionIds ? Storage.getDeletedQuestionIds() : [],
         updatedAt: new Date().toISOString()
       };
-      await fetch(`${url}/custom_questions.json`, {
+      await authedFetch(`${url}/custom_questions.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -1233,7 +1166,7 @@ export const CloudSync = {
     if (!url || !url.startsWith('http')) return;
 
     try {
-      const res = await fetch(`${url}/school_structure.json`, { cache: 'no-cache' });
+      const res = await authedFetch(`${url}/school_structure.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const remote = await res.json();
       if (remote && typeof remote === 'object' && Object.keys(remote).length > 0) {
@@ -1255,7 +1188,7 @@ export const CloudSync = {
 
     try {
       const data = schoolsData || Storage.getSchoolsData();
-      await fetch(`${url}/school_structure.json`, {
+      await authedFetch(`${url}/school_structure.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -1272,7 +1205,7 @@ export const CloudSync = {
     if (!url || !url.startsWith('http')) return;
 
     try {
-      const res = await fetch(`${url}/subjects_list.json`, { cache: 'no-cache' });
+      const res = await authedFetch(`${url}/subjects_list.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const remote = await res.json();
       if (Array.isArray(remote) && remote.length > 0) {
@@ -1292,7 +1225,7 @@ export const CloudSync = {
 
     try {
       const data = subjects || Storage.getSubjectsList();
-      await fetch(`${url}/subjects_list.json`, {
+      await authedFetch(`${url}/subjects_list.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -1309,7 +1242,7 @@ export const CloudSync = {
     if (!url || !url.startsWith('http')) return;
 
     try {
-      const res = await fetch(`${url}/teacher_assignments.json`, { cache: 'no-cache' });
+      const res = await authedFetch(`${url}/teacher_assignments.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const remote = await res.json();
       if (remote && typeof remote === 'object' && Object.keys(remote).length > 0) {
@@ -1334,7 +1267,7 @@ export const CloudSync = {
     if (!url || !url.startsWith('http')) return;
 
     try {
-      const res = await fetch(`${url}/teacher_contributions.json`);
+      const res = await authedFetch(`${url}/teacher_contributions.json`);
       if (res.ok) {
         const cloudData = await res.json();
         if (cloudData && typeof cloudData === 'object') {
@@ -1376,7 +1309,7 @@ export const CloudSync = {
       list.forEach(item => {
         if (item?.id) obj[item.id] = item;
       });
-      await fetch(`${url}/teacher_contributions.json`, {
+      await authedFetch(`${url}/teacher_contributions.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(obj)
@@ -1394,7 +1327,7 @@ export const CloudSync = {
     if (!url || !url.startsWith('http')) return;
 
     try {
-      const res = await fetch(`${url}/teacher_videos.json`);
+      const res = await authedFetch(`${url}/teacher_videos.json`);
       if (res.ok) {
         const cloudData = await res.json();
         if (cloudData && typeof cloudData === 'object') {
@@ -1436,7 +1369,7 @@ export const CloudSync = {
       list.forEach(item => {
         if (item?.id) obj[item.id] = item;
       });
-      await fetch(`${url}/teacher_videos.json`, {
+      await authedFetch(`${url}/teacher_videos.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(obj)
@@ -1454,7 +1387,7 @@ export const CloudSync = {
 
     try {
       const data = assignments || Storage.getAllTeacherAssignments();
-      await fetch(`${url}/teacher_assignments.json`, {
+      await authedFetch(`${url}/teacher_assignments.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -1470,7 +1403,7 @@ export const CloudSync = {
   async syncArenaRooms(baseUrl = null) {
     const url = baseUrl || this.getBaseUrl();
     try {
-      const res = await fetch(`${url}/arena_rooms.json`, { cache: 'no-cache' });
+      const res = await authedFetch(`${url}/arena_rooms.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const remoteData = await res.json() || {};
       const localRooms = Storage.getArenaRooms();
@@ -1497,7 +1430,7 @@ export const CloudSync = {
     if (!room || !room.pin) return;
     const url = baseUrl || this.getBaseUrl();
     try {
-      await fetch(`${url}/arena_rooms/${room.pin}.json`, {
+      await authedFetch(`${url}/arena_rooms/${room.pin}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(room)
@@ -1511,7 +1444,7 @@ export const CloudSync = {
     if (!pin) return;
     const url = baseUrl || this.getBaseUrl();
     try {
-      await fetch(`${url}/arena_rooms/${pin}.json`, {
+      await authedFetch(`${url}/arena_rooms/${pin}.json`, {
         method: 'DELETE'
       });
     } catch (e) {}

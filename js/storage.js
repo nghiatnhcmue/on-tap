@@ -35,8 +35,8 @@ const STORAGE_KEYS = {
 };
 
 export const DEFAULT_FIREBASE_API_KEY = 'AIzaSyBOn_vHOZXDhRPpeOhjuZOiECpCRfhXPA0';
-export const DEFAULT_ARCHIVE_ACCESS_KEY = 'JoOq2I9q1IHAC5Uu';
-export const DEFAULT_ARCHIVE_SECRET_KEY = 'BMsIv0RQ4X0O3Qqa';
+export const DEFAULT_ARCHIVE_ACCESS_KEY = '';
+export const DEFAULT_ARCHIVE_SECRET_KEY = '';
 export const DEFAULT_SCHOOLS_DATA = {
   'EMASI': {
     name: 'Hệ thống Trường Song ngữ Quốc tế EMASI',
@@ -95,12 +95,8 @@ export const Storage = {
         videoBaseUrl: 'https://archive.org/cors/tinhoc-hub-thpt/',
         uploadedVideos: {}
       };
-      if (!parsed.archiveAccessKey || !String(parsed.archiveAccessKey).trim()) {
-        parsed.archiveAccessKey = DEFAULT_ARCHIVE_ACCESS_KEY;
-      }
-      if (!parsed.archiveSecretKey || !String(parsed.archiveSecretKey).trim()) {
-        parsed.archiveSecretKey = DEFAULT_ARCHIVE_SECRET_KEY;
-      }
+      parsed.archiveAccessKey = '';
+      parsed.archiveSecretKey = '';
       // Tự động chuyển đổi download/ sang cors/ để chống lỗi ERR_CONNECTION_RESET tại Việt Nam
       if (parsed.videoBaseUrl && parsed.videoBaseUrl.includes('archive.org/download/')) {
         parsed.videoBaseUrl = parsed.videoBaseUrl.replace('archive.org/download/', 'archive.org/cors/');
@@ -123,12 +119,8 @@ export const Storage = {
       const updated = {
         ...current,
         ...config,
-        archiveAccessKey: (config.archiveAccessKey && String(config.archiveAccessKey).trim())
-          ? String(config.archiveAccessKey).trim()
-          : (current.archiveAccessKey || ''),
-        archiveSecretKey: (config.archiveSecretKey && String(config.archiveSecretKey).trim())
-          ? String(config.archiveSecretKey).trim()
-          : (current.archiveSecretKey || '')
+        archiveAccessKey: '',
+        archiveSecretKey: ''
       };
       // Chuẩn hóa videoBaseUrl kết thúc bằng dấu gạch chéo & dùng cors/
       if (updated.videoBaseUrl) {
@@ -424,12 +416,11 @@ export const Storage = {
         uid: 'admin',
         username: 'admin',
         email: 'admin.tinhoc@gmail.com',
-        password: '123456',
         fullName: 'Thầy Nghĩa (Quản trị viên)',
         grade: '12',
         className: 'Quản trị hệ thống',
         school: 'Ban Quản Trị TinHocHub',
-        avatar: 'https://ui-avatars.com/api/?name=Admin+TinHoc&background=ef4444&color=fff',
+        avatar: 'data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20rx%3D%2228%22%20fill%3D%22%23ef4444%22%2F%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-family%3D%22sans-serif%22%20font-size%3D%2236%22%20font-weight%3D%22bold%22%20fill%3D%22%23fff%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3EAD%3C%2Ftext%3E%3C%2Fsvg%3E',
         role: 'admin',
         createdAt: '2026-10-30T00:00:00.000Z',
         lastActive: '2026-10-30T02:00:00.000Z'
@@ -438,12 +429,11 @@ export const Storage = {
         uid: 'tesths',
         username: 'tesths',
         email: 'tesths@tinhoc.edu.vn',
-        password: '123456',
         fullName: 'Nguyễn Minh Khôi (tesths)',
         grade: '12',
         className: '12A1',
         school: 'TT GDNN GDTX Chu Văn An',
-        avatar: 'https://ui-avatars.com/api/?name=Nguyen+Minh+Khoi&background=3b82f6&color=fff',
+        avatar: 'data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20rx%3D%2228%22%20fill%3D%22%233b82f6%22%2F%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-family%3D%22sans-serif%22%20font-size%3D%2236%22%20font-weight%3D%22bold%22%20fill%3D%22%23fff%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3ENK%3C%2Ftext%3E%3C%2Fsvg%3E',
         role: 'student',
         profileCompleted: true,
         firstLoginDone: true,
@@ -454,12 +444,11 @@ export const Storage = {
         uid: 'testgv',
         username: 'testgv',
         email: 'testgv@tinhoc.edu.vn',
-        password: '123456',
         fullName: 'Thầy Trần Văn Minh (testgv)',
         grade: '12',
         className: '12A1',
         school: 'TT GDNN GDTX Chu Văn An',
-        avatar: 'https://ui-avatars.com/api/?name=Tran+Van+Minh&background=8b5cf6&color=fff',
+        avatar: 'data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20rx%3D%2228%22%20fill%3D%22%238b5cf6%22%2F%3E%3Ctext%20x%3D%2250%22%20y%3D%2258%22%20font-family%3D%22sans-serif%22%20font-size%3D%2236%22%20font-weight%3D%22bold%22%20fill%3D%22%23fff%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%3ETM%3C%2Ftext%3E%3C%2Fsvg%3E',
         role: 'teacher',
         createdAt: '2026-10-30T00:00:00.000Z',
         lastActive: '2026-10-30T02:00:00.000Z'
@@ -469,10 +458,21 @@ export const Storage = {
 
   getAccountsList() {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.ACCOUNTS);
+      const data = localStorage.getItem(STORAGE_KEYS.ACCOUNTS) || localStorage.getItem('tinhoc_accounts');
       const list = data ? JSON.parse(data) : [];
       const defaults = this.getDefaultTestAccounts();
       let changed = false;
+      // Tự động dọn dẹp triệt để bất kỳ trường password nào còn sót lại từ phiên bản cũ
+      list.forEach(u => {
+        if (u && typeof u === 'object' && 'password' in u) {
+          delete u.password;
+          changed = true;
+        }
+      });
+      if (localStorage.getItem('tinhoc_accounts')) {
+        localStorage.removeItem('tinhoc_accounts');
+        changed = true;
+      }
       defaults.forEach(def => {
         const exists = list.some(u =>
           (u.email && u.email.toLowerCase() === def.email.toLowerCase()) ||
@@ -514,7 +514,6 @@ export const Storage = {
         school: user.school || '',
         avatar: user.avatar || '',
         role: user.role || 'student',
-        password: user.password || (idx >= 0 ? list[idx].password : '') || '',
         profileCompleted: Boolean(user.profileCompleted || user.profileUpdatedAt || (idx >= 0 && list[idx].profileCompleted) || (user.school && user.className)),
         firstLoginDone: Boolean(user.firstLoginDone || (idx >= 0 && list[idx].firstLoginDone) || (user.school && user.className) || user.profileCompleted),
         profileUpdatedAt: user.profileUpdatedAt || (idx >= 0 ? list[idx].profileUpdatedAt : null) || null,
@@ -592,8 +591,8 @@ export const Storage = {
       if (updatedData.className !== undefined) user.className = String(updatedData.className).trim();
       if (updatedData.school !== undefined) user.school = String(updatedData.school).trim();
       if (updatedData.role !== undefined) user.role = String(updatedData.role).trim();
-      if (updatedData.password !== undefined && String(updatedData.password).trim()) {
-        user.password = String(updatedData.password).trim();
+      if ('password' in user) {
+        delete user.password;
       }
       user.profileCompleted = true;
       user.profileUpdatedAt = new Date().toISOString();
@@ -1362,7 +1361,7 @@ export const Storage = {
       if (history.length > 2000) history.pop();
       localStorage.setItem(STORAGE_KEYS.EXAM_HISTORY, JSON.stringify(history));
       const cs = this.getCloudSync();
-      if (cs && typeof cs.pushExamResultToCloud === 'function') {
+      if (cs && typeof cs.pushExamResultToCloud === 'function' && !entry.isSyncedByWorker) {
         cs.pushExamResultToCloud(entry).catch(() => {});
       }
 

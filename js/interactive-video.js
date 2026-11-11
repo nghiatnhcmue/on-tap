@@ -10,10 +10,10 @@
  * - HỖ TRỢ THIẾT LẬP CÂU HỎI & MỐC DỪNG (Question & Checkpoint Editor): Cho phép Giáo viên & Admin tạo, sửa, xóa mốc dừng và câu hỏi trực tiếp trên web, tự động đồng bộ đám mây realtime!
  */
 
-import { Storage } from './storage.js?v=20261102_100';
-import { Auth } from './auth.js?v=20261102_100';
-import { escapeHtml } from './utils.js?v=20261102_100';
-import { Proctor } from './proctor.js?v=20261102_100';
+import { Storage } from './storage.js?v=20261111_200';
+import { Auth } from './auth.js?v=20261111_200';
+import { escapeHtml } from './utils.js?v=20261111_200';
+import { Proctor } from './proctor.js?v=20261111_200';
 
 export const InteractiveVideo = {
   container: null,
@@ -3200,103 +3200,10 @@ export const InteractiveVideo = {
   },
 
   // ==========================================
-  // 8. TẢI VIDEO LÊN ARCHIVE.ORG S3 TRỰC TIẾP TỪ APP (ADMIN)
+  // 8. TẢI VIDEO LÊN ARCHIVE.ORG S3 TRỰC TIẾP TỪ APP (ADMIN) - BẢO LƯU CHO GIAI ĐOẠN 2
   // ==========================================
   async uploadVideoToArchive(lesson, file) {
-    let config = Storage.getVideoConfig();
-    if ((!config.archiveAccessKey || !config.archiveSecretKey) && window.CloudSync && typeof window.CloudSync.syncVideoConfig === 'function') {
-      await window.CloudSync.syncVideoConfig();
-      config = Storage.getVideoConfig();
-    }
-    if (!config.archiveAccessKey || !config.archiveSecretKey) {
-      alert('Vui lòng nhập Archive.org Access Key và Secret Key trong tab "Quản Trị" trước khi tải lên!');
-      return;
-    }
-
-    const identifier = config.archiveIdentifier || 'tinhoc-hub-thpt';
-    const confirmUpload = confirm(`Tải file "${file.name}" lên Archive.org (${identifier})?\nQuá trình có thể mất từ 1-3 phút tùy dung lượng video.`);
-    if (!confirmUpload) return;
-
-    const targetUrl = `https://s3.us.archive.org/${encodeURIComponent(identifier)}/${encodeURIComponent(lesson.video)}`;
-
-    // Tạo thông báo tiến trình tải
-    let toast = document.getElementById('archive-single-upload-toast');
-    if (!toast) {
-      toast = document.createElement('div');
-      toast.id = 'archive-single-upload-toast';
-      toast.className = 'fixed bottom-6 right-6 z-50 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-slate-700 max-w-sm space-y-2 animate-fadeIn';
-      document.body.appendChild(toast);
-    }
-
-    toast.classList.remove('hidden');
-    toast.innerHTML = `
-      <div class="flex items-center justify-between text-xs font-bold">
-        <span class="flex items-center gap-1.5"><i class="fa-solid fa-spinner fa-spin text-rose-500"></i> Đang tải lên Archive.org...</span>
-        <span id="toast-upload-percent" class="font-mono text-blue-400">0%</span>
-      </div>
-      <p class="text-[11px] text-slate-400 truncate">${escapeHtml(lesson.video)}</p>
-      <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-        <div id="toast-upload-bar" class="bg-blue-600 h-1.5 rounded-full transition-all duration-200" style="width: 0%"></div>
-      </div>
-    `;
-
-    try {
-      await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('PUT', targetUrl, true);
-        xhr.setRequestHeader('Authorization', `LOW ${config.archiveAccessKey}:${config.archiveSecretKey}`);
-        xhr.setRequestHeader('x-archive-meta-mediatype', 'movies');
-        xhr.setRequestHeader('x-archive-meta-collection', 'opensource_movies');
-        xhr.setRequestHeader('x-archive-meta-title', `Bài giảng Tin học THPT - ${lesson.lesson || lesson.video}`);
-        xhr.setRequestHeader('x-archive-ignore-preexisting-bucket', '1');
-
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            const percent = Math.round((e.loaded / e.total) * 100);
-            const percentEl = document.getElementById('toast-upload-percent');
-            const barEl = document.getElementById('toast-upload-bar');
-            if (percentEl) percentEl.textContent = `${percent}%`;
-            if (barEl) barEl.style.width = `${percent}%`;
-          }
-        };
-
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve();
-          } else {
-            reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
-          }
-        };
-
-        xhr.onerror = () => reject(new Error('Lỗi kết nối mạng khi tải lên Archive.org!'));
-        xhr.send(file);
-      });
-
-      // Lưu trạng thái đã upload
-      if (!config.uploadedVideos) config.uploadedVideos = {};
-      config.uploadedVideos[lesson.video] = {
-        uploadedAt: new Date().toISOString(),
-        size: file.size
-      };
-      Storage.saveVideoConfig(config);
-
-      toast.innerHTML = `
-        <div class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-          <i class="fa-solid fa-circle-check"></i> Đã tải lên Archive.org thành công!
-        </div>
-        <p class="text-[11px] text-slate-300">Video hiện đã sẵn sàng phục vụ toàn trường.</p>
-      `;
-      setTimeout(() => toast?.classList.add('hidden'), 4000);
-      alert(`🎉 Chúc mừng! Tệp "${lesson.video}" đã được lưu trữ vĩnh viễn trên Archive.org và đồng bộ cho học sinh.`);
-      this.render();
-    } catch (err) {
-      toast.innerHTML = `
-        <div class="text-xs font-bold text-rose-400 flex items-center gap-1.5">
-          <i class="fa-solid fa-circle-xmark"></i> Lỗi tải lên: ${escapeHtml(err.message)}
-        </div>
-      `;
-      setTimeout(() => toast?.classList.add('hidden'), 5000);
-      alert(`⚠️ Lỗi khi tải lên Archive.org: ${err.message}`);
-    }
+    alert('Tính năng tải video trực tiếp từ trình duyệt tạm thời được bảo lưu để nâng cấp cơ chế xác thực an toàn qua máy chủ (Cloudflare Worker API tại Giai đoạn 2).\n\nThầy/Cô và Quản trị viên vui lòng liên hệ Ban Quản Trị để được hỗ trợ nạp video lên máy chủ.');
+    return;
   }
 };

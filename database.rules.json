@@ -1,0 +1,139 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "roles": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && root.child('roles').child(auth.uid).child('role').val() === 'admin'",
+        ".validate": "newData.hasChildren(['role'])",
+        "role": {
+          ".validate": "newData.isString() && (newData.val() === 'student' || newData.val() === 'teacher' || newData.val() === 'admin')"
+        }
+      }
+    },
+
+    "role_requests": {
+      ".read": "auth != null && root.child('roles').child(auth.uid).child('role').val() === 'admin'",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('roles').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (auth.uid === $uid || root.child('roles').child(auth.uid).child('role').val() === 'admin')",
+        ".validate": "newData.hasChildren(['requestedRole'])",
+        "requestedRole": {
+          ".validate": "newData.isString() && (newData.val() === 'teacher' || newData.val() === 'admin')"
+        }
+      }
+    },
+
+    "accounts": {
+      ".read": "auth != null && (root.child('roles').child(auth.uid).child('role').val() === 'teacher' || root.child('roles').child(auth.uid).child('role').val() === 'admin')",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('roles').child(auth.uid).child('role').val() === 'teacher' || root.child('roles').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (auth.uid === $uid || root.child('roles').child(auth.uid).child('role').val() === 'admin')",
+        "password": { ".validate": false },
+        "role":     { ".validate": false }
+      }
+    },
+
+    "exam_rooms": {
+      ".read": "auth != null",
+      "$roomId": {
+        ".write": "auth != null && (root.child('roles').child(auth.uid).child('role').val() === 'teacher' || root.child('roles').child(auth.uid).child('role').val() === 'admin')",
+        "answerKey": {
+          ".read": false,
+          ".write": false,
+          ".validate": false
+        }
+      }
+    },
+
+    "exam_history": {
+      ".read": "auth != null && (root.child('roles').child(auth.uid).child('role').val() === 'teacher' || root.child('roles').child(auth.uid).child('role').val() === 'admin')",
+      "$key": {
+        ".read": "auth != null && (data.child('uid').val() === auth.uid || root.child('roles').child(auth.uid).child('role').val() === 'teacher' || root.child('roles').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (newData.child('uid').val() === auth.uid || root.child('roles').child(auth.uid).child('role').val() === 'teacher' || root.child('roles').child(auth.uid).child('role').val() === 'admin')"
+      }
+    },
+
+    "user_progress": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('roles').child(auth.uid).child('role').val() === 'teacher' || root.child('roles').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+
+    "school_structure": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('roles').child(auth.uid).child('role').val() === 'admin'"
+    },
+
+    "subjects_list": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('roles').child(auth.uid).child('role').val() === 'admin'"
+    },
+
+    "teacher_assignments": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('roles').child(auth.uid).child('role').val() === 'admin'"
+    },
+
+    "custom_questions": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('roles').child(auth.uid).child('role').val() === 'teacher' || root.child('roles').child(auth.uid).child('role').val() === 'admin')"
+    },
+
+    "teacher_contributions": {
+      ".read": "auth != null && (root.child('roles').child(auth.uid).child('role').val() === 'teacher' || root.child('roles').child(auth.uid).child('role').val() === 'admin')",
+      "$contribId": {
+        ".write": "auth != null && (root.child('roles').child(auth.uid).child('role').val() === 'teacher' || root.child('roles').child(auth.uid).child('role').val() === 'admin')"
+      }
+    },
+
+    "teacher_videos": {
+      ".read": "auth != null",
+      "$videoId": {
+        ".write": "auth != null && (root.child('roles').child(auth.uid).child('role').val() === 'teacher' || root.child('roles').child(auth.uid).child('role').val() === 'admin')"
+      }
+    },
+
+    "custom_video_questions": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('roles').child(auth.uid).child('role').val() === 'teacher' || root.child('roles').child(auth.uid).child('role').val() === 'admin')"
+    },
+
+    "live_video_rooms": {
+      ".read": "auth != null",
+      "$roomId": {
+        ".write": "auth != null"
+      }
+    },
+
+    "arena_rooms": {
+      ".read": "auth != null",
+      "$roomId": {
+        ".write": "auth != null"
+      }
+    },
+
+    "config": {
+      "auth": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('roles').child(auth.uid).child('role').val() === 'admin'"
+      },
+      "video": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('roles').child(auth.uid).child('role').val() === 'admin'"
+      },
+      "s3_keys": {
+        ".read": false,
+        ".write": false
+      }
+    },
+
+    "system_ping": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}

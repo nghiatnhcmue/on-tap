@@ -3,8 +3,9 @@
  * Ghi nhận & Vinh danh thành tích thi thử của học sinh theo Ngày / Tuần / Tháng / Năm học
  */
 
-import { Storage } from './storage.js?v=20261102_100';
-import { escapeHtml } from './utils.js?v=20261102_100';
+import { Storage } from './storage.js?v=20261111_200';
+import { escapeHtml } from './utils.js?v=20261111_200';
+import { getAvatarDataUrl } from './avatars.js?v=20261111_200';
 
 export const Leaderboard = {
   container: null,
@@ -189,7 +190,7 @@ export const Leaderboard = {
   renderPodiumCard(item, theme, isTop1 = false) {
     const mins = Math.floor(item.timeSpentSeconds / 60);
     const secs = item.timeSpentSeconds % 60;
-    const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(item.studentName || 'HS')}&background=${isTop1 ? 'f59e0b' : (theme === 'slate' ? '94a3b8' : 'b45309')}&color=fff`;
+    const avatar = getAvatarDataUrl(item.studentName || 'HS');
 
     return `
       <div class="pt-4 space-y-3">
@@ -236,7 +237,7 @@ export const Leaderboard = {
       <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition">
         <td class="py-3 px-4 text-center">${rankBadge}</td>
         <td class="py-3 px-4 font-bold text-slate-800 dark:text-white flex items-center gap-2">
-          <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(item.studentName || 'HS')}&background=3b82f6&color=fff" class="w-6 h-6 rounded-lg object-cover" />
+          <img src="${getAvatarDataUrl(item.studentName || 'HS')}" class="w-6 h-6 rounded-lg object-cover" />
           <span>${escapeHtml(item.studentName || 'Thí sinh')}</span>
         </td>
         <td class="py-3 px-4">

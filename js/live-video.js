@@ -10,12 +10,13 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261102_100';
-import { Storage } from './storage.js?v=20261102_100';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261102_100';
-import { escapeHtml } from './utils.js?v=20261102_100';
-import { Proctor } from './proctor.js?v=20261102_100';
-import { Gradebook } from './gradebook.js?v=20261102_100';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261111_200';
+import { authedFetch } from './api.js?v=20261111_200';
+import { Storage } from './storage.js?v=20261111_200';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261111_200';
+import { escapeHtml } from './utils.js?v=20261111_200';
+import { Proctor } from './proctor.js?v=20261111_200';
+import { Gradebook } from './gradebook.js?v=20261111_200';
 
 export const LiveVideo = {
   manifest: null,
@@ -39,6 +40,9 @@ export const LiveVideo = {
   countdownInterval: null,
   remainingSeconds: 0,
   lastBroadcastTime: 0,
+  completedCheckpoints: new Set(),
+  savedPlaybackTime: 0,
+  isManualSeeking: false,
 
   init(manifest = null) {
     this.manifest = manifest;
@@ -60,6 +64,29 @@ export const LiveVideo = {
       return Object.values(this.remoteState.checkpoints);
     }
     return [];
+  },
+
+  isCheckpointCompleted(q) {
+    if (!q) return false;
+    if (q.triggered) return true;
+    if (!this.completedCheckpoints) return false;
+    const cpIndex = q.checkpointIndex !== undefined ? q.checkpointIndex : q.index;
+    if (cpIndex !== undefined && this.completedCheckpoints.has(String(cpIndex))) return true;
+    if (q.id && this.completedCheckpoints.has(String(q.id))) return true;
+    if (q.sec !== undefined && this.completedCheckpoints.has(`sec_${Math.round(q.sec)}`)) return true;
+    return false;
+  },
+
+  markCheckpointCompleted(q) {
+    if (!q) return;
+    q.triggered = true;
+    if (!this.completedCheckpoints) {
+      this.completedCheckpoints = new Set();
+    }
+    const cpIndex = q.checkpointIndex !== undefined ? q.checkpointIndex : q.index;
+    if (cpIndex !== undefined) this.completedCheckpoints.add(String(cpIndex));
+    if (q.id) this.completedCheckpoints.add(String(q.id));
+    if (q.sec !== undefined) this.completedCheckpoints.add(`sec_${Math.round(q.sec)}`);
   },
 
   getBaseDbUrl() {
@@ -97,7 +124,7 @@ export const LiveVideo = {
     if (!roomId) return false;
     try {
       const dbUrl = this.getBaseDbUrl();
-      await fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+      await authedFetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ state: 'finished', endedAt: Date.now(), updatedAt: Date.now() })
@@ -507,7 +534,7 @@ export const LiveVideo = {
       // Ghi lên Firebase RTDB (với cơ chế Fallback chống chặn giao diện khi lỗi mạng)
       let cloudOk = false;
       try {
-        const res = await fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+        const res = await authedFetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(roomPayload)
@@ -586,9 +613,8 @@ export const LiveVideo = {
       return;
     }
 
-    const user = Auth.getCurrentUser();
-    const isAdmin = Auth.isAdmin() || user?.role === 'admin';
-    const isTeacher = Auth.isTeacher() || user?.role === 'teacher';
+    const isAdmin = Auth.isAdmin();
+    const isTeacher = Auth.isTeacher();
     const isPrivileged = isAdmin || isTeacher;
 
     if (!isPrivileged && !Auth.isProfileComplete()) {
@@ -604,14 +630,14 @@ export const LiveVideo = {
     try {
       const dbUrl = this.getBaseDbUrl();
       let resolvedRoomId = roomId;
-      let res = await fetch(`${dbUrl}/live_video_rooms/${resolvedRoomId}.json`, { cache: 'no-cache' });
+      let res = await authedFetch(`${dbUrl}/live_video_rooms/${resolvedRoomId}.json`, { cache: 'no-cache' });
       if (!res.ok) throw new Error('Không thể kết nối máy chủ');
 
       let roomData = await res.json();
       // Hỗ trợ học sinh nhập mã rút gọn (VD: nhập "892" tự động khớp "LIVE-892")
       if ((!roomData || !roomData.roomId) && !resolvedRoomId.startsWith('LIVE-')) {
         const altId = `LIVE-${resolvedRoomId}`;
-        const altRes = await fetch(`${dbUrl}/live_video_rooms/${altId}.json`, { cache: 'no-cache' });
+        const altRes = await authedFetch(`${dbUrl}/live_video_rooms/${altId}.json`, { cache: 'no-cache' });
         if (altRes.ok) {
           const altData = await altRes.json();
           if (altData && altData.roomId) {
@@ -655,7 +681,7 @@ export const LiveVideo = {
           roomData.state = 'waiting';
           roomData.hostLastSeen = Date.now();
           roomData.updatedAt = Date.now();
-          await fetch(`${dbUrl}/live_video_rooms/${resolvedRoomId}.json`, {
+          await authedFetch(`${dbUrl}/live_video_rooms/${resolvedRoomId}.json`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ state: 'waiting', hostLastSeen: Date.now(), updatedAt: Date.now() })
@@ -687,7 +713,7 @@ export const LiveVideo = {
         this.isHost = true;
         this.activeRoom = roomData;
         this.questionsList = roomData.checkpoints || [];
-        fetch(`${dbUrl}/live_video_rooms/${resolvedRoomId}.json`, {
+        authedFetch(`${dbUrl}/live_video_rooms/${resolvedRoomId}.json`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ hostLastSeen: Date.now(), updatedAt: Date.now() })
@@ -724,7 +750,7 @@ export const LiveVideo = {
         correctCount: prevStudent?.correctCount || 0
       };
 
-      await fetch(`${dbUrl}/live_video_rooms/${resolvedRoomId}/students/${studentUid}.json`, {
+      await authedFetch(`${dbUrl}/live_video_rooms/${resolvedRoomId}/students/${studentUid}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(studentRecord)
@@ -755,6 +781,9 @@ export const LiveVideo = {
     this.isHost = true;
     this.activeRoom = room;
     this.questionsList = room.checkpoints || [];
+    this.completedCheckpoints = new Set();
+    this.savedPlaybackTime = Number(room.currentTime || 0);
+    this.isManualSeeking = false;
 
     if (window.App && typeof window.App.switchTab === 'function' && window.App.currentTab !== 'interactive-video') {
       await window.App.switchTab('interactive-video');
@@ -825,7 +854,7 @@ export const LiveVideo = {
             
             <!-- Video Stage Card -->
             <div id="master-video-stage-card" class="bg-black rounded-3xl overflow-hidden shadow-2xl border border-slate-800 relative group min-h-[420px] sm:min-h-[480px] flex items-center justify-center">
-              <video id="live-master-video" src="${videoUrl}" playsinline preload="metadata" class="w-full h-full object-contain max-h-[540px]"></video>
+              <video id="live-master-video" src="${escapeHtml(videoUrl)}" playsinline preload="metadata" class="w-full h-full object-contain max-h-[540px]"></video>
 
               <!-- Nút Phóng To Toàn Màn Hình Nổi (Floating Fullscreen Button) -->
               <button type="button" id="btn-master-floating-fullscreen" class="absolute top-4 right-4 z-40 px-3.5 py-2 rounded-2xl bg-black/60 hover:bg-black/90 text-white backdrop-blur-md border border-white/20 flex items-center gap-2 text-xs font-bold shadow-xl transition-all hover:scale-105 cursor-pointer select-none" title="Phóng to toàn màn hình bài giảng (Phím tắt: F)">
@@ -1111,7 +1140,7 @@ export const LiveVideo = {
 
         <!-- Sân khấu Video chính (KHÔNG có thanh điều khiển tua cá nhân) -->
         <div class="relative w-full h-full flex items-center justify-center bg-black">
-          <video id="live-student-video" src="${videoUrl}" playsinline preload="auto" class="w-full h-full object-contain cursor-pointer"></video>
+          <video id="live-student-video" src="${escapeHtml(videoUrl)}" playsinline preload="auto" class="w-full h-full object-contain cursor-pointer"></video>
 
           <!-- GIAO DIỆN MÁY CHIẾU LỚP HỌC (PROJECTOR COMPANION VIEW KHI TẮT VIDEO MÁY HS) -->
           <div id="student-projector-companion-view" class="hidden absolute inset-0 bg-gradient-to-br from-slate-950 via-indigo-950/90 to-slate-900 p-6 flex flex-col items-center justify-center text-center z-15 overflow-y-auto space-y-6">
@@ -1313,7 +1342,7 @@ export const LiveVideo = {
     const roomUrl = `${dbUrl}/live_video_rooms/${roomId}.json`;
 
     // Nạp trạng thái ban đầu tức thì
-    fetch(roomUrl, { cache: 'no-cache' })
+    authedFetch(roomUrl, { cache: 'no-cache' })
       .then(res => res.json())
       .then(remote => {
         if (remote && remote.roomId) {
@@ -1348,7 +1377,7 @@ export const LiveVideo = {
     // 2. Short Polling liên tục (1.5s) đảm bảo 100% không bao giờ mất tín hiệu đồng bộ
     this.pollTimer = setInterval(async () => {
       try {
-        const res = await fetch(roomUrl, { cache: 'no-cache' });
+        const res = await authedFetch(roomUrl, { cache: 'no-cache' });
         if (res.ok) {
           const remote = await res.json();
           if (remote && remote.roomId) {
@@ -1362,7 +1391,7 @@ export const LiveVideo = {
     if (this.isHost) {
       this.heartbeatTimer = setInterval(async () => {
         try {
-          await fetch(`${dbUrl}/live_video_rooms/${roomId}/hostLastSeen.json`, {
+          await authedFetch(`${dbUrl}/live_video_rooms/${roomId}/hostLastSeen.json`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(Date.now())
@@ -1373,7 +1402,7 @@ export const LiveVideo = {
       this.heartbeatTimer = setInterval(async () => {
         try {
           const uid = this.studentInfo.uid;
-          await fetch(`${dbUrl}/live_video_rooms/${roomId}/students/${uid}/lastSeen.json`, {
+          await authedFetch(`${dbUrl}/live_video_rooms/${roomId}/students/${uid}/lastSeen.json`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(Date.now())
@@ -1651,7 +1680,7 @@ export const LiveVideo = {
     if (!roomId || !uid) return;
     try {
       const dbUrl = this.getBaseDbUrl();
-      await fetch(`${dbUrl}/live_video_rooms/${roomId}/students/${uid}/queueStatus.json`, {
+      await authedFetch(`${dbUrl}/live_video_rooms/${roomId}/students/${uid}/queueStatus.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify('admitted')
@@ -1671,7 +1700,7 @@ export const LiveVideo = {
       });
       await Promise.all(
         Object.keys(this.remoteState.students).map(uid =>
-          fetch(`${dbUrl}/live_video_rooms/${roomId}/students/${uid}/queueStatus.json`, {
+          authedFetch(`${dbUrl}/live_video_rooms/${roomId}/students/${uid}/queueStatus.json`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify('admitted')
@@ -1685,7 +1714,7 @@ export const LiveVideo = {
     if (!roomId || !uid) return;
     try {
       const dbUrl = this.getBaseDbUrl();
-      await fetch(`${dbUrl}/live_video_rooms/${roomId}/students/${uid}.json`, {
+      await authedFetch(`${dbUrl}/live_video_rooms/${roomId}/students/${uid}.json`, {
         method: 'DELETE'
       });
     } catch (e) {}
@@ -2146,7 +2175,7 @@ export const LiveVideo = {
         timestamp: Date.now()
       };
 
-      await fetch(`${dbUrl}/live_video_rooms/${roomId}/responses/${qKey}/${uid}.json`, {
+      await authedFetch(`${dbUrl}/live_video_rooms/${roomId}/responses/${qKey}/${uid}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(responsePayload)
@@ -2168,7 +2197,7 @@ export const LiveVideo = {
       this.studentInfo.score = totalScore;
       this.studentInfo.correctCount = totalCorrect;
 
-      await fetch(`${dbUrl}/live_video_rooms/${roomId}/students/${uid}.json`, {
+      await authedFetch(`${dbUrl}/live_video_rooms/${roomId}/students/${uid}.json`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ score: totalScore, correctCount: totalCorrect, lastSeen: Date.now() })
@@ -2891,7 +2920,7 @@ export const LiveVideo = {
       chkRequireApproval.onchange = () => {
         const val = Boolean(chkRequireApproval.checked);
         if (this.activeRoom) this.activeRoom.requireApproval = val;
-        fetch(`${dbUrl}/live_video_rooms/${roomId}/requireApproval.json`, {
+        authedFetch(`${dbUrl}/live_video_rooms/${roomId}/requireApproval.json`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(val)
@@ -2915,7 +2944,7 @@ export const LiveVideo = {
       if (this.remoteState) this.updateMasterUI(this.remoteState);
 
       try {
-        await fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+        await authedFetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2952,7 +2981,7 @@ export const LiveVideo = {
         const lobbyOverlay = document.getElementById('master-waiting-lobby-overlay');
         if (lobbyOverlay) lobbyOverlay.classList.add('hidden');
 
-        fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+        authedFetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2976,7 +3005,7 @@ export const LiveVideo = {
       } else {
         // Tạm dừng phòng Live
         video.pause();
-        fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+        authedFetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -3099,10 +3128,10 @@ export const LiveVideo = {
         if (curTimeText) curTimeText.textContent = this.formatTime(cur);
         if (durTimeText) durTimeText.textContent = this.formatTime(dur);
 
-        // BẢO VỆ CHỐNG RESET VỀ 0:00:
-        // Chỉ kích hoạt khi KHÔNG phải do Giáo viên chủ động tua (manual seeking)
-        if (!this.isManualSeeking && this.savedPlaybackTime > 2 && cur < 1.0 && !video.seeking) {
-          console.warn('Live Master Video bị reset về 0:00, tự động khôi phục về:', this.savedPlaybackTime);
+        // BẢO VỆ CHỐNG RESET VỀ ĐẦU / 0:00 TOÀN DIỆN:
+        // Nếu video bị trôi/lùi về đầu (nhỏ hơn mốc đã lưu quá 2s) và không phải do Thầy Cô chủ động tua:
+        if (!this.isManualSeeking && this.savedPlaybackTime > 3 && cur < (this.savedPlaybackTime - 2.0)) {
+          console.warn('Live Master Video bị trôi/reset về đầu bài giảng (cur:', cur, '< saved:', this.savedPlaybackTime, '). Tự động khôi phục về đúng vị trí!');
           try { video.currentTime = this.savedPlaybackTime; } catch (e) {}
           return;
         }
@@ -3115,18 +3144,22 @@ export const LiveVideo = {
         const now = Date.now();
         if (!video.paused && (!this.lastBroadcastTime || now - this.lastBroadcastTime > 1800)) {
           this.lastBroadcastTime = now;
-          fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+          authedFetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ currentTime: cur, updatedAt: now })
           }).catch(() => {});
         }
 
-        // Bắt mốc dừng tự động: phạm vi rộng (từ q.sec - 0.4s đến q.sec + 1.2s) đảm bảo không bao giờ bỏ sót mốc
+        // Bắt mốc dừng tự động: phạm vi rộng (từ q.sec - 0.4s đến q.sec + 1.2s), đảm bảo không bao giờ bỏ sót mốc và không lặp lại mốc đã xong
         if (cur >= 5 && !video.paused) {
-          const nextQ = this.getCheckpointsList().find(q => (cur >= q.sec - 0.4 && cur <= q.sec + 1.2) && !q.triggered && q.sec >= 5);
+          const nextQ = this.getCheckpointsList().find(q =>
+            (cur >= q.sec - 0.4 && cur <= q.sec + 1.2) &&
+            !this.isCheckpointCompleted(q) &&
+            q.sec >= 5
+          );
           if (nextQ) {
-            nextQ.triggered = true;
+            this.markCheckpointCompleted(nextQ);
             this.activeCheckpointSec = nextQ.sec;
             this.savedPlaybackTime = nextQ.sec;
             this.triggerMasterQuestion(nextQ);
@@ -3140,7 +3173,7 @@ export const LiveVideo = {
 
       video.onended = () => {
         // Khi kết thúc toàn bộ video và các mốc, tự động chuyển sang trạng thái hoàn thành & xuất bảng xếp hạng/thống kê
-        fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+        authedFetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -3155,11 +3188,22 @@ export const LiveVideo = {
 
       video.onerror = () => {
         console.warn('Live Master Video load error for:', video.src);
+        const restoreTime = this.savedPlaybackTime || 0;
         if (video.src && (video.src.includes('archive.org/download/') || video.src.includes('.us.archive.org/'))) {
           const corsUrl = `https://archive.org/cors/tinhoc-hub-thpt/${room.videoFileName}`;
           if (video.src !== corsUrl) {
             video.src = corsUrl;
             video.load();
+            if (restoreTime > 0) {
+              const onRestore = () => {
+                try { video.currentTime = restoreTime; } catch (e) {}
+                if (this.remoteState?.state === 'playing') {
+                  video.play().catch(() => {});
+                }
+              };
+              video.addEventListener('loadedmetadata', onRestore, { once: true });
+              video.addEventListener('canplay', onRestore, { once: true });
+            }
           }
         }
       };
@@ -3170,15 +3214,15 @@ export const LiveVideo = {
     if (btnTriggerQ && video) {
       btnTriggerQ.onclick = () => {
         const cur = Number(video.currentTime || 0);
-        let targetQ = this.getCheckpointsList().find(q => q.sec >= cur - 2 && !q.triggered);
+        let targetQ = this.getCheckpointsList().find(q => q.sec >= cur - 2 && !this.isCheckpointCompleted(q));
         if (!targetQ) {
-          targetQ = this.getCheckpointsList().find(q => !q.triggered) || this.questionsList[0];
+          targetQ = this.getCheckpointsList().find(q => !this.isCheckpointCompleted(q)) || this.questionsList[0];
         }
         if (!targetQ) {
           alert('Không tìm thấy câu hỏi tương tác nào trong bài học này!');
           return;
         }
-        targetQ.triggered = true;
+        this.markCheckpointCompleted(targetQ);
         this.triggerMasterQuestion(targetQ);
       };
     }
@@ -3188,10 +3232,10 @@ export const LiveVideo = {
     if (btnNextCp && video) {
       btnNextCp.onclick = () => {
         const cur = Number(video.currentTime || 0);
-        const next = this.getCheckpointsList().find(q => q.sec > cur + 1 && !q.triggered) || this.questionsList.find(q => q.sec > cur + 1);
+        const next = this.getCheckpointsList().find(q => q.sec > cur + 1 && !this.isCheckpointCompleted(q)) || this.questionsList.find(q => q.sec > cur + 1 && !this.isCheckpointCompleted(q));
         if (next) {
           video.currentTime = next.sec;
-          next.triggered = true;
+          this.markCheckpointCompleted(next);
           this.triggerMasterQuestion(next);
         } else {
           if (confirm('Đã hoàn thành toàn bộ các mốc câu hỏi trong bài giảng!\nThầy/Cô có muốn Xuất Thứ Hạng & Thống Kê Tổng Kết ngay không?')) {
@@ -3237,7 +3281,7 @@ export const LiveVideo = {
         this.updateMasterUI(this.remoteState);
       }
 
-      fetch(`${dbUrl}/live_video_rooms/${roomId}/currentQuestion/revealed.json`, {
+      authedFetch(`${dbUrl}/live_video_rooms/${roomId}/currentQuestion/revealed.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(true)
@@ -3271,7 +3315,7 @@ export const LiveVideo = {
         const curCheckpoint = this.remoteState?.currentQuestion || this.activeRoom?.currentQuestion;
         const curSec = Number(curCheckpoint?.sec || video.currentTime || this.savedPlaybackTime || 0);
         const allCps = this.getCheckpointsList();
-        const nextQ = allCps.find(q => q.sec > curSec + 1 && !q.triggered) ||
+        const nextQ = allCps.find(q => q.sec > curSec + 1 && !this.isCheckpointCompleted(q)) ||
                       allCps.find(q => q.sec > curSec + 1);
 
         if (nextQ) {
@@ -3280,7 +3324,7 @@ export const LiveVideo = {
             this.countdownInterval = null;
           }
           this.activeQuestionIdx = nextQ.index;
-          nextQ.triggered = true;
+          this.markCheckpointCompleted(nextQ);
           this.activeCheckpointSec = nextQ.sec;
           this.savedPlaybackTime = nextQ.sec;
 
@@ -3302,17 +3346,23 @@ export const LiveVideo = {
     if (btnResume && video) {
       btnResume.onclick = async () => {
         const curCheckpoint = this.remoteState?.currentQuestion || this.activeRoom?.currentQuestion;
+        if (curCheckpoint) {
+          this.markCheckpointCompleted(curCheckpoint);
+        }
+
+        const cpSec = Number(curCheckpoint?.sec || 0);
         const curSec = Math.max(
-          Number(curCheckpoint?.sec || 0),
+          cpSec,
           Number(video.currentTime || 0),
           Number(this.savedPlaybackTime || 0)
         );
-        const nextTime = Math.min(video.duration || 9999, curSec + 0.6);
+        // Bước qua hẳn mốc câu hỏi (+1.5s) để vượt qua ngưỡng kích hoạt mốc (q.sec + 1.2s)
+        const nextTime = Math.min(
+          video.duration || 9999,
+          Math.max(curSec + 1.0, cpSec + 1.5, (this.savedPlaybackTime || 0) + 0.8)
+        );
 
         this.savedPlaybackTime = nextTime;
-        if (Math.abs(video.currentTime - nextTime) > 0.3) {
-          try { video.currentTime = nextTime; } catch (e) {}
-        }
 
         if (this.countdownInterval) {
           clearInterval(this.countdownInterval);
@@ -3323,7 +3373,22 @@ export const LiveVideo = {
         const qOverlay = document.getElementById('master-question-active-overlay');
         if (qOverlay) qOverlay.classList.add('hidden');
 
-        fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+        // CẬP NHẬT CỤC BỘ TỨC THÌ TRÊN GIAO DIỆN GIÁO VIÊN (Optimistic Update)
+        if (!this.remoteState) this.remoteState = {};
+        this.remoteState.state = 'playing';
+        this.remoteState.currentQuestion = null;
+        this.remoteState.currentTime = nextTime;
+        this.remoteState.updatedAt = Date.now();
+
+        if (this.activeRoom) {
+          this.activeRoom.state = 'playing';
+          this.activeRoom.currentQuestion = null;
+          this.activeRoom.currentTime = nextTime;
+        }
+        this.updateMasterUI(this.remoteState);
+
+        // Gửi lệnh đồng bộ lên Firebase Realtime Database
+        authedFetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -3334,13 +3399,35 @@ export const LiveVideo = {
           })
         }).catch(err => console.warn('Lỗi tiếp tục bài giảng:', err));
 
-        try {
-          await video.play();
-        } catch (playErr) {
-          video.muted = true;
+        // Áp dụng tua và phát video với cơ chế fallback bảo vệ chống reset về 0
+        const applySeekAndPlay = async () => {
+          try {
+            video.currentTime = nextTime;
+          } catch (e) {}
+
           try {
             await video.play();
-          } catch (e2) {}
+          } catch (playErr) {
+            video.muted = true;
+            try {
+              await video.play();
+            } catch (e2) {}
+          }
+
+          // Kiểm tra và khắc phục nếu trình duyệt tự ý reset currentTime về đầu (< nextTime - 1.0)
+          setTimeout(() => {
+            if (video && !video.paused && video.currentTime < (nextTime - 1.0)) {
+              console.warn('Live Master Video bị reset sau khi bấm tiếp tục, tái thiết lập currentTime:', nextTime);
+              try { video.currentTime = nextTime; } catch (e3) {}
+            }
+          }, 350);
+        };
+
+        if (video.readyState >= 1) {
+          applySeekAndPlay();
+        } else {
+          video.addEventListener('canplay', applySeekAndPlay, { once: true });
+          video.addEventListener('loadedmetadata', applySeekAndPlay, { once: true });
         }
       };
     }
@@ -3358,7 +3445,7 @@ export const LiveVideo = {
         this.countdownInterval = null;
       }
 
-      await fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+      await authedFetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -3461,7 +3548,7 @@ export const LiveVideo = {
     const roomId = this.activeRoom?.roomId;
     const dbUrl = this.getBaseDbUrl();
     if (roomId && dbUrl) {
-      fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+      authedFetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -3528,6 +3615,9 @@ export const LiveVideo = {
       if (found) cp = found;
     }
 
+    this.markCheckpointCompleted(cp);
+    this.markCheckpointCompleted(checkpointOrQ);
+
     const qList = (cp && cp.questions && Array.isArray(cp.questions) && cp.questions.length > 0) ? cp.questions : [cp || checkpointOrQ];
     const sIdx = Math.min(qList.length - 1, Math.max(0, Number(subIndex) || 0));
     const targetQ = qList[sIdx] || cp || checkpointOrQ;
@@ -3580,12 +3670,12 @@ export const LiveVideo = {
 
     // 2. GỬI ĐỒNG BỘ LÊN FIREBASE REALTIME DATABASE
     // Gửi PUT cho node currentQuestion để xóa sạch triệt để mọi dữ liệu cũ của câu trước
-    fetch(`${dbUrl}/live_video_rooms/${roomId}/currentQuestion.json`, {
+    authedFetch(`${dbUrl}/live_video_rooms/${roomId}/currentQuestion.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(questionPayload)
     }).then(() => {
-      return fetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
+      return authedFetch(`${dbUrl}/live_video_rooms/${roomId}.json`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -4020,7 +4110,7 @@ export const LiveVideo = {
             const uid = this.studentInfo?.uid;
             const dbUrl = this.getBaseDbUrl();
             if (uid && this.activeRoom?.roomId) {
-              await fetch(`${dbUrl}/live_video_rooms/${this.activeRoom.roomId}/students/${uid}.json`, {
+              await authedFetch(`${dbUrl}/live_video_rooms/${this.activeRoom.roomId}/students/${uid}.json`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ online: false, lastSeen: 0 })
@@ -4048,7 +4138,7 @@ export const LiveVideo = {
         const uid = this.studentInfo?.uid;
         const dbUrl = this.getBaseDbUrl();
         if (uid && this.activeRoom?.roomId) {
-          fetch(`${dbUrl}/live_video_rooms/${this.activeRoom.roomId}/students/${uid}.json`, {
+          authedFetch(`${dbUrl}/live_video_rooms/${this.activeRoom.roomId}/students/${uid}.json`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ready: true, lastSeen: Date.now() })
@@ -4251,6 +4341,9 @@ export const LiveVideo = {
     this.activeRoom = null;
     this.isHost = false;
     this.studentInfo = null;
+    this.completedCheckpoints = new Set();
+    this.savedPlaybackTime = 0;
+    this.isManualSeeking = false;
     const studentCinema = document.getElementById('live-student-cinema');
     if (studentCinema) studentCinema.remove();
   },

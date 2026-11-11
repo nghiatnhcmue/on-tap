@@ -11,11 +11,12 @@ import defaultGameEngine, {
   SpeedRaceHandler,
   BossRaidHandler,
   ClassicKahootHandler
-} from './game-engine.js?v=20261102_100';
-import { Storage } from './storage.js?v=20261102_100';
-import { Auth } from './auth.js?v=20261102_100';
-import { CloudSync } from './cloud-sync.js?v=20261102_100';
-import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261102_100';
+} from './game-engine.js?v=20261111_200';
+import { Storage } from './storage.js?v=20261111_200';
+import { authedFetch } from './api.js?v=20261111_200';
+import { Auth } from './auth.js?v=20261111_200';
+import { CloudSync } from './cloud-sync.js?v=20261111_200';
+import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261111_200';
 import {
   AVATARS,
   AVATAR_CATEGORIES,
@@ -24,7 +25,7 @@ import {
   renderAvatarSVG,
   getAvatar,
   randomAvatarId
-} from './avatars.js?v=20261102_100';
+} from './avatars.js?v=20261111_200';
 
 // Định nghĩa an toàn tuyệt đối cho hàm escapeHtml trong scope của arena.js
 function escapeHtml(str) {
@@ -1601,7 +1602,7 @@ const Arena = {
 
             <div class="flex flex-wrap items-center gap-3">
               <button id="btn-copy-join-link" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-md text-xs font-bold transition flex items-center gap-2 border border-white/20">
-                <i class="fa-regular fa-copy"></i> Copy Link Trực Tiếp (?game=${room.pin})
+                <i class="fa-regular fa-copy"></i> Copy Link Trực Tiếp (?game=${escapeHtml(room.pin)})
               </button>
               
               <button id="btn-host-start-game" class="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-slate-950 font-black text-sm tracking-wide transition shadow-xl shadow-emerald-500/30 flex items-center gap-2 hover:scale-[1.03] active:scale-[0.98]">
@@ -2312,7 +2313,7 @@ const Arena = {
     // Lấy thông tin phòng từ Firebase hoặc Storage
     let room = null;
     try {
-      const res = await fetch(`${dbUrl}/arena_rooms/${pin}.json`, { cache: 'no-cache' });
+      const res = await authedFetch(`${dbUrl}/arena_rooms/${pin}.json`, { cache: 'no-cache' });
       if (res.ok) room = await res.json();
     } catch (e) {
       console.warn('Lỗi kết nối máy chủ Firebase khi tìm phòng đấu trường:', e);
@@ -2358,7 +2359,7 @@ const Arena = {
 
     // Đăng ký người chơi vào Firebase
     try {
-      await fetch(`${dbUrl}/arena_rooms/${pin}/players/${uid}.json`, {
+      await authedFetch(`${dbUrl}/arena_rooms/${pin}/players/${uid}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(this.playerInfo)
@@ -2558,7 +2559,7 @@ const Arena = {
       if (!room.isSoloPractice) {
         const dbUrl = this.getBaseDbUrl();
         try {
-          await fetch(`${dbUrl}/arena_rooms/${room.pin}/players/${this.playerInfo.uid}.json`, {
+          await authedFetch(`${dbUrl}/arena_rooms/${room.pin}/players/${this.playerInfo.uid}.json`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ blookId: found.id })
@@ -2749,7 +2750,7 @@ const Arena = {
 
       // Đẩy cập nhật lên Firebase
       try {
-        await fetch(`${dbUrl}/arena_rooms/${room.pin}/players/${this.playerInfo.uid}.json`, {
+        await authedFetch(`${dbUrl}/arena_rooms/${room.pin}/players/${this.playerInfo.uid}.json`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2763,7 +2764,7 @@ const Arena = {
         });
 
         if (room.gameMode === 'boss_raid' || room.gameMode === 'boss_hunt') {
-          await fetch(`${dbUrl}/arena_rooms/${room.pin}/metadata/bossCurrentHp.json`, {
+          await authedFetch(`${dbUrl}/arena_rooms/${room.pin}/metadata/bossCurrentHp.json`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(room.metadata?.bossCurrentHp || 0)
@@ -2781,7 +2782,7 @@ const Arena = {
     } else {
       this.playWrong();
       try {
-        await fetch(`${dbUrl}/arena_rooms/${room.pin}/players/${this.playerInfo.uid}.json`, {
+        await authedFetch(`${dbUrl}/arena_rooms/${room.pin}/players/${this.playerInfo.uid}.json`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2846,7 +2847,7 @@ const Arena = {
 
     const dbUrl = this.getBaseDbUrl();
     try {
-      await fetch(`${dbUrl}/arena_rooms/${room.pin}/players/${this.playerInfo.uid}.json`, {
+      await authedFetch(`${dbUrl}/arena_rooms/${room.pin}/players/${this.playerInfo.uid}.json`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2917,13 +2918,13 @@ const Arena = {
         const dbUrl = this.getBaseDbUrl();
         try {
           // Cập nhật cả 2 người chơi atomic lên Firebase
-          await fetch(`${dbUrl}/arena_rooms/${room.pin}/players/${this.playerInfo.uid}/metadata.json`, {
+          await authedFetch(`${dbUrl}/arena_rooms/${room.pin}/players/${this.playerInfo.uid}/metadata.json`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(this.playerInfo.metadata)
           });
           if (room.players[targetId]) {
-            await fetch(`${dbUrl}/arena_rooms/${room.pin}/players/${targetId}/metadata.json`, {
+            await authedFetch(`${dbUrl}/arena_rooms/${room.pin}/players/${targetId}/metadata.json`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(room.players[targetId].metadata)
@@ -3058,7 +3059,7 @@ const Arena = {
       try {
         let remote = null;
         try {
-          const res = await fetch(roomUrl, { cache: 'no-cache' });
+          const res = await authedFetch(roomUrl, { cache: 'no-cache' });
           if (res.ok) remote = await res.json();
         } catch {}
 
@@ -3266,7 +3267,7 @@ const Arena = {
     if (!room || !room.pin) return;
     Storage.saveArenaRoom(room);
     const dbUrl = this.getBaseDbUrl();
-    fetch(`${dbUrl}/arena_rooms/${room.pin}.json`, {
+    authedFetch(`${dbUrl}/arena_rooms/${room.pin}.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(room)

@@ -1,0 +1,21 @@
+{
+  "name": "TinHocHub - Cùng học Tin Học",
+  "short_name": "TinHocHub",
+  "description": "Nền tảng học tập thông minh môn Tin học THPT với ngân hàng câu hỏi chọn lọc, bài giảng video tương tác và hệ thống thi trực tuyến hiện đại.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "assets/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

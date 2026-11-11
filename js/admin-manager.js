@@ -1,3 +1,4 @@
+import { authedFetch } from './api.js?v=20261111_200';
 /**
  * tinhoc-hub: Admin Manager (Quản Trị Hệ Thống)
  * Chỉ dành riêng cho Quản trị viên (Admin).
@@ -5,10 +6,10 @@
  * Cơ sở dữ liệu đám mây, Tải lên Video bài giảng Archive.org S3, Dọn dẹp/Sao lưu.
  */
 
-import { Storage } from './storage.js?v=20261102_100';
-import { Auth } from './auth.js?v=20261102_100';
-import { escapeHtml } from './utils.js?v=20261102_100';
-import { CloudSync, DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261102_100';
+import { Storage } from './storage.js?v=20261111_200';
+import { Auth } from './auth.js?v=20261111_200';
+import { escapeHtml } from './utils.js?v=20261111_200';
+import { CloudSync, DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261111_200';
 
 export const AdminManager = {
   container: null,
@@ -23,6 +24,7 @@ export const AdminManager = {
   remoteArchiveFiles: new Set(),
   videoGradeFilter: 'all',
   videoSearchQuery: '',
+  roleRequests: [],
   uploadProgressStats: { totalBytes: 0, loadedBytes: 0, startTime: 0 },
   userSearchQuery: '',
   userRoleFilter: 'all',
@@ -58,6 +60,7 @@ export const AdminManager = {
         ]);
       } catch (e) {}
     }
+    await this.loadRoleRequests();
     this.render();
     this.syncS3InputsFromStorage();
   },
@@ -65,14 +68,6 @@ export const AdminManager = {
   syncS3InputsFromStorage() {
     const cfg = Storage.getVideoConfig();
     if (!cfg) return;
-    const elAccess = document.getElementById('archive-cfg-access-key');
-    if (elAccess && document.activeElement !== elAccess && cfg.archiveAccessKey) {
-      elAccess.value = cfg.archiveAccessKey;
-    }
-    const elSecret = document.getElementById('archive-cfg-secret-key');
-    if (elSecret && document.activeElement !== elSecret && cfg.archiveSecretKey) {
-      elSecret.value = cfg.archiveSecretKey;
-    }
     const elId = document.getElementById('archive-cfg-identifier');
     if (elId && document.activeElement !== elId && cfg.archiveIdentifier) {
       elId.value = cfg.archiveIdentifier;
@@ -80,16 +75,6 @@ export const AdminManager = {
     const elBase = document.getElementById('archive-cfg-base-url');
     if (elBase && document.activeElement !== elBase && cfg.videoBaseUrl) {
       elBase.value = cfg.videoBaseUrl;
-    }
-    const statusBadge = document.getElementById('s3-cloud-sync-badge');
-    if (statusBadge) {
-      if (cfg.archiveAccessKey && cfg.archiveSecretKey) {
-        statusBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300';
-        statusBadge.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Đã đồng bộ Khóa S3 trên Cloud';
-      } else {
-        statusBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300';
-        statusBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Chưa có Khóa S3 trên Cloud';
-      }
     }
   },
 
@@ -132,21 +117,16 @@ export const AdminManager = {
             Khu Vực Quản Trị Hệ Thống (Admin Only)
           </h3>
           <p class="text-xs text-slate-500 max-w-md mx-auto mb-6 leading-relaxed">
-            Giáo viên và Học sinh không được phép can thiệp vào cài đặt cốt lõi của hệ thống. Nếu Thầy/Cô là Quản trị viên cấp cao, vui lòng nhập mã xác thực Admin.
+            Giáo viên và Học sinh không được phép can thiệp vào cài đặt cốt lõi của hệ thống. Quyền Quản trị viên được phân quyền bảo mật trực tiếp từ máy chủ.
           </p>
           <button id="btn-admin-verify" class="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-rose-500/20">
-            <i class="fa-solid fa-key mr-1.5"></i> Nhập mã xác thực Admin
+            <i class="fa-solid fa-user-shield mr-1.5"></i> Yêu cầu cấp quyền Quản trị viên
           </button>
         </div>
       `;
 
       this.container.querySelector('#btn-admin-verify')?.addEventListener('click', () => {
-        const code = prompt('Vui lòng nhập mã bảo mật Admin (Mặc định: ADMIN2025):');
-        if (code) {
-          const res = Auth.upgradeRoleWithCode(code);
-          alert(res.message);
-          if (res.success) this.render();
-        }
+        document.getElementById('modal-upgrade-role')?.classList.remove('hidden');
       });
       return;
     }
@@ -238,6 +218,77 @@ export const AdminManager = {
               Cloudflare Pages OK
             </span>
           </div>
+        </div>
+
+        <!-- 1A. DANH SÁCH YÊU CẦU CẤP QUYỀN GIÁO VIÊN / ADMIN CHỜ DUYỆT -->
+        <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-4">
+            <div>
+              <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-xs font-bold uppercase tracking-wider mb-1">
+                <i class="fa-solid fa-user-shield"></i> Phê Duyệt Phân Quyền Máy Chủ
+              </div>
+              <h3 class="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-clipboard-check text-indigo-600"></i> Danh Sách Yêu Cầu Cấp Quyền Đang Chờ Duyệt (${this.roleRequests ? this.roleRequests.length : 0})
+              </h3>
+            </div>
+            <button type="button" id="btn-admin-refresh-role-requests" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center gap-1.5">
+              <i class="fa-solid fa-rotate-right"></i> Làm mới yêu cầu
+            </button>
+          </div>
+
+          ${(!this.roleRequests || this.roleRequests.length === 0) ? `
+            <div class="py-6 text-center text-slate-400 text-xs bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-700">
+              <i class="fa-solid fa-circle-check text-emerald-500 text-base mb-1 block"></i>
+              Hiện không có yêu cầu nâng cấp quyền nào đang chờ duyệt.
+            </div>
+          ` : `
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="border-b border-slate-200 dark:border-slate-700 text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
+                    <th class="py-2.5 px-3">Thời gian</th>
+                    <th class="py-2.5 px-3">Họ tên & Email</th>
+                    <th class="py-2.5 px-3">Vai trò đề xuất</th>
+                    <th class="py-2.5 px-3">Trường & Lý do</th>
+                    <th class="py-2.5 px-3 text-right">Phê duyệt</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-700/60">
+                  ${this.roleRequests.map(req => `
+                    <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition">
+                      <td class="py-3 px-3 text-slate-500 font-mono text-[11px]">
+                        ${req.requestedAt ? new Date(req.requestedAt).toLocaleString('vi-VN') : '-'}
+                      </td>
+                      <td class="py-3 px-3">
+                        <div class="font-bold text-slate-800 dark:text-white">${escapeHtml(req.fullName || 'Người dùng')}</div>
+                        <div class="text-[10px] text-slate-400 font-mono">${escapeHtml(req.email || req.uid || '')}</div>
+                      </td>
+                      <td class="py-3 px-3">
+                        ${req.requestedRole === 'admin'
+                          ? '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">Quản trị viên (Admin)</span>'
+                          : '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">Giáo viên (Teacher)</span>'
+                        }
+                      </td>
+                      <td class="py-3 px-3 max-w-[220px]">
+                        ${req.school ? `<div class="font-semibold text-slate-700 dark:text-slate-300 text-[11px]">${escapeHtml(req.school)}</div>` : ''}
+                        ${req.reason ? `<div class="text-[10px] text-slate-400 italic">${escapeHtml(req.reason)}</div>` : '<span class="text-[10px] text-slate-400 italic">Không có ghi chú</span>'}
+                      </td>
+                      <td class="py-3 px-3 text-right">
+                        <div class="inline-flex items-center gap-1.5 justify-end">
+                          <button type="button" data-admin-approve-role-req="${escapeHtml(req.uid)}" data-req-role="${escapeHtml(req.requestedRole)}" data-req-email="${escapeHtml(req.email || '')}" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-sm">
+                            <i class="fa-solid fa-check"></i> Duyệt
+                          </button>
+                          <button type="button" data-admin-reject-role-req="${escapeHtml(req.uid)}" class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-xs font-bold transition flex items-center gap-1">
+                            <i class="fa-solid fa-xmark"></i> Từ chối
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `}
         </div>
 
         <!-- 1. QUẢN LÝ THÀNH VIÊN VÀ PHÂN QUYỀN -->
@@ -1279,41 +1330,25 @@ export const AdminManager = {
           <!-- A. Form Cấu hình Archive.org S3 Keys -->
           <form id="form-archive-config" class="space-y-4 p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700">
             <div class="flex items-center justify-between flex-wrap gap-2">
-              <div class="flex items-center gap-2.5 flex-wrap">
-                <h4 class="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                  <i class="fa-solid fa-key text-amber-500"></i> Cấu Hình Khóa S3 API Archive.org
-                </h4>
-                <span id="s3-cloud-sync-badge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${videoConfig.archiveAccessKey && videoConfig.archiveSecretKey ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'}">
-                  ${videoConfig.archiveAccessKey && videoConfig.archiveSecretKey
-                    ? '<i class="fa-solid fa-cloud-arrow-up"></i> Đã đồng bộ Khóa S3 trên Cloud'
-                    : '<i class="fa-solid fa-triangle-exclamation"></i> Chưa có Khóa S3 trên Cloud'}
-                </span>
+              <h4 class="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-cloud-arrow-up text-indigo-500"></i> Cấu Hình Lưu Trữ Video Archive.org
+              </h4>
+            </div>
+
+            <!-- Huy hiệu bảo mật: S3 Keys quản lý trên Cloudflare Worker -->
+            <div class="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-lg flex-shrink-0">
+                <i class="fa-solid fa-shield-check"></i>
               </div>
-              <a href="https://archive.org/account/s3.php" target="_blank" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5">
-                <i class="fa-solid fa-arrow-up-right-from-square"></i> Lấy mã S3 Access/Secret Key miễn phí tại đây
-              </a>
+              <div class="flex-1">
+                <div class="font-bold text-xs text-emerald-900 dark:text-emerald-200">Khóa S3 Archive.org được bảo vệ trên Cloudflare Worker Secrets</div>
+                <div class="text-[11px] text-emerald-700 dark:text-emerald-400 mt-0.5 leading-relaxed">
+                  Khóa bí mật S3 không còn lưu ở trình duyệt máy khách hay Realtime Database. Mọi hoạt động tải video đều được chuyển tiếp bảo mật qua Cloudflare Worker với quyền Giáo viên / Quản trị viên.
+                </div>
+              </div>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Archive.org S3 Access Key *
-                </label>
-                <input type="text" id="archive-cfg-access-key" value="${escapeHtml(videoConfig.archiveAccessKey || '')}" placeholder="Ví dụ: a1b2c3d4e5f6..." class="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500" />
-              </div>
-
-              <div>
-                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Archive.org S3 Secret Key *
-                </label>
-                <div class="relative">
-                  <input type="password" id="archive-cfg-secret-key" value="${escapeHtml(videoConfig.archiveSecretKey || '')}" placeholder="Ví dụ: z9y8x7w6v5u4..." class="w-full px-4 py-2.5 pr-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500" />
-                  <button type="button" id="btn-toggle-s3-secret" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs">
-                    <i class="fa-solid fa-eye"></i>
-                  </button>
-                </div>
-              </div>
-
               <div>
                 <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
                   Item Identifier (Tên Bucket lưu trữ)
@@ -1333,13 +1368,10 @@ export const AdminManager = {
 
             <div class="flex items-center gap-3 pt-2 flex-wrap">
               <button type="submit" id="btn-save-archive-s3" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-blue-500/20 flex items-center gap-2">
-                <i class="fa-solid fa-floppy-disk"></i> Lưu & Đồng Bộ Khóa S3 Lên Cloud
-              </button>
-              <button type="button" id="btn-pull-s3-cloud" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-500/20 flex items-center gap-2">
-                <i class="fa-solid fa-cloud-arrow-down"></i> Tải Khóa S3 Từ Cloud
+                <i class="fa-solid fa-floppy-disk"></i> Lưu Cấu Hình Video Lên Cloud
               </button>
               <button type="button" id="btn-test-archive-s3" class="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-amber-500/20 flex items-center gap-2">
-                <i class="fa-solid fa-key"></i> Kiểm Tra Khóa S3
+                <i class="fa-solid fa-key"></i> Kiểm Tra Kết Nối S3 Worker
               </button>
               <button type="button" id="btn-archive-check-remote" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-emerald-500/20 flex items-center gap-2">
                 <i class="fa-solid fa-magnifying-glass"></i> Quét File Đã Có Trên Archive.org
@@ -1657,8 +1689,6 @@ export const AdminManager = {
     const nameEl = document.getElementById('admin-user-edit-name');
     const emailEl = document.getElementById('admin-user-edit-email');
     const roleEl = document.getElementById('admin-user-edit-role');
-    const passEl = document.getElementById('admin-user-edit-password');
-    const passHintEl = document.getElementById('admin-user-edit-pass-hint');
 
     const curSchool = user ? (user.school || '') : '';
     const curGrade = user ? (user.grade || '12') : '12';
@@ -1673,24 +1703,12 @@ export const AdminManager = {
         emailEl.placeholder = 'an.nguyen@emasi.edu.vn';
       }
       if (roleEl) roleEl.value = user.role || 'student';
-      if (passEl) {
-        passEl.value = '';
-        passEl.required = false;
-        passEl.placeholder = 'Để trống nếu giữ nguyên mật khẩu cũ';
-      }
-      if (passHintEl) passHintEl.textContent = '(Để trống nếu giữ nguyên mật khẩu cũ)';
     } else {
       if (titleEl) titleEl.textContent = 'Thêm Tài Khoản Mới';
       if (origIdEl) origIdEl.value = '';
       if (nameEl) nameEl.value = '';
       if (emailEl) emailEl.value = '';
       if (roleEl) roleEl.value = 'student';
-      if (passEl) {
-        passEl.value = '';
-        passEl.required = true;
-        passEl.placeholder = 'Nhập mật khẩu (tối thiểu 6 ký tự)';
-      }
-      if (passHintEl) passHintEl.textContent = '(Bắt buộc khi thêm mới, tối thiểu 6 ký tự)';
     }
 
     // Thiết lập dropdown chọn Trường - Khối - Lớp chuẩn hóa
@@ -2176,8 +2194,6 @@ export const AdminManager = {
     if (formArchive) {
       formArchive.onsubmit = async (e) => {
         e.preventDefault();
-        const accessKey = document.getElementById('archive-cfg-access-key')?.value.trim() || '';
-        const secretKey = document.getElementById('archive-cfg-secret-key')?.value.trim() || '';
         const identifier = document.getElementById('archive-cfg-identifier')?.value.trim() || 'tinhoc-hub-thpt';
         let baseUrl = document.getElementById('archive-cfg-base-url')?.value.trim() || `https://archive.org/cors/${identifier}/`;
 
@@ -2193,8 +2209,8 @@ export const AdminManager = {
         }
 
         const updated = Storage.saveVideoConfig({
-          archiveAccessKey: accessKey,
-          archiveSecretKey: secretKey,
+          archiveAccessKey: '',
+          archiveSecretKey: '',
           archiveIdentifier: identifier,
           videoBaseUrl: baseUrl
         }, false);
@@ -2203,57 +2219,35 @@ export const AdminManager = {
 
         if (btnSave) {
           btnSave.disabled = false;
-          btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Lưu & Đồng Bộ Khóa S3 Lên Cloud';
+          btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Lưu Cấu Hình Video Lên Cloud';
         }
 
         if (ok) {
-          alert(`✅ Đã lưu và đồng bộ Khóa S3 Archive.org lên máy chủ đám mây thành công!\n\nMọi máy tính và trình duyệt khác khi mở trang Quản trị sẽ tự động nhận được khóa này ngay lập tức.`);
+          alert('✅ Đã lưu cấu hình video lên máy chủ đám mây thành công!\n\nLưu ý: Khóa S3 Archive.org được quản lý tập trung và an toàn trên Cloudflare Worker Secrets.');
         } else {
-          alert(`⚠️ Đã lưu cục bộ trên máy này nhưng chưa kết nối được tới máy chủ Cloud. Hệ thống sẽ tự động đẩy lên ngay khi có mạng.`);
+          alert('⚠️ Đã lưu cục bộ trên máy này nhưng chưa kết nối được tới máy chủ Cloud.');
         }
         this.render();
       };
 
-      // Nút Tải Khóa S3 từ Cloud tức thì
-      const btnPullS3 = document.getElementById('btn-pull-s3-cloud');
-      if (btnPullS3) {
-        btnPullS3.onclick = async () => {
-          btnPullS3.disabled = true;
-          btnPullS3.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang tải từ Cloud...';
-          const merged = await CloudSync.syncVideoConfig();
-          btnPullS3.disabled = false;
-          btnPullS3.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> Tải Khóa S3 Từ Cloud';
-          this.syncS3InputsFromStorage();
-          if (merged && (merged.archiveAccessKey || merged.archiveSecretKey)) {
-            alert(`✅ Đã tải thành công Khóa S3 từ máy chủ đám mây về máy này!\n• Bucket: ${merged.archiveIdentifier}\n• Access Key: ${merged.archiveAccessKey.slice(0, 4)}***`);
-          } else {
-            alert('ℹ️ Hiện trên máy chủ Cloud chưa có Khóa S3 nào được lưu. Bạn hãy nhập Access Key & Secret Key trên máy chính rồi bấm "Lưu & Đồng Bộ Khóa S3 Lên Cloud" nhé!');
-          }
-        };
-      }
-
-      // Tự động lưu ngầm khi Admin nhập xong từng ô (tránh mất dữ liệu khi chuyển tab hoặc chưa kịp bấm Lưu)
+      // Tự động lưu ngầm cấu hình video khi Admin nhập xong ô Identifier hoặc BaseUrl
       const saveS3InputsSilently = () => {
-        const accessKey = document.getElementById('archive-cfg-access-key')?.value.trim() || '';
-        const secretKey = document.getElementById('archive-cfg-secret-key')?.value.trim() || '';
         const identifier = document.getElementById('archive-cfg-identifier')?.value.trim() || 'tinhoc-hub-thpt';
         let baseUrl = document.getElementById('archive-cfg-base-url')?.value.trim() || `https://archive.org/cors/${identifier}/`;
         if (baseUrl.includes('archive.org/download/')) {
           baseUrl = baseUrl.replace('archive.org/download/', 'archive.org/cors/');
         }
         if (!baseUrl.endsWith('/')) baseUrl += '/';
-        if (accessKey || secretKey) {
-          const cfg = Storage.saveVideoConfig({
-            archiveAccessKey: accessKey,
-            archiveSecretKey: secretKey,
-            archiveIdentifier: identifier,
-            videoBaseUrl: baseUrl
-          });
-          CloudSync.pushVideoConfigToCloud(cfg);
-        }
+        const cfg = Storage.saveVideoConfig({
+          archiveAccessKey: '',
+          archiveSecretKey: '',
+          archiveIdentifier: identifier,
+          videoBaseUrl: baseUrl
+        });
+        CloudSync.pushVideoConfigToCloud(cfg);
       };
 
-      ['archive-cfg-access-key', 'archive-cfg-secret-key', 'archive-cfg-identifier', 'archive-cfg-base-url'].forEach(id => {
+      ['archive-cfg-identifier', 'archive-cfg-base-url'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
           el.addEventListener('change', saveS3InputsSilently);
@@ -2262,112 +2256,57 @@ export const AdminManager = {
       });
     }
 
-    // Toggle hiện/ẩn S3 Secret Key
-    const btnToggleSecret = document.getElementById('btn-toggle-s3-secret');
-    if (btnToggleSecret) {
-      btnToggleSecret.onclick = () => {
-        const input = document.getElementById('archive-cfg-secret-key');
-        if (input) {
-          const isPass = input.type === 'password';
-          input.type = isPass ? 'text' : 'password';
-          btnToggleSecret.innerHTML = isPass ? '<i class="fa-solid fa-eye-slash"></i>' : '<i class="fa-solid fa-eye"></i>';
-        }
-      };
-    }
-
-    // Kiểm tra tính hợp lệ của Khóa S3 API Archive.org
+    // Kiểm tra tính hợp lệ của Khóa S3 API Archive.org qua Worker
     const btnTestS3 = document.getElementById('btn-test-archive-s3');
     if (btnTestS3) {
       btnTestS3.onclick = async () => {
-        const accessKey = document.getElementById('archive-cfg-access-key')?.value.trim() || '';
-        const secretKey = document.getElementById('archive-cfg-secret-key')?.value.trim() || '';
-        const identifier = document.getElementById('archive-cfg-identifier')?.value.trim() || 'tinhoc-hub-thpt';
-
-        if (!accessKey || !secretKey) {
-          alert('Vui lòng nhập cả Archive.org S3 Access Key và Secret Key trước khi kiểm tra!');
-          document.getElementById('archive-cfg-access-key')?.focus();
-          return;
-        }
-
         btnTestS3.disabled = true;
-        btnTestS3.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Đang test...';
-
+        btnTestS3.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Đang kiểm tra Worker...';
         try {
-          const testUrl = `https://s3.us.archive.org/${encodeURIComponent(identifier)}/_test_s3_connection.txt`;
-          const res = await new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('PUT', testUrl, true);
-            xhr.setRequestHeader('Authorization', `LOW ${accessKey}:${secretKey}`);
-            xhr.setRequestHeader('x-amz-auto-make-bucket', '1');
-            xhr.setRequestHeader('x-archive-meta-mediatype', 'texts');
-            xhr.setRequestHeader('x-archive-meta-title', 'uri(TinHocHub%20S3%20Connection%20Test)');
-            xhr.setRequestHeader('x-archive-ignore-preexisting-bucket', '1');
-            xhr.setRequestHeader('Content-Type', 'text/plain');
-            xhr.onload = () => {
-              if (xhr.status >= 200 && xhr.status < 300) {
-                resolve({ ok: true, status: xhr.status });
-              } else {
-                let detail = xhr.statusText;
-                try {
-                  const xml = new DOMParser().parseFromString(xhr.responseText, 'text/xml');
-                  const msg = xml.querySelector('Message')?.textContent;
-                  const code = xml.querySelector('Code')?.textContent;
-                  if (code || msg) detail = `${code || ''}: ${msg || ''}`.trim();
-                } catch (e) {}
-                resolve({ ok: false, status: xhr.status, detail });
-              }
-            };
-            xhr.onerror = () => reject(new Error('Lỗi kết nối mạng đến s3.us.archive.org'));
-            xhr.send('TinHocHub connection OK');
-          });
-
-          if (res.ok) {
-            const updated = Storage.saveVideoConfig({
-              archiveAccessKey: accessKey,
-              archiveSecretKey: secretKey,
-              archiveIdentifier: identifier
-            });
-            if (window.CloudSync && typeof window.CloudSync.pushVideoConfigToCloud === 'function') {
-              await window.CloudSync.pushVideoConfigToCloud(updated);
-            }
-            alert(`🎉 CHÚC MỪNG!\nKhóa S3 Archive.org hoàn toàn HỢP LỆ (Mã ${res.status} OK)!\nBucket: [${identifier}]\nĐã tự động lưu cấu hình lên máy chủ đám mây. Bạn có thể bấm "Bắt Đầu Tải Lên Tất Cả" ngay.`);
+          const res = await authedFetch('/api/archive/status');
+          const data = await res.json();
+          if (res.ok && data.configured) {
+            alert(`✅ KẾT NỐI S3 WORKER SẴN SÀNG!\n\n• Bucket: ${data.identifier}\n• Trạng thái Worker Secrets: Khóa S3 đã được nạp an toàn trên Cloudflare Worker.`);
+          } else if (res.ok && !data.configured) {
+            alert(`⚠️ KHÓA S3 CHƯA ĐƯỢC THIẾT LẬP TRÊN WORKER!\n\nWorker chưa nhận diện được ARCHIVE_S3_ACCESS hoặc ARCHIVE_S3_SECRET.\n👉 Quản trị viên vui lòng cấu hình bằng lệnh:\nwrangler secret put ARCHIVE_S3_ACCESS\nwrangler secret put ARCHIVE_S3_SECRET`);
           } else {
-            alert(`❌ KHÓA S3 CHƯA HỢP LỆ!\nMã HTTP: ${res.status}\nChi tiết: ${res.detail}\n\n👉 Vui lòng đăng nhập https://archive.org/account/s3.php để lấy đúng S3 Access Key và Secret Key.`);
+            alert(`❌ Không thể kiểm tra: ${data.message || res.statusText}`);
           }
         } catch (err) {
-          alert(`⚠️ Lỗi kiểm tra kết nối S3: ${err.message}`);
+          alert(`❌ Lỗi kết nối tới Worker: ${err.message}`);
         } finally {
           btnTestS3.disabled = false;
-          btnTestS3.innerHTML = '<i class="fa-solid fa-key mr-1"></i> Kiểm Tra Khóa S3';
+          btnTestS3.innerHTML = '<i class="fa-solid fa-key mr-1"></i> Kiểm Tra Kết Nối S3 Worker';
         }
       };
     }
 
-    // Quét file đã có trên Archive.org qua REST API Metadata
+    // Quét file đã có trên Archive.org qua Worker API
     const btnCheckRemote = document.getElementById('btn-archive-check-remote');
     if (btnCheckRemote) {
       btnCheckRemote.onclick = async () => {
         const id = document.getElementById('archive-cfg-identifier')?.value.trim() || 'tinhoc-hub-thpt';
         btnCheckRemote.disabled = true;
-        btnCheckRemote.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Đang quét...';
+        btnCheckRemote.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Đang quét qua Worker...';
 
         try {
-          const res = await fetch(`https://archive.org/metadata/${encodeURIComponent(id)}/files`);
+          const res = await authedFetch('/api/archive/files');
           if (!res.ok) {
-            throw new Error(`Archive.org phản hồi HTTP ${res.status}`);
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.message || `Mã lỗi HTTP ${res.status}`);
           }
           const data = await res.json();
-          const files = Array.isArray(data.result) ? data.result : [];
+          const files = Array.isArray(data.files) ? data.files : [];
           this.remoteArchiveFiles.clear();
           let count = 0;
-          files.forEach(f => {
-            if (f.name) {
-              this.remoteArchiveFiles.add(f.name.toLowerCase());
+          files.forEach(name => {
+            if (name) {
+              this.remoteArchiveFiles.add(String(name).toLowerCase());
               count++;
             }
           });
 
-          alert(`✅ Đã quét xong Bucket [${id}]!\nTìm thấy ${count} file đã lưu trữ trên Archive.org.`);
+          alert(`✅ Đã quét xong Bucket [${data.identifier || id}] qua Worker!\nTìm thấy ${count} file đã lưu trữ trên Archive.org.`);
         } catch (err) {
           alert(`⚠️ Không thể quét tệp từ Archive.org: ${err.message}\n(Lưu ý: Nếu đây là bucket mới toanh chưa tải file nào thì Archive.org sẽ chưa có metadata, bạn hãy bấm Tải Lên file đầu tiên để tự động khởi tạo bucket).`);
         } finally {
@@ -2513,12 +2452,56 @@ export const AdminManager = {
       };
     }
 
+    // Xử lý làm mới và duyệt/từ chối yêu cầu cấp quyền
+    this.container.querySelector('#btn-admin-refresh-role-requests')?.addEventListener('click', async () => {
+      await this.loadRoleRequests();
+      this.render();
+    });
+
+    this.container.querySelectorAll('[data-admin-approve-role-req]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const uid = btn.getAttribute('data-admin-approve-role-req');
+        const role = btn.getAttribute('data-req-role') || 'teacher';
+        const email = btn.getAttribute('data-req-email') || '';
+        await this.approveRoleRequest(uid, role, email);
+      });
+    });
+
+    this.container.querySelectorAll('[data-admin-reject-role-req]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const uid = btn.getAttribute('data-admin-reject-role-req');
+        await this.rejectRoleRequest(uid);
+      });
+    });
+
     // Đổi vai trò thành viên từ dropdown
     this.container.querySelectorAll('[data-user-role-select]').forEach(select => {
-      select.addEventListener('change', (e) => {
+      select.addEventListener('change', async (e) => {
         const email = select.getAttribute('data-user-role-select');
         const newRole = e.target.value;
         Storage.updateAccountRole(email, newRole);
+
+        // Đồng bộ vai trò lên máy chủ /roles/$uid
+        const accounts = Storage.getAccountsList();
+        const acc = accounts.find(a => (a.email && a.email === email) || (a.username && a.username === email) || a.uid === email);
+        const targetUid = acc?.uid || email;
+        if (targetUid) {
+          try {
+            const dbUrl = CloudSync.getBaseUrl();
+            await authedFetch(`${dbUrl}/roles/${encodeURIComponent(targetUid)}.json`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                role: newRole,
+                updatedAt: new Date().toISOString(),
+                approvedBy: Auth.currentUser?.uid || 'admin'
+              })
+            });
+          } catch (err) {
+            console.warn('Lỗi đồng bộ role lên RTDB:', err);
+          }
+        }
+
         alert(`Đã cập nhật vai trò của ${email} thành [${newRole.toUpperCase()}]!`);
         this.render();
       });
@@ -2629,7 +2612,6 @@ export const AdminManager = {
         const classSelectVal = document.getElementById('admin-user-edit-class')?.value;
         const customClassVal = document.getElementById('admin-user-edit-class-custom')?.value.trim();
         const className = (classSelectVal === '__other__' ? customClassVal : classSelectVal) || '';
-        const password = document.getElementById('admin-user-edit-password')?.value.trim();
 
         if (!fullName || !emailOrUser) {
           alert('Vui lòng điền đầy đủ Họ và tên cùng Email/Tên tài khoản!');
@@ -2646,21 +2628,30 @@ export const AdminManager = {
             grade,
             school,
             className,
-            password: password || undefined,
             isProfileComplete: true
           });
           alert(res.message);
           if (res.success) {
+            // Đồng bộ vai trò lên máy chủ /roles/$uid
+            const targetUid = res.account?.uid || origId;
+            if (targetUid) {
+              const dbUrl = CloudSync.getBaseUrl();
+              authedFetch(`${dbUrl}/roles/${encodeURIComponent(targetUid)}.json`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  role,
+                  updatedAt: new Date().toISOString(),
+                  approvedBy: Auth.currentUser?.uid || 'admin'
+                })
+              }).catch(() => {});
+            }
             document.getElementById('modal-admin-user-editor')?.classList.add('hidden');
             document.getElementById('modal-admin-user-editor')?.classList.remove('flex');
             this.render();
           }
         } else {
           // Thêm tài khoản mới
-          if (!password || password.length < 6) {
-            alert('Mật khẩu cho tài khoản mới phải có tối thiểu 6 ký tự!');
-            return;
-          }
           const accounts = Storage.getAccountsList();
           const exists = accounts.some(a => (a.email && a.email.toLowerCase() === emailOrUser.toLowerCase()) || (a.username && a.username.toLowerCase() === emailOrUser.toLowerCase()));
           if (exists) {
@@ -2673,7 +2664,6 @@ export const AdminManager = {
             fullName,
             email: emailOrUser.includes('@') ? emailOrUser.toLowerCase() : '',
             username: !emailOrUser.includes('@') ? emailOrUser.toLowerCase() : '',
-            password,
             role,
             grade,
             school,
@@ -3042,49 +3032,14 @@ export const AdminManager = {
       }
     });
 
-    // Giữ nguyên và tự động lưu khóa S3 nếu Admin vừa nhập xong rồi bấm Chọn thư mục luôn
-    const inputAccess = document.getElementById('archive-cfg-access-key')?.value.trim();
-    const inputSecret = document.getElementById('archive-cfg-secret-key')?.value.trim();
-    const inputId = document.getElementById('archive-cfg-identifier')?.value.trim();
-    if (inputAccess || inputSecret) {
-      const saved = Storage.saveVideoConfig({
-        archiveAccessKey: inputAccess,
-        archiveSecretKey: inputSecret,
-        archiveIdentifier: inputId || 'tinhoc-hub-thpt'
-      });
-      CloudSync.pushVideoConfigToCloud(saved);
-    }
+
 
     alert(`📁 Đã duyệt ${fileList.length} tệp tin.\n✅ Đã ghép khớp thành công: ${matched} / ${manifestVideos.length} video bài giảng chuẩn!`);
     this.render();
   },
 
   async startBatchUpload() {
-    let config = Storage.getVideoConfig();
-    const inputAccess = document.getElementById('archive-cfg-access-key')?.value.trim();
-    const inputSecret = document.getElementById('archive-cfg-secret-key')?.value.trim();
-    const inputId = document.getElementById('archive-cfg-identifier')?.value.trim();
-
-    if (inputAccess || inputSecret) {
-      config = Storage.saveVideoConfig({
-        archiveAccessKey: inputAccess || config.archiveAccessKey,
-        archiveSecretKey: inputSecret || config.archiveSecretKey,
-        archiveIdentifier: inputId || config.archiveIdentifier || 'tinhoc-hub-thpt'
-      });
-      await CloudSync.pushVideoConfigToCloud(config);
-    }
-
-    if (!config.archiveAccessKey || !config.archiveSecretKey) {
-      await CloudSync.syncVideoConfig();
-      config = Storage.getVideoConfig();
-    }
-
-    if (!config.archiveAccessKey || !config.archiveSecretKey) {
-      alert('Vui lòng nhập Archive.org S3 Access Key và Secret Key trước khi tải lên!\n(Đăng nhập https://archive.org/account/s3.php để lấy khóa miễn phí).');
-      document.getElementById('archive-cfg-access-key')?.focus();
-      return;
-    }
-
+    const config = Storage.getVideoConfig();
     const manifestVideos = this.getManifestVideos();
     const queue = [];
 
@@ -3102,7 +3057,7 @@ export const AdminManager = {
       return;
     }
 
-    const confirmMsg = `Chuẩn bị tải lên ${queue.length} video bài giảng lên Archive.org (${config.archiveIdentifier || 'tinhoc-hub-thpt'}).\nBạn có muốn bắt đầu ngay?`;
+    const confirmMsg = `Chuẩn bị tải ${queue.length} video bài giảng lên Archive.org (${config.archiveIdentifier || 'tinhoc-hub-thpt'}) qua Worker.\nBạn có muốn bắt đầu ngay?`;
     if (!confirm(confirmMsg)) return;
 
     this.uploadQueue = queue;
@@ -3131,12 +3086,12 @@ export const AdminManager = {
       this.render();
 
       if (stats.successCount === 0) {
-        const firstErr = stats.failures[0] || 'Lỗi mạng hoặc Archive.org từ chối xác thực';
-        alert(`❌ TẢI LÊN THẤT BẠI!\n\nKhông có video nào được lưu trên Archive.org (${stats.failedCount} video lỗi).\nNguyên nhân: ${firstErr}\n\n👉 Vui lòng bấm nút "Kiểm Tra Khóa S3" trong bảng cấu hình để xác thực lại cặp khóa.`);
+        const firstErr = stats.failures[0] || 'Lỗi mạng hoặc Worker từ chối xác thực';
+        alert(`❌ TẢI LÊN THẤT BẠI!\n\nKhông có video nào được lưu trên Archive.org (${stats.failedCount} video lỗi).\nNguyên nhân: ${firstErr}\n\n👉 Vui lòng bấm nút "Kiểm Tra Kết Nối S3 Worker" để xác thực cấu hình máy chủ.`);
       } else if (stats.failedCount > 0) {
         alert(`⚠️ Đã tải lên thành công ${stats.successCount} / ${stats.totalCount} video.\nCó ${stats.failedCount} video bị lỗi (xem chi tiết ở cột Trạng thái bên dưới).`);
       } else {
-        alert(`🎉 Chúc mừng! Đã tải lên thành công trọn vẹn ${stats.successCount} video bài giảng lên Archive.org!\nHọc sinh trên mọi thiết bị có thể bấm xem ngay bây giờ.`);
+        alert(`🎉 Chúc mừng! Đã tải lên thành công trọn vẹn ${stats.successCount} video bài giảng lên Archive.org qua Worker!\nHọc sinh trên mọi thiết bị có thể bấm xem ngay bây giờ.`);
       }
       return;
     }
@@ -3168,14 +3123,14 @@ export const AdminManager = {
       this.uploadProgressStats.failures.push(err.message);
       this.updateRowStatus(item.videoName, 'error', err.message);
 
-      // Nếu lỗi từ chối xác thực khóa S3 (401 hoặc 403 Forbidden / InvalidAccessKeyId)
+      // Nếu lỗi từ chối xác thực khóa S3 (401 hoặc 403 Forbidden / InvalidAccessKeyId / chưa cấu hình)
       const errStr = (err.message || '').toLowerCase();
-      if (errStr.includes('403') || errStr.includes('401') || errStr.includes('invalidaccesskey') || errStr.includes('accessdenied')) {
+      if (errStr.includes('403') || errStr.includes('401') || errStr.includes('invalidaccesskey') || errStr.includes('accessdenied') || errStr.includes('chưa được cấu hình')) {
         this.isUploading = false;
         this.currentUploadingName = null;
         this.uploadQueue = [];
         this.render();
-        alert(`❌ LỖI XÁC THỰC S3 ARCHIVE.ORG!\n\nChi tiết: ${err.message}\n\nNguyên nhân: Khóa S3 Access Key hoặc Secret Key của bạn chưa hợp lệ hoặc bị Archive.org từ chối.\n👉 Hãy đăng nhập https://archive.org/account/s3.php để copy đúng Access Key và Secret Key, dán vào ô cấu hình rồi bấm "Kiểm Tra Khóa S3" trước khi tải lại.`);
+        alert(`❌ LỖI XÁC THỰC S3 ARCHIVE.ORG!\n\nChi tiết: ${err.message}\n\nNguyên nhân: Khóa S3 Access Key hoặc Secret Key trên Cloudflare Worker chưa hợp lệ hoặc phiên đăng nhập của bạn không có quyền Giáo viên / Quản trị viên.`);
         return;
       }
     }
@@ -3187,29 +3142,14 @@ export const AdminManager = {
   },
 
   async uploadSingleFile(videoName, file) {
-    let config = Storage.getVideoConfig();
-    const inputAccess = document.getElementById('archive-cfg-access-key')?.value.trim();
-    const inputSecret = document.getElementById('archive-cfg-secret-key')?.value.trim();
-    const inputId = document.getElementById('archive-cfg-identifier')?.value.trim();
-    if (inputAccess || inputSecret) {
-      config = Storage.saveVideoConfig({
-        archiveAccessKey: inputAccess || config.archiveAccessKey,
-        archiveSecretKey: inputSecret || config.archiveSecretKey,
-        archiveIdentifier: inputId || config.archiveIdentifier || 'tinhoc-hub-thpt'
-      });
-    }
-
-    if (!config.archiveAccessKey || !config.archiveSecretKey) {
-      alert('Vui lòng nhập Archive.org S3 Access Key và Secret Key trước khi tải lên!\n(Đăng nhập https://archive.org/account/s3.php để lấy khóa).');
-      return;
-    }
+    if (!file) return;
+    const confirmMsg = `Chuẩn bị tải lên video "${videoName}" lên Archive.org qua Worker.\nBạn có muốn tiếp tục?`;
+    if (!confirm(confirmMsg)) return;
 
     this.isUploading = true;
     this.currentUploadingName = videoName;
-    this.updateRowStatus(videoName, 'uploading');
-
-    const globalProg = document.getElementById('archive-global-progress-bar');
-    if (globalProg) globalProg.classList.remove('hidden');
+    this.updateRowStatus(videoName, 'uploading', '0%');
+    this.render();
 
     try {
       await this.performS3Upload(videoName, file);
@@ -3222,10 +3162,11 @@ export const AdminManager = {
       Storage.saveVideoConfig(cfg);
       this.remoteArchiveFiles.add(videoName.toLowerCase());
       this.updateRowStatus(videoName, 'success');
-      alert(`✅ Tải lên video ${videoName} thành công lên Archive.org!`);
+      alert(`✅ Tải lên thành công video "${videoName}" lên Archive.org qua Worker!`);
     } catch (err) {
+      console.error(`Lỗi tải lên ${videoName}:`, err);
       this.updateRowStatus(videoName, 'error', err.message);
-      alert(`❌ Lỗi tải lên: ${err.message}`);
+      alert(`❌ Tải lên thất bại: ${err.message}`);
     } finally {
       this.isUploading = false;
       this.currentUploadingName = null;
@@ -3234,74 +3175,66 @@ export const AdminManager = {
   },
 
   performS3Upload(videoName, file, lessonName = '') {
-    return new Promise((resolve, reject) => {
-      const config = Storage.getVideoConfig();
-      const identifier = config.archiveIdentifier || 'tinhoc-hub-thpt';
-      const targetUrl = `https://s3.us.archive.org/${encodeURIComponent(identifier)}/${encodeURIComponent(videoName)}`;
-
-      const xhr = new XMLHttpRequest();
-      this.currentXhr = xhr;
-
-      const startTime = Date.now();
-
-      // Tiêu đề metadata trên Archive.org phải mã hóa dạng uri(...) để tuân thủ chuẩn ISO-8859-1 của HTTP Header
-      const rawTitle = `Bài giảng Tin học THPT - ${lessonName || videoName}`;
-      const safeTitle = `uri(${encodeURIComponent(rawTitle)})`;
-
+    return new Promise(async (resolve, reject) => {
       try {
-        xhr.open('PUT', targetUrl, true);
-        xhr.setRequestHeader('Authorization', `LOW ${config.archiveAccessKey}:${config.archiveSecretKey}`);
-        xhr.setRequestHeader('x-amz-auto-make-bucket', '1');
-        xhr.setRequestHeader('x-archive-meta-mediatype', 'movies');
-        xhr.setRequestHeader('x-archive-meta-collection', 'opensource_movies');
-        xhr.setRequestHeader('x-archive-meta-title', safeTitle);
-        xhr.setRequestHeader('x-archive-ignore-preexisting-bucket', '1');
-        xhr.setRequestHeader('Content-Type', 'video/mp4');
-      } catch (headerErr) {
-        return reject(new Error(`Lỗi tạo Header HTTP: ${headerErr.message}`));
-      }
+        const url = `/api/archive/upload/${encodeURIComponent(videoName)}?lesson=${encodeURIComponent(lessonName || '')}`;
+        const idToken = await (typeof firebase !== 'undefined' && firebase.auth?.().currentUser
+          ? firebase.auth().currentUser.getIdToken()
+          : Promise.resolve(null));
 
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          const percent = Math.round((e.loaded / e.total) * 100);
-          const elapsed = (Date.now() - startTime) / 1000;
-          const speedBytes = elapsed > 0 ? e.loaded / elapsed : 0;
-          const speedMb = (speedBytes / (1024 * 1024)).toFixed(1);
-          this.updateGlobalProgress(percent, videoName, speedMb, e.loaded, e.total);
-          this.updateRowStatus(videoName, 'uploading', `${percent}%`);
+        if (!idToken) {
+          return reject(new Error('Người dùng chưa đăng nhập hoặc phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.'));
         }
-      };
 
-      xhr.onload = () => {
-        this.currentXhr = null;
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(true);
-        } else {
-          let detail = xhr.statusText || '';
-          try {
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xhr.responseText, 'text/xml');
-            const code = xmlDoc.querySelector('Code')?.textContent;
-            const msg = xmlDoc.querySelector('Message')?.textContent;
-            if (code || msg) {
-              detail = `${code || ''}: ${msg || ''}`.trim();
+        const xhr = new XMLHttpRequest();
+        this.currentXhr = xhr;
+
+        xhr.open('PUT', url, true);
+        xhr.setRequestHeader('Authorization', `Bearer ${idToken}`);
+        xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+
+        xhr.upload.onprogress = (evt) => {
+          if (evt.lengthComputable) {
+            const percent = Math.round((evt.loaded / evt.total) * 100);
+            this.updateGlobalProgress(percent, videoName, `${percent}%`, evt.loaded, evt.total);
+            this.updateRowStatus(videoName, 'uploading', `${percent}%`);
+          }
+        };
+
+        xhr.onload = () => {
+          this.currentXhr = null;
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const resData = JSON.parse(xhr.responseText);
+              resolve(resData);
+            } catch (e) {
+              resolve({ success: true, filename: videoName });
             }
-          } catch(e) {}
-          reject(new Error(`Archive.org phản hồi HTTP ${xhr.status} (${detail || 'Không thành công'})`));
-        }
-      };
+          } else {
+            let errMsg = `Mã lỗi HTTP ${xhr.status}`;
+            try {
+              const resData = JSON.parse(xhr.responseText);
+              if (resData.message) errMsg = resData.message;
+            } catch (e) {}
+            reject(new Error(errMsg));
+          }
+        };
 
-      xhr.onerror = () => {
+        xhr.onerror = () => {
+          this.currentXhr = null;
+          reject(new Error('Lỗi kết nối mạng khi tải lên máy chủ Cloudflare Worker'));
+        };
+
+        xhr.onabort = () => {
+          this.currentXhr = null;
+          reject(new Error('Đã hủy tải lên'));
+        };
+
+        xhr.send(file);
+      } catch (err) {
         this.currentXhr = null;
-        reject(new Error('Lỗi kết nối mạng đến s3.us.archive.org. Kiểm tra đường truyền Internet!'));
-      };
-
-      xhr.onabort = () => {
-        this.currentXhr = null;
-        reject(new Error('Tiến trình tải lên đã bị hủy'));
-      };
-
-      xhr.send(file);
+        reject(err);
+      }
     });
   },
 
@@ -3464,6 +3397,67 @@ export const AdminManager = {
     if (textCount) {
       const remaining = this.uploadQueue.length;
       textCount.textContent = `Còn ${remaining} video trong hàng đợi`;
+    }
+  },
+
+  async loadRoleRequests() {
+    try {
+      const dbUrl = CloudSync.getBaseUrl();
+      const res = await authedFetch(`${dbUrl}/role_requests.json`, { cache: 'no-cache' });
+      if (res && res.ok) {
+        const data = await res.json();
+        this.roleRequests = data ? Object.entries(data).map(([uid, val]) => ({ uid, ...val })) : [];
+      } else {
+        this.roleRequests = [];
+      }
+    } catch (e) {
+      console.warn('AdminManager.loadRoleRequests error:', e);
+      this.roleRequests = [];
+    }
+  },
+
+  async approveRoleRequest(reqUid, requestedRole, reqEmail = '') {
+    if (!reqUid) return;
+    const dbUrl = CloudSync.getBaseUrl();
+    try {
+      await authedFetch(`${dbUrl}/roles/${encodeURIComponent(reqUid)}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: requestedRole,
+          updatedAt: new Date().toISOString(),
+          approvedBy: Auth.currentUser?.uid || 'admin'
+        })
+      });
+
+      // Cập nhật cả ở storage local nếu có tài khoản này
+      Storage.updateAccountRole(reqEmail || reqUid, requestedRole);
+
+      // Xóa khỏi danh sách yêu cầu
+      await authedFetch(`${dbUrl}/role_requests/${encodeURIComponent(reqUid)}.json`, {
+        method: 'DELETE'
+      });
+
+      alert(`✅ Đã phê duyệt cấp quyền [${requestedRole === 'admin' ? 'Quản trị viên' : 'Giáo viên'}] thành công cho tài khoản!`);
+      await this.loadRoleRequests();
+      this.render();
+    } catch (e) {
+      alert(`⚠️ Lỗi khi phê duyệt: ${e.message}`);
+    }
+  },
+
+  async rejectRoleRequest(reqUid) {
+    if (!confirm('Bạn có chắc chắn muốn từ chối yêu cầu cấp quyền này không?')) return;
+    const dbUrl = CloudSync.getBaseUrl();
+    try {
+      await authedFetch(`${dbUrl}/role_requests/${encodeURIComponent(reqUid)}.json`, {
+        method: 'DELETE'
+      });
+      alert('Đã từ chối và xóa yêu cầu cấp quyền.');
+      await this.loadRoleRequests();
+      this.render();
+    } catch (e) {
+      alert(`⚠️ Lỗi khi từ chối: ${e.message}`);
     }
   }
 };

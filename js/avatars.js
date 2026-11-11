@@ -507,8 +507,43 @@ export function randomAvatarId() {
   return AVATARS[Math.floor(Math.random() * AVATARS.length)].id;
 }
 
-if (typeof window !== 'undefined') {
-  window.Avatars = { AVATARS, renderAvatar, renderAvatarSVG, getAvatar, randomAvatarId };
+/**
+ * Sinh chuỗi Data URL SVG cục bộ hoàn toàn cho ảnh đại diện,
+ * không cần gửi tên học sinh ra bên ngoài (chống rò rỉ dữ liệu học sinh).
+ */
+export function getAvatarDataUrl(nameOrId = 'HS', role = 'student') {
+  if (nameOrId && typeof nameOrId === 'string' && nameOrId.startsWith('data:image/svg+xml')) {
+    return nameOrId;
+  }
+
+  const avatarObj = AVATARS.find(a => a.id === nameOrId);
+  if (avatarObj) {
+    const svgStr = renderAvatarSVG(avatarObj.id);
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svgStr)}`;
+  }
+
+  const cleanName = String(nameOrId || 'HS').trim();
+  const words = cleanName.split(/\s+/).filter(Boolean);
+  let initials = 'HS';
+  if (words.length >= 2) {
+    initials = (words[0][0] + words[words.length - 1][0]).toUpperCase();
+  } else if (words.length === 1) {
+    initials = words[0].slice(0, 2).toUpperCase();
+  }
+
+  let bg = '#3b82f6';
+  if (role === 'admin') bg = '#ef4444';
+  else if (role === 'teacher') bg = '#8b5cf6';
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+    <rect width="100" height="100" rx="28" fill="${bg}"/>
+    <text x="50" y="58" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="38" font-weight="bold" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${initials}</text>
+  </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-export default { AVATARS, AVATAR_CATEGORIES, RARITY, renderAvatar, renderAvatarSVG, getAvatar, randomAvatarId };
+if (typeof window !== 'undefined') {
+  window.Avatars = { AVATARS, renderAvatar, renderAvatarSVG, getAvatar, randomAvatarId, getAvatarDataUrl };
+}
+
+export default { AVATARS, AVATAR_CATEGORIES, RARITY, renderAvatar, renderAvatarSVG, getAvatar, randomAvatarId, getAvatarDataUrl };

@@ -1,12 +1,13 @@
+import { ensureXLSX } from './lazy-libs.js?v=20261111_200';
 /**
  * tinhoc-hub: Questions Manager (Quản Lý Câu Hỏi)
  * Dành cho Giáo viên (GV) & Quản trị viên (Admin)
  * Cho phép: Thêm, Sửa, Xóa câu hỏi trong ngân hàng đề, lọc và tìm kiếm trực quan.
  */
 
-import { Storage } from './storage.js?v=20261102_100';
-import { Auth } from './auth.js?v=20261102_100';
-import { escapeHtml } from './utils.js?v=20261102_100';
+import { Storage } from './storage.js?v=20261111_200';
+import { Auth } from './auth.js?v=20261111_200';
+import { escapeHtml } from './utils.js?v=20261111_200';
 
 export const QuestionsManager = {
   container: null,
@@ -37,11 +38,8 @@ export const QuestionsManager = {
   // ==========================================
   // XUẤT FILE EXCEL MẪU CHUẨN ĐỂ GIÁO VIÊN NHẬP CÂU HỎI
   // ==========================================
-  downloadExcelTemplate() {
-    if (typeof XLSX === 'undefined') {
-      alert('Thư viện xử lý Excel chưa sẵn sàng. Vui lòng thử lại sau giây lát!');
-      return;
-    }
+  async downloadExcelTemplate() {
+    const XLSX = await ensureXLSX();
 
     // 1. Sheet Câu Hỏi Mẫu
     const rows = [
@@ -101,12 +99,9 @@ export const QuestionsManager = {
   // ==========================================
   // ĐỌC VÀ XỬ LÝ FILE EXCEL CÂU HỎI CỦA GIÁO VIÊN
   // ==========================================
-  importExcelFile(file) {
+  async importExcelFile(file) {
     if (!file) return;
-    if (typeof XLSX === 'undefined') {
-      alert('Thư viện xử lý Excel chưa sẵn sàng. Vui lòng thử lại sau giây lát!');
-      return;
-    }
+    const XLSX = await ensureXLSX();
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -523,18 +518,13 @@ ${mainTabContentHtml}
             Học sinh chỉ có quyền tham gia ôn tập và thi thử. Nếu Thầy/Cô là Giáo viên môn Tin học, vui lòng nhập mã xác thực Giáo viên để được cấp quyền quản lý ngân hàng câu hỏi.
           </p>
           <button id="btn-qm-open-upgrade" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-blue-500/20">
-            <i class="fa-solid fa-key mr-1.5"></i> Nhập mã kích hoạt Giáo viên
+            <i class="fa-solid fa-user-shield mr-1.5"></i> Yêu cầu cấp quyền Giáo viên
           </button>
         </div>
       `;
 
       this.container.querySelector('#btn-qm-open-upgrade')?.addEventListener('click', () => {
-        const code = prompt('Vui lòng nhập mã kích hoạt Giáo viên (Mặc định: GV2025):');
-        if (code) {
-          const res = Auth.upgradeRoleWithCode(code);
-          alert(res.message);
-          if (res.success) this.render();
-        }
+        document.getElementById('modal-upgrade-role')?.classList.remove('hidden');
       });
       return;
     }

@@ -3,24 +3,57 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261102_100';
-import { Practice } from './practice.js?v=20261102_100';
-import { Exam } from './exam.js?v=20261102_100';
-import { Search } from './search.js?v=20261102_100';
-import { PrintManager } from './print.js?v=20261102_100';
-import { Auth } from './auth.js?v=20261102_100';
-import { escapeHtml } from './utils.js?v=20261102_100';
-import { Leaderboard } from './leaderboard.js?v=20261102_100';
-import { QuestionsManager } from './questions-manager.js?v=20261102_100';
-import { AdminManager } from './admin-manager.js?v=20261102_100';
-import { ExamRooms } from './exam-rooms.js?v=20261102_100';
-import { Proctor } from './proctor.js?v=20261102_100';
-import { Gradebook } from './gradebook.js?v=20261102_100';
-import { CloudSync } from './cloud-sync.js?v=20261102_100';
-import { InteractiveVideo } from './interactive-video.js?v=20261102_100';
-import { LiveVideo } from './live-video.js?v=20261102_100';
-import Arena from './arena.js?v=20261102_100';
-import RandomPicker from './random-picker.js?v=20261102_100';
+import { Storage } from './storage.js?v=20261111_200';
+import { getAvatarDataUrl } from './avatars.js?v=20261111_200';
+import { authedFetch } from './api.js?v=20261111_200';
+import { Practice } from './practice.js?v=20261111_200';
+import { Exam } from './exam.js?v=20261111_200';
+import { Search } from './search.js?v=20261111_200';
+import { PrintManager } from './print.js?v=20261111_200';
+import { Auth } from './auth.js?v=20261111_200';
+import { escapeHtml } from './utils.js?v=20261111_200';
+import { Leaderboard } from './leaderboard.js?v=20261111_200';
+import { QuestionsManager } from './questions-manager.js?v=20261111_200';
+import { ExamRooms } from './exam-rooms.js?v=20261111_200';
+import { Proctor } from './proctor.js?v=20261111_200';
+import { Gradebook } from './gradebook.js?v=20261111_200';
+import { CloudSync } from './cloud-sync.js?v=20261111_200';
+
+// Dynamic loaders cho các module đồ sộ (chỉ tải khi mở tính năng tương ứng)
+async function getAdminManager() {
+  if (window.AdminManager) return window.AdminManager;
+  const mod = await import('./admin-manager.js?v=20261111_200');
+  window.AdminManager = mod.AdminManager;
+  return mod.AdminManager;
+}
+
+async function getInteractiveVideo() {
+  if (window.InteractiveVideo) return window.InteractiveVideo;
+  const mod = await import('./interactive-video.js?v=20261111_200');
+  window.InteractiveVideo = mod.InteractiveVideo;
+  return mod.InteractiveVideo;
+}
+
+async function getLiveVideo() {
+  if (window.LiveVideo) return window.LiveVideo;
+  const mod = await import('./live-video.js?v=20261111_200');
+  window.LiveVideo = mod.LiveVideo;
+  return mod.LiveVideo;
+}
+
+async function getArena() {
+  if (window.Arena) return window.Arena;
+  const mod = await import('./arena.js?v=20261111_200');
+  window.Arena = mod.default || mod.Arena;
+  return window.Arena;
+}
+
+async function getRandomPicker() {
+  if (window.RandomPicker) return window.RandomPicker;
+  const mod = await import('./random-picker.js?v=20261111_200');
+  window.RandomPicker = mod.default || mod.RandomPicker;
+  return window.RandomPicker;
+}
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
@@ -98,13 +131,6 @@ class App {
       }
     } catch (e) {}
 
-    // Tự động đẩy cấu hình S3 Archive.org lên máy chủ nếu client Admin đã lưu sẵn
-    try {
-      const vidCfg = Storage.getVideoConfig ? Storage.getVideoConfig() : null;
-      if (vidCfg && (vidCfg.archiveAccessKey || vidCfg.archiveSecretKey)) {
-        CloudSync.pushVideoConfigToCloud(vidCfg);
-      }
-    } catch (e) {}
 
     // Khóa giao diện và mở modal đăng nhập NGAY LẬP TỨC (không chờ nạp manifest / đề thi)
     this.enforceAuthentication();
@@ -201,7 +227,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261102_100');
+      const res = await fetch('data/manifest.json?v=20261111_200');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
@@ -438,20 +464,26 @@ class App {
         break;
       case 'interactive-video':
         document.getElementById('view-interactive-video')?.classList.remove('hidden');
-        await InteractiveVideo.init(
-          document.getElementById('view-interactive-video'),
-          this.manifest,
-          (g) => this.loadGradeData(g),
-          this.currentGrade
-        );
+        {
+          const iv = await getInteractiveVideo();
+          await iv.init(
+            document.getElementById('view-interactive-video'),
+            this.manifest,
+            (g) => this.loadGradeData(g),
+            this.currentGrade
+          );
+        }
         break;
       case 'arena':
         document.getElementById('view-arena')?.classList.remove('hidden');
-        await Arena.init(
-          document.getElementById('view-arena'),
-          this.manifest,
-          (g) => this.loadGradeData(g)
-        );
+        {
+          const ar = await getArena();
+          await ar.init(
+            document.getElementById('view-arena'),
+            this.manifest,
+            (g) => this.loadGradeData(g)
+          );
+        }
         break;
       case 'random-picker':
         if (!Auth.isTeacher() && !Auth.isAdmin()) {
@@ -460,11 +492,14 @@ class App {
           return;
         }
         document.getElementById('view-random-picker')?.classList.remove('hidden');
-        await RandomPicker.init(
-          document.getElementById('view-random-picker'),
-          this.manifest,
-          (g) => this.loadGradeData(g)
-        );
+        {
+          const rp = await getRandomPicker();
+          await rp.init(
+            document.getElementById('view-random-picker'),
+            this.manifest,
+            (g) => this.loadGradeData(g)
+          );
+        }
         break;
       case 'questions-manage':
         document.getElementById('view-questions-manage')?.classList.remove('hidden');
@@ -473,7 +508,10 @@ class App {
         break;
       case 'admin-system':
         document.getElementById('view-admin-system')?.classList.remove('hidden');
-        AdminManager.init(document.getElementById('admin-system-area'), this.manifest);
+        {
+          const am = await getAdminManager();
+          am.init(document.getElementById('admin-system-area'), this.manifest);
+        }
         break;
     }
   }
@@ -668,12 +706,12 @@ class App {
                 ${Object.keys(t.lessons || {}).length} bài học
               </span>
               <h4 class="text-sm font-bold text-slate-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition line-clamp-2 mb-2">
-                ${t.name}
+                ${escapeHtml(t.name)}
               </h4>
             </div>
             <div class="pt-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
               <span class="text-xs text-slate-400 font-medium">${t.total} câu hỏi</span>
-              <button data-practice-topic="${t.name}" class="text-xs font-bold text-blue-600 dark:text-blue-400 group-hover:translate-x-1 transition flex items-center gap-1">
+              <button data-practice-topic="${escapeHtml(t.name)}" class="text-xs font-bold text-blue-600 dark:text-blue-400 group-hover:translate-x-1 transition flex items-center gap-1">
                 Luyện ngay <i class="fa-solid fa-arrow-right text-[10px]"></i>
               </button>
             </div>
@@ -817,7 +855,7 @@ class App {
     let activeLiveRoom = null;
     try {
       const dbUrl = CloudSync.getBaseUrl();
-      const res = await fetch(`${dbUrl}/live_video_rooms.json`, { cache: 'no-cache' });
+      const res = await authedFetch(`${dbUrl}/live_video_rooms.json`, { cache: 'no-cache' });
       if (res.ok) {
         const liveData = await res.json();
         if (liveData) {
@@ -1185,9 +1223,8 @@ class App {
     container.querySelectorAll('[data-home-join-live]').forEach(btn => {
       btn.onclick = async () => {
         const liveId = btn.getAttribute('data-home-join-live');
-        if (window.LiveVideo) {
-          await window.LiveVideo.handleJoinRoomSubmit(liveId);
-        }
+        const lv = await getLiveVideo();
+        await lv.handleJoinRoomSubmit(liveId);
       };
     });
 
@@ -2531,6 +2568,18 @@ class App {
     const gradeSelect = document.getElementById('print-cfg-grade');
     if (gradeSelect) gradeSelect.value = this.currentGrade;
 
+    const countSelect = document.getElementById('print-cfg-count');
+    const durationInput = document.getElementById('print-cfg-duration');
+    if (countSelect && durationInput) {
+      countSelect.onchange = () => {
+        if (countSelect.value === '28') durationInput.value = '50';
+        else if (countSelect.value === '40') durationInput.value = '60';
+        else if (countSelect.value === '30') durationInput.value = '45';
+        else if (countSelect.value === '20') durationInput.value = '30';
+        else if (countSelect.value === '50') durationInput.value = '90';
+      };
+    }
+
     const btnGeneratePrint = document.getElementById('btn-generate-print');
     if (btnGeneratePrint) {
       btnGeneratePrint.onclick = async () => {
@@ -2790,7 +2839,20 @@ class App {
           return;
         }
 
-        const res = Auth.registerUser({ fullName, grade, className, school, email, password, role, secretCode });
+        const submitBtn = formRegister.querySelector('button[type="submit"]');
+        const prevHtml = submitBtn ? submitBtn.innerHTML : '';
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Đang đăng ký...';
+        }
+
+        const res = await Auth.registerUser({ fullName, grade, className, school, email, password, role, secretCode });
+
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = prevHtml;
+        }
+
         if (!res.success) {
           alert(res.message);
           return;
@@ -2842,11 +2904,39 @@ class App {
       });
     }
 
-    // Nút mở modal nâng cấp vai trò bằng mã xác thực
+    // Nút mở modal nâng cấp vai trò
     const btnOpenUpgrade = document.getElementById('btn-open-upgrade-role');
     const modalUpgrade = document.getElementById('modal-upgrade-role');
     const formUpgrade = document.getElementById('form-upgrade-role');
-    const inputSecretCode = document.getElementById('input-upgrade-secret-code');
+    const formActivateCode = document.getElementById('form-activate-role-code');
+    const inputRoleCode = document.getElementById('input-role-activation-code');
+    const tabBtnCode = document.getElementById('tab-btn-upgrade-code');
+    const tabBtnRequest = document.getElementById('tab-btn-upgrade-request');
+    const btnToggleCode = document.getElementById('btn-toggle-role-code');
+
+    if (btnToggleCode && inputRoleCode) {
+      btnToggleCode.addEventListener('click', () => {
+        const isPass = inputRoleCode.type === 'password';
+        inputRoleCode.type = isPass ? 'text' : 'password';
+        btnToggleCode.innerHTML = isPass ? '<i class="fa-solid fa-eye-slash"></i>' : '<i class="fa-solid fa-eye"></i>';
+      });
+    }
+
+    if (tabBtnCode && tabBtnRequest && formActivateCode && formUpgrade) {
+      tabBtnCode.addEventListener('click', () => {
+        tabBtnCode.className = 'pb-2.5 border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 px-3 flex items-center gap-1.5 transition';
+        tabBtnRequest.className = 'pb-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 px-3 flex items-center gap-1.5 transition';
+        formActivateCode.classList.remove('hidden');
+        formUpgrade.classList.add('hidden');
+      });
+
+      tabBtnRequest.addEventListener('click', () => {
+        tabBtnRequest.className = 'pb-2.5 border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 px-3 flex items-center gap-1.5 transition';
+        tabBtnCode.className = 'pb-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 px-3 flex items-center gap-1.5 transition';
+        formUpgrade.classList.remove('hidden');
+        formActivateCode.classList.add('hidden');
+      });
+    }
 
     if (btnOpenUpgrade) {
       btnOpenUpgrade.addEventListener('click', () => {
@@ -2856,19 +2946,67 @@ class App {
           return;
         }
         modalUpgrade?.classList.remove('hidden');
-        if (inputSecretCode) inputSecretCode.value = '';
+        if (inputRoleCode) inputRoleCode.value = '';
+      });
+    }
+
+    // Xử lý nộp mã kích hoạt vai trò qua Worker API
+    if (formActivateCode) {
+      formActivateCode.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const code = inputRoleCode?.value?.trim() || '';
+        if (!code) {
+          alert('Vui lòng nhập mã kích hoạt vai trò!');
+          return;
+        }
+
+        const submitBtn = formActivateCode.querySelector('button[type="submit"]');
+        const prevHtml = submitBtn ? submitBtn.innerHTML : '';
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Đang xác thực qua Worker...';
+        }
+
+        const res = await Auth.activateRoleWithCode(code);
+
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = prevHtml;
+        }
+
+        alert(res.message);
+        if (res.success) {
+          modalUpgrade?.classList.add('hidden');
+          if (inputRoleCode) inputRoleCode.value = '';
+          this.updateRolePermissionsUI(Auth.currentUser);
+        }
       });
     }
 
     if (formUpgrade) {
-      formUpgrade.addEventListener('submit', (e) => {
+      formUpgrade.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const code = inputSecretCode?.value || '';
-        const res = Auth.upgradeRoleWithCode(code);
+        const requestedRole = document.getElementById('input-upgrade-requested-role')?.value || 'teacher';
+        const school = document.getElementById('input-upgrade-school')?.value || '';
+        const reason = document.getElementById('input-upgrade-reason')?.value || '';
+
+        const submitBtn = formUpgrade.querySelector('button[type="submit"]');
+        const prevHtml = submitBtn ? submitBtn.innerHTML : '';
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Đang gửi yêu cầu...';
+        }
+
+        const res = await Auth.requestRoleUpgrade({ requestedRole, school, reason });
+
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = prevHtml;
+        }
+
         alert(res.message);
         if (res.success) {
           modalUpgrade?.classList.add('hidden');
-          this.switchTab(res.role === 'admin' ? 'admin-system' : 'questions-manage');
         }
       });
     }
@@ -3110,6 +3248,22 @@ class App {
     }
 
     // Nút bật/tắt xem mật khẩu trên form đăng nhập & đăng ký
+    // Nút Quên mật khẩu
+    const btnForgot = document.getElementById('btn-forgot-password');
+    if (btnForgot) {
+      btnForgot.addEventListener('click', async () => {
+        const currentEmail = document.getElementById('login-input-identity')?.value?.trim() || '';
+        const email = prompt('Vui lòng nhập địa chỉ Email của bạn để nhận liên kết khôi phục mật khẩu:', currentEmail);
+        if (email === null) return;
+        if (!email.trim() || !email.includes('@')) {
+          alert('Vui lòng nhập đúng định dạng email (ví dụ: hocsinh@gmail.com)!');
+          return;
+        }
+        const res = await Auth.sendPasswordReset(email.trim());
+        alert(res.message);
+      });
+    }
+
     const btnToggleLoginPwd = document.getElementById('btn-toggle-login-pwd');
     if (btnToggleLoginPwd) {
       btnToggleLoginPwd.onclick = () => {
@@ -3263,7 +3417,7 @@ class App {
 
     section.classList.remove('hidden');
     listEl.innerHTML = accounts.slice(0, 5).map(acc => {
-      const avatar = acc.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(acc.fullName || 'HS')}&background=${acc.role === 'admin' ? 'ef4444' : (acc.role === 'teacher' ? '8b5cf6' : '3b82f6')}&color=fff`;
+      const avatar = acc.avatar || getAvatarDataUrl(acc.fullName || 'HS', acc.role);
       let roleLabel = 'Học sinh';
       let roleBg = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
       if (acc.role === 'admin') {
@@ -3412,7 +3566,7 @@ class App {
           alert('Chức năng tạo phòng học video trực tuyến chỉ dành riêng cho Giáo viên (GV) và Quản trị viên (Admin)!\nHọc sinh chỉ có quyền tham gia phòng học do Thầy/Cô cung cấp.');
           return;
         }
-        if (window.LiveVideo) window.LiveVideo.openCreateModal();
+        const lv = await getLiveVideo(); lv.openCreateModal();
       });
     }
 

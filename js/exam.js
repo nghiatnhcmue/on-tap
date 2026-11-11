@@ -3,10 +3,11 @@
  * Hỗ trợ đề chuẩn Bộ GD&ĐT 2025, kiểm tra định kỳ 15p, 45p và tùy biến đề thi
  */
 
-import { Storage } from './storage.js?v=20261102_100';
-import { Auth } from './auth.js?v=20261102_100';
-import { escapeHtml } from './utils.js?v=20261102_100';
-import { Proctor } from './proctor.js?v=20261102_100';
+import { Storage } from './storage.js?v=20261111_200';
+import { Auth } from './auth.js?v=20261111_200';
+import { escapeHtml } from './utils.js?v=20261111_200';
+import { Proctor } from './proctor.js?v=20261111_200';
+import { authedFetch } from './api.js?v=20261111_200';
 
 export const Exam = {
   questions: [],
@@ -993,7 +994,7 @@ export const Exam = {
   },
 
   // --- NỘP BÀI & CHẤM ĐIỂM ---
-  submitExam(isForced = false, forceReason = '', forcedLogs = null) {
+  async submitExam(isForced = false, forceReason = '', forcedLogs = null) {
     if (this.timerInterval) clearInterval(this.timerInterval);
     document.body.classList.remove('in-exam');
     this.examState = 'submitted';
@@ -1007,103 +1008,173 @@ export const Exam = {
     }
 
     const timeSpent = this.isUnlimitedTime ? (this.elapsedSeconds || 0) : (this.totalSeconds - Math.max(0, this.remainingSeconds));
-    let totalScore = 0;
-    let part1Score = 0;
-    let part2Score = 0;
-    let correctCount = 0;
-    const details = [];
-
-    // Tính điểm dựa theo cấu trúc đề
-    const isBgdFormat = (this.examConfig.type === 'bgd_2025');
-
-    this.examQuestions.forEach(q => {
-      const userAns = this.userAnswers[q.id];
-      let itemScore = 0;
-      let isCorrect = false;
-
-      if (['1', '2', '3', '4'].includes(q.level)) {
-        // Trắc nghiệm nhiều lựa chọn: 24 câu = 6.0 điểm (mỗi câu 0.25đ)
-        const correctAns = q.displayAnswer || q.answer;
-        const chosen = userAns ? userAns.chosen : null;
-        if (chosen === correctAns) {
-          isCorrect = true;
-          correctCount++;
-          itemScore = isBgdFormat ? 0.25 : (10 / this.examQuestions.length);
-        }
-        part1Score += itemScore;
-        details.push({
-          question: q,
-          userChoice: chosen,
-          correctAnswer: correctAns,
-          isCorrect,
-          score: itemScore
-        });
-      } else if (q.level === 'DS') {
-        // Đúng / Sai: 4 câu = 4.0 điểm
-        // Quy chế chuẩn Bộ GD&ĐT: 1 ý = 0.1đ | 2 ý = 0.25đ | 3 ý = 0.5đ | 4 ý = 1.0đ
-        const correctParts = (q.answer || 'Đ,Đ,Đ,Đ').split(',');
-        const choices = (userAns && userAns.choices) ? userAns.choices : ['', '', '', ''];
-        let correctSub = 0;
-        for (let i = 0; i < 4; i++) {
-          if (choices[i] && choices[i] === correctParts[i]) {
-            correctSub++;
-          }
-        }
-        const pointMap = [0, 0.1, 0.25, 0.5, 1.0];
-        itemScore = pointMap[correctSub];
-        isCorrect = (correctSub === 4);
-        if (correctSub >= 2) correctCount += (correctSub / 4);
-        part2Score += itemScore;
-
-        details.push({
-          question: q,
-          choices,
-          correctParts,
-          correctSub,
-          isCorrect,
-          score: itemScore
-        });
-      } else if (q.level === 'TLN') {
-        // Trả lời ngắn (dành cho kiểm tra riêng nếu có)
-        const inputVal = (userAns && userAns.input) ? userAns.input.trim() : '';
-        const normUser = inputVal.toLowerCase().replace(/\s+/g, '');
-        const normAns = (q.answer || '').toLowerCase().replace(/\s+/g, '');
-        if (normUser && normUser === normAns) {
-          isCorrect = true;
-          correctCount++;
-          itemScore = isBgdFormat ? 0.25 : (10 / this.examQuestions.length);
-        }
-        details.push({
-          question: q,
-          userInput: inputVal,
-          correctAnswer: q.answer,
-          isCorrect,
-          score: itemScore
-        });
-      }
-
-      totalScore += itemScore;
-
-      // Tự động ghi nhận câu thành thạo (Mastered) hoặc câu hay sai (Wrong)
-      if (isCorrect) {
-        Storage.recordMasteredQuestion(q.id, q.grade, q.topic, q.lesson);
-      } else {
-        Storage.removeMasteredQuestion(q.id);
-        Storage.recordWrongQuestion(q);
-      }
-    });
-
-    // Giới hạn điểm từ 0 đến 10, làm tròn 2 chữ số thập phân
-    totalScore = Math.min(10, Math.max(0, Math.round(totalScore * 100) / 100));
-
     const isDisqualified = this.isDisqualified || isForced;
     const disqualifiedReason = this.disqualifiedReason || forceReason || '';
     const violationLogs = forcedLogs || (this.isProctored ? Proctor.violationLogs : []);
     const violationCount = this.isProctored ? Proctor.violationCount : 0;
-
     const user = Auth.currentUser;
 
+    // Hiển thị giao diện nộp bài đang chấm điểm
+    if (this.container) {
+      this.container.innerHTML = `
+        <div class="py-24 text-center space-y-4 animate-fadeIn">
+          <div class="w-16 h-16 rounded-3xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-3xl mx-auto shadow-sm">
+            <i class="fa-solid fa-spinner fa-spin"></i>
+          </div>
+          <h3 class="text-base font-bold text-slate-800 dark:text-white">
+            Đang nộp bài và chấm điểm trên máy chủ...
+          </h3>
+          <p class="text-xs text-slate-400 max-w-md mx-auto">
+            Hệ thống đang đối chiếu bài làm với ngân hàng đề và tính điểm tự động theo quy chế Bộ GD&ĐT.
+          </p>
+        </div>
+      `;
+    }
+
+    let totalScore = 0;
+    let rawScore = 0;
+    let part1Score = 0;
+    let part2Score = 0;
+    let correctCount = 0;
+    let details = [];
+    let submissionId = null;
+    let isSyncedByWorker = false;
+    let serverGraded = false;
+
+    // Chuẩn bị payload nộp bài gửi lên Cloudflare Worker
+    const payload = {
+      roomId: this.examConfig.roomId || null,
+      examConfig: this.examConfig,
+      examCode: this.examCode || '101',
+      timeSpentSeconds: timeSpent,
+      answers: this.userAnswers,
+      examQuestions: this.examQuestions.map(q => ({
+        id: q.id,
+        level: q.level,
+        options: q.options || q.displayOptions || []
+      })),
+      proctor: {
+        isProctored: this.isProctored,
+        violationCount,
+        violationLogs,
+        isDisqualified,
+        disqualifiedReason
+      },
+      studentName: user?.fullName || 'Thí sinh tự do',
+      studentClass: user?.className || '',
+      studentSchool: user?.school || ''
+    };
+
+    try {
+      const res = await authedFetch('/api/exam/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res && res.ok) {
+        const sRes = await res.json();
+        if (sRes && sRes.success) {
+          totalScore = sRes.score;
+          rawScore = sRes.rawScore;
+          part1Score = sRes.part1Score;
+          part2Score = sRes.part2Score;
+          correctCount = sRes.correctCount;
+          details = sRes.details || [];
+          submissionId = sRes.submissionId;
+          isSyncedByWorker = true;
+          serverGraded = true;
+        }
+      }
+    } catch (err) {
+      console.warn('Không thể kết nối Worker API, tự chấm ngoại tuyến:', err);
+    }
+
+    // Nếu không kết nối được Worker (học ngoại tuyến), fallback chấm cục bộ
+    if (!serverGraded) {
+      const isBgdFormat = (this.examConfig.type === 'bgd_2025');
+      this.examQuestions.forEach(q => {
+        const userAns = this.userAnswers[q.id];
+        let itemScore = 0;
+        let isCorrect = false;
+
+        if (['1', '2', '3', '4'].includes(q.level)) {
+          const correctAns = q.displayAnswer || q.answer;
+          const chosen = userAns ? (userAns.chosenLetter || userAns.chosen) : null;
+          if (chosen === correctAns) {
+            isCorrect = true;
+            correctCount++;
+            itemScore = isBgdFormat ? 0.25 : (10 / this.examQuestions.length);
+          }
+          part1Score += itemScore;
+          details.push({
+            questionId: q.id,
+            question: q,
+            userChoice: chosen,
+            correctAnswer: correctAns,
+            isCorrect,
+            score: itemScore
+          });
+        } else if (q.level === 'DS') {
+          const correctParts = (q.answer || 'Đ,Đ,Đ,Đ').split(',');
+          const choices = (userAns && userAns.choices) ? userAns.choices : ['', '', '', ''];
+          let correctSub = 0;
+          for (let i = 0; i < 4; i++) {
+            if (choices[i] && choices[i] === correctParts[i]) correctSub++;
+          }
+          const pointMap = [0, 0.1, 0.25, 0.5, 1.0];
+          itemScore = pointMap[correctSub];
+          isCorrect = (correctSub === 4);
+          if (correctSub >= 2) correctCount += (correctSub / 4);
+          part2Score += itemScore;
+          details.push({
+            questionId: q.id,
+            question: q,
+            choices,
+            correctParts,
+            correctSub,
+            isCorrect,
+            score: itemScore
+          });
+        } else if (q.level === 'TLN') {
+          const inputVal = (userAns && (userAns.input || userAns.userInput)) ? String(userAns.input || userAns.userInput).trim() : '';
+          const normUser = inputVal.toLowerCase().replace(/\s+/g, '');
+          const normAns = (q.answer || '').toLowerCase().replace(/\s+/g, '');
+          if (normUser && normUser === normAns) {
+            isCorrect = true;
+            correctCount++;
+            itemScore = isBgdFormat ? 0.25 : (10 / this.examQuestions.length);
+          }
+          details.push({
+            questionId: q.id,
+            question: q,
+            userInput: inputVal,
+            correctAnswer: q.answer,
+            isCorrect,
+            score: itemScore
+          });
+        }
+        totalScore += itemScore;
+      });
+
+      rawScore = Math.min(10, Math.max(0, Math.round(totalScore * 100) / 100));
+      totalScore = isDisqualified ? 0.0 : rawScore;
+    }
+
+    // Tự động ghi nhận câu thành thạo (Mastered) hoặc câu hay sai (Wrong)
+    details.forEach(item => {
+      const q = this.examQuestions.find(eq => eq.id === item.questionId) || item.question;
+      if (q) {
+        if (item.isCorrect) {
+          Storage.recordMasteredQuestion(q.id, q.grade, q.topic, q.lesson);
+        } else {
+          Storage.removeMasteredQuestion(q.id);
+          Storage.recordWrongQuestion(q);
+        }
+      }
+    });
+
     this.examResult = {
+      id: submissionId || ('exam_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6)),
       title: this.examConfig.title,
       type: this.examConfig.type,
       grade: this.examConfig.grade,
@@ -1114,8 +1185,8 @@ export const Exam = {
       selectedLessons: this.examConfig.selectedLessons || null,
       selectedTopics: this.examConfig.selectedTopics || null,
       resultDisplayMode: this.examConfig.resultDisplayMode || 'both',
-      score: isDisqualified ? 0.0 : totalScore,
-      rawScore: totalScore,
+      score: totalScore,
+      rawScore,
       part1Score: Math.round(part1Score * 100) / 100,
       part2Score: Math.round(part2Score * 100) / 100,
       totalQuestions: this.examQuestions.length,
@@ -1132,6 +1203,7 @@ export const Exam = {
       violationLogs,
       isDisqualified,
       disqualifiedReason,
+      isSyncedByWorker,
       details
     };
 

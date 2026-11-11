@@ -1,6 +1,37 @@
+# Version Control & Cloudflare Config
 .git/
 .gitignore
+.assetsignore
 .wrangler/
-convert_bank.py
+wrangler.jsonc
+wrangler.toml
+worker-configuration.d.ts
+database.rules.json
+firebase.json
+
+# Internal Documentation & Prompts
+AGENTS.md
+README.md
+spec.md
+prompt-antigravity.md
+plan-antigravity.md
+*.md
+
+# Internal Scripts & Tools
+worker/
+scripts/
+*.py
+__pycache__/
+
+# Source Question Bank Files
 Ngan Hang de.xlsx
 
+# Test & Scratch Directories
+test/
+scratch/
+
+# Secrets & Environment (Defense-in-depth)
+.env*
+*.secret
+service-account*.json
+node_modules/

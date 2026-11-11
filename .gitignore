@@ -4,6 +4,7 @@ Thumbs.db
 
 # Cloudflare Wrangler cache
 .wrangler/
+worker-configuration.d.ts
 
 # Python
 __pycache__/
@@ -13,3 +14,15 @@ __pycache__/
 # Temporary / Log files
 *.log
 scratch/
+
+# Secrets & Environment variables
+.env
+.env.*
+*.secret
+service-account*.json
+*accounts*.json
+*roles*.json
+*migration*.json
+
+# Dependencies
+node_modules/

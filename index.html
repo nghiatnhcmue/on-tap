@@ -14,13 +14,13 @@
   <meta property="og:title" content="TinHocHub - Cùng học Tin Học" />
   <meta property="og:description" content="Nền tảng học tập thông minh môn Tin học THPT với ngân hàng câu hỏi chọn lọc, bài giảng video tương tác và hệ thống thi trực tuyến hiện đại." />
   <meta property="og:url" content="https://on-tap.nghiaedu.workers.dev/" />
-  <meta property="og:image" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261102_103" />
-  <meta property="og:image:secure_url" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261102_103" />
+  <meta property="og:image" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261111_200" />
+  <meta property="og:image:secure_url" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261111_200" />
   <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="TinHocHub - Cùng học Tin Học" />
-  <meta property="og:image" content="https://on-tap.nghiaedu.workers.dev/assets/logo.png?v=20261102_103" />
+  <meta property="og:image" content="https://on-tap.nghiaedu.workers.dev/assets/logo.png?v=20261111_200" />
   <meta property="og:image:width" content="512" />
   <meta property="og:image:height" content="512" />
 
@@ -28,41 +28,25 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="TinHocHub - Cùng học Tin Học" />
   <meta name="twitter:description" content="Nền tảng học tập thông minh môn Tin học THPT với ngân hàng câu hỏi chọn lọc, bài giảng video tương tác và hệ thống thi trực tuyến hiện đại." />
-  <meta name="twitter:image" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261102_103" />
+  <meta name="twitter:image" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261111_200" />
 
   <!-- Schema.org / Microdata -->
   <meta itemprop="name" content="TinHocHub - Cùng học Tin Học" />
   <meta itemprop="description" content="Nền tảng học tập thông minh môn Tin học THPT với ngân hàng câu hỏi chọn lọc, bài giảng video tương tác và hệ thống thi trực tuyến hiện đại." />
-  <meta itemprop="image" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261102_103" />
+  <meta itemprop="image" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261111_200" />
 
   <!-- Favicon & App Icons -->
-  <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon.png?v=20261102_103" />
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=20261102_103" />
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=20261102_103" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon.png?v=20261111_200" />
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=20261111_200" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=20261111_200" />
+  <link rel="manifest" href="site.webmanifest" />
 
   <!-- Preconnect to video CDN (Archive.org & Google CDN) to accelerate media stream buffering -->
   <link rel="preconnect" href="https://archive.org" crossorigin />
   <link rel="dns-prefetch" href="https://archive.org" />
 
-  <!-- Tailwind CSS & Font Awesome -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              50: '#eff6ff',
-              500: '#3b82f6',
-              600: '#2563eb',
-              700: '#1d4ed8',
-            }
-          }
-        }
-      }
-    }
-  </script>
+  <!-- Tailwind CSS Compiled & Font Awesome -->
+  <link rel="stylesheet" href="css/tailwind.css?v=20261111_200" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   
   <!-- Canvas Confetti -->
@@ -75,18 +59,15 @@
   <!-- Google Identity Services (GIS - Fallback) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-  <!-- SheetJS (Excel .xlsx, .xls, .csv Parser) -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <!-- Mammoth (Word .docx Parser) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <!-- SheetJS & Mammoth được nạp trễ tự động theo nhu cầu qua js/lazy-libs.js -->
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261102_103" />
+  <link rel="stylesheet" href="css/style.css?v=20261111_200" />
 
     <!-- Auto Cache Buster & Purge Engine -->
   <script>
     (function() {
-      var CURRENT_BUILD = '20261102_103';
+      var CURRENT_BUILD = '20261111_200';
       try {
         var lastBuild = localStorage.getItem('tinhoc_build_ver');
         if (lastBuild && lastBuild !== CURRENT_BUILD) {
@@ -219,7 +200,7 @@
         });
 
         // Nạp động module Auth để mở Google Popup ngay lập tức
-        import('./js/auth.js?v=20261102_103').then(function(mod) {
+        import('./js/auth.js?v=20261111_200').then(function(mod) {
           if (mod && mod.Auth) {
             window.Auth = mod.Auth;
             mod.Auth.signInWithGoogleFirebase();
@@ -287,36 +268,6 @@
         }
       };
 
-      window.demoLoginQuick = function(role) {
-        if (window.Auth && typeof window.Auth.demoLogin === 'function') {
-          window.Auth.demoLogin(role);
-          document.documentElement.classList.add('is-authenticated');
-          document.documentElement.classList.remove('has-incomplete-profile');
-          var m = document.getElementById('modal-login');
-          if (m) m.classList.add('hidden');
-          if (window.AppInstance && typeof window.AppInstance.enforceAuthentication === 'function') {
-            window.AppInstance.enforceAuthentication();
-          }
-          return;
-        }
-        var demoUsers = {
-          student: { uid: 'demo_hs_01', email: 'hocsinh.demo@tinhoc.edu.vn', fullName: 'Nguyễn Văn An (HS Mẫu)', role: 'student', grade: '12', school: 'TT GDNN GDTX Chu Văn An', className: '12A1', avatar: 'https://ui-avatars.com/api/?name=Nguyen+Van+An&background=3b82f6&color=fff' },
-          teacher: { uid: 'demo_gv_01', email: 'giaovien.demo@tinhoc.edu.vn', fullName: 'Thầy Nguyễn Trọng Nghĩa (GV)', role: 'teacher', school: 'TT GDNN GDTX Chu Văn An', grade: '12', className: '12A1', avatar: 'https://ui-avatars.com/api/?name=Trong+Nghia&background=8b5cf6&color=fff' },
-          admin: { uid: 'demo_admin_01', email: 'admin.demo@tinhoc.edu.vn', fullName: 'Quản Trị Viên Hệ Thống (Admin)', role: 'admin', school: 'Sở Giáo Dục & Đào Tạo', grade: '12', className: '12A1', avatar: 'https://ui-avatars.com/api/?name=Admin&background=ef4444&color=fff' }
-        };
-        var target = demoUsers[role] || demoUsers.student;
-        localStorage.setItem('tinhoc_user', JSON.stringify(target));
-        var accounts = [];
-        try {
-          var accStr = localStorage.getItem('tinhoc_accounts');
-          if (accStr) accounts = JSON.parse(accStr);
-        } catch(e) {}
-        if (!accounts.some(function(a) { return a.email === target.email; })) {
-          accounts.unshift(target);
-          localStorage.setItem('tinhoc_accounts', JSON.stringify(accounts));
-        }
-        location.reload();
-      };
 
       window.logoutAndOpenLogin = function() {
         localStorage.removeItem('tinhoc_user');
@@ -395,7 +346,7 @@
       
       <!-- Brand Logo -->
       <a href="#" data-tab-target="home" class="flex items-center gap-2 sm:gap-3 group shrink-0">
-        <img src="assets/logo-icon.png?v=20261102_103" alt="TinHocHub Logo" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl object-contain bg-white shadow-md shadow-blue-500/15 border border-slate-200/70 dark:border-slate-700 group-hover:scale-105 transition p-0.5" />
+        <img src="assets/logo-icon.png?v=20261111_200" alt="TinHocHub Logo" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl object-contain bg-white shadow-md shadow-blue-500/15 border border-slate-200/70 dark:border-slate-700 group-hover:scale-105 transition p-0.5" />
         <div>
           <span class="text-base sm:text-lg font-black tracking-tight text-blue-700 dark:text-blue-400 block leading-none">
             TinHoc<span class="text-emerald-500 dark:text-emerald-400">Hub</span>
@@ -466,7 +417,7 @@
                 <i class="fa-solid fa-print text-amber-500 w-4"></i> In đề thi chuẩn A4
               </button>
               <button data-tab-target="search" class="w-full text-left px-3 py-2.5 rounded-xl font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2.5 transition">
-                <i class="fa-solid fa-magnifying-glass text-blue-500 w-4"></i> Tra cứu 4.098 câu hỏi
+                <i class="fa-solid fa-magnifying-glass text-blue-500 w-4"></i> Tra cứu 4.062 câu hỏi
               </button>
               <div data-role-req="admin" class="hidden border-t border-slate-100 dark:border-slate-700 my-1 pt-1">
                 <button data-tab-target="admin-system" class="w-full text-left px-3 py-2.5 rounded-xl font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2.5 transition">
@@ -524,7 +475,7 @@
               <i class="fa-solid fa-crown text-amber-500 w-4"></i> Bảng vinh danh học sinh giỏi
             </button>
             <button id="btn-open-upgrade-role" data-role-req="student" class="w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
-              <i class="fa-solid fa-key text-amber-500 w-4"></i> Nhập mã kích hoạt GV / Admin
+              <i class="fa-solid fa-user-shield text-indigo-500 w-4"></i> Yêu cầu cấp quyền GV / Admin
             </button>
             <button data-tab-target="exam-rooms" data-role-req="teacher" class="hidden w-full text-left px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 font-medium">
               <i class="fa-solid fa-chalkboard-user text-emerald-600 w-4"></i> Quản lý phòng thi & giao đề
@@ -560,7 +511,7 @@
         </button>
 
         <!-- Mobile Menu Hamburger -->
-        <button id="btn-mobile-menu" class="lg:hidden p-2 sm:p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
+        <button id="btn-mobile-menu" aria-label="Mở menu điều hướng trên di động" class="lg:hidden p-2 sm:p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
           <i class="fa-solid fa-bars"></i>
         </button>
       </div>
@@ -699,7 +650,7 @@
                   <circle cx="35" cy="22" r="3.5" fill="#EF4444" opacity="0.8" />
                   <circle cx="46" cy="22" r="3.5" fill="#F59E0B" opacity="0.8" />
                   <circle cx="57" cy="22" r="3.5" fill="#10B981" opacity="0.8" />
-                  <text x="72" y="25" fill="rgba(255,255,255,0.5)" font-family="monospace" font-size="9" font-weight="bold">tinhoc-hub ~ exam-engine</text>
+                  <text x="72" y="25" fill="rgba(255,255,255,0.7)" font-family="sans-serif" font-size="9" font-weight="bold">TinHocHub • Hệ thống Thi thử</text>
                   <!-- Code lines illustration -->
                   <rect x="32" y="40" width="70" height="5" rx="2.5" fill="#60A5FA" opacity="0.9" />
                   <rect x="108" y="40" width="50" height="5" rx="2.5" fill="#A78BFA" opacity="0.8" />
@@ -738,7 +689,7 @@
                   </div>
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center justify-between">
-                      <span class="block text-sm sm:text-base font-black text-white"><span id="stat-total-q">4.098</span>+ Câu hỏi</span>
+                      <span class="block text-sm sm:text-base font-black text-white"><span id="stat-total-q">4.062</span>+ Câu hỏi</span>
                       <i class="fa-solid fa-arrow-right text-[11px] text-slate-400 group-hover:text-blue-300 group-hover:translate-x-1 transition"></i>
                     </div>
                     <span class="block text-[11px] text-slate-300 truncate">Trắc nghiệm 4 lựa chọn & Đúng / Sai</span>
@@ -785,7 +736,7 @@
               Trung Tâm Điều Phối & Quản Trị Dạy Học
             </h3>
             <p class="text-xs text-purple-200 mt-1">
-              Truy cập nhanh các công cụ tạo phòng thi, sổ điểm lớp, ngân hàng 4.098 câu hỏi và quản lý hệ thống.
+              Truy cập nhanh các công cụ tạo phòng thi, sổ điểm lớp, ngân hàng 4.062 câu hỏi và quản lý hệ thống.
             </p>
           </div>
           <div class="flex items-center gap-2">
@@ -839,7 +790,7 @@
             </div>
           </button>
 
-          <!-- Card 3: Ngân hàng 4.098 câu hỏi -->
+          <!-- Card 3: Ngân hàng 4.062 câu hỏi -->
           <button type="button" data-tab-target="questions-manage" class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 transition text-left group flex flex-col justify-between space-y-3">
             <div class="flex items-center justify-between">
               <div class="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center text-lg group-hover:scale-110 transition shadow-inner">
@@ -848,7 +799,7 @@
               <i class="fa-solid fa-arrow-right text-xs text-slate-400 group-hover:text-white group-hover:translate-x-1 transition"></i>
             </div>
             <div>
-              <h4 class="text-sm font-bold text-white group-hover:text-purple-300 transition">Ngân Hàng 4.098 Câu Hỏi</h4>
+              <h4 class="text-sm font-bold text-white group-hover:text-purple-300 transition">Ngân Hàng 4.062 Câu Hỏi</h4>
               <p class="text-[11px] text-slate-300 mt-1">Soạn câu hỏi mới, chỉnh sửa nội dung/đáp án, Import/Export JSON.</p>
             </div>
           </button>
@@ -1608,11 +1559,11 @@
             <div>
               <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Số câu hỏi</label>
               <select id="print-cfg-count" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold">
-                <option value="20">20 câu</option>
-                <option value="25">25 câu</option>
-                <option value="30">30 câu</option>
-                <option value="40" selected>40 câu (chuẩn)</option>
-                <option value="50">50 câu</option>
+                <option value="28" selected>28 câu / 50 phút (Chuẩn Bộ GD&ĐT 2025)</option>
+                <option value="40">40 câu (Đề tổng ôn kiến thức)</option>
+                <option value="30">30 câu (Đề kiểm tra 45 phút)</option>
+                <option value="20">20 câu (Đề kiểm tra ngắn 30 phút)</option>
+                <option value="50">50 câu (Đề luyện tập chuyên sâu 90 phút)</option>
               </select>
             </div>
           </div>
@@ -1620,7 +1571,7 @@
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100 dark:border-slate-700/60">
             <div>
               <label class="block text-xs font-bold text-slate-500 mb-1 uppercase">Thời gian (phút)</label>
-              <input type="number" id="print-cfg-duration" value="45" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold" />
+              <input type="number" id="print-cfg-duration" value="50" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold" />
             </div>
 
             <div class="sm:col-span-2 flex flex-wrap items-center gap-4 sm:gap-6 pt-4">
@@ -1736,13 +1687,13 @@
     <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative my-auto max-h-[92dvh] overflow-y-auto">
       
       <!-- Nút Đóng modal (chỉ hiển thị khi ĐÃ đăng nhập) -->
-      <button id="btn-close-login-modal" onclick="window.closeLoginModal(); return false;" data-close-modal="modal-login" class="hidden absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+      <button id="btn-close-login-modal" aria-label="Đóng cửa sổ đăng nhập" onclick="window.closeLoginModal(); return false;" data-close-modal="modal-login" class="hidden absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
       <!-- Header thương hiệu TinHocHub -->
       <div class="text-center mb-6">
-        <img src="assets/logo.png?v=20261102_103" alt="TinHocHub - Cùng học Tin Học" class="w-20 h-20 rounded-2xl object-contain bg-white mx-auto mb-3 shadow-lg shadow-blue-500/15 border border-slate-200/70 dark:border-slate-700 p-1" />
+        <img src="assets/logo.png?v=20261111_200" alt="TinHocHub - Cùng học Tin Học" class="w-20 h-20 rounded-2xl object-contain bg-white mx-auto mb-3 shadow-lg shadow-blue-500/15 border border-slate-200/70 dark:border-slate-700 p-1" />
         <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[10px] font-black uppercase tracking-wider mb-2">
           <i class="fa-solid fa-shield-halved text-[9px]"></i> Yêu cầu xác thực tài khoản
         </div>
@@ -1800,7 +1751,9 @@
               <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">
                 Mật khẩu: <span class="text-rose-500">*</span>
               </label>
-              <span class="text-[10px] text-slate-400">Bảo mật thông tin cá nhân</span>
+              <button type="button" id="btn-forgot-password" class="text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                Quên mật khẩu?
+              </button>
             </div>
             <div class="relative">
               <input type="password" id="login-input-password" required placeholder="Nhập mật khẩu của bạn..." class="w-full pl-9 pr-10 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -1947,8 +1900,8 @@
             <label class="block text-[11px] font-bold text-amber-900 dark:text-amber-200">
               Mã xác thực quyền Giáo viên / Quản trị viên <span class="text-rose-500">*</span>
             </label>
-            <input type="password" id="reg-input-secret" placeholder="Mặc định: GV2025 hoặc ADMIN2025" class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 rounded-lg text-xs font-mono font-bold text-slate-800 dark:text-white" />
-            <p class="text-[10px] text-amber-700 dark:text-amber-400">Giáo viên nhập GV2025, Admin nhập ADMIN2025</p>
+            <input type="password" id="reg-input-secret" placeholder="Nhập mã xác thực vai trò..." class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 rounded-lg text-xs font-mono font-bold text-slate-800 dark:text-white" />
+            <p class="text-[10px] text-amber-700 dark:text-amber-400">Vui lòng liên hệ Quản trị viên để nhận mã xác thực quyền Giáo viên / Quản trị viên.</p>
           </div>
 
           <button type="submit" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl text-xs font-black shadow-lg shadow-blue-500/25 transition flex items-center justify-center gap-2 mt-2">
@@ -1966,43 +1919,84 @@
     </div>
   </div>
 
-  <!-- ==================== MODAL: NHẬP MÃ KÍCH HOẠT VAI TRÒ GV / ADMIN ==================== -->
+  <!-- ==================== MODAL: YÊU CẦU CẤP QUYỀN GV / ADMIN ==================== -->
   <div id="modal-upgrade-role" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative">
-      <button data-close-modal="modal-upgrade-role" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+      <button data-close-modal="modal-upgrade-role" aria-label="Đóng cửa sổ nâng cấp quyền" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
       <div class="flex items-center gap-3 mb-4">
-        <div class="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 flex items-center justify-center text-lg shrink-0">
-          <i class="fa-solid fa-key"></i>
+        <div class="w-10 h-10 rounded-2xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 flex items-center justify-center text-lg shrink-0">
+          <i class="fa-solid fa-user-shield"></i>
         </div>
         <div>
           <h3 class="text-base font-bold text-slate-800 dark:text-white">
-            Kích Hoạt Vai Trò
+            Nâng Cấp Quyền Tài Khoản
           </h3>
-          <p class="text-xs text-slate-400">Nâng cấp tài khoản lên Giáo viên hoặc Admin</p>
+          <p class="text-xs text-slate-400">Kích hoạt nhanh bằng mã hoặc gửi yêu cầu phê duyệt</p>
         </div>
       </div>
 
-      <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
-        Nếu Thầy/Cô là Giáo viên bộ môn Tin học hoặc Quản trị viên, vui lòng nhập mã xác thực do nhà trường/tổ bộ môn cung cấp:
-      </p>
+      <!-- Tab chuyển đổi giữa Nhập Mã & Gửi Yêu Cầu -->
+      <div class="flex border-b border-slate-200 dark:border-slate-700 mb-4 text-xs font-bold">
+        <button type="button" id="tab-btn-upgrade-code" class="pb-2.5 border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 px-3 flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-key"></i> Nhập Mã Kích Hoạt
+        </button>
+        <button type="button" id="tab-btn-upgrade-request" class="pb-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 px-3 flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-paper-plane"></i> Gửi Yêu Cầu Duyệt
+        </button>
+      </div>
 
-      <form id="form-upgrade-role" class="space-y-4">
+      <!-- Tab 1: Kích hoạt nhanh bằng mã bí mật qua Worker API -->
+      <form id="form-activate-role-code" class="space-y-3.5">
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Mã xác thực vai trò</label>
-          <input type="password" id="input-upgrade-secret-code" required placeholder="Nhập mã bí mật..." class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Mã kích hoạt Giáo viên / Quản trị viên <span class="text-rose-500">*</span></label>
+          <div class="relative">
+            <input type="password" id="input-role-activation-code" required placeholder="Nhập mã bí mật được cấp bởi BQT..." class="w-full px-4 py-2.5 pr-10 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <button type="button" id="btn-toggle-role-code" aria-label="Hiện hoặc ẩn mã kích hoạt" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
         </div>
 
-        <div class="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300 space-y-1">
-          <p class="font-bold">Mã mặc định hệ thống:</p>
-          <p>• Giáo viên (GV): <code class="font-mono font-bold bg-white/60 dark:bg-black/30 px-1 py-0.5 rounded">GV2025</code></p>
-          <p>• Quản trị viên (Admin): <code class="font-mono font-bold bg-white/60 dark:bg-black/30 px-1 py-0.5 rounded">ADMIN2025</code></p>
+        <div class="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-800 dark:text-emerald-300 space-y-1">
+          <p class="font-semibold flex items-center gap-1"><i class="fa-solid fa-shield-halved"></i> Xác thực máy chủ an toàn:</p>
+          <p class="leading-relaxed">Mã kích hoạt được xác thực độc quyền trên Cloudflare Worker API. Sau khi kích hoạt thành công, vai trò Giáo viên hoặc Quản trị viên sẽ được cập nhật ngay lập tức.</p>
         </div>
 
-        <button type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs transition shadow-md shadow-blue-500/20">
-          Xác Nhận & Kích Hoạt
+        <button type="submit" id="btn-submit-role-code" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-2xl text-xs transition shadow-md shadow-blue-500/20 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-bolt text-xs"></i> Kích Hoạt Ngay Qua Máy Chủ
+        </button>
+      </form>
+
+      <!-- Tab 2: Gửi yêu cầu duyệt lên BQT (ẩn mặc định) -->
+      <form id="form-upgrade-role" class="hidden space-y-3.5">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Vai trò mong muốn <span class="text-rose-500">*</span></label>
+          <select id="input-upgrade-requested-role" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="teacher">Giáo viên (GV) - Tạo đề, phòng thi & sổ điểm</option>
+            <option value="admin">Quản trị viên (Admin) - Toàn quyền hệ thống</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Trường học / Đơn vị công tác</label>
+          <input type="text" id="input-upgrade-school" placeholder="Ví dụ: THPT Chu Văn An" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Ghi chú xác minh</label>
+          <textarea id="input-upgrade-reason" rows="2" placeholder="Ví dụ: Giáo viên bộ môn Tin học khối 12..." class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+        </div>
+
+        <div class="p-3 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-800 text-[11px] text-blue-700 dark:text-blue-300 space-y-1">
+          <p class="font-semibold"><i class="fa-solid fa-circle-info mr-1"></i> Quy trình phê duyệt:</p>
+          <p>Yêu cầu sẽ được chuyển đến Ban Quản Trị. Sau khi được duyệt, tài khoản của Thầy/Cô sẽ tự động mở các tính năng tương ứng.</p>
+        </div>
+
+        <button type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs transition shadow-md shadow-blue-500/20 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-paper-plane text-xs"></i> Gửi Yêu Cầu Tới Ban Quản Trị
         </button>
       </form>
     </div>
@@ -2104,7 +2098,7 @@
   <!-- ==================== MODAL: CÀI ĐẶT XÁC THỰC GOOGLE BẰNG FIREBASE AUTH ==================== -->
   <div id="modal-firebase-config" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[90dvh] overflow-y-auto">
-      <button data-close-modal="modal-firebase-config" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+      <button data-close-modal="modal-firebase-config" aria-label="Đóng cửa sổ cấu hình máy chủ" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
@@ -2190,7 +2184,7 @@
   <!-- ==================== MODAL: ĐĂNG NHẬP / ĐĂNG KÝ VỚI GOOGLE (GMAIL) ==================== -->
   <div id="modal-google-quick-prompt" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative">
-      <button data-close-modal="modal-google-quick-prompt" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+      <button data-close-modal="modal-google-quick-prompt" aria-label="Đóng hộp thoại đăng nhập nhanh" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
@@ -2242,7 +2236,7 @@
   <!-- ==================== MODAL: TẠO PHÒNG THI MỚI (GIAO ĐỀ THEO GIỜ & PASS) ==================== -->
   <div id="modal-create-exam-room" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[92dvh] overflow-y-auto space-y-5">
-      <button id="btn-close-room-modal" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+      <button id="btn-close-room-modal" aria-label="Đóng cửa sổ phòng thi" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
@@ -2758,7 +2752,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   <!-- ==================== MODAL: TỰ SOẠN CÂU HỎI MỚI DÀNH CHO GIÁO VIÊN KHI TẠO ĐỀ ==================== -->
   <div id="modal-manual-add-question" class="hidden fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-white dark:bg-slate-800 w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[92dvh] overflow-y-auto space-y-5 animate-scaleUp">
-      <button type="button" id="btn-close-manual-q-modal" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+      <button type="button" id="btn-close-manual-q-modal" aria-label="Đóng cửa sổ thêm câu hỏi" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
@@ -2971,7 +2965,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   <!-- ==================== MODAL: XEM BIÊN BẢN VI PHẠM (AUDIT LOGS) ==================== -->
   <div id="modal-violation-audit" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[90dvh] overflow-y-auto space-y-4">
-      <button data-close-modal="modal-violation-audit" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+      <button data-close-modal="modal-violation-audit" aria-label="Đóng cửa sổ nhật ký giám sát thi" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
@@ -3007,7 +3001,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   <!-- ==================== MODAL: HỌC BẠ ĐIỆN TỬ & THEO DÕI TIẾN TRÌNH HỌC SINH ==================== -->
   <div id="modal-student-progress" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[90dvh] overflow-y-auto space-y-5">
-      <button data-close-modal="modal-student-progress" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+      <button data-close-modal="modal-student-progress" aria-label="Đóng cửa sổ tiến độ học sinh" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
@@ -3097,7 +3091,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   <!-- ==================== MODAL: QUẢN LÝ & THIẾT LẬP CÂU HỎI DỪNG VIDEO TƯƠNG TÁC ==================== -->
   <div id="modal-video-question-editor" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-4xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[92dvh] overflow-y-auto space-y-6">
-      <button data-close-modal="modal-video-question-editor" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+      <button data-close-modal="modal-video-question-editor" aria-label="Đóng cửa sổ biên tập câu hỏi video" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
@@ -3273,7 +3267,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   <!-- ==================== MODAL: NHẬP URL VIDEO TÙY CHỈNH ==================== -->
   <div id="modal-video-custom-url" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative space-y-5">
-      <button data-close-modal="modal-video-custom-url" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+      <button data-close-modal="modal-video-custom-url" aria-label="Đóng cửa sổ liên kết video" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
@@ -3322,7 +3316,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   <!-- ==================== MODAL: QUẢN TRỊ VIÊN SỬA / THÊM TÀI KHOẢN ==================== -->
   <div id="modal-admin-user-editor" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto">
-      <button type="button" data-close-modal="modal-admin-user-editor" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+      <button type="button" data-close-modal="modal-admin-user-editor" aria-label="Đóng cửa sổ sửa thông tin tài khoản" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
@@ -3398,12 +3392,9 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
           </div>
         </div>
 
-        <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-            Mật khẩu mới
-            <span id="admin-user-edit-pass-hint" class="font-normal text-slate-400">(Để trống nếu giữ nguyên mật khẩu cũ)</span>
-          </label>
-          <input type="text" id="admin-user-edit-password" placeholder="Nhập mật khẩu mới nếu muốn đặt lại..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-xs font-mono text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <div class="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
+          <i class="fa-solid fa-shield-halved mr-1"></i>
+          <b>Bảo mật tài khoản:</b> Mật khẩu do Firebase Authentication quản lý an toàn. Học sinh có thể tự khôi phục mật khẩu qua liên kết "Quên mật khẩu?" tại màn hình đăng nhập.
         </div>
 
         <div class="pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-end gap-2.5">
@@ -3421,7 +3412,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   <!-- ==================== MODAL: CHỈNH SỬA KẾT QUẢ BÀI THI & ĐIỂM SỐ ==================== -->
   <div id="modal-admin-result-editor" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto">
-      <button type="button" data-close-modal="modal-admin-result-editor" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
+      <button type="button" data-close-modal="modal-admin-result-editor" aria-label="Đóng cửa sổ sửa kết quả bài thi" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
@@ -3544,7 +3535,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   <footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-8 no-print transition-colors">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center gap-4 text-xs text-slate-500 dark:text-slate-400">
       <div class="flex items-center gap-2">
-        <img src="assets/logo-icon.png?v=20261102_103" alt="TinHocHub" class="w-6 h-6 rounded-lg object-contain bg-white border border-slate-200 dark:border-slate-700 p-0.5" />
+        <img src="assets/logo-icon.png?v=20261111_200" alt="TinHocHub" class="w-6 h-6 rounded-lg object-contain bg-white border border-slate-200 dark:border-slate-700 p-0.5" />
         <span><strong>TinHocHub - Cùng học Tin Học</strong> • Nền tảng học tập & luyện thi Tin học THPT</span>
       </div>
 
@@ -3566,7 +3557,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261102_103"></script>
+  <script type="module" src="js/app.js?v=20261111_200"></script>
 </body>
 </html>
 

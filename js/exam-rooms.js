@@ -1,11 +1,12 @@
+import { ensureXLSX, ensureMammoth } from './lazy-libs.js?v=20261111_200';
 /**
  * TIN HỌC HUB - EXAM ROOMS & ASSIGNMENT CONTROLLER
  * Quản lý giao đề thi theo khung giờ, trường học, lớp học, mật khẩu và chống gian lận cho Giáo viên & Admin
  */
 
-import { Storage } from './storage.js?v=20261102_100';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261102_100';
-import { escapeHtml } from './utils.js?v=20261102_100';
+import { Storage } from './storage.js?v=20261111_200';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261111_200';
+import { escapeHtml } from './utils.js?v=20261111_200';
 
 export const ExamRooms = {
   container: null,
@@ -1323,7 +1324,8 @@ export const ExamRooms = {
         const reader = new FileReader();
         reader.onload = async (ev) => {
           try {
-            if (window.mammoth) {
+            const mammoth = await ensureMammoth();
+        if (mammoth) {
               const arrayBuffer = ev.target.result;
               const result = await window.mammoth.extractRawText({ arrayBuffer });
               const extractedText = result.value || '';
@@ -1376,7 +1378,8 @@ export const ExamRooms = {
         const reader = new FileReader();
         reader.onload = (ev) => {
           try {
-            if (window.XLSX) {
+            const XLSX = await ensureXLSX();
+        if (XLSX) {
               const data = new Uint8Array(ev.target.result);
               const workbook = window.XLSX.read(data, { type: 'array' });
               const firstSheetName = workbook.SheetNames[0];
@@ -1651,7 +1654,8 @@ Trí tuệ nhân tạo (AI) thường được ứng dụng phổ biến trong l
 
   // Tải file mẫu Excel (.xlsx) chuẩn
   downloadExcelTemplate() {
-    if (window.XLSX) {
+    const XLSX = await ensureXLSX();
+        if (XLSX) {
       try {
         const headers = ['Câu hỏi', 'Phương án A', 'Phương án B', 'Phương án C', 'Phương án D', 'Đáp án (A/B/C/D)', 'Mức độ (1-4 hoặc DS)', 'Chủ đề', 'Bài học'];
         const rows = [
