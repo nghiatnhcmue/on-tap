@@ -3449,11 +3449,17 @@ class App {
 
     listEl.querySelectorAll('[data-login-uid], [data-login-email]').forEach(btn => {
       btn.onclick = () => {
-        const uid = btn.getAttribute('data-login-uid');
-        const email = btn.getAttribute('data-login-email');
-        const res = Auth.loginWithSavedAccount(uid || email);
-        if (res.success) {
-          this.enforceAuthentication();
+        const email = btn.getAttribute('data-login-email') || '';
+        const identityInput = document.getElementById('login-input-identity');
+        const pwdInput = document.getElementById('login-input-password');
+        if (identityInput) {
+          identityInput.value = email;
+        }
+        if (typeof this.switchAuthModalTab === 'function') {
+          this.switchAuthModalTab('login');
+        }
+        if (pwdInput) {
+          pwdInput.focus();
         }
       };
     });

@@ -20,19 +20,35 @@ export async function getIdToken(forceRefresh = false) {
 
 export async function authedFetch(url, options = {}) {
   let finalUrl = String(url);
-  // Chỉ tự động đính kèm token xác thực khi request gửi tới Firebase Realtime Database
+  const token = await getIdToken();
+
+  // 1. Tự động đính kèm token xác thực vào Firebase Realtime Database (?auth=<token>)
   if (finalUrl.includes('firebasedatabase.app')) {
-    try {
-      const token = await getIdToken();
-      if (token) {
-        const separator = finalUrl.includes('?') ? '&' : '?';
-        finalUrl = `${finalUrl}${separator}auth=${encodeURIComponent(token)}`;
-      }
-    } catch (e) {
-      console.warn('Lỗi đính kèm auth token vào request RTDB:', e);
+    if (token) {
+      const separator = finalUrl.includes('?') ? '&' : '?';
+      finalUrl = `${finalUrl}${separator}auth=${encodeURIComponent(token)}`;
     }
   }
-  return fetch(finalUrl, options);
+
+  // 2. Tự động đính kèm Bearer ID Token vào các request gửi tới Cloudflare Worker API (/api/...)
+  const finalOptions = { ...options };
+  if (finalUrl.startsWith('/api/') || finalUrl.includes('/api/')) {
+    if (token) {
+      if (typeof Headers !== 'undefined' && finalOptions.headers instanceof Headers) {
+        if (!finalOptions.headers.has('Authorization')) {
+          finalOptions.headers.set('Authorization', `Bearer ${token}`);
+        }
+      } else {
+        const headers = { ...(finalOptions.headers || {}) };
+        if (!headers['Authorization'] && !headers['authorization']) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        finalOptions.headers = headers;
+      }
+    }
+  }
+
+  return fetch(finalUrl, finalOptions);
 }
 
 // Gán vào global window để hỗ trợ debug và tương thích đa ngữ cảnh

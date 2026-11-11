@@ -1192,33 +1192,10 @@ export const Auth = {
   },
 
   loginWithSavedAccount(uidOrEmail) {
-    const list = Storage.getAccountsList();
-    const target = list.find(u =>
-      (u.uid && u.uid === uidOrEmail) ||
-      (u.email && u.email.toLowerCase() === String(uidOrEmail).toLowerCase()) ||
-      (u.username && u.username.toLowerCase() === String(uidOrEmail).toLowerCase())
-    );
-    if (!target) {
-      return { success: false, message: 'Không tìm thấy tài khoản!' };
-    }
-    const hasProfile = Boolean((target.school && target.className) || target.profileCompleted || target.firstLoginDone);
-    const user = {
-      uid: target.uid || 'user_' + Date.now(),
-      username: target.username || (target.email ? target.email.split('@')[0] : ''),
-      email: target.email || '',
-      fullName: target.fullName,
-      avatar: target.avatar || getAvatarDataUrl(target.fullName, target.role),
-      grade: target.grade || '12',
-      className: target.className || '',
-      school: target.school || '',
-      role: target.role || 'student',
-      profileCompleted: hasProfile,
-      firstLoginDone: hasProfile,
-      profileUpdatedAt: target.profileUpdatedAt || null,
-      createdAt: target.createdAt || new Date().toISOString()
+    return {
+      success: false,
+      message: 'Vui lòng nhập mật khẩu tài khoản của bạn để đăng nhập an toàn qua Firebase Authentication!'
     };
-    this.saveUser(user);
-    return { success: true, user };
   },
 
   saveUser(user) {

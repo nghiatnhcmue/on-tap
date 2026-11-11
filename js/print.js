@@ -126,7 +126,9 @@ export const PrintManager = {
       ` : ''}
     `;
 
-    window.print();
+    if (typeof window !== 'undefined' && typeof window.print === 'function') {
+      window.print();
+    }
   }
 };
 
