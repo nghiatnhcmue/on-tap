@@ -3,54 +3,54 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261111_200';
-import { getAvatarDataUrl } from './avatars.js?v=20261111_200';
-import { authedFetch } from './api.js?v=20261111_200';
-import { Practice } from './practice.js?v=20261111_200';
-import { Exam } from './exam.js?v=20261111_200';
-import { Search } from './search.js?v=20261111_200';
-import { PrintManager } from './print.js?v=20261111_200';
-import { Auth } from './auth.js?v=20261111_200';
-import { escapeHtml } from './utils.js?v=20261111_200';
-import { Leaderboard } from './leaderboard.js?v=20261111_200';
-import { QuestionsManager } from './questions-manager.js?v=20261111_200';
-import { ExamRooms } from './exam-rooms.js?v=20261111_200';
-import { Proctor } from './proctor.js?v=20261111_200';
-import { Gradebook } from './gradebook.js?v=20261111_200';
-import { CloudSync } from './cloud-sync.js?v=20261111_200';
+import { Storage } from './storage.js?v=20261111_205';
+import { getAvatarDataUrl } from './avatars.js?v=20261111_205';
+import { authedFetch } from './api.js?v=20261111_205';
+import { Practice } from './practice.js?v=20261111_205';
+import { Exam } from './exam.js?v=20261111_205';
+import { Search } from './search.js?v=20261111_205';
+import { PrintManager } from './print.js?v=20261111_205';
+import { Auth } from './auth.js?v=20261111_205';
+import { escapeHtml } from './utils.js?v=20261111_205';
+import { Leaderboard } from './leaderboard.js?v=20261111_205';
+import { QuestionsManager } from './questions-manager.js?v=20261111_205';
+import { ExamRooms } from './exam-rooms.js?v=20261111_205';
+import { Proctor } from './proctor.js?v=20261111_205';
+import { Gradebook } from './gradebook.js?v=20261111_205';
+import { CloudSync } from './cloud-sync.js?v=20261111_205';
 
 // Dynamic loaders cho các module đồ sộ (chỉ tải khi mở tính năng tương ứng)
 async function getAdminManager() {
   if (window.AdminManager) return window.AdminManager;
-  const mod = await import('./admin-manager.js?v=20261111_200');
+  const mod = await import('./admin-manager.js?v=20261111_205');
   window.AdminManager = mod.AdminManager;
   return mod.AdminManager;
 }
 
 async function getInteractiveVideo() {
   if (window.InteractiveVideo) return window.InteractiveVideo;
-  const mod = await import('./interactive-video.js?v=20261111_200');
+  const mod = await import('./interactive-video.js?v=20261111_205');
   window.InteractiveVideo = mod.InteractiveVideo;
   return mod.InteractiveVideo;
 }
 
 async function getLiveVideo() {
   if (window.LiveVideo) return window.LiveVideo;
-  const mod = await import('./live-video.js?v=20261111_200');
+  const mod = await import('./live-video.js?v=20261111_205');
   window.LiveVideo = mod.LiveVideo;
   return mod.LiveVideo;
 }
 
 async function getArena() {
   if (window.Arena) return window.Arena;
-  const mod = await import('./arena.js?v=20261111_200');
+  const mod = await import('./arena.js?v=20261111_205');
   window.Arena = mod.default || mod.Arena;
   return window.Arena;
 }
 
 async function getRandomPicker() {
   if (window.RandomPicker) return window.RandomPicker;
-  const mod = await import('./random-picker.js?v=20261111_200');
+  const mod = await import('./random-picker.js?v=20261111_205');
   window.RandomPicker = mod.default || mod.RandomPicker;
   return window.RandomPicker;
 }
@@ -227,7 +227,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261111_200');
+      const res = await fetch('data/manifest.json?v=20261111_205');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
@@ -3409,18 +3409,27 @@ class App {
     const listEl = document.getElementById('saved-accounts-list');
     if (!section || !listEl) return;
 
-    const accounts = Storage.getAccountsList();
-    if (accounts.length === 0) {
+    const rawAccounts = Storage.getAccountsList();
+    if (rawAccounts.length === 0) {
       section.classList.add('hidden');
       return;
     }
 
+    // Sắp xếp ưu tiên tài khoản Admin và Giáo viên lên đầu danh sách
+    const accounts = [...rawAccounts].sort((a, b) => {
+      const isAAdmin = a.role === 'admin' || (a.email && a.email.toLowerCase().includes('nghiatnhcmue'));
+      const isBAdmin = b.role === 'admin' || (b.email && b.email.toLowerCase().includes('nghiatnhcmue'));
+      const scoreA = isAAdmin ? 3 : (a.role === 'teacher' ? 2 : 1);
+      const scoreB = isBAdmin ? 3 : (b.role === 'teacher' ? 2 : 1);
+      return scoreB - scoreA;
+    });
+
     section.classList.remove('hidden');
-    listEl.innerHTML = accounts.slice(0, 5).map(acc => {
+    listEl.innerHTML = accounts.slice(0, 15).map(acc => {
       const avatar = acc.avatar || getAvatarDataUrl(acc.fullName || 'HS', acc.role);
       let roleLabel = 'Học sinh';
       let roleBg = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
-      if (acc.role === 'admin') {
+      if (acc.role === 'admin' || (acc.email && acc.email.toLowerCase().includes('nghiatnhcmue'))) {
         roleLabel = 'Admin';
         roleBg = 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300';
       } else if (acc.role === 'teacher') {
@@ -3453,6 +3462,11 @@ class App {
         const email = btn.getAttribute('data-login-email');
         const res = Auth.loginWithSavedAccount(uid || email);
         if (res.success) {
+          const modalLogin = document.getElementById('modal-login');
+          if (modalLogin) {
+            modalLogin.classList.add('hidden');
+            modalLogin.style.setProperty('display', 'none', 'important');
+          }
           this.renderHome();
           this.enforceAuthentication();
         }

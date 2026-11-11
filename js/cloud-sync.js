@@ -10,8 +10,8 @@
  * 5. Cơ chế Local-First an toàn: Mất mạng vẫn làm bài bình thường, khi có mạng tự động đẩy dữ liệu lên đám mây.
  */
 
-import { Storage } from './storage.js?v=20261111_200';
-import { authedFetch } from './api.js?v=20261111_200';
+import { Storage } from './storage.js?v=20261111_205';
+import { authedFetch } from './api.js?v=20261111_205';
 
 const CLOUD_CONFIG_KEY = 'tinhoc_cloud_config';
 export const DEFAULT_FIREBASE_DB_URL = 'https://on-tap-nghiaedu-tin-hoc-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -389,7 +389,6 @@ export const CloudSync = {
           if (localMap.has(key)) { localMap.delete(key); updated = true; }
           return;
         }
-        if ('password' in remoteAcc) delete remoteAcc.password;
         const localAcc = localMap.get(cleanKey) || localMap.get(key);
         if (!localAcc) {
           localMap.set(cleanKey, remoteAcc);
@@ -400,11 +399,19 @@ export const CloudSync = {
           const localHasProfile = Boolean((localAcc.profileCompleted || localAcc.profileUpdatedAt) && localAcc.school && localAcc.className);
           const remoteTime = new Date(remoteAcc.profileUpdatedAt || remoteAcc.lastActive || 0).getTime();
           const localTime = new Date(localAcc.profileUpdatedAt || localAcc.lastActive || 0).getTime();
+          
+          const mergedAcc = { ...localAcc, ...remoteAcc };
+          if (!mergedAcc.password && localAcc.password) mergedAcc.password = localAcc.password;
+          if (!mergedAcc.password && remoteAcc.password) mergedAcc.password = remoteAcc.password;
+
           if ((remoteHasProfile && !localHasProfile) || (remoteHasProfile === localHasProfile && remoteTime > localTime)) {
-            localMap.set(cleanKey, { ...localAcc, ...remoteAcc });
+            localMap.set(cleanKey, mergedAcc);
             updated = true;
           } else if ((localHasProfile && !remoteHasProfile) || (remoteHasProfile === localHasProfile && localTime > remoteTime)) {
             this.pushAccountToCloud(localAcc).catch(() => {});
+          } else {
+            localMap.set(cleanKey, mergedAcc);
+            updated = true;
           }
         }
       });
@@ -435,7 +442,6 @@ export const CloudSync = {
     const url = this.getBaseUrl();
     try {
       const sanitizedUser = { ...user };
-      delete sanitizedUser.password;
       await authedFetch(`${url}/accounts/${key}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

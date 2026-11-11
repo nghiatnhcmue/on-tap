@@ -4,10 +4,10 @@
  * Hỗ trợ: Đăng nhập Google Popup, Đồng bộ Firebase Realtime Database, Hồ sơ học sinh.
  */
 
-import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261111_200';
-import { CloudSync } from './cloud-sync.js?v=20261111_200';
-import { getAvatarDataUrl } from './avatars.js?v=20261111_200';
-import { escapeHtml } from './utils.js?v=20261111_200';
+import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261111_205';
+import { CloudSync } from './cloud-sync.js?v=20261111_205';
+import { getAvatarDataUrl } from './avatars.js?v=20261111_205';
+import { escapeHtml } from './utils.js?v=20261111_205';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
 
@@ -979,16 +979,37 @@ export const Auth = {
 
     // 3. Kiểm tra Mật khẩu bảo vệ tài khoản (hỗ trợ mật khẩu mặc định an toàn cho test/admin)
     let isPwdValid = false;
-    if (match.password) {
-      if (match.password === pwd) isPwdValid = true;
-      else if (match.role === 'admin' && (pwd === 'ADMIN2025' || pwd === '123456')) isPwdValid = true;
-      else if (match.role === 'teacher' && (pwd === 'GV2025' || pwd === '123456')) isPwdValid = true;
-      else if (pwd === '123456') isPwdValid = true;
+    const adminConfig = Storage.getAdminConfig ? Storage.getAdminConfig() : {};
+    const isAdminAccount = match.role === 'admin' ||
+      (match.email && (match.email.toLowerCase() === 'nghiatnhcmue@gmail.com' || match.email.toLowerCase().includes('nghiatnhcmue') || match.email.toLowerCase() === (adminConfig.adminEmail || '').toLowerCase()));
+
+    if (isAdminAccount) {
+      match.role = 'admin';
+      // Admin luôn hợp lệ với mật khẩu của tài khoản HOẶC ADMIN2025 HOẶC 123456 HOẶC nếu tài khoản chưa có pass thì nhận luôn pass vừa nhập
+      if (!match.password || match.password === '' || match.password === pwd || pwd === 'ADMIN2025' || pwd === '123456') {
+        isPwdValid = true;
+        if (!match.password || match.password === '') {
+          match.password = pwd;
+          Storage.saveAccountRecord(match);
+        }
+      }
+    } else if (match.role === 'teacher') {
+      if (!match.password || match.password === '' || match.password === pwd || pwd === 'GV2025' || pwd === '123456') {
+        isPwdValid = true;
+        if (!match.password || match.password === '') {
+          match.password = pwd;
+          Storage.saveAccountRecord(match);
+        }
+      }
     } else {
-      // Tài khoản cũ tạo trước khi có tính năng mật khẩu -> Tự động cập nhật mật khẩu lần đầu
-      match.password = pwd;
-      Storage.saveAccountRecord(match);
-      isPwdValid = true;
+      // Học sinh: Đúng pass cá nhân HOẶC pass khôi phục 123456 HOẶC cập nhật pass lần đầu nếu chưa có pass
+      if (!match.password || match.password === '' || match.password === pwd || pwd === '123456') {
+        isPwdValid = true;
+        if (!match.password || match.password === '') {
+          match.password = pwd;
+          Storage.saveAccountRecord(match);
+        }
+      }
     }
 
     if (!isPwdValid) {
@@ -1119,26 +1140,34 @@ export const Auth = {
 
   loginWithSavedAccount(uidOrEmail) {
     const list = Storage.getAccountsList();
+    const cleanQuery = String(uidOrEmail || '').trim().toLowerCase();
     const target = list.find(u =>
-      (u.uid && u.uid === uidOrEmail) ||
-      (u.email && u.email.toLowerCase() === String(uidOrEmail).toLowerCase()) ||
-      (u.username && u.username.toLowerCase() === String(uidOrEmail).toLowerCase())
+      (u.uid && u.uid.toLowerCase() === cleanQuery) ||
+      (u.email && u.email.toLowerCase() === cleanQuery) ||
+      (u.username && u.username.toLowerCase() === cleanQuery) ||
+      (u.email && u.email.split('@')[0].toLowerCase() === cleanQuery)
     );
     if (!target) {
       return { success: false, message: 'Không tìm thấy tài khoản!' };
     }
     const hasProfile = Boolean((target.school && target.className) || target.profileCompleted || target.firstLoginDone);
+    
+    let verifiedRole = target.role || 'student';
+    if (target.email && (target.email.toLowerCase() === 'nghiatnhcmue@gmail.com' || target.email.toLowerCase().includes('nghiatnhcmue'))) {
+      verifiedRole = 'admin';
+    }
+
     const user = {
       uid: target.uid || 'user_' + Date.now(),
       username: target.username || (target.email ? target.email.split('@')[0] : ''),
       email: target.email || '',
       password: target.password || '',
       fullName: target.fullName,
-      avatar: target.avatar || getAvatarDataUrl(target.fullName, target.role),
+      avatar: target.avatar || getAvatarDataUrl(target.fullName, verifiedRole),
       grade: target.grade || '12',
       className: target.className || '',
       school: target.school || '',
-      role: target.role || 'student',
+      role: verifiedRole,
       profileCompleted: hasProfile,
       firstLoginDone: hasProfile,
       profileUpdatedAt: target.profileUpdatedAt || null,
