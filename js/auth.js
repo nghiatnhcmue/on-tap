@@ -140,44 +140,64 @@ export const Auth = {
   },
 
   getCurrentUser() {
+    if (!this.currentUser) {
+      try {
+        const raw = localStorage.getItem(AUTH_STORAGE_KEY) || localStorage.getItem('user');
+        if (raw) this.currentUser = JSON.parse(raw);
+      } catch (e) {}
+    }
     return this.currentUser;
   },
 
   isLoggedIn() {
-    return !!(this.currentUser && (this.currentUser.email || this.currentUser.fullName || this.currentUser.uid));
+    const user = this.getCurrentUser();
+    return !!(user && (user.email || user.fullName || user.uid));
   },
 
   isAdmin() {
     if (!this.currentUser) {
-      try {
-        const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-        if (raw) this.currentUser = JSON.parse(raw);
-      } catch (e) {}
+      this.getCurrentUser();
     }
     const role = String(this.currentUser?.role || '').trim().toLowerCase();
     const email = String(this.currentUser?.email || '').trim().toLowerCase();
     const adminConfig = (typeof Storage !== 'undefined' && typeof Storage.getAdminConfig === 'function') ? Storage.getAdminConfig() : {};
-    const isCfgAdmin = (adminConfig.adminEmail && email === adminConfig.adminEmail.toLowerCase()) ||
-                       email.startsWith('admin') ||
-                       email.includes('nghiatnhcmue');
-    return role === 'admin' || isCfgAdmin;
+    const isCfgAdmin = Boolean(
+      (adminConfig?.adminEmail && email === adminConfig.adminEmail.toLowerCase()) ||
+      email.startsWith('admin') ||
+      email.includes('nghiatnhcmue') ||
+      this.currentUser?.isAdmin ||
+      this.currentUser?.customClaims?.admin === true
+    );
+    return Boolean(
+      role === 'admin' ||
+      role === 'quantri' ||
+      role.includes('admin') ||
+      role.includes('quản trị') ||
+      isCfgAdmin
+    );
   },
 
   isTeacher() {
     if (this.isAdmin()) return true;
     if (!this.currentUser) {
-      try {
-        const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-        if (raw) this.currentUser = JSON.parse(raw);
-      } catch (e) {}
+      this.getCurrentUser();
     }
     const role = String(this.currentUser?.role || '').trim().toLowerCase();
     const email = String(this.currentUser?.email || '').trim().toLowerCase();
-    return role === 'teacher' || role === 'gv' || role === 'giao_vien' || role.includes('giáo viên') || email.includes('giaovien') || email.includes('gv');
+    return Boolean(
+      role === 'teacher' ||
+      role === 'gv' ||
+      role === 'giao_vien' ||
+      role.includes('giáo viên') ||
+      email.includes('giaovien') ||
+      email.includes('gv') ||
+      this.currentUser?.isTeacher ||
+      this.currentUser?.customClaims?.teacher === true
+    );
   },
 
   isStudent() {
-    return !this.isTeacher();
+    return !this.isTeacher() && !this.isAdmin();
   },
 
   canManageQuestions() {
@@ -189,7 +209,7 @@ export const Auth = {
   },
 
   getRoleLabel(role = null) {
-    const r = role || this.currentUser?.role || 'student';
+    const r = role || this.getUserRole();
     if (r === 'admin') return 'Quản trị viên (Admin)';
     if (r === 'teacher') return 'Giáo viên (GV)';
     return 'Học sinh (HS)';
@@ -197,7 +217,15 @@ export const Auth = {
 
 
   getUserRole() {
-    return this.currentUser?.role || 'student';
+    if (!this.currentUser) {
+      this.getCurrentUser();
+    }
+    if (this.isAdmin()) return 'admin';
+    if (this.isTeacher()) return 'teacher';
+    const role = String(this.currentUser?.role || '').trim().toLowerCase();
+    if (role === 'admin' || role === 'quantri' || role.includes('admin') || role.includes('quản trị')) return 'admin';
+    if (role === 'teacher' || role === 'gv' || role === 'giao_vien' || role.includes('giáo viên')) return 'teacher';
+    return role || 'student';
   },
 
   async activateRoleWithCode(secretCode) {

@@ -698,8 +698,13 @@ export const Storage = {
   getExamRoom(roomId) {
     if (!roomId) return null;
     const rooms = this.getExamRooms();
-    const cleanId = roomId.trim().toUpperCase();
-    return rooms.find(r => r.id.toUpperCase() === cleanId) || null;
+    const cleanId = String(roomId).trim().toUpperCase();
+    const compactId = cleanId.replace(/[-_\s]/g, '');
+    return rooms.find(r => {
+      const rId = String(r.id || '').trim().toUpperCase();
+      const rPin = String(r.pin || '').trim().toUpperCase();
+      return rId === cleanId || rPin === cleanId || rId.replace(/[-_\s]/g, '') === compactId || rPin.replace(/[-_\s]/g, '') === compactId;
+    }) || null;
   },
 
   saveExamRoom(roomData, skipCloud = false) {
@@ -758,7 +763,16 @@ export const Storage = {
       return {
         valid: false,
         reason: 'NOT_FOUND',
-        message: 'Mã phòng thi không tồn tại trong hệ thống! Vui lòng kiểm tra lại.'
+        message: 'Mã phòng thi không tồn tại trong hệ thống! Em vui lòng kiểm tra lại mã phòng hoặc mã PIN do Thầy/Cô cung cấp nhé.'
+      };
+    }
+
+    if (room.isDeleted || room.status === 'closed' || room.status === 'archived') {
+      return {
+        valid: false,
+        room,
+        reason: 'CLOSED',
+        message: `Phòng thi [${room.title || room.id}] hiện đã đóng hoặc chưa được Thầy/Cô mở!\nEm hãy liên hệ với Thầy/Cô phụ trách để biết thời gian mở phòng thi nhé.`
       };
     }
 
@@ -1393,7 +1407,12 @@ export const Storage = {
   },
 
   clearExamHistory() {
-    if (typeof Auth !== 'undefined' && Auth.isStudent()) {
+    const authObj = (typeof window !== 'undefined' && window.Auth) ? window.Auth : (typeof Auth !== 'undefined' ? Auth : null);
+    const isAllowed = authObj && (
+      (typeof authObj.isAdmin === 'function' && authObj.isAdmin()) ||
+      (typeof authObj.isTeacher === 'function' && authObj.isTeacher())
+    );
+    if (!isAllowed) {
       console.warn('Học sinh không có quyền xóa toàn bộ lịch sử thi.');
       return false;
     }
@@ -1403,7 +1422,12 @@ export const Storage = {
 
   deleteExamResult(id) {
     if (!id) return false;
-    if (typeof Auth !== 'undefined' && Auth.isStudent()) {
+    const authObj = (typeof window !== 'undefined' && window.Auth) ? window.Auth : (typeof Auth !== 'undefined' ? Auth : null);
+    const isAllowed = authObj && (
+      (typeof authObj.isAdmin === 'function' && authObj.isAdmin()) ||
+      (typeof authObj.isTeacher === 'function' && authObj.isTeacher())
+    );
+    if (!isAllowed) {
       console.warn('Học sinh không có quyền xóa bài thi trong lịch sử.');
       return false;
     }
@@ -1495,6 +1519,15 @@ export const Storage = {
   },
 
   deleteExamResultsBulk(idsOrFilterFn) {
+    const authObj = (typeof window !== 'undefined' && window.Auth) ? window.Auth : (typeof Auth !== 'undefined' ? Auth : null);
+    const isAllowed = authObj && (
+      (typeof authObj.isAdmin === 'function' && authObj.isAdmin()) ||
+      (typeof authObj.isTeacher === 'function' && authObj.isTeacher())
+    );
+    if (!isAllowed) {
+      console.warn('Học sinh không có quyền xóa hàng loạt kết quả thi.');
+      return false;
+    }
     try {
       let history = this.getExamHistory();
       let toDelete = [];
@@ -2466,6 +2499,15 @@ export const Storage = {
 
   deleteArenaHistory(id) {
     if (!id) return false;
+    const authObj = (typeof window !== 'undefined' && window.Auth) ? window.Auth : (typeof Auth !== 'undefined' ? Auth : null);
+    const isAllowed = authObj && (
+      (typeof authObj.isAdmin === 'function' && authObj.isAdmin()) ||
+      (typeof authObj.isTeacher === 'function' && authObj.isTeacher())
+    );
+    if (!isAllowed) {
+      console.warn('Học sinh không có quyền xóa lịch sử đấu trường.');
+      return false;
+    }
     const history = this.getArenaHistory().filter(h => h.id !== id && h.pin !== id);
     try {
       localStorage.setItem(STORAGE_KEYS.ARENA_HISTORY, JSON.stringify(history));

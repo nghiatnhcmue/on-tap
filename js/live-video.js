@@ -143,20 +143,39 @@ export const LiveVideo = {
   checkIsPrivileged() {
     const authObj = (typeof window !== 'undefined' && window.Auth) ? window.Auth : (typeof Auth !== 'undefined' ? Auth : null);
     if (authObj) {
-      if (typeof authObj.isAdmin === 'function' && authObj.isAdmin()) return true;
-      if (typeof authObj.isTeacher === 'function' && authObj.isTeacher()) return true;
+      try {
+        if (typeof authObj.isAdmin === 'function' && authObj.isAdmin()) return true;
+        if (typeof authObj.isTeacher === 'function' && authObj.isTeacher()) return true;
+        if (typeof authObj.getUserRole === 'function') {
+          const r = String(authObj.getUserRole() || '').trim().toLowerCase();
+          if (r === 'admin' || r === 'teacher' || r === 'gv' || r === 'giao_vien' || r.includes('admin') || r.includes('quản trị') || r.includes('giáo viên')) {
+            return true;
+          }
+        }
+        const curUser = (typeof authObj.getCurrentUser === 'function') ? authObj.getCurrentUser() : authObj.currentUser;
+        if (curUser) {
+          const r = String(curUser.role || '').trim().toLowerCase();
+          const em = String(curUser.email || '').trim().toLowerCase();
+          if (r === 'admin' || r === 'teacher' || r === 'gv' || r === 'giao_vien' || r.includes('admin') || r.includes('quản trị') || r.includes('giáo viên') || curUser.isAdmin) {
+            return true;
+          }
+          if (em.startsWith('admin') || em.includes('nghiatnhcmue') || em.includes('giaovien') || em.includes('gv')) {
+            return true;
+          }
+        }
+      } catch (e) {}
     }
     try {
-      const raw = localStorage.getItem('tinhoc_user');
+      const raw = localStorage.getItem('tinhoc_user') || localStorage.getItem('user');
       if (raw) {
         const u = JSON.parse(raw);
         const r = String(u.role || '').trim().toLowerCase();
         const em = String(u.email || '').trim().toLowerCase();
-        if (r === 'admin' || r === 'teacher' || r === 'gv' || r === 'giao_vien' || r.includes('quản trị') || r.includes('giáo viên')) {
+        if (r === 'admin' || r === 'teacher' || r === 'gv' || r === 'giao_vien' || r.includes('admin') || r.includes('quản trị') || r.includes('giáo viên') || u.isAdmin) {
           return true;
         }
         const adminCfg = (typeof Storage !== 'undefined' && typeof Storage.getAdminConfig === 'function') ? Storage.getAdminConfig() : {};
-        if (adminCfg.adminEmail && em === adminCfg.adminEmail.toLowerCase()) return true;
+        if (adminCfg?.adminEmail && em === adminCfg.adminEmail.toLowerCase()) return true;
         if (em.startsWith('admin') || em.includes('nghiatnhcmue') || em.includes('giaovien') || em.includes('gv')) {
           return true;
         }
@@ -643,11 +662,11 @@ export const LiveVideo = {
   async handleJoinRoomSubmit(customCode = null, options = {}) {
     const input = document.getElementById('live-join-input-code');
     const submitBtn = document.getElementById('btn-confirm-join-live-room');
-    const rawCode = (customCode || input?.value || '').trim().toUpperCase();
-    const roomId = rawCode.replace(/\s+/g, '-').replace(/[^A-Z0-9_-]/g, '');
+    const rawCode = String(customCode || input?.value || '').trim().toUpperCase();
+    const roomId = rawCode.replace(/[\s#]/g, '').replace(/[^A-Z0-9_-]/g, '');
 
     if (!roomId) {
-      alert('Vui lòng nhập Mã phòng live trực tuyến của Thầy/Cô!');
+      alert('Em vui lòng nhập Mã phòng hoặc mã PIN do Thầy/Cô cung cấp để vào lớp học nhé!');
       input?.focus();
       return;
     }
@@ -684,27 +703,62 @@ export const LiveVideo = {
           roomData = await res.json();
         }
 
-        // Hỗ trợ học sinh nhập mã rút gọn hoặc định dạng khác (VD: "892" -> "LIVE-892", "LIVE892" -> "LIVE-892")
+        // Hỗ trợ học sinh nhập mã rút gọn, mã PIN số hoặc định dạng khác (VD: "892" -> "LIVE-892", "LIVE892" -> "LIVE-892")
         if (!roomData || !roomData.roomId) {
           const candidateIds = [];
           if (!resolvedRoomId.startsWith('LIVE-')) {
             candidateIds.push(`LIVE-${resolvedRoomId}`);
           }
+          if (resolvedRoomId.startsWith('LIVE-')) {
+            candidateIds.push(resolvedRoomId.replace(/^LIVE-/, ''));
+          }
           if (/^LIVE[0-9]/.test(resolvedRoomId)) {
             candidateIds.push(resolvedRoomId.replace(/^LIVE/, 'LIVE-'));
+            candidateIds.push(resolvedRoomId.replace(/^LIVE/, ''));
           }
+          const numericOnly = resolvedRoomId.replace(/[^0-9]/g, '');
+          if (numericOnly && !candidateIds.includes(numericOnly)) {
+            candidateIds.push(numericOnly);
+            candidateIds.push(`LIVE-${numericOnly}`);
+          }
+
           for (const altId of candidateIds) {
             try {
               const altRes = await authedFetch(`${dbUrl}/live_video_rooms/${altId}.json`, { cache: 'no-cache' });
               if (altRes.ok) {
                 const altData = await altRes.json();
-                if (altData && altData.roomId) {
+                if (altData && (altData.roomId || altData.checkpoints)) {
                   resolvedRoomId = altId;
                   roomData = altData;
                   break;
                 }
               }
             } catch (e) {}
+          }
+        }
+
+        // Nếu direct key vẫn chưa tìm thấy, truy vấn toàn bộ danh sách phòng live đang có trên Cloud
+        if (!roomData || !roomData.roomId) {
+          try {
+            const allRes = await authedFetch(`${dbUrl}/live_video_rooms.json`, { cache: 'no-cache' });
+            if (allRes.ok) {
+              const allRooms = await allRes.json() || {};
+              const searchNorm = rawCode.replace(/[\s\-_#]/g, '');
+              for (const [k, r] of Object.entries(allRooms)) {
+                if (!r || typeof r !== 'object') continue;
+                const rKeyNorm = String(k).replace(/[\s\-_#]/g, '').toUpperCase();
+                const rIdNorm = String(r.roomId || '').replace(/[\s\-_#]/g, '').toUpperCase();
+                const rPinNorm = String(r.pin || r.code || '').replace(/[\s\-_#]/g, '').toUpperCase();
+                if (rKeyNorm === searchNorm || rIdNorm === searchNorm || rPinNorm === searchNorm ||
+                    rKeyNorm.endsWith(searchNorm) || rIdNorm.endsWith(searchNorm)) {
+                  resolvedRoomId = k;
+                  roomData = r;
+                  break;
+                }
+              }
+            }
+          } catch (cloudScanErr) {
+            console.warn('Lỗi quét danh sách live rooms trên cloud:', cloudScanErr);
           }
         }
       } catch (netErr) {
@@ -714,7 +768,8 @@ export const LiveVideo = {
       if (!roomData || !roomData.roomId) {
         try {
           const localRooms = JSON.parse(localStorage.getItem("tinhoc_live_video_rooms") || "{}");
-          const tryKeys = [resolvedRoomId, `LIVE-${resolvedRoomId}`, resolvedRoomId.replace(/^LIVE/, 'LIVE-')];
+          const searchNorm = rawCode.replace(/[\s\-_#]/g, '');
+          const tryKeys = [resolvedRoomId, `LIVE-${resolvedRoomId}`, resolvedRoomId.replace(/^LIVE-?/, '')];
           for (const k of tryKeys) {
             if (localRooms[k]) {
               resolvedRoomId = k;
@@ -722,11 +777,24 @@ export const LiveVideo = {
               break;
             }
           }
+          if (!roomData || !roomData.roomId) {
+            for (const [k, r] of Object.entries(localRooms)) {
+              if (!r) continue;
+              const rKeyNorm = String(k).replace(/[\s\-_#]/g, '').toUpperCase();
+              const rIdNorm = String(r.roomId || '').replace(/[\s\-_#]/g, '').toUpperCase();
+              const rPinNorm = String(r.pin || r.code || '').replace(/[\s\-_#]/g, '').toUpperCase();
+              if (rKeyNorm === searchNorm || rIdNorm === searchNorm || rPinNorm === searchNorm) {
+                resolvedRoomId = k;
+                roomData = r;
+                break;
+              }
+            }
+          }
         } catch (e) {}
       }
 
       if (!roomData || !roomData.roomId) {
-        alert(`Không tìm thấy phòng trực tuyến với mã "${roomId}"!\nVui lòng kiểm tra lại mã phòng do Thầy/Cô cung cấp.`);
+        alert(`Không tìm thấy phòng học trực tuyến với mã "${rawCode}"!\nEm vui lòng kiểm tra lại mã phòng hoặc mã PIN do Thầy/Cô cung cấp nhé.`);
         return;
       }
 
@@ -756,7 +824,7 @@ export const LiveVideo = {
             body: JSON.stringify({ state: 'waiting', hostLastSeen: Date.now(), updatedAt: Date.now() })
           }).catch(() => {});
         } else {
-          alert(`Phòng học trực tuyến "${resolvedRoomId}" hiện đã kết thúc hoặc chưa có Giáo viên phát trực tiếp!`);
+          alert(`Phòng học trực tuyến "${resolvedRoomId}" hiện chưa được kích hoạt hoặc Thầy/Cô đã kết thúc buổi học!\nEm hãy liên hệ Thầy/Cô bộ môn để biết thời gian mở lớp nhé.`);
           return;
         }
       }

@@ -211,7 +211,7 @@ export const Gradebook = {
     if (!this.container) return;
 
     // Kiểm tra quyền hạn: Chỉ Giáo viên (GV) & Quản trị viên (Admin)
-    if (!Auth.isTeacher()) {
+    if (!Auth.isTeacher() && !Auth.isAdmin()) {
       this.container.innerHTML = `
         <div class="text-center py-20 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 p-8 shadow-sm max-w-xl mx-auto">
           <div class="w-16 h-16 rounded-3xl bg-indigo-100 dark:bg-indigo-950/40 text-indigo-600 flex items-center justify-center text-3xl mx-auto mb-4">
@@ -851,6 +851,10 @@ export const Gradebook = {
   
   // --- MODAL: SỬA KẾT QUẢ BÀI THI TỪ SỔ ĐIỂM ---
   openResultEditorModal(resultId) {
+    if (!Auth.isAdmin() && !Auth.isTeacher()) {
+      alert('Chức năng sửa thông tin bài thi chỉ dành riêng cho Giáo viên và Quản trị viên!');
+      return;
+    }
     const modal = document.getElementById('modal-admin-result-editor');
     if (!modal) return;
 
@@ -1058,6 +1062,10 @@ export const Gradebook = {
     document.querySelectorAll('[data-gb-delete-result]').forEach(btn => {
       btn.onclick = (e) => {
         e.stopPropagation();
+        if (!Auth.isAdmin() && !Auth.isTeacher()) {
+          alert('Học sinh không có quyền xóa kết quả bài thi trong sổ điểm!');
+          return;
+        }
         const id = btn.getAttribute('data-gb-delete-result');
         const historyList = Storage.getExamHistory();
         const item = historyList.find(h => String(h.id) === String(id));
@@ -1065,10 +1073,12 @@ export const Gradebook = {
           return;
         }
         const res = Storage.deleteExamResult(id);
-        alert(res.message);
-        if (res.success) {
+        if (res) {
+          alert('Đã xóa kết quả bài thi thành công!');
           document.getElementById('modal-student-progress')?.classList.add('hidden');
           this.render();
+        } else {
+          alert('Không thể xóa bài thi. Vui lòng kiểm tra lại quyền hạn!');
         }
       };
     });
@@ -1200,13 +1210,19 @@ export const Gradebook = {
       examsTableBody.querySelectorAll('[data-gb-delete-result]').forEach(btn => {
         btn.onclick = (e) => {
           e.stopPropagation();
+          if (!Auth.isAdmin() && !Auth.isTeacher()) {
+            alert('Học sinh không có quyền xóa bài thi!');
+            return;
+          }
           const id = btn.getAttribute('data-gb-delete-result');
           if (confirm('Thầy/Cô có chắc chắn muốn xóa bài thi này không?')) {
             const res = Storage.deleteExamResult(id);
-            alert(res.message);
-            if (res.success) {
+            if (res) {
+              alert('Đã xóa bài thi thành công!');
               modal.classList.add('hidden');
               this.render();
+            } else {
+              alert('Không thể xóa bài thi. Vui lòng kiểm tra lại quyền hạn!');
             }
           }
         };
