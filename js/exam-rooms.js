@@ -37,7 +37,7 @@ export const ExamRooms = {
     if (!this.container) return;
 
     // Kiểm tra quyền hạn: Chỉ Giáo viên (GV) & Quản trị viên (Admin)
-    if (!Auth.isTeacher()) {
+    if (!Auth.isTeacher() && !Auth.isAdmin()) {
       this.container.innerHTML = `
         <div class="text-center py-20 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 p-8 shadow-sm max-w-xl mx-auto">
           <div class="w-16 h-16 rounded-3xl bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center text-3xl mx-auto mb-4">
@@ -506,8 +506,12 @@ export const ExamRooms = {
     // Xóa phòng
     this.container.querySelectorAll('[data-delete-room]').forEach(btn => {
       btn.onclick = () => {
+        if (!Auth.isTeacher() && !Auth.isAdmin()) {
+          alert('Chỉ Giáo viên và Quản trị viên mới có quyền xóa phòng thi!');
+          return;
+        }
         const id = btn.getAttribute('data-delete-room');
-        if (confirm(`Bạn có chắc chắn muốn xóa phòng thi [${id}] không?`)) {
+        if (confirm(`Thầy/Cô có chắc chắn muốn xóa phòng thi [${id}] không?`)) {
           Storage.deleteExamRoom(id);
           this.render();
         }
@@ -2358,7 +2362,8 @@ Trí tuệ nhân tạo (AI) thường được ứng dụng phổ biến trong l
     if (saveBtn) {
       saveBtn.onclick = () => {
         const title = document.getElementById('room-input-title')?.value.trim();
-        const id = document.getElementById('room-input-id')?.value.trim().toUpperCase();
+        const rawId = (document.getElementById('room-input-id')?.value || '').trim().toUpperCase();
+        const id = rawId.replace(/[\s#]/g, '').replace(/[^A-Z0-9_-]/g, '');
         const grade = document.getElementById('room-input-grade')?.value || '12';
         const duration = parseInt(document.getElementById('room-input-duration')?.value || '45', 10);
         const password = document.getElementById('room-input-pwd')?.value.trim();
@@ -2463,6 +2468,7 @@ Trí tuệ nhân tạo (AI) thường được ứng dụng phổ biến trong l
 
         const roomData = {
           id,
+          pin: id,
           title,
           grade,
           targetSchool,

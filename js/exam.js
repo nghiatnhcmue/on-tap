@@ -1491,6 +1491,11 @@ export const Exam = {
             <button id="btn-new-exam" class="px-6 py-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-sm transition flex items-center gap-2">
               <i class="fa-solid fa-plus"></i> Tạo đề thi mới
             </button>
+            ${(isPrivileged && res.id) ? `
+              <button id="btn-delete-saved-exam" data-exam-id="${escapeHtml(res.id)}" class="px-5 py-3 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300 font-bold rounded-xl text-sm transition flex items-center gap-2" title="Quyền Quản trị viên / Giáo viên: Xóa bài thi này">
+                <i class="fa-solid fa-trash-can"></i> Xóa bài thi (Admin/GV)
+              </button>
+            ` : ''}
           </div>
         </div>
 
@@ -1649,6 +1654,27 @@ export const Exam = {
       });
     }
 
+    const deleteBtn = this.container.querySelector('#btn-delete-saved-exam');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', () => {
+        const isPrivilegedUser = typeof Auth !== 'undefined' && (Auth.isAdmin() || Auth.isTeacher());
+        if (!isPrivilegedUser) {
+          alert('Học sinh không có quyền xóa lịch sử bài thi!');
+          return;
+        }
+        const id = deleteBtn.getAttribute('data-exam-id');
+        if (confirm('Thầy/Cô có chắc chắn muốn xóa bài thi này khỏi lịch sử và hệ thống không?')) {
+          const res = Storage.deleteExamResult(id);
+          if (res) {
+            alert('Đã xóa bài thi thành công!');
+            window.dispatchEvent(new CustomEvent('nav-to-tab', { detail: 'history' }));
+          } else {
+            alert('Không thể xóa bài thi. Vui lòng kiểm tra lại quyền hạn!');
+          }
+        }
+      });
+    }
+
     // Filter review items
     this.container.querySelectorAll('[data-review-filter]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1664,6 +1690,16 @@ export const Exam = {
         }
       });
     });
+  },
+
+  deleteExamHistoryItem(id) {
+    const isPrivileged = typeof Auth !== 'undefined' && (Auth.isAdmin() || Auth.isTeacher());
+    if (!isPrivileged) {
+      console.warn('Học sinh không có quyền xóa bài thi hoặc lịch sử thi.');
+      if (typeof alert === 'function') alert('Học sinh không có quyền xóa lịch sử bài thi!');
+      return false;
+    }
+    return Storage.deleteExamResult(id);
   }
 };
 

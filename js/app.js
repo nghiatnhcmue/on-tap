@@ -1996,11 +1996,12 @@ class App {
       btnEnterRoom.onclick = async () => {
         const roomIdInput = document.getElementById('input-enter-room-id');
         const pwdInput = document.getElementById('input-enter-room-pwd');
-        const roomId = roomIdInput ? roomIdInput.value.trim().toUpperCase() : '';
+        const rawCode = roomIdInput ? roomIdInput.value : '';
+        const roomId = String(rawCode || '').trim().toUpperCase();
         const pwd = pwdInput ? pwdInput.value.trim() : '';
 
         if (!roomId) {
-          alert('Vui lòng nhập Mã bài kiểm tra do Giáo viên cấp!');
+          alert('Em vui lòng nhập Mã bài kiểm tra hoặc mã PIN do Thầy/Cô cung cấp nhé!');
           roomIdInput?.focus();
           return;
         }
@@ -2552,7 +2553,11 @@ class App {
     const clearBtn = container.querySelector('#btn-clear-history');
     if (clearBtn) {
       clearBtn.addEventListener('click', () => {
-        if (confirm('Bạn có chắc chắn muốn xóa toàn bộ lịch sử thi thử không?')) {
+        if (!Auth.isAdmin() && !Auth.isTeacher()) {
+          alert('Học sinh không có quyền xóa lịch sử thi!');
+          return;
+        }
+        if (confirm('Thầy/Cô có chắc chắn muốn xóa toàn bộ lịch sử thi thử không?')) {
           Storage.clearExamHistory();
           this.renderHistory();
         }
@@ -3585,17 +3590,39 @@ class App {
       homeLiveBtn.addEventListener('click', async () => {
         const authObj = (typeof window !== 'undefined' && window.Auth) ? window.Auth : (typeof Auth !== 'undefined' ? Auth : null);
         let isPrivileged = false;
-        if (authObj && typeof authObj.isTeacher === 'function') {
-          isPrivileged = Boolean(authObj.isTeacher() || authObj.isAdmin());
+        if (authObj) {
+          try {
+            if (typeof authObj.isAdmin === 'function' && authObj.isAdmin()) isPrivileged = true;
+            if (!isPrivileged && typeof authObj.isTeacher === 'function' && authObj.isTeacher()) isPrivileged = true;
+            if (!isPrivileged && typeof authObj.getUserRole === 'function') {
+              const r = String(authObj.getUserRole() || '').trim().toLowerCase();
+              if (r === 'admin' || r === 'teacher' || r === 'gv' || r === 'giao_vien' || r.includes('admin') || r.includes('quản trị') || r.includes('giáo viên')) {
+                isPrivileged = true;
+              }
+            }
+            if (!isPrivileged) {
+              const curUser = (typeof authObj.getCurrentUser === 'function') ? authObj.getCurrentUser() : authObj.currentUser;
+              if (curUser) {
+                const r = String(curUser.role || '').trim().toLowerCase();
+                const em = String(curUser.email || '').trim().toLowerCase();
+                if (r === 'admin' || r === 'teacher' || r === 'gv' || r === 'giao_vien' || r.includes('admin') || r.includes('quản trị') || r.includes('giáo viên') || curUser.isAdmin) {
+                  isPrivileged = true;
+                }
+                if (em.startsWith('admin') || em.includes('nghiatnhcmue') || em.includes('giaovien') || em.includes('gv')) {
+                  isPrivileged = true;
+                }
+              }
+            }
+          } catch (e) {}
         }
         if (!isPrivileged) {
           try {
-            const raw = localStorage.getItem('tinhoc_user');
+            const raw = localStorage.getItem('tinhoc_user') || localStorage.getItem('user');
             if (raw) {
               const u = JSON.parse(raw);
               const r = String(u.role || '').trim().toLowerCase();
               const em = String(u.email || '').trim().toLowerCase();
-              if (r === 'admin' || r === 'teacher' || r === 'gv' || r === 'giao_vien' || r.includes('quản trị') || r.includes('giáo viên') || em.startsWith('admin') || em.includes('nghiatnhcmue') || em.includes('giaovien') || em.includes('gv')) {
+              if (r === 'admin' || r === 'teacher' || r === 'gv' || r === 'giao_vien' || r.includes('admin') || r.includes('quản trị') || r.includes('giáo viên') || u.isAdmin || em.startsWith('admin') || em.includes('nghiatnhcmue') || em.includes('giaovien') || em.includes('gv')) {
                 isPrivileged = true;
               }
             }

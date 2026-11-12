@@ -202,20 +202,39 @@ const Arena = {
   checkIsTeacher() {
     const authObj = (typeof window !== 'undefined' && window.Auth) ? window.Auth : (typeof Auth !== 'undefined' ? Auth : null);
     if (authObj) {
-      if (typeof authObj.isAdmin === 'function' && authObj.isAdmin()) return true;
-      if (typeof authObj.isTeacher === 'function' && authObj.isTeacher()) return true;
+      try {
+        if (typeof authObj.isAdmin === 'function' && authObj.isAdmin()) return true;
+        if (typeof authObj.isTeacher === 'function' && authObj.isTeacher()) return true;
+        if (typeof authObj.getUserRole === 'function') {
+          const r = String(authObj.getUserRole() || '').trim().toLowerCase();
+          if (r === 'admin' || r === 'teacher' || r === 'gv' || r === 'giao_vien' || r.includes('admin') || r.includes('quản trị') || r.includes('giáo viên')) {
+            return true;
+          }
+        }
+        const curUser = (typeof authObj.getCurrentUser === 'function') ? authObj.getCurrentUser() : authObj.currentUser;
+        if (curUser) {
+          const r = String(curUser.role || '').trim().toLowerCase();
+          const em = String(curUser.email || '').trim().toLowerCase();
+          if (r === 'admin' || r === 'teacher' || r === 'gv' || r === 'giao_vien' || r.includes('admin') || r.includes('quản trị') || r.includes('giáo viên') || curUser.isAdmin) {
+            return true;
+          }
+          if (em.startsWith('admin') || em.includes('nghiatnhcmue') || em.includes('giaovien') || em.includes('gv')) {
+            return true;
+          }
+        }
+      } catch (e) {}
     }
     try {
-      const raw = localStorage.getItem('tinhoc_user');
+      const raw = localStorage.getItem('tinhoc_user') || localStorage.getItem('user');
       if (raw) {
         const u = JSON.parse(raw);
         const r = String(u.role || '').trim().toLowerCase();
         const em = String(u.email || '').trim().toLowerCase();
-        if (r === 'admin' || r === 'teacher' || r === 'gv' || r === 'giao_vien' || r.includes('quản trị') || r.includes('giáo viên')) {
+        if (r === 'admin' || r === 'teacher' || r === 'gv' || r === 'giao_vien' || r.includes('admin') || r.includes('quản trị') || r.includes('giáo viên') || u.isAdmin) {
           return true;
         }
         const adminCfg = (typeof Storage !== 'undefined' && typeof Storage.getAdminConfig === 'function') ? Storage.getAdminConfig() : {};
-        if (adminCfg.adminEmail && em === adminCfg.adminEmail.toLowerCase()) return true;
+        if (adminCfg?.adminEmail && em === adminCfg.adminEmail.toLowerCase()) return true;
         if (em.startsWith('admin') || em.includes('nghiatnhcmue') || em.includes('giaovien') || em.includes('gv')) {
           return true;
         }
@@ -700,8 +719,12 @@ const Arena = {
 
     this.container.querySelectorAll('[data-delete-arena-hist]').forEach(btn => {
       btn.onclick = () => {
+        if (!this.checkIsTeacher()) {
+          alert('Chỉ Giáo viên và Quản trị viên mới có quyền xóa lịch sử trận đấu!');
+          return;
+        }
         const hid = btn.getAttribute('data-delete-arena-hist');
-        if (confirm('Xóa kết quả trận đấu này khỏi lịch sử?')) {
+        if (confirm('Thầy/Cô có chắc chắn muốn xóa kết quả trận đấu này khỏi lịch sử không?')) {
           if (typeof Storage.deleteArenaHistory === 'function') {
             Storage.deleteArenaHistory(hid);
           }
@@ -846,6 +869,10 @@ const Arena = {
   // 3. MODAL TẠO ĐẤU TRƯỜNG DÀNH CHO GIÁO VIÊN (PLUGGABLE FLOW)
   // ==========================================
   openCreateArenaModal(defaultMode = 'resource_quest') {
+    if (!this.checkIsTeacher()) {
+      alert('Chức năng tạo phòng Đấu trường chỉ dành riêng cho Giáo viên (GV) và Quản trị viên (Admin)!');
+      return;
+    }
     let modal = document.getElementById('modal-create-arena');
     if (!modal) {
       modal = document.createElement('div');
@@ -2342,29 +2369,53 @@ const Arena = {
   // 9. MÀN HÌNH HỌC SINH (PLAYER CONTROLLER - MOBILE/PC)
   // ==========================================
   async joinArenaByPin(pin, studentName = null, blookId = 'bot') {
-    if (!pin) return;
-    pin = String(pin).replace(/[\s\-_]/g, '').trim();
+    if (!pin) {
+      alert('Em vui lòng nhập mã PIN trận đấu do Thầy/Cô cung cấp nhé!');
+      return;
+    }
+    const cleanPin = String(pin).replace(/[\s\-_#]/g, '').trim().toUpperCase();
+    if (!cleanPin) {
+      alert('Mã PIN không hợp lệ! Em vui lòng kiểm tra lại.');
+      return;
+    }
     const dbUrl = this.getBaseDbUrl();
 
     // Lấy thông tin phòng từ Firebase hoặc Storage
     let room = null;
     try {
-      const res = await authedFetch(`${dbUrl}/arena_rooms/${pin}.json`, { cache: 'no-cache' });
+      const res = await authedFetch(`${dbUrl}/arena_rooms/${cleanPin}.json`, { cache: 'no-cache' });
       if (res.ok) room = await res.json();
     } catch (e) {
       console.warn('Lỗi kết nối máy chủ Firebase khi tìm phòng đấu trường:', e);
     }
 
-    if (!room) room = Storage.getArenaRoom(pin);
+    if (!room) room = Storage.getArenaRoom(cleanPin);
+
+    // Fallback: nếu chưa tìm thấy, quét danh sách phòng cục bộ theo mã số tương thích
+    if (!room) {
+      const allRooms = Storage.getArenaRooms();
+      for (const k of Object.keys(allRooms)) {
+        const r = allRooms[k];
+        if (r && (String(r.pin || k).replace(/[\s\-_#]/g, '').toUpperCase() === cleanPin)) {
+          room = r;
+          break;
+        }
+      }
+    }
 
     if (!room) {
-      alert(`Không tìm thấy phòng đấu trường có mã PIN [${pin}]. Vui lòng kiểm tra lại!`);
+      alert(`Không tìm thấy phòng đấu trường có mã PIN [${cleanPin}]!\nEm vui lòng kiểm tra lại mã PIN hiển thị trên màn hình máy chiếu của Thầy/Cô nhé.`);
+      return;
+    }
+
+    if (room.state === 'finished' || room.state === 'closed' || room.status === 'ended') {
+      alert(`Trận đấu trường [${cleanPin}] hiện đã kết thúc!\nEm hãy đợi Thầy/Cô mở lượt chơi mới nhé.`);
       return;
     }
 
     // Đảm bảo cấu trúc phòng hợp lệ
     room.players = room.players || {};
-    room.pin = room.pin || pin;
+    room.pin = room.pin || cleanPin;
 
     const currentUser = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
     const finalName = studentName || currentUser?.fullName || 'Học sinh ẩn danh';

@@ -561,15 +561,47 @@ export const CloudSync = {
   // Tìm phòng thi trực tiếp từ Cloud (dành cho học sinh làm bài hoặc mở link ?room=XYZ)
   async fetchRoomFromCloud(roomId) {
     if (!roomId) return null;
-    const key = this.getCleanKey(roomId);
+    const raw = String(roomId).trim().toUpperCase();
+    const key = this.getCleanKey(raw);
+    const compactKey = raw.replace(/[-_\s#]/g, '');
     const url = this.getBaseUrl();
+
+    const candidates = [key];
+    const dashed = key.replace(/[\s_]+/g, '-');
+    if (!candidates.includes(dashed)) candidates.push(dashed);
+    if (compactKey && !candidates.includes(compactKey)) candidates.push(compactKey);
+    if (!key.startsWith('ROOM-') && /^\d+$/.test(compactKey)) candidates.push(`ROOM-${compactKey}`);
+    if (key.startsWith('ROOM-')) candidates.push(key.replace(/^ROOM-/, ''));
+
+    for (const cand of candidates) {
+      try {
+        const res = await authedFetch(`${url}/exam_rooms/${cand}.json`, { cache: 'no-cache' });
+        if (res.ok) {
+          const room = await res.json();
+          if (room && room.id && !room.isDeleted) {
+            Storage.saveExamRoom(room, true); // Lưu vào cache local (skipCloud = true)
+            return room;
+          }
+        }
+      } catch (e) {}
+    }
+
+    // Fallback: Tìm trong toàn bộ danh sách exam_rooms trên cloud nếu direct key chưa ra
     try {
-      const res = await authedFetch(`${url}/exam_rooms/${key}.json`, { cache: 'no-cache' });
-      if (!res.ok) return null;
-      const room = await res.json();
-      if (room && room.id && !room.isDeleted) {
-        Storage.saveExamRoom(room, true); // Lưu vào cache local (skipCloud = true)
-        return room;
+      const allRes = await authedFetch(`${url}/exam_rooms.json`, { cache: 'no-cache' });
+      if (allRes.ok) {
+        const allData = await allRes.json() || {};
+        for (const [k, r] of Object.entries(allData)) {
+          if (!r || r.isDeleted) continue;
+          const rId = String(r.id || k).trim().toUpperCase();
+          const rPin = String(r.pin || '').trim().toUpperCase();
+          const rIdNorm = rId.replace(/[-_\s#]/g, '');
+          const rPinNorm = rPin.replace(/[-_\s#]/g, '');
+          if (rId === raw || rPin === raw || rIdNorm === compactKey || (compactKey && rPinNorm === compactKey)) {
+            Storage.saveExamRoom(r, true);
+            return r;
+          }
+        }
       }
     } catch (e) {
       console.warn('Fetch room from cloud error:', e);
