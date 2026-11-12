@@ -43,6 +43,16 @@ if (typeof window !== 'undefined') {
   window.hasMathDelimiters = hasMathDelimiters;
 }
 
+// Helpers an toàn: chống văng lỗi khi localStorage hoặc JSON bị hỏng
+function safeGetMasteredIds() {
+  try {
+    const ids = Storage.getMasteredQuestionIds();
+    return (ids instanceof Set) ? ids : new Set(Array.isArray(ids) ? ids : []);
+  } catch {
+    return new Set();
+  }
+}
+
 export const Practice = {
   questions: [],
   rawFilteredQuestions: [],
@@ -55,56 +65,83 @@ export const Practice = {
   tempTlnInputs: {},
   shuffleQuestions: false,
   shuffleOptions: true,
+  _answeringSet: new Set(),
+  _lastNavTime: 0,
+  _isPromptingNote: false,
 
   init(containerEl, allQuestions, manifest) {
     this.container = containerEl;
-    this.allQuestions = allQuestions;
-    this.manifest = manifest;
+    this.allQuestions = Array.isArray(allQuestions) ? allQuestions : [];
+    this.manifest = manifest || null;
     this.sessionStats = { answered: 0, correct: 0, wrong: 0 };
     this.userAnswers = {};
     this.tempTfChoices = {};
     this.tempTlnInputs = {};
+    this._answeringSet = new Set();
+    this._lastNavTime = 0;
+    this._isPromptingNote = false;
     this.currentIndex = 0;
-    const settings = Storage.getSettings();
+    let settings = {};
+    try {
+      settings = Storage.getSettings() || {};
+    } catch {
+      settings = {};
+    }
     this.shuffleQuestions = false;
     this.shuffleOptions = settings.shuffleOptions ?? true;
   },
 
+  resetState() {
+    this.sessionStats = { answered: 0, correct: 0, wrong: 0 };
+    this.userAnswers = {};
+    this.tempTfChoices = {};
+    this.tempTlnInputs = {};
+    this._answeringSet = new Set();
+    this._lastNavTime = 0;
+    this._isPromptingNote = false;
+    this.currentIndex = 0;
+  },
+
   setQuestions(questions) {
-    this.questions = questions;
-    this.rawFilteredQuestions = [...questions];
+    this.questions = Array.isArray(questions) ? questions : [];
+    this.rawFilteredQuestions = [...this.questions];
     this.applyShuffle();
     this.currentIndex = 0;
     this.userAnswers = {};
     this.tempTfChoices = {};
     this.tempTlnInputs = {};
+    this._answeringSet.clear();
     this.render();
   },
 
   filter(grade, topic, lesson, level, excludeMastered = false) {
     this.lastFilter = { grade, topic, lesson, level, excludeMastered };
-    let result = this.questions;
+    let result = Array.isArray(this.questions) ? this.questions : [];
 
     if (grade && grade !== 'all') {
-      result = result.filter(q => q.grade === grade);
+      result = result.filter(q => q && q.grade === grade);
     }
     if (topic && topic !== 'all') {
-      result = result.filter(q => q.topic === topic);
+      result = result.filter(q => q && q.topic === topic);
     }
     if (lesson && lesson !== 'all') {
-      result = result.filter(q => q.lesson === lesson);
+      result = result.filter(q => q && q.lesson === lesson);
     }
     if (level && level !== 'all') {
-      result = result.filter(q => q.level === level);
+      result = result.filter(q => q && q.level === level);
     }
     if (excludeMastered) {
-      const masteredIds = Storage.getMasteredQuestionIds();
-      result = result.filter(q => !masteredIds.has(q.id));
+      const masteredIds = safeGetMasteredIds();
+      result = result.filter(q => q && !masteredIds.has(q.id));
     }
 
     this.rawFilteredQuestions = result;
     this.applyShuffle();
     this.currentIndex = 0;
+    this.userAnswers = {};
+    this.tempTfChoices = {};
+    this.tempTlnInputs = {};
+    this._answeringSet.clear();
     this.render();
   },
 
@@ -116,6 +153,7 @@ export const Practice = {
     this.userAnswers = {};
     this.tempTfChoices = {};
     this.tempTlnInputs = {};
+    this._answeringSet.clear();
     this.render();
   },
 
@@ -545,16 +583,51 @@ export const Practice = {
     `;
   },
 
+  safeNavigate(direction) {
+    const now = Date.now();
+    if (now - this._lastNavTime < 120) return; // 120ms throttle chống spam phím & click
+    this._lastNavTime = now;
+    if (direction === 'prev' && this.currentIndex > 0) {
+      this.currentIndex--;
+      this.render();
+    } else if (direction === 'next' && this.currentIndex < this.filteredQuestions.length - 1) {
+      this.currentIndex++;
+      this.render();
+    }
+  },
+
+  safeChangePage(targetIndex) {
+    const now = Date.now();
+    if (now - this._lastNavTime < 150) return; // 150ms throttle chuyển trang
+    this._lastNavTime = now;
+    this.currentIndex = targetIndex;
+    this.render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  },
+
   bindNoteButtons() {
     if (!this.container) return;
     this.container.querySelectorAll('[data-edit-note]').forEach(btn => {
       btn.onclick = () => {
-        const qId = btn.getAttribute('data-edit-note');
-        const currentNote = Storage.getQuestionNote(qId);
-        const updated = prompt('Nhập ghi chú cá nhân / mẹo nhớ nhanh cho câu hỏi này (để trống nếu muốn xóa):', currentNote);
-        if (updated !== null) {
-          Storage.saveQuestionNote(qId, updated);
-          this.render();
+        if (this._isPromptingNote) return;
+        this._isPromptingNote = true;
+        try {
+          const qId = btn.getAttribute('data-edit-note');
+          let currentNote = '';
+          try {
+            currentNote = Storage.getQuestionNote(qId) || '';
+          } catch {}
+          const updated = prompt('Nhập ghi chú cá nhân / mẹo nhớ nhanh cho câu hỏi này (để trống nếu muốn xóa):', currentNote);
+          if (updated !== null) {
+            try {
+              Storage.saveQuestionNote(qId, updated);
+            } catch (e) {
+              console.warn('Lỗi lưu ghi chú câu hỏi:', e);
+            }
+            this.render();
+          }
+        } finally {
+          this._isPromptingNote = false;
         }
       };
     });
@@ -597,6 +670,7 @@ export const Practice = {
     optionBtns.forEach(btn => {
       btn.disabled = true;
       btn.setAttribute('disabled', 'true');
+      btn.style.pointerEvents = 'none';
       const optLetter = btn.getAttribute('data-opt');
 
       // Reset dynamic classes
@@ -620,32 +694,33 @@ export const Practice = {
       }
     });
 
-    const existingBanner = cardOrContainer.querySelector('.mcq-feedback-banner');
-    if (!existingBanner) {
-      const banner = document.createElement('div');
-      banner.className = `mcq-feedback-banner p-4 rounded-xl ${isCorrect ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300' : 'bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300'} text-sm animate-pulse-subtle mt-4`;
-      banner.innerHTML = `
-        <div class="font-bold flex items-center gap-2 mb-1">
-          <i class="${isCorrect ? 'fa-solid fa-circle-check text-emerald-500' : 'fa-solid fa-circle-xmark text-rose-500'}"></i>
-          ${isCorrect ? 'Chính xác!' : `Chưa chính xác! Đáp án đúng là: ${escapeHtml(correctAns)}`}
-        </div>
-        <div class="text-xs opacity-90">
-          ${isCorrect ? 'Bạn đã nắm vững kiến thức câu hỏi này.' : 'Hãy xem lại lý thuyết trong bài để khắc sâu kiến thức.'}
-        </div>
-      `;
+    // Chống xếp chồng banner giải thích: gỡ banner cũ nếu có
+    const oldBanner = cardOrContainer.querySelector('.mcq-feedback-banner');
+    if (oldBanner) oldBanner.remove();
 
-      const optionsContainer = optionBtns[0]?.parentElement;
-      if (optionsContainer && optionsContainer.parentNode) {
-        if (optionsContainer.nextSibling) {
-          optionsContainer.parentNode.insertBefore(banner, optionsContainer.nextSibling);
-        } else {
-          optionsContainer.parentNode.appendChild(banner);
-        }
+    const banner = document.createElement('div');
+    banner.className = `mcq-feedback-banner p-4 rounded-xl ${isCorrect ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300' : 'bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300'} text-sm animate-pulse-subtle mt-4`;
+    banner.innerHTML = `
+      <div class="font-bold flex items-center gap-2 mb-1">
+        <i class="${isCorrect ? 'fa-solid fa-circle-check text-emerald-500' : 'fa-solid fa-circle-xmark text-rose-500'}"></i>
+        ${isCorrect ? 'Chính xác!' : `Chưa chính xác! Đáp án đúng là: ${escapeHtml(correctAns)}`}
+      </div>
+      <div class="text-xs opacity-90">
+        ${isCorrect ? 'Bạn đã nắm vững kiến thức câu hỏi này.' : 'Hãy xem lại lý thuyết trong bài để khắc sâu kiến thức.'}
+      </div>
+    `;
+
+    const optionsContainer = optionBtns[0]?.parentElement;
+    if (optionsContainer && optionsContainer.parentNode) {
+      if (optionsContainer.nextSibling) {
+        optionsContainer.parentNode.insertBefore(banner, optionsContainer.nextSibling);
       } else {
-        cardOrContainer.appendChild(banner);
+        optionsContainer.parentNode.appendChild(banner);
       }
-      renderMath(banner);
+    } else {
+      cardOrContainer.appendChild(banner);
     }
+    renderMath(banner);
   },
 
   updateSingleStatsDisplay() {
@@ -662,8 +737,19 @@ export const Practice = {
   },
 
   handleCheckTf(qId) {
+    if (this._answeringSet.has(qId) || this.userAnswers[qId]) return;
+    this._answeringSet.add(qId);
+
     const q = this.filteredQuestions.find(item => item.id === qId);
-    if (!q || this.userAnswers[qId]) return;
+    if (!q) return;
+
+    // Vô hiệu hóa nút kiểm tra ngay lập tức chống double-click spam
+    const checkBtns = this.container.querySelectorAll(`[data-check-tf="${qId}"]`);
+    checkBtns.forEach(btn => {
+      btn.disabled = true;
+      btn.setAttribute('disabled', 'true');
+      btn.style.pointerEvents = 'none';
+    });
 
     const choices = this.tempTfChoices[qId] || ['', '', '', ''];
     const correctParts = (q.answer || 'Đ,Đ,Đ,Đ').split(',');
@@ -687,7 +773,11 @@ export const Practice = {
     this.sessionStats.answered++;
     if (correctSubCount >= 3) this.sessionStats.correct++;
     else this.sessionStats.wrong++;
-    Storage.recordPracticeResult(correctSubCount === 4, q);
+    try {
+      Storage.recordPracticeResult(correctSubCount === 4, q);
+    } catch (e) {
+      console.warn('Lỗi ghi nhận kết quả luyện tập:', e);
+    }
 
     const card = this.container.querySelector(`#q-card-${qId}`) || (this.viewMode === 'single' ? this.container : null);
     if (card) {
@@ -703,6 +793,7 @@ export const Practice = {
     tfBtns.forEach(btn => {
       btn.disabled = true;
       btn.setAttribute('disabled', 'true');
+      btn.style.pointerEvents = 'none';
     });
 
     for (let idx = 0; idx < 4; idx++) {
@@ -716,6 +807,10 @@ export const Practice = {
         rowContainer.appendChild(tag);
       }
     }
+
+    // Gỡ banner cũ nếu có chống xếp chồng
+    const oldBanner = cardOrContainer.querySelector('.tf-feedback-banner');
+    if (oldBanner) oldBanner.remove();
 
     const checkBtn = cardOrContainer.querySelector(`[data-check-tf="${q.id}"]`);
     const checkBtnContainer = checkBtn ? checkBtn.closest('.pt-2.flex.justify-end') : null;
@@ -737,12 +832,31 @@ export const Practice = {
   },
 
   handleCheckTln(qId) {
+    if (this._answeringSet.has(qId) || this.userAnswers[qId]) return;
+    this._answeringSet.add(qId);
+
     const q = this.filteredQuestions.find(item => item.id === qId);
-    if (!q || this.userAnswers[qId]) return;
+    if (!q) return;
 
     const inputEl = this.container.querySelector(`[data-tln-input="${qId}"]`);
     const val = inputEl ? inputEl.value.trim() : (this.tempTlnInputs?.[qId]?.trim() || '');
-    if (!val) return;
+    if (!val) {
+      this._answeringSet.delete(qId);
+      return;
+    }
+
+    // Vô hiệu hóa nút kiểm tra ngay lập tức chống double-click spam
+    const checkBtns = this.container.querySelectorAll(`[data-check-tln="${qId}"]`);
+    checkBtns.forEach(btn => {
+      btn.disabled = true;
+      btn.setAttribute('disabled', 'true');
+      btn.style.pointerEvents = 'none';
+    });
+    if (inputEl) {
+      inputEl.disabled = true;
+      inputEl.setAttribute('disabled', 'true');
+    }
+
     const normUser = val.toLowerCase().replace(/\s+/g, '');
     const normAns = (q.answer || '').toLowerCase().replace(/\s+/g, '');
     const isCorrect = (normUser === normAns);
@@ -751,7 +865,11 @@ export const Practice = {
     this.sessionStats.answered++;
     if (isCorrect) this.sessionStats.correct++;
     else this.sessionStats.wrong++;
-    Storage.recordPracticeResult(isCorrect, q);
+    try {
+      Storage.recordPracticeResult(isCorrect, q);
+    } catch (e) {
+      console.warn('Lỗi ghi nhận kết quả:', e);
+    }
 
     const card = this.container.querySelector(`#q-card-${qId}`) || (this.viewMode === 'single' ? this.container : null);
     if (card) {
@@ -769,6 +887,10 @@ export const Practice = {
       inputEl.setAttribute('disabled', 'true');
       inputEl.className = `w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border ${isCorrect ? 'border-emerald-500 text-emerald-800 dark:text-emerald-300' : 'border-rose-500 text-rose-800 dark:text-rose-300'} rounded-xl text-sm font-medium focus:outline-none`;
     }
+
+    // Gỡ banner cũ nếu có chống xếp chồng
+    const oldBanner = cardOrContainer.querySelector('.tln-feedback-banner');
+    if (oldBanner) oldBanner.remove();
 
     const checkBtn = cardOrContainer.querySelector(`[data-check-tln="${q.id}"]`);
     const checkBtnContainer = checkBtn ? checkBtn.closest('.pt-2.flex.justify-end') : null;
@@ -800,25 +922,41 @@ export const Practice = {
     // Bookmark (Lightweight)
     const bmBtn = this.container.querySelector('#btn-toggle-bookmark');
     if (bmBtn) {
-      bmBtn.addEventListener('click', () => {
-        const isNowBookmarked = Storage.toggleBookmark(q);
-        bmBtn.className = `p-2 rounded-xl transition ${isNowBookmarked ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-500' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-amber-500'}`;
-        bmBtn.title = isNowBookmarked ? 'Bỏ lưu' : 'Lưu câu hỏi này';
-        bmBtn.innerHTML = `<i class="${isNowBookmarked ? 'fa-solid' : 'fa-regular'} fa-bookmark"></i>`;
-      });
+      bmBtn.onclick = () => {
+        try {
+          const isNowBookmarked = Storage.toggleBookmark(q);
+          bmBtn.className = `p-2 rounded-xl transition ${isNowBookmarked ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-500' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-amber-500'}`;
+          bmBtn.title = isNowBookmarked ? 'Bỏ lưu' : 'Lưu câu hỏi này';
+          bmBtn.innerHTML = `<i class="${isNowBookmarked ? 'fa-solid' : 'fa-regular'} fa-bookmark"></i>`;
+        } catch (e) {
+          console.warn('Lỗi lưu bookmark:', e);
+        }
+      };
     }
 
     // View toggle
     const btnSingle = this.container.querySelector('#btn-view-single');
     const btnList = this.container.querySelector('#btn-view-list');
-    if (btnSingle) btnSingle.addEventListener('click', () => { this.viewMode = 'single'; this.render(); });
-    if (btnList) btnList.addEventListener('click', () => { this.viewMode = 'list'; this.render(); });
+    if (btnSingle) {
+      btnSingle.onclick = () => {
+        if (this.viewMode === 'single') return;
+        this.viewMode = 'single';
+        this.render();
+      };
+    }
+    if (btnList) {
+      btnList.onclick = () => {
+        if (this.viewMode === 'list') return;
+        this.viewMode = 'list';
+        this.render();
+      };
+    }
 
-    // Prev / Next buttons
+    // Prev / Next buttons (throttled qua safeNavigate)
     const prevBtn = this.container.querySelector('#btn-prev-q');
     const nextBtn = this.container.querySelector('#btn-next-q');
-    if (prevBtn) prevBtn.addEventListener('click', () => { if (this.currentIndex > 0) { this.currentIndex--; this.render(); } });
-    if (nextBtn) nextBtn.addEventListener('click', () => { if (this.currentIndex < this.filteredQuestions.length - 1) { this.currentIndex++; this.render(); } });
+    if (prevBtn) prevBtn.onclick = () => this.safeNavigate('prev');
+    if (nextBtn) nextBtn.onclick = () => this.safeNavigate('next');
 
     // Phím tắt mũi tên Trái / Phải để chuyển câu
     if (!this._onPracticeKeyDown) {
@@ -828,45 +966,52 @@ export const Practice = {
         if (tag === 'input' || tag === 'textarea') return;
 
         if (e.key === 'ArrowLeft') {
-          if (this.currentIndex > 0) {
-            e.preventDefault();
-            this.currentIndex--;
-            this.render();
-          }
+          e.preventDefault();
+          this.safeNavigate('prev');
         } else if (e.key === 'ArrowRight') {
-          if (this.currentIndex < this.filteredQuestions.length - 1) {
-            e.preventDefault();
-            this.currentIndex++;
-            this.render();
-          }
+          e.preventDefault();
+          this.safeNavigate('next');
         }
       };
       window.addEventListener('keydown', this._onPracticeKeyDown);
     }
 
-    // MCQ answer choice (Lightweight - Zero Layout Thrashing)
+    // MCQ answer choice (Lightweight - Zero Layout Thrashing & Anti-Spam Lock)
     const mcqBtns = this.container.querySelectorAll('.mcq-option-btn');
     mcqBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (this.userAnswers[q.id]) return;
+      btn.onclick = () => {
+        const qId = q.id;
+        if (this._answeringSet.has(qId) || this.userAnswers[qId]) return;
+        this._answeringSet.add(qId);
+
+        mcqBtns.forEach(b => {
+          b.disabled = true;
+          b.setAttribute('disabled', 'true');
+          b.style.pointerEvents = 'none';
+        });
+
         const chosen = btn.getAttribute('data-opt');
         const correctAns = q.displayAnswer || q.answer || 'A';
         const isCorrect = (chosen === correctAns);
-        this.userAnswers[q.id] = { chosen, isCorrect };
+        this.userAnswers[qId] = { chosen, isCorrect };
         
         this.sessionStats.answered++;
         if (isCorrect) this.sessionStats.correct++;
         else this.sessionStats.wrong++;
-        Storage.recordPracticeResult(isCorrect, q);
+        try {
+          Storage.recordPracticeResult(isCorrect, q);
+        } catch (e) {
+          console.warn('Lỗi ghi nhận kết quả:', e);
+        }
 
         this.applyMCQOptionSelection(this.container, q, chosen, correctAns, isCorrect);
         this.updateSingleStatsDisplay();
-      });
+      };
     });
 
     // True / False mode
     this.container.querySelectorAll('[data-tf-qid]').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.onclick = () => {
         const qid = btn.getAttribute('data-tf-qid');
         const idx = parseInt(btn.getAttribute('data-tf-idx'), 10);
         const val = btn.getAttribute('data-val');
@@ -879,32 +1024,32 @@ export const Practice = {
         });
         btn.classList.remove('bg-white', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-300');
         btn.classList.add(val === 'Đ' ? 'bg-blue-600' : 'bg-rose-600', 'text-white');
-      });
+      };
     });
 
     const checkTfBtn = this.container.querySelector(`[data-check-tf="${q.id}"]`);
     if (checkTfBtn) {
-      checkTfBtn.addEventListener('click', () => {
+      checkTfBtn.onclick = () => {
         this.handleCheckTf(q.id);
-      });
+      };
     }
 
     // Short answer check
     const checkTlnBtn = this.container.querySelector(`[data-check-tln="${q.id}"]`);
     const tlnInput = this.container.querySelector(`[data-tln-input="${q.id}"]`);
     if (tlnInput) {
-      tlnInput.addEventListener('input', (e) => {
+      tlnInput.oninput = (e) => {
         if (!this.tempTlnInputs) this.tempTlnInputs = {};
         this.tempTlnInputs[q.id] = e.target.value;
-      });
-      tlnInput.addEventListener('keydown', (e) => {
+      };
+      tlnInput.onkeydown = (e) => {
         if (e.key === 'Enter') this.handleCheckTln(q.id);
-      });
+      };
     }
     if (checkTlnBtn) {
-      checkTlnBtn.addEventListener('click', () => {
+      checkTlnBtn.onclick = () => {
         this.handleCheckTln(q.id);
-      });
+      };
     }
 
     this.bindNoteButtons();
@@ -913,42 +1058,65 @@ export const Practice = {
   bindEventsList(questions, currentPage, pageSize) {
     const btnSingle = this.container.querySelector('#btn-view-single');
     const btnList = this.container.querySelector('#btn-view-list');
-    if (btnSingle) btnSingle.addEventListener('click', () => { this.viewMode = 'single'; this.render(); });
-    if (btnList) btnList.addEventListener('click', () => { this.viewMode = 'list'; this.render(); });
+    if (btnSingle) {
+      btnSingle.onclick = () => {
+        if (this.viewMode === 'single') return;
+        this.viewMode = 'single';
+        this.render();
+      };
+    }
+    if (btnList) {
+      btnList.onclick = () => {
+        if (this.viewMode === 'list') return;
+        this.viewMode = 'list';
+        this.render();
+      };
+    }
 
     const prevPageBtn = this.container.querySelector('#btn-list-prev-page');
     const nextPageBtn = this.container.querySelector('#btn-list-next-page');
-    if (prevPageBtn) prevPageBtn.addEventListener('click', () => {
-      this.currentIndex = Math.max(0, (currentPage - 1) * pageSize);
-      this.render();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-    if (nextPageBtn) nextPageBtn.addEventListener('click', () => {
-      this.currentIndex = Math.min(this.filteredQuestions.length - 1, (currentPage + 1) * pageSize);
-      this.render();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
+    if (prevPageBtn) prevPageBtn.onclick = () => {
+      const target = Math.max(0, (currentPage - 1) * pageSize);
+      this.safeChangePage(target);
+    };
+    if (nextPageBtn) nextPageBtn.onclick = () => {
+      const target = Math.min(this.filteredQuestions.length - 1, (currentPage + 1) * pageSize);
+      this.safeChangePage(target);
+    };
 
     // Bookmarks in list (Lightweight)
     this.container.querySelectorAll('.btn-list-bookmark').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.onclick = () => {
         const qId = btn.getAttribute('data-bookmark-id');
         const targetQ = questions.find(item => item.id === qId);
         if (targetQ) {
-          const isNowBookmarked = Storage.toggleBookmark(targetQ);
-          btn.innerHTML = `<i class="${isNowBookmarked ? 'fa-solid text-amber-500' : 'fa-regular'} fa-bookmark"></i>`;
+          try {
+            const isNowBookmarked = Storage.toggleBookmark(targetQ);
+            btn.innerHTML = `<i class="${isNowBookmarked ? 'fa-solid text-amber-500' : 'fa-regular'} fa-bookmark"></i>`;
+          } catch (e) {
+            console.warn('Lỗi lưu bookmark:', e);
+          }
         }
-      });
+      };
     });
 
-    // MCQ clicks in list (Lightweight - Zero Layout Thrashing)
+    // MCQ clicks in list (Lightweight - Zero Layout Thrashing & Anti-Spam Lock)
     this.container.querySelectorAll('.mcq-option-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.onclick = () => {
         const card = btn.closest('[id^="q-card-"]');
         if (!card) return;
         const qId = card.id.replace('q-card-', '');
+        if (this._answeringSet.has(qId) || this.userAnswers[qId]) return;
+        this._answeringSet.add(qId);
+
+        card.querySelectorAll('.mcq-option-btn').forEach(b => {
+          b.disabled = true;
+          b.setAttribute('disabled', 'true');
+          b.style.pointerEvents = 'none';
+        });
+
         const targetQ = this.filteredQuestions.find(item => item.id === qId);
-        if (!targetQ || this.userAnswers[qId]) return;
+        if (!targetQ) return;
 
         const chosen = btn.getAttribute('data-opt');
         const correctAns = targetQ.displayAnswer || targetQ.answer || 'A';
@@ -958,15 +1126,19 @@ export const Practice = {
         this.sessionStats.answered++;
         if (isCorrect) this.sessionStats.correct++;
         else this.sessionStats.wrong++;
-        Storage.recordPracticeResult(isCorrect, targetQ);
+        try {
+          Storage.recordPracticeResult(isCorrect, targetQ);
+        } catch (e) {
+          console.warn('Lỗi ghi nhận kết quả:', e);
+        }
 
         this.applyMCQOptionSelection(card, targetQ, chosen, correctAns, isCorrect);
-      });
+      };
     });
 
     // True / False mode in list
     this.container.querySelectorAll('[data-tf-qid]').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.onclick = () => {
         const qid = btn.getAttribute('data-tf-qid');
         const idx = parseInt(btn.getAttribute('data-tf-idx'), 10);
         const val = btn.getAttribute('data-val');
@@ -982,33 +1154,33 @@ export const Practice = {
           btn.classList.remove('bg-white', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-300');
           btn.classList.add(val === 'Đ' ? 'bg-blue-600' : 'bg-rose-600', 'text-white');
         }
-      });
+      };
     });
 
     this.container.querySelectorAll('[data-check-tf]').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.onclick = () => {
         const qid = btn.getAttribute('data-check-tf');
         this.handleCheckTf(qid);
-      });
+      };
     });
 
     // Short answer check in list
     this.container.querySelectorAll('[data-tln-input]').forEach(input => {
       const qid = input.getAttribute('data-tln-input');
-      input.addEventListener('input', (e) => {
+      input.oninput = (e) => {
         if (!this.tempTlnInputs) this.tempTlnInputs = {};
         this.tempTlnInputs[qid] = e.target.value;
-      });
-      input.addEventListener('keydown', (e) => {
+      };
+      input.onkeydown = (e) => {
         if (e.key === 'Enter') this.handleCheckTln(qid);
-      });
+      };
     });
 
     this.container.querySelectorAll('[data-check-tln]').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.onclick = () => {
         const qid = btn.getAttribute('data-check-tln');
         this.handleCheckTln(qid);
-      });
+      };
     });
 
     this.bindNoteButtons();
