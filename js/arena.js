@@ -57,6 +57,19 @@ const Arena = {
   isMuted: false,
   soundCtx: null,
   selectedAvatarCat: 'all',
+  _actionLocks: {},
+
+  // Khóa debounce 500ms chống spam click tràn hàng đợi Firebase RTDB
+  debounceAction(actionName = 'action', lockMs = 500) {
+    const now = Date.now();
+    const lastTime = this._actionLocks[actionName] || 0;
+    if (now - lastTime < lockMs) {
+      console.warn(`[Arena] Thao tác "${actionName}" bị debounce (${lockMs}ms lock) chống spam!`);
+      return false; // Bị chặn
+    }
+    this._actionLocks[actionName] = now;
+    return true; // Được phép thực hiện
+  },
 
   // Danh mục 44 Linh thú Blooks vẽ tay bằng SVG đa lớp sắc nét
   BLOOKS: AVATARS.map(a => ({
@@ -595,11 +608,12 @@ const Arena = {
       ? savedPlayer.blookId
       : this.BLOOKS[0].id;
 
-    // 2. Submit Vào Phòng
+    // 2. Submit Vào Phòng (Tìm trận)
     const formJoin = document.getElementById('form-join-arena');
     if (formJoin) {
       formJoin.onsubmit = (e) => {
         e.preventDefault();
+        if (!this.debounceAction('tim_tran', 500)) return;
         const rawPin = document.getElementById('arena-input-pin')?.value || '';
         const pin = String(rawPin).replace(/[\s\-_]/g, '').trim();
         const name = document.getElementById('arena-input-name')?.value.trim();
@@ -645,6 +659,7 @@ const Arena = {
     // 6. Các nút Chơi Thử Ngay (Solo Practice) trên 4 thẻ Game Mode
     this.container.querySelectorAll('[data-solo-arena-mode]').forEach(btn => {
       btn.onclick = () => {
+        if (!this.debounceAction('tim_tran', 500)) return;
         const mode = btn.getAttribute('data-solo-arena-mode') || 'resource_quest';
         const nameInput = document.getElementById('arena-input-name')?.value.trim();
         Storage.saveArenaPlayer({
@@ -667,6 +682,7 @@ const Arena = {
     // 8. Các nút Vào Nhanh / Mở Host / Xóa Phòng Đấu Trường đang lưu
     this.container.querySelectorAll('[data-quick-join-arena-pin]').forEach(btn => {
       btn.onclick = () => {
+        if (!this.debounceAction('tim_tran', 500)) return;
         const rawPin = btn.getAttribute('data-quick-join-arena-pin') || '';
         const pin = String(rawPin).replace(/[\s\-_]/g, '').trim();
         const nameInput = document.getElementById('arena-input-name')?.value.trim();
@@ -738,6 +754,9 @@ const Arena = {
   // 2B. CHẾ ĐỘ CHƠI THỬ / TỰ LUYỆN SOLO CÙNG AI BLOOKS
   // ==========================================
   async startSoloArenaGame(mode = 'resource_quest', blookId = null, customName = '') {
+    if (!this.debounceAction('tim_tran', 500)) {
+      return;
+    }
     const grade = (typeof window !== 'undefined' && window.AppInstance?.currentGrade) || '12';
     let questions = [];
     try {
@@ -2369,6 +2388,9 @@ const Arena = {
   // 9. MÀN HÌNH HỌC SINH (PLAYER CONTROLLER - MOBILE/PC)
   // ==========================================
   async joinArenaByPin(pin, studentName = null, blookId = 'bot') {
+    if (!this.debounceAction('tim_tran', 500)) {
+      return;
+    }
     if (!pin) {
       alert('Em vui lòng nhập mã PIN trận đấu do Thầy/Cô cung cấp nhé!');
       return;
@@ -2456,6 +2478,66 @@ const Arena = {
     // Lắng nghe cập nhật phòng
     this.listenToRoomUpdates(pin);
     this.renderPlayerLobby();
+  },
+
+  async leaveRoom(confirmRequired = true) {
+    if (!this.debounceAction('roi_phong', 500)) {
+      return;
+    }
+    if (confirmRequired && !confirm('Em có chắc chắn muốn rời phòng đấu trường không?')) {
+      return;
+    }
+    const room = this.activeRoom;
+    const uid = this.playerInfo?.uid;
+
+    this.cleanupRoomListener();
+
+    if (room && !room.isSoloPractice && room.pin && uid) {
+      try {
+        const dbUrl = this.getBaseDbUrl();
+        await authedFetch(`${dbUrl}/arena_rooms/${room.pin}/players/${uid}.json`, {
+          method: 'DELETE'
+        });
+      } catch (e) {
+        console.warn('Lỗi khi xóa người chơi khỏi RTDB khi rời phòng:', e);
+      }
+    }
+
+    this.activeRoom = null;
+    this.playerInfo = null;
+    this.activeRole = null;
+    this.renderMainView();
+  },
+
+  async togglePlayerReady() {
+    if (!this.debounceAction('san_sang', 500)) {
+      return;
+    }
+    if (!this.playerInfo) return;
+    this.playerInfo.isReady = !this.playerInfo.isReady;
+
+    const btnReady = document.getElementById('btn-player-toggle-ready');
+    const txtReady = document.getElementById('btn-player-ready-text');
+    if (btnReady) {
+      btnReady.className = `w-full sm:w-auto px-5 py-2.5 rounded-xl ${this.playerInfo.isReady ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white'} text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm`;
+    }
+    if (txtReady) {
+      txtReady.textContent = this.playerInfo.isReady ? 'Đã Sẵn Sàng!' : 'Sẵn Sàng';
+    }
+
+    this.playTone(this.playerInfo.isReady ? 659 : 440, 0.08, 'sine');
+
+    const room = this.activeRoom;
+    if (room && !room.isSoloPractice && room.pin && this.playerInfo.uid) {
+      try {
+        const dbUrl = this.getBaseDbUrl();
+        await authedFetch(`${dbUrl}/arena_rooms/${room.pin}/players/${this.playerInfo.uid}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isReady: this.playerInfo.isReady })
+        });
+      } catch (e) {}
+    }
   },
 
   renderPlayerLobby() {
@@ -2571,8 +2653,14 @@ const Arena = {
                 <i class="fa-solid fa-play"></i> BẮT ĐẦU VÀO TRẬN ĐẤU NGAY
               </button>
             ` : `
-              <div class="flex-1 py-2 text-xs font-bold text-purple-600 dark:text-purple-400 flex items-center justify-center sm:justify-start gap-2">
-                <i class="fa-solid fa-spinner fa-spin text-base"></i> Đã sẵn sàng! Đang đợi Thầy/Cô bấm Bắt đầu trên máy chiếu...
+              <div class="flex flex-wrap items-center gap-2.5">
+                <button type="button" id="btn-player-toggle-ready" class="w-full sm:w-auto px-5 py-2.5 rounded-xl ${this.playerInfo.isReady ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white'} text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm">
+                  <i class="fa-solid ${this.playerInfo.isReady ? 'fa-circle-check' : 'fa-hand'}"></i>
+                  <span id="btn-player-ready-text">${this.playerInfo.isReady ? 'Đã Sẵn Sàng!' : 'Sẵn Sàng'}</span>
+                </button>
+                <div class="py-2 text-xs font-bold text-purple-600 dark:text-purple-400 flex items-center gap-2">
+                  <i class="fa-solid fa-spinner fa-spin text-base"></i> Đang đợi Thầy/Cô bấm Bắt đầu trên máy chiếu...
+                </div>
               </div>
             `}
             <button type="button" id="btn-player-leave-room" class="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-rose-600 text-xs font-bold transition cursor-pointer">
@@ -2699,6 +2787,7 @@ const Arena = {
     const btnSoloStart = document.getElementById('btn-solo-start-from-lobby');
     if (btnSoloStart) {
       btnSoloStart.onclick = () => {
+        if (!this.debounceAction('san_sang', 500)) return;
         room.status = 'playing';
         room.currentQuestionIndex = 0;
         this.playStart();
@@ -2706,15 +2795,16 @@ const Arena = {
       };
     }
 
-    // Nút Rời phòng chờ
+    // Nút Sẵn sàng ở phòng chờ (multiplayer)
+    const btnToggleReady = document.getElementById('btn-player-toggle-ready');
+    if (btnToggleReady) {
+      btnToggleReady.onclick = () => this.togglePlayerReady();
+    }
+
+    // Nút Rời phòng chờ (có debounce 500ms chống flood)
     const btnLeave = document.getElementById('btn-player-leave-room');
     if (btnLeave) {
-      btnLeave.onclick = () => {
-        if (confirm('Em có chắc chắn muốn rời phòng đấu trường không?')) {
-          this.cleanupRoomListener();
-          this.renderMainView();
-        }
-      };
+      btnLeave.onclick = () => this.leaveRoom(true);
     }
   },
 
@@ -2783,9 +2873,22 @@ const Arena = {
       </div>
     `;
 
-    // Click chọn đáp án
-    this.container.querySelectorAll('[data-player-ans]').forEach(btn => {
-      btn.onclick = () => {
+    // Click chọn đáp án: Khóa ngay lập tức tất cả các lựa chọn (Anti-Double-Answer / Spam Lock)
+    const optionBtns = this.container.querySelectorAll('[data-player-ans]');
+    optionBtns.forEach(btn => {
+      btn.onclick = (e) => {
+        if (this.playerInfo.answeredInCurrentQ) {
+          if (e) { e.preventDefault(); e.stopImmediatePropagation(); }
+          return;
+        }
+        // Vô hiệu hóa ngay lập tức toàn bộ các lựa chọn khi học sinh click
+        optionBtns.forEach(b => {
+          b.disabled = true;
+          b.classList.add('opacity-60', 'cursor-not-allowed', 'pointer-events-none');
+        });
+        btn.classList.remove('opacity-60');
+        btn.classList.add('ring-4', 'ring-white', 'scale-[0.98]');
+
         const ansIdx = parseInt(btn.getAttribute('data-player-ans'), 10);
         this.playerSubmitAnswer(ansIdx, q);
       };
@@ -2793,12 +2896,7 @@ const Arena = {
 
     const btnQuit = document.getElementById('btn-player-quit-match');
     if (btnQuit) {
-      btnQuit.onclick = () => {
-        if (confirm('Bạn có chắc chắn muốn rời khỏi trận đấu này không?')) {
-          this.cleanupRoomListener();
-          this.renderMainView();
-        }
-      };
+      btnQuit.onclick = () => this.leaveRoom(true);
     }
   },
 
@@ -2806,6 +2904,14 @@ const Arena = {
     if (this.playerInfo.answeredInCurrentQ) return;
     this.playerInfo.answeredInCurrentQ = true;
     this.playerInfo.currentAnswer = ansIdx;
+
+    // Đảm bảo toàn bộ lựa chọn trên DOM đều bị vô hiệu hóa
+    if (this.container) {
+      this.container.querySelectorAll('[data-player-ans]').forEach(b => {
+        b.disabled = true;
+        b.classList.add('opacity-60', 'cursor-not-allowed', 'pointer-events-none');
+      });
+    }
 
     if (navigator.vibrate) navigator.vibrate([40]);
 
@@ -2907,8 +3013,14 @@ const Arena = {
       </div>
     `;
 
-    this.container.querySelectorAll('[data-pick-chest]').forEach(btn => {
+    const chestBtns = this.container.querySelectorAll('[data-pick-chest]');
+    chestBtns.forEach(btn => {
       btn.onclick = () => {
+        if (btn.disabled) return;
+        chestBtns.forEach(b => {
+          b.disabled = true;
+          b.classList.add('opacity-60', 'cursor-not-allowed', 'pointer-events-none');
+        });
         const chestIdx = parseInt(btn.getAttribute('data-pick-chest'), 10);
         this.playerOpenChestReward(chestIdx);
       };
@@ -3398,4 +3510,5 @@ const Arena = {
 };
 
 if (typeof window !== "undefined") window.Arena = Arena;
+export { Arena };
 export default Arena;

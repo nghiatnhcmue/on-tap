@@ -42,13 +42,160 @@ export const Auth = {
   isFirebaseInitialized: false,
   onAuthChangeCallbacks: [],
   isSigningIn: false,
+  isSubmitting: false,
   isEditingProfile: false,
+  authWatchdogTimer: null,
+  _toastTimer: null,
+
+  showToast(msg, type = 'error') {
+    if (typeof document === 'undefined') return;
+    try {
+      let toast = document.getElementById('tinhoc-auth-toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'tinhoc-auth-toast';
+        document.body.appendChild(toast);
+      }
+      const isWarn = type === 'warning';
+      const isInfo = type === 'info';
+      let bgCls = 'bg-rose-600 text-white border-rose-400 shadow-rose-900/40';
+      let icon = 'fa-circle-exclamation';
+      if (isWarn) {
+        bgCls = 'bg-amber-500 text-slate-950 border-amber-300 shadow-amber-900/30';
+        icon = 'fa-triangle-exclamation';
+      } else if (isInfo) {
+        bgCls = 'bg-blue-600 text-white border-blue-400 shadow-blue-900/40';
+        icon = 'fa-circle-info';
+      } else if (type === 'success') {
+        bgCls = 'bg-emerald-600 text-white border-emerald-400 shadow-emerald-900/40';
+        icon = 'fa-circle-check';
+      }
+
+      toast.className = `fixed top-6 left-1/2 -translate-x-1/2 z-[99999] px-5 py-3 rounded-2xl text-xs font-bold shadow-2xl border flex items-center gap-2.5 transition-all duration-300 pointer-events-none max-w-md text-left ${bgCls}`;
+      toast.innerHTML = `<i class="fa-solid ${icon} text-sm shrink-0"></i> <span class="leading-relaxed">${escapeHtml(msg)}</span>`;
+      toast.style.opacity = '1';
+      toast.style.transform = 'translate(-50%, 0)';
+
+      if (this._toastTimer) clearTimeout(this._toastTimer);
+      this._toastTimer = setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translate(-50%, -12px)';
+      }, 4000);
+    } catch (e) {
+      console.warn('showToast error:', e);
+    }
+  },
+
+  setAuthButtonsLoading(isLoading, actionType = 'auth') {
+    this.isSubmitting = isLoading;
+    if (actionType === 'google') {
+      this.isSigningIn = isLoading;
+    }
+    if (typeof document === 'undefined') return;
+
+    const selectors = [
+      '#btn-firebase-google-signin',
+      '#btn-firebase-google-signup',
+      '[data-trigger-google-firebase]',
+      '#form-login-direct button[type="submit"]',
+      '#form-register-account button[type="submit"]',
+      '#auth-btn-login'
+    ];
+    const buttons = document.querySelectorAll(selectors.join(', '));
+
+    buttons.forEach(btn => {
+      if (isLoading) {
+        btn.disabled = true;
+        btn.classList.add('opacity-75', 'cursor-not-allowed');
+        if (!btn.dataset.prevHtml) {
+          btn.dataset.prevHtml = btn.innerHTML;
+        }
+
+        if (actionType === 'google' && (btn.id.includes('google') || btn.hasAttribute('data-trigger-google-firebase'))) {
+          btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang mở xác thực Google...';
+        } else if (actionType === 'login' && btn.closest('#form-login-direct')) {
+          btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Đang đăng nhập...';
+        } else if (actionType === 'register' && btn.closest('#form-register-account')) {
+          btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Đang đăng ký...';
+        }
+      } else {
+        btn.disabled = false;
+        btn.classList.remove('opacity-75', 'cursor-not-allowed');
+        if (btn.dataset.prevHtml) {
+          btn.innerHTML = btn.dataset.prevHtml;
+          delete btn.dataset.prevHtml;
+        }
+      }
+    });
+
+    if (!isLoading) {
+      if (this.authWatchdogTimer) {
+        clearTimeout(this.authWatchdogTimer);
+        this.authWatchdogTimer = null;
+      }
+    }
+  },
+
+  setupAuthGuards() {
+    if (typeof document === 'undefined') return;
+
+    // 1. Guard form login
+    const formLogin = document.getElementById('form-login-direct');
+    if (formLogin && !formLogin.dataset.authGuarded) {
+      formLogin.dataset.authGuarded = 'true';
+      formLogin.addEventListener('submit', (e) => {
+        if (this.isSubmitting) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          this.showToast('Đang xử lý đăng nhập, vui lòng chờ trong giây lát...', 'warning');
+          return;
+        }
+        const idInput = document.getElementById('login-input-identity');
+        if (idInput) idInput.value = idInput.value.trim();
+      }, true);
+    }
+
+    // 2. Guard form register
+    const formRegister = document.getElementById('form-register-account');
+    if (formRegister && !formRegister.dataset.authGuarded) {
+      formRegister.dataset.authGuarded = 'true';
+      formRegister.addEventListener('submit', (e) => {
+        if (this.isSubmitting) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          this.showToast('Đang xử lý đăng ký, vui lòng chờ trong giây lát...', 'warning');
+          return;
+        }
+        const nameInput = document.getElementById('reg-input-fullname');
+        if (nameInput) nameInput.value = nameInput.value.trim().replace(/\s+/g, ' ');
+        const emailInput = document.getElementById('reg-input-email');
+        if (emailInput) emailInput.value = emailInput.value.trim();
+      }, true);
+    }
+
+    // 3. Guard Google Auth buttons
+    const googleBtns = document.querySelectorAll('#btn-firebase-google-signin, #btn-firebase-google-signup, [data-trigger-google-firebase]');
+    googleBtns.forEach(btn => {
+      if (!btn.dataset.authGuarded) {
+        btn.dataset.authGuarded = 'true';
+        btn.addEventListener('click', (e) => {
+          if (this.isSubmitting || this.isSigningIn) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            this.showToast('Đang mở xác thực Google, vui lòng chờ...', 'warning');
+            return;
+          }
+        }, true);
+      }
+    });
+  },
 
   init() {
     this.loadUserFromStorage();
     this.ensureFirebaseInitialized();
     this.setupFirebaseAuthUI();
     this.bindGoogleAuthButtons();
+    this.setupAuthGuards();
 
     // Gán sự kiện nút Google qua bindGoogleAuthButtons()
 
@@ -58,6 +205,7 @@ export const Auth = {
         if (ready) {
           this.ensureFirebaseInitialized();
           this.bindGoogleAuthButtons();
+          this.setupAuthGuards();
         }
       });
     }
@@ -726,37 +874,27 @@ export const Auth = {
   },
 
   async signInWithGoogleFirebase() {
-    if (this.isSigningIn) {
-      console.warn('Đang có một tiến trình xác thực Google đang mở...');
+    if (this.isSubmitting || this.isSigningIn) {
+      console.warn('Đang có một tiến trình xác thực đang diễn ra...');
+      this.showToast('Hệ thống đang mở xác thực Google, vui lòng chờ trong giây lát...', 'warning');
       return;
     }
-    this.isSigningIn = true;
+    this.setAuthButtonsLoading(true, 'google');
 
-    const btns = document.querySelectorAll('#btn-firebase-google-signin, #btn-firebase-google-signup, [data-trigger-google-firebase]');
-    btns.forEach(b => {
-      b.disabled = true;
-      if (!b.dataset.prevHtml) b.dataset.prevHtml = b.innerHTML;
-      b.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang mở xác thực Google...';
-    });
-
-    // Watchdog tự động khôi phục nút sau 6 giây nếu popup bị treo hoặc đóng mà không kích hoạt callback
+    // Watchdog an toàn 8 giây: Tự động khôi phục nút và báo lỗi nếu mạng bị nghẽn hoặc popup bị treo
+    let hasTimedOut = false;
     const watchdogTimer = setTimeout(() => {
-      this.isSigningIn = false;
-      btns.forEach(b => {
-        b.disabled = false;
-        if (b.dataset.prevHtml) {
-          b.innerHTML = b.dataset.prevHtml;
-          delete b.dataset.prevHtml;
-        }
-      });
-    }, 6000);
+      hasTimedOut = true;
+      this.setAuthButtonsLoading(false, 'google');
+      this.showToast('Quá thời gian chờ xác thực Google (8 giây). Vui lòng thử lại!', 'warning');
+    }, 8000);
 
     try {
       // Đảm bảo Firebase SDK đã sẵn sàng
       if (typeof firebase === 'undefined' || typeof firebase.auth !== 'function') {
         const ready = await this.waitForFirebaseSDK(3000);
         if (!ready) {
-          alert('Không thể kết nối đến thư viện Google Firebase (có thể do đường truyền hoặc trình duyệt chặn kết nối).\n\nEm vui lòng chọn một trong các nút "Vào nhanh không cần mật khẩu" hoặc đăng nhập bằng Email/Tài khoản ở bên dưới để vào học ngay nhé!');
+          this.showToast('Không thể kết nối đến thư viện Google Firebase. Vui lòng đăng nhập bằng Email/Tài khoản!', 'error');
           document.getElementById('login-input-identity')?.focus();
           return;
         }
@@ -764,7 +902,7 @@ export const Auth = {
 
       const ok = this.ensureFirebaseInitialized();
       if (!ok || !this.firebaseAuth) {
-        alert('Đang kết nối xác thực Google. Em hãy chọn một trong các nút "Vào nhanh không cần mật khẩu" hoặc đăng nhập bằng Email/Tài khoản ở bên dưới để vào học ngay nhé!');
+        this.showToast('Đang kết nối xác thực Google. Em vui lòng đăng nhập bằng Email/Tài khoản để vào học ngay nhé!', 'warning');
         document.getElementById('login-input-identity')?.focus();
         return;
       }
@@ -788,6 +926,7 @@ export const Auth = {
                                 ));
 
         if (isCoopOrBlocked && typeof this.firebaseAuth.signInWithRedirect === 'function') {
+          const btns = document.querySelectorAll('#btn-firebase-google-signin, #btn-firebase-google-signup, [data-trigger-google-firebase]');
           btns.forEach(b => {
             b.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang chuyển hướng Google...';
           });
@@ -802,42 +941,39 @@ export const Auth = {
       }
     } catch (err) {
       console.error('Lỗi đăng nhập Google Firebase:', err);
+      if (hasTimedOut) return;
+
       const isApiKeyErr = err.code === 'auth/api-key-not-valid' ||
                           err.code === 'auth/invalid-api-key' ||
                           (err.code && String(err.code).includes('api-key-not-valid')) ||
                           (err.message && String(err.message).includes('api-key-not-valid'));
 
       if (isApiKeyErr) {
-        alert('Đăng nhập Google tạm thời gián đoạn. Bạn vui lòng chọn một trong các nút "Vào nhanh không cần mật khẩu" hoặc đăng nhập bằng Email/Tài khoản ở bên dưới nhé!');
+        this.showToast('Đăng nhập Google tạm thời gián đoạn. Vui lòng đăng nhập bằng Email/Tài khoản bên dưới!', 'error');
         document.getElementById('login-input-identity')?.focus();
       } else if (err.code === 'auth/popup-blocked') {
-        alert('Trình duyệt đã chặn cửa sổ đăng nhập Google (Pop-up blocked)!\n\nVui lòng nhấp vào biểu tượng Pop-up trên thanh địa chỉ của trình duyệt để "Cho phép Pop-up từ trang này", hoặc dùng các nút "Vào nhanh không cần mật khẩu" ở bên dưới.');
+        this.showToast('Trình duyệt đã chặn cửa sổ Pop-up. Vui lòng cho phép Pop-up hoặc dùng Email/Mật khẩu!', 'error');
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        this.showToast('Bạn đã đóng cửa sổ đăng nhập Google. Vui lòng bấm lại khi sẵn sàng!', 'warning');
+      } else if (err.code === 'auth/cancelled-popup-request') {
+        this.showToast('Yêu cầu đăng nhập bị hủy do mở nhiều lần. Vui lòng thử lại!', 'warning');
+      } else if (err.code === 'auth/network-request-failed' || (err.message && String(err.message).toLowerCase().includes('network'))) {
+        this.showToast('Lỗi kết nối mạng khi xác thực. Vui lòng kiểm tra internet và thử lại!', 'error');
       } else if (err.code === 'auth/unauthorized-domain' || err.code === 'auth/invalid-continue-uri' || (err.message && err.message.includes('invalid-continue-uri'))) {
         const domain = window.location.hostname;
-        const wantDemo = confirm(`⚠️ TÊN MIỀN [${domain}] ĐANG CHỜ ỦY QUYỀN GOOGLE!\n\nĐể vào học ngay mà không cần chờ cấu hình Firebase Console:\n👉 Bấm OK để đăng nhập tức thì vào hệ thống (hoặc dùng các nút "Vào nhanh không cần mật khẩu" ở bên dưới).`);
+        const wantDemo = confirm(`⚠️ TÊN MIỀN [${domain}] ĐANG CHỜ ỦY QUYỀN GOOGLE!\n\nĐể vào học ngay mà không cần chờ cấu hình Firebase Console:\n👉 Bấm OK để đăng nhập tức thì vào hệ thống (hoặc dùng Email/Tài khoản bên dưới).`);
         if (wantDemo) {
           this.switchRoleDemo('student');
         }
       } else if (err.code === 'auth/operation-not-allowed') {
-        alert('Phương thức Google Sign-In chưa được bật trong Firebase!\n\nBạn có thể đăng nhập bằng Email/Tài khoản hoặc dùng các nút vào nhanh bên dưới.');
-      } else if (err.code === 'auth/popup-closed-by-user') {
-        // Người dùng chủ động đóng popup
-      } else if (err.code === 'auth/cancelled-popup-request') {
-        // Đã có một popup khác đang mở
+        this.showToast('Phương thức Google Sign-In chưa được bật trên Firebase!', 'error');
       } else {
-        alert(`Xác thực Firebase: ${err.message || err.code || 'Có lỗi xảy ra'}\nBạn có thể đăng nhập bằng Email/Tài khoản và Mật khẩu ở bên dưới để vào học ngay nhé!`);
+        this.showToast(`Xác thực: ${err.message || err.code || 'Có lỗi xảy ra'}. Bạn có thể đăng nhập bằng Email/Mật khẩu!`, 'error');
         document.getElementById('login-input-identity')?.focus();
       }
     } finally {
       clearTimeout(watchdogTimer);
-      this.isSigningIn = false;
-      btns.forEach(b => {
-        b.disabled = false;
-        if (b.dataset.prevHtml) {
-          b.innerHTML = b.dataset.prevHtml;
-          delete b.dataset.prevHtml;
-        }
-      });
+      this.setAuthButtonsLoading(false, 'google');
     }
   },
 
@@ -1001,8 +1137,8 @@ export const Auth = {
 
   // Đăng nhập an toàn bằng Email / Tên tài khoản + Mật khẩu
   loginWithCredentials(identity, password) {
-    const raw = (identity || '').trim();
-    const pwd = (password || '').trim();
+    const raw = String(identity || '').trim();
+    const pwd = String(password || '').trim();
     if (!raw) return { success: false, message: 'Vui lòng nhập Email hoặc Tên tài khoản!' };
     if (!pwd) return { success: false, message: 'Vui lòng nhập Mật khẩu cá nhân!' };
 
@@ -1089,23 +1225,43 @@ export const Auth = {
 
   // Đăng nhập bất đồng bộ: Tự động kiểm tra trên Cloud nếu máy mới chưa kịp đồng bộ danh sách tài khoản
   async loginWithCredentialsAsync(identity, password) {
-    let res = this.loginWithCredentials(identity, password);
-    if (!res.success && CloudSync && typeof CloudSync.syncAccounts === 'function') {
-      await CloudSync.syncAccounts();
-      res = this.loginWithCredentials(identity, password);
+    if (this.isSubmitting) {
+      console.warn('Đang có tiến trình đăng nhập đang thực hiện...');
+      return { success: false, code: 'IN_FLIGHT', message: 'Hệ thống đang xử lý đăng nhập, vui lòng đợi trong giây lát...' };
     }
-    if (res.success && CloudSync) {
-      Promise.all([
-        CloudSync.syncUserProgress ? CloudSync.syncUserProgress(null, res.user) : Promise.resolve(),
-        CloudSync.syncHistory ? CloudSync.syncHistory() : Promise.resolve(),
-        CloudSync.syncRooms ? CloudSync.syncRooms() : Promise.resolve()
-      ]).then(() => {
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('tinhoc-cloud-synced', { detail: { timestamp: new Date().toISOString() } }));
-        }
-      }).catch(() => {});
+    this.setAuthButtonsLoading(true, 'login');
+
+    const safetyTimer = setTimeout(() => {
+      this.setAuthButtonsLoading(false, 'login');
+      this.showToast('Quá thời gian kết nối đăng nhập (8 giây). Vui lòng thử lại!', 'warning');
+    }, 8000);
+
+    try {
+      let res = this.loginWithCredentials(identity, password);
+      if (!res.success && CloudSync && typeof CloudSync.syncAccounts === 'function') {
+        await CloudSync.syncAccounts();
+        res = this.loginWithCredentials(identity, password);
+      }
+      if (res.success && CloudSync) {
+        Promise.all([
+          CloudSync.syncUserProgress ? CloudSync.syncUserProgress(null, res.user) : Promise.resolve(),
+          CloudSync.syncHistory ? CloudSync.syncHistory() : Promise.resolve(),
+          CloudSync.syncRooms ? CloudSync.syncRooms() : Promise.resolve()
+        ]).then(() => {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('tinhoc-cloud-synced', { detail: { timestamp: new Date().toISOString() } }));
+          }
+        }).catch(() => {});
+      }
+      return res;
+    } catch (e) {
+      console.error('Lỗi loginWithCredentialsAsync:', e);
+      this.showToast('Có lỗi xảy ra khi kết nối máy chủ. Vui lòng thử lại!', 'error');
+      return { success: false, message: 'Lỗi đăng nhập: ' + (e.message || '') };
+    } finally {
+      clearTimeout(safetyTimer);
+      this.setAuthButtonsLoading(false, 'login');
     }
-    return res;
   },
 
   // Tương thích ngược với các lệnh gọi cũ
@@ -1114,82 +1270,99 @@ export const Auth = {
   },
 
   registerUser({ fullName, grade, className, school, email, password = '', role = 'student', secretCode = '' }) {
-    const cleanName = (fullName || '').trim();
-    const cleanClass = (className || '').trim();
-    const cleanSchool = (school || '').trim();
-    const cleanGrade = grade || '12';
-    const rawEmailOrUser = (email || '').trim().toLowerCase();
-    const cleanUsername = rawEmailOrUser.includes('@') ? rawEmailOrUser.split('@')[0] : rawEmailOrUser;
-    const cleanEmail = rawEmailOrUser.includes('@') ? rawEmailOrUser : (rawEmailOrUser ? `${rawEmailOrUser}@tinhoc.edu.vn` : '');
-    const cleanPassword = (password || '').trim();
+    if (this.isSubmitting) {
+      console.warn('Đang có tiến trình đăng ký đang thực hiện...');
+      return { success: false, message: 'Hệ thống đang xử lý đăng ký, vui lòng đợi trong giây lát...' };
+    }
+    this.setAuthButtonsLoading(true, 'register');
 
-    if (!cleanName) {
-      return { success: false, message: 'Vui lòng nhập Họ và tên của bạn!' };
-    }
-    if (!cleanSchool) {
-      return { success: false, message: 'Vui lòng chọn hoặc nhập Trường học của bạn!' };
-    }
-    if (!cleanClass) {
-      return { success: false, message: 'Vui lòng chọn hoặc nhập Lớp học của bạn!' };
-    }
-    if (!cleanEmail) {
-      return { success: false, message: 'Vui lòng nhập Email hoặc Tên tài khoản của bạn để định danh duy nhất!' };
-    }
-    if (!cleanPassword || cleanPassword.length < 6) {
-      return { success: false, message: 'Mật khẩu phải có tối thiểu 6 ký tự để bảo mật tài khoản và điểm số của bạn!' };
-    }
+    const safetyTimer = setTimeout(() => {
+      this.setAuthButtonsLoading(false, 'register');
+      this.showToast('Quá thời gian xử lý đăng ký (8 giây). Vui lòng thử lại!', 'warning');
+    }, 8000);
 
-    // Kiểm tra tính duy nhất của Email / Tên tài khoản (Chống trùng lặp tài khoản)
-    const accounts = Storage.getAccountsList();
-    const existing = accounts.find(a =>
-      (a.email && a.email.toLowerCase() === cleanEmail) ||
-      (a.username && a.username.toLowerCase() === cleanUsername) ||
-      (a.uid && a.uid.toLowerCase() === cleanUsername)
-    );
-    if (existing) {
-      return {
-        success: false,
-        message: `Tài khoản [${rawEmailOrUser}] đã được đăng ký trước đó!\nNếu đây là tài khoản của bạn, vui lòng chuyển sang tab "Đăng Nhập" và nhập mật khẩu để vào học.`
+    try {
+      // Tự động làm sạch và cắt khoảng trắng đầu/cuối của các trường nhập liệu
+      const cleanName = String(fullName || '').trim().replace(/\s+/g, ' ');
+      const cleanClass = String(className || '').trim();
+      const cleanSchool = String(school || '').trim().replace(/\s+/g, ' ');
+      const cleanGrade = String(grade || '12').trim();
+      const rawEmailOrUser = String(email || '').trim().toLowerCase();
+      const cleanUsername = rawEmailOrUser.includes('@') ? rawEmailOrUser.split('@')[0].trim() : rawEmailOrUser;
+      const cleanEmail = rawEmailOrUser.includes('@') ? rawEmailOrUser : (rawEmailOrUser ? `${rawEmailOrUser}@tinhoc.edu.vn` : '');
+      const cleanPassword = String(password || '').trim();
+
+      if (!cleanName) {
+        return { success: false, message: 'Vui lòng nhập Họ và tên của bạn!' };
+      }
+      if (!cleanSchool) {
+        return { success: false, message: 'Vui lòng chọn hoặc nhập Trường học của bạn!' };
+      }
+      if (!cleanClass) {
+        return { success: false, message: 'Vui lòng chọn hoặc nhập Lớp học của bạn!' };
+      }
+      if (!cleanEmail) {
+        return { success: false, message: 'Vui lòng nhập Email hoặc Tên tài khoản của bạn để định danh duy nhất!' };
+      }
+      if (!cleanPassword || cleanPassword.length < 6) {
+        return { success: false, message: 'Mật khẩu phải có tối thiểu 6 ký tự để bảo mật tài khoản và điểm số của bạn!' };
+      }
+
+      // Kiểm tra tính duy nhất của Email / Tên tài khoản (Chống trùng lặp tài khoản)
+      const accounts = Storage.getAccountsList();
+      const existing = accounts.find(a =>
+        (a.email && a.email.toLowerCase() === cleanEmail) ||
+        (a.username && a.username.toLowerCase() === cleanUsername) ||
+        (a.uid && a.uid.toLowerCase() === cleanUsername)
+      );
+      if (existing) {
+        return {
+          success: false,
+          message: `Tài khoản [${rawEmailOrUser}] đã được đăng ký trước đó!\nNếu đây là tài khoản của bạn, vui lòng chuyển sang tab "Đăng Nhập" và nhập mật khẩu để vào học.`
+        };
+      }
+
+      let finalRole = 'student';
+      const adminConfig = Storage.getAdminConfig();
+
+      if (role === 'admin' || (cleanEmail && adminConfig.adminEmail && cleanEmail === adminConfig.adminEmail.toLowerCase())) {
+        if (secretCode === adminConfig.adminSecretCode || (cleanEmail && adminConfig.adminEmail && cleanEmail === adminConfig.adminEmail.toLowerCase())) {
+          finalRole = 'admin';
+        } else {
+          return { success: false, message: 'Mã xác thực Quản trị viên (Admin) không đúng! (Mặc định: ADMIN2025)' };
+        }
+      } else if (role === 'teacher') {
+        if (secretCode === adminConfig.teacherSecretCode) {
+          finalRole = 'teacher';
+        } else {
+          return { success: false, message: 'Mã kích hoạt quyền Giáo viên (GV) không đúng! (Mặc định: GV2025)' };
+        }
+      }
+
+      const nowIso = new Date().toISOString();
+      const newUser = {
+        uid: cleanUsername || ('user_' + Date.now()),
+        username: cleanUsername,
+        email: cleanEmail,
+        password: cleanPassword,
+        fullName: cleanName,
+        avatar: getAvatarDataUrl(cleanName, finalRole),
+        grade: cleanGrade,
+        className: cleanClass,
+        school: cleanSchool,
+        role: finalRole,
+        profileCompleted: true,
+        firstLoginDone: true,
+        profileUpdatedAt: nowIso,
+        createdAt: nowIso
       };
+
+      this.saveUser(newUser);
+      return { success: true, user: newUser, message: 'Đăng ký tài khoản thành công!' };
+    } finally {
+      clearTimeout(safetyTimer);
+      this.setAuthButtonsLoading(false, 'register');
     }
-
-    let finalRole = 'student';
-    const adminConfig = Storage.getAdminConfig();
-
-    if (role === 'admin' || (cleanEmail && adminConfig.adminEmail && cleanEmail === adminConfig.adminEmail.toLowerCase())) {
-      if (secretCode === adminConfig.adminSecretCode || (cleanEmail && adminConfig.adminEmail && cleanEmail === adminConfig.adminEmail.toLowerCase())) {
-        finalRole = 'admin';
-      } else {
-        return { success: false, message: 'Mã xác thực Quản trị viên (Admin) không đúng! (Mặc định: ADMIN2025)' };
-      }
-    } else if (role === 'teacher') {
-      if (secretCode === adminConfig.teacherSecretCode) {
-        finalRole = 'teacher';
-      } else {
-        return { success: false, message: 'Mã kích hoạt quyền Giáo viên (GV) không đúng! (Mặc định: GV2025)' };
-      }
-    }
-
-    const nowIso = new Date().toISOString();
-    const newUser = {
-      uid: cleanUsername || ('user_' + Date.now()),
-      username: cleanUsername,
-      email: cleanEmail,
-      password: cleanPassword,
-      fullName: cleanName,
-      avatar: getAvatarDataUrl(cleanName, finalRole),
-      grade: cleanGrade,
-      className: cleanClass,
-      school: cleanSchool,
-      role: finalRole,
-      profileCompleted: true,
-      firstLoginDone: true,
-      profileUpdatedAt: nowIso,
-      createdAt: nowIso
-    };
-
-    this.saveUser(newUser);
-    return { success: true, user: newUser, message: 'Đăng ký tài khoản thành công!' };
   },
 
   loginWithSavedAccount(uidOrEmail) {
@@ -1606,6 +1779,7 @@ export const Auth = {
   },
 
   openLoginModal(tab = 'login') {
+    this.setupAuthGuards();
     if (typeof window !== 'undefined' && typeof window.openLoginModal === 'function') {
       window.openLoginModal();
     } else {
@@ -1686,4 +1860,11 @@ export const Auth = {
 
 if (typeof window !== 'undefined') {
   window.Auth = Auth;
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => Auth.setupAuthGuards());
+    } else {
+      Auth.setupAuthGuards();
+    }
+  }
 }

@@ -21,12 +21,136 @@ export const ExamRooms = {
   importedQuestionsList: [],
   onlyViewSelected: false,
   activeImportTab: 'word',
+  isJoining: false,
+  _guardAttached: false,
+
+  sanitizePin(rawPin) {
+    if (!rawPin) return '';
+    // Auto-trim whitespace, convert to uppercase, strip non-alphanumeric chars
+    return String(rawPin).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  },
+
+  setupPinJoinGuard() {
+    if (this._guardAttached || typeof document === 'undefined') return;
+    this._guardAttached = true;
+
+    // Lắng nghe sự kiện click trên toàn document (giai đoạn capture) để chặn ngay duplicate click / spam
+    document.addEventListener('click', async (e) => {
+      const btn = e.target.closest('#btn-enter-room-exam');
+      if (!btn) return;
+
+      // 1. Chống duplicate join requests bằng atomic lock isJoining
+      if (this.isJoining) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
+
+      const roomIdInput = document.getElementById('input-enter-room-id');
+      const pwdInput = document.getElementById('input-enter-room-pwd');
+      const rawCode = roomIdInput ? roomIdInput.value : '';
+      const sanitizedPin = this.sanitizePin(rawCode);
+
+      // Tự động chuẩn hóa và cập nhật ô input
+      if (roomIdInput) roomIdInput.value = sanitizedPin;
+
+      if (!sanitizedPin) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        alert('Em vui lòng nhập Mã bài kiểm tra hoặc mã PIN do Thầy/Cô cung cấp nhé!');
+        roomIdInput?.focus();
+        return;
+      }
+
+      const pwd = pwdInput ? pwdInput.value.trim() : '';
+
+      // Khóa và chuyển trạng thái nút sang spinner
+      this.isJoining = true;
+      btn.disabled = true;
+      const prevHtml = btn.dataset.prevHtml || btn.innerHTML;
+      btn.dataset.prevHtml = prevHtml;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Đang vào phòng...';
+
+      // Watchdog an toàn 8 giây nếu kết nối mạng treo
+      const safetyTimer = setTimeout(() => {
+        this.isJoining = false;
+        btn.disabled = false;
+        btn.innerHTML = prevHtml;
+        delete btn.dataset.prevHtml;
+        alert('Quá thời gian kết nối phòng thi (8 giây). Vui lòng thử lại!');
+      }, 8000);
+
+      try {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        // Tải từ Cloud nếu có kết nối
+        const cloudSync = (typeof window !== 'undefined' && window.CloudSync) ? window.CloudSync : null;
+        if (cloudSync && typeof cloudSync.isConfigured === 'function' && cloudSync.isConfigured()) {
+          try {
+            await cloudSync.fetchRoomFromCloud(sanitizedPin);
+          } catch (netErr) {
+            console.warn('Lỗi kết nối tải phòng thi từ Cloud:', netErr);
+          }
+        }
+
+        const currentUser = (typeof Auth !== 'undefined' && typeof Auth.getCurrentUser === 'function') ? Auth.getCurrentUser() : null;
+        const access = Storage.validateRoomAccess(sanitizedPin, pwd, currentUser);
+
+        if (!access.valid) {
+          // Mã PIN không hợp lệ hoặc phòng đã đóng: mở lại nút ngay lập tức
+          clearTimeout(safetyTimer);
+          this.isJoining = false;
+          btn.disabled = false;
+          btn.innerHTML = prevHtml;
+          delete btn.dataset.prevHtml;
+          alert(`⚠️ KHÔNG THỂ VÀO KIỂM TRA:\n${access.message}`);
+          return;
+        }
+
+        const room = access.room;
+
+        if (window.AppInstance && typeof window.AppInstance.startExam === 'function') {
+          await window.AppInstance.startExam({
+            type: room.type || 'bgd_2025',
+            title: room.title,
+            grade: room.grade,
+            duration: room.duration || 50,
+            roomId: room.id,
+            roomTitle: room.title,
+            topic: room.topic || null,
+            lesson: room.lesson || null,
+            contentScope: room.contentScope || (room.fixedQuestions?.length ? 'questions' : (room.selectedLessons?.length ? 'custom' : 'all')),
+            selectedTopics: room.selectedTopics || null,
+            selectedLessons: room.selectedLessons || null,
+            fixedQuestions: room.fixedQuestions || null,
+            questionCount: room.questionCount || (room.fixedQuestions?.length || 28),
+            shuffleQuestions: room.shuffleQuestions !== false,
+            shuffleOptions: room.shuffleOptions !== false,
+            randomExamCode: room.randomExamCode !== false,
+            resultDisplayMode: room.resultDisplayMode || 'full',
+            antiCheat: room.antiCheat || { enabled: false }
+          });
+        }
+      } catch (err) {
+        console.error('Lỗi khi vào phòng kiểm tra:', err);
+        alert(`Có lỗi xảy ra khi kết nối phòng thi: ${err.message || 'Lỗi mạng'}\nVui lòng thử lại.`);
+      } finally {
+        clearTimeout(safetyTimer);
+        this.isJoining = false;
+        btn.disabled = false;
+        btn.innerHTML = prevHtml;
+        delete btn.dataset.prevHtml;
+      }
+    }, true);
+  },
 
   init(containerEl, manifest = null) {
     this.container = containerEl;
     if (manifest) this.manifest = manifest;
     this.render();
     this.bindGlobalEvents();
+    this.setupPinJoinGuard();
   },
 
   setManifest(manifest) {
@@ -2362,8 +2486,8 @@ Trí tuệ nhân tạo (AI) thường được ứng dụng phổ biến trong l
     if (saveBtn) {
       saveBtn.onclick = () => {
         const title = document.getElementById('room-input-title')?.value.trim();
-        const rawId = (document.getElementById('room-input-id')?.value || '').trim().toUpperCase();
-        const id = rawId.replace(/[\s#]/g, '').replace(/[^A-Z0-9_-]/g, '');
+        const rawId = (document.getElementById('room-input-id')?.value || '').trim();
+        const id = this.sanitizePin(rawId);
         const grade = document.getElementById('room-input-grade')?.value || '12';
         const duration = parseInt(document.getElementById('room-input-duration')?.value || '45', 10);
         const password = document.getElementById('room-input-pwd')?.value.trim();
@@ -2515,3 +2639,14 @@ Trí tuệ nhân tạo (AI) thường được ứng dụng phổ biến trong l
     }
   }
 };
+
+if (typeof window !== 'undefined') {
+  window.ExamRooms = ExamRooms;
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => ExamRooms.setupPinJoinGuard());
+    } else {
+      ExamRooms.setupPinJoinGuard();
+    }
+  }
+}
