@@ -10,13 +10,13 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261112_250';
-import { authedFetch } from './api.js?v=20261112_250';
-import { Storage } from './storage.js?v=20261112_250';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261112_250';
-import { escapeHtml } from './utils.js?v=20261112_250';
-import { Proctor } from './proctor.js?v=20261112_250';
-import { Gradebook } from './gradebook.js?v=20261112_250';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261112_255';
+import { authedFetch } from './api.js?v=20261112_255';
+import { Storage } from './storage.js?v=20261112_255';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261112_255';
+import { escapeHtml } from './utils.js?v=20261112_255';
+import { Proctor } from './proctor.js?v=20261112_255';
+import { Gradebook } from './gradebook.js?v=20261112_255';
 
 export const LiveVideo = {
   manifest: null,
@@ -139,11 +139,36 @@ export const LiveVideo = {
     }
   },
 
+  checkIsPrivileged() {
+    const authObj = (typeof window !== 'undefined' && window.Auth) ? window.Auth : (typeof Auth !== 'undefined' ? Auth : null);
+    if (authObj) {
+      if (typeof authObj.isAdmin === 'function' && authObj.isAdmin()) return true;
+      if (typeof authObj.isTeacher === 'function' && authObj.isTeacher()) return true;
+    }
+    try {
+      const raw = localStorage.getItem('tinhoc_user');
+      if (raw) {
+        const u = JSON.parse(raw);
+        const r = String(u.role || '').trim().toLowerCase();
+        const em = String(u.email || '').trim().toLowerCase();
+        if (r === 'admin' || r === 'teacher' || r === 'gv' || r === 'giao_vien' || r.includes('quản trị') || r.includes('giáo viên')) {
+          return true;
+        }
+        const adminCfg = (typeof Storage !== 'undefined' && typeof Storage.getAdminConfig === 'function') ? Storage.getAdminConfig() : {};
+        if (adminCfg.adminEmail && em === adminCfg.adminEmail.toLowerCase()) return true;
+        if (em.startsWith('admin') || em.includes('nghiatnhcmue') || em.includes('giaovien') || em.includes('gv')) {
+          return true;
+        }
+      }
+    } catch (e) {}
+    return false;
+  },
+
   // =========================================================================
   // 1. DIALOG: TẠO PHÒNG LIVE VIDEO CHO GIÁO VIÊN
   // =========================================================================
   async openCreateModal() {
-    if (!Auth.isTeacher() && !Auth.isAdmin()) {
+    if (!this.checkIsPrivileged()) {
       alert('Chức năng tạo phòng học video trực tuyến chỉ dành riêng cho Giáo viên (GV) và Quản trị viên (Admin)!\nHọc sinh chỉ có quyền tham gia phòng học do Thầy/Cô cung cấp.');
       return;
     }
@@ -341,7 +366,7 @@ export const LiveVideo = {
   // 2. TẠO PHÒNG TRÊN FIREBASE DATABASE
   // =========================================================================
   async handleCreateRoomSubmit() {
-    if (!Auth.isTeacher() && !Auth.isAdmin()) {
+    if (!this.checkIsPrivileged()) {
       alert('Chức năng tạo phòng học video trực tuyến chỉ dành riêng cho Giáo viên (GV) và Quản trị viên (Admin)!\nHọc sinh chỉ có quyền tham gia phòng học do Thầy/Cô cung cấp.');
       return;
     }

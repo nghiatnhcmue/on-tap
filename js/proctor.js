@@ -3,7 +3,7 @@
  * Hệ thống giám sát thi trực tuyến đa nền tảng: Windows, macOS, Android, iOS (iPhone / iPadOS)
  */
 
-import { escapeHtml } from './utils.js?v=20261112_250';
+import { escapeHtml } from './utils.js?v=20261112_255';
 
 export const Proctor = {
   active: false,

@@ -10,15 +10,15 @@
  * - HỖ TRỢ THIẾT LẬP CÂU HỎI & MỐC DỪNG (Question & Checkpoint Editor): Cho phép Giáo viên & Admin tạo, sửa, xóa mốc dừng và câu hỏi trực tiếp trên web, tự động đồng bộ đám mây realtime!
  */
 
-import { Storage } from './storage.js?v=20261112_250';
-import { Auth } from './auth.js?v=20261112_250';
-import { escapeHtml } from './utils.js?v=20261112_250';
-import { Proctor } from './proctor.js?v=20261112_250';
+import { Storage } from './storage.js?v=20261112_255';
+import { Auth } from './auth.js?v=20261112_255';
+import { escapeHtml } from './utils.js?v=20261112_255';
+import { Proctor } from './proctor.js?v=20261112_255';
 
 async function getLiveVideo() {
   if (typeof window !== 'undefined' && window.LiveVideo) return window.LiveVideo;
   try {
-    const mod = await import('./live-video.js?v=20261112_250');
+    const mod = await import('./live-video.js?v=20261112_255');
     if (typeof window !== 'undefined') window.LiveVideo = mod.LiveVideo;
     return mod.LiveVideo;
   } catch (err) {
@@ -752,7 +752,25 @@ export const InteractiveVideo = {
     const btnCreateLive = document.getElementById('btn-open-create-live-room');
     if (btnCreateLive) {
       btnCreateLive.onclick = async () => {
-        if (!Auth.isTeacher() && !Auth.isAdmin()) {
+        const authObj = (typeof window !== 'undefined' && window.Auth) ? window.Auth : (typeof Auth !== 'undefined' ? Auth : null);
+        let isPrivileged = false;
+        if (authObj && typeof authObj.isTeacher === 'function') {
+          isPrivileged = Boolean(authObj.isTeacher() || authObj.isAdmin());
+        }
+        if (!isPrivileged) {
+          try {
+            const raw = localStorage.getItem('tinhoc_user');
+            if (raw) {
+              const u = JSON.parse(raw);
+              const r = String(u.role || '').trim().toLowerCase();
+              const em = String(u.email || '').trim().toLowerCase();
+              if (r === 'admin' || r === 'teacher' || r === 'gv' || r === 'giao_vien' || r.includes('quản trị') || r.includes('giáo viên') || em.startsWith('admin') || em.includes('nghiatnhcmue') || em.includes('giaovien') || em.includes('gv')) {
+                isPrivileged = true;
+              }
+            }
+          } catch (e) {}
+        }
+        if (!isPrivileged) {
           alert('Chức năng tạo phòng học video trực tuyến chỉ dành riêng cho Giáo viên (GV) và Quản trị viên (Admin)!\nHọc sinh chỉ có quyền tham gia phòng học do Thầy/Cô cung cấp.');
           return;
         }

@@ -3,54 +3,54 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261112_250';
-import { getAvatarDataUrl } from './avatars.js?v=20261112_250';
-import { authedFetch } from './api.js?v=20261112_250';
-import { Practice } from './practice.js?v=20261112_250';
-import { Exam } from './exam.js?v=20261112_250';
-import { Search } from './search.js?v=20261112_250';
-import { PrintManager } from './print.js?v=20261112_250';
-import { Auth } from './auth.js?v=20261112_250';
-import { escapeHtml } from './utils.js?v=20261112_250';
-import { Leaderboard } from './leaderboard.js?v=20261112_250';
-import { QuestionsManager } from './questions-manager.js?v=20261112_250';
-import { ExamRooms } from './exam-rooms.js?v=20261112_250';
-import { Proctor } from './proctor.js?v=20261112_250';
-import { Gradebook } from './gradebook.js?v=20261112_250';
-import { CloudSync } from './cloud-sync.js?v=20261112_250';
+import { Storage } from './storage.js?v=20261112_255';
+import { getAvatarDataUrl } from './avatars.js?v=20261112_255';
+import { authedFetch } from './api.js?v=20261112_255';
+import { Practice } from './practice.js?v=20261112_255';
+import { Exam } from './exam.js?v=20261112_255';
+import { Search } from './search.js?v=20261112_255';
+import { PrintManager } from './print.js?v=20261112_255';
+import { Auth } from './auth.js?v=20261112_255';
+import { escapeHtml } from './utils.js?v=20261112_255';
+import { Leaderboard } from './leaderboard.js?v=20261112_255';
+import { QuestionsManager } from './questions-manager.js?v=20261112_255';
+import { ExamRooms } from './exam-rooms.js?v=20261112_255';
+import { Proctor } from './proctor.js?v=20261112_255';
+import { Gradebook } from './gradebook.js?v=20261112_255';
+import { CloudSync } from './cloud-sync.js?v=20261112_255';
 
 // Dynamic loaders cho các module đồ sộ (chỉ tải khi mở tính năng tương ứng)
 async function getAdminManager() {
   if (window.AdminManager) return window.AdminManager;
-  const mod = await import('./admin-manager.js?v=20261112_250');
+  const mod = await import('./admin-manager.js?v=20261112_255');
   window.AdminManager = mod.AdminManager;
   return mod.AdminManager;
 }
 
 async function getInteractiveVideo() {
   if (window.InteractiveVideo) return window.InteractiveVideo;
-  const mod = await import('./interactive-video.js?v=20261112_250');
+  const mod = await import('./interactive-video.js?v=20261112_255');
   window.InteractiveVideo = mod.InteractiveVideo;
   return mod.InteractiveVideo;
 }
 
 async function getLiveVideo() {
   if (window.LiveVideo) return window.LiveVideo;
-  const mod = await import('./live-video.js?v=20261112_250');
+  const mod = await import('./live-video.js?v=20261112_255');
   window.LiveVideo = mod.LiveVideo;
   return mod.LiveVideo;
 }
 
 async function getArena() {
   if (window.Arena) return window.Arena;
-  const mod = await import('./arena.js?v=20261112_250');
+  const mod = await import('./arena.js?v=20261112_255');
   window.Arena = mod.default || mod.Arena;
   return window.Arena;
 }
 
 async function getRandomPicker() {
   if (window.RandomPicker) return window.RandomPicker;
-  const mod = await import('./random-picker.js?v=20261112_250');
+  const mod = await import('./random-picker.js?v=20261112_255');
   window.RandomPicker = mod.default || mod.RandomPicker;
   return window.RandomPicker;
 }
@@ -222,7 +222,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261112_250');
+      const res = await fetch('data/manifest.json?v=20261112_255');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
@@ -3583,7 +3583,25 @@ class App {
     const homeLiveBtn = document.getElementById('btn-home-teacher-live-video');
     if (homeLiveBtn) {
       homeLiveBtn.addEventListener('click', async () => {
-        if (!Auth.isTeacher() && !Auth.isAdmin()) {
+        const authObj = (typeof window !== 'undefined' && window.Auth) ? window.Auth : (typeof Auth !== 'undefined' ? Auth : null);
+        let isPrivileged = false;
+        if (authObj && typeof authObj.isTeacher === 'function') {
+          isPrivileged = Boolean(authObj.isTeacher() || authObj.isAdmin());
+        }
+        if (!isPrivileged) {
+          try {
+            const raw = localStorage.getItem('tinhoc_user');
+            if (raw) {
+              const u = JSON.parse(raw);
+              const r = String(u.role || '').trim().toLowerCase();
+              const em = String(u.email || '').trim().toLowerCase();
+              if (r === 'admin' || r === 'teacher' || r === 'gv' || r === 'giao_vien' || r.includes('quản trị') || r.includes('giáo viên') || em.startsWith('admin') || em.includes('nghiatnhcmue') || em.includes('giaovien') || em.includes('gv')) {
+                isPrivileged = true;
+              }
+            }
+          } catch (e) {}
+        }
+        if (!isPrivileged) {
           alert('Chức năng tạo phòng học video trực tuyến chỉ dành riêng cho Giáo viên (GV) và Quản trị viên (Admin)!\nHọc sinh chỉ có quyền tham gia phòng học do Thầy/Cô cung cấp.');
           return;
         }
