@@ -3,21 +3,21 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage, CURRENT_BUILD, getCachedJson, setCachedJson } from './storage.js?v=20261112_295';
-import { getAvatarDataUrl } from './avatars.js?v=20261112_295';
-import { authedFetch } from './api.js?v=20261112_295';
-import { Practice } from './practice.js?v=20261112_295';
-import { Exam } from './exam.js?v=20261112_295';
-import { Search } from './search.js?v=20261112_295';
-import { PrintManager } from './print.js?v=20261112_295';
-import { Auth } from './auth.js?v=20261112_295';
-import { escapeHtml } from './utils.js?v=20261112_295';
-import { Leaderboard } from './leaderboard.js?v=20261112_295';
-import { QuestionsManager } from './questions-manager.js?v=20261112_295';
-import { ExamRooms } from './exam-rooms.js?v=20261112_295';
-import { Proctor } from './proctor.js?v=20261112_295';
-import { Gradebook } from './gradebook.js?v=20261112_295';
-import { CloudSync } from './cloud-sync.js?v=20261112_295';
+import { Storage, CURRENT_BUILD, getCachedJson, setCachedJson } from './storage.js?v=20261112_300';
+import { getAvatarDataUrl } from './avatars.js?v=20261112_300';
+import { authedFetch } from './api.js?v=20261112_300';
+import { Practice } from './practice.js?v=20261112_300';
+import { Exam } from './exam.js?v=20261112_300';
+import { Search } from './search.js?v=20261112_300';
+import { PrintManager } from './print.js?v=20261112_300';
+import { Auth } from './auth.js?v=20261112_300';
+import { escapeHtml } from './utils.js?v=20261112_300';
+import { Leaderboard } from './leaderboard.js?v=20261112_300';
+import { QuestionsManager } from './questions-manager.js?v=20261112_300';
+import { ExamRooms } from './exam-rooms.js?v=20261112_300';
+import { Proctor } from './proctor.js?v=20261112_300';
+import { Gradebook } from './gradebook.js?v=20261112_300';
+import { CloudSync } from './cloud-sync.js?v=20261112_300';
 
 // Dynamic loaders cho các module đồ sộ (chỉ tải khi mở tính năng tương ứng)
 async function getAdminManager() {
