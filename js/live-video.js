@@ -88,6 +88,19 @@ export const LiveVideo = {
     if (cpIndex !== undefined) this.completedCheckpoints.add(String(cpIndex));
     if (q.id) this.completedCheckpoints.add(String(q.id));
     if (q.sec !== undefined) this.completedCheckpoints.add(`sec_${Math.round(q.sec)}`);
+
+    if (this.isHost && this.activeRoom?.roomId) {
+      const roomId = this.activeRoom.roomId;
+      const dbUrl = this.getBaseDbUrl();
+      const cpArray = Array.from(this.completedCheckpoints);
+      if (this.remoteState) this.remoteState.completedCheckpoints = cpArray;
+      if (this.activeRoom) this.activeRoom.completedCheckpoints = cpArray;
+      authedFetch(`${dbUrl}/live_video_rooms/${roomId}/completedCheckpoints.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cpArray)
+      }).catch(err => console.warn('Lỗi lưu completedCheckpoints lên Firebase:', err));
+    }
   },
 
   getBaseDbUrl() {
@@ -500,13 +513,16 @@ export const LiveVideo = {
         let globalCounter = 0;
         checkpoints = sortedSecs.map((sec, idx) => {
           const pool = groupsBySec[sec] || [];
-          const questions = pool.map((q, subIdx) => {
+          const milestonePool = pool.slice(0, 4);
+          const totalInMilestone = milestonePool.length;
+          const questions = milestonePool.map((q, subIdx) => {
             const gIdx = globalCounter++;
             return {
               id: q.id || `q_${idx}_${subIdx}`,
               globalIndex: gIdx,
               checkpointIndex: idx,
               subIndex: subIdx,
+              totalInMilestone: totalInMilestone,
               qKey: `${idx}_${subIdx}`,
               sec: sec,
               question: q.question,
@@ -521,7 +537,7 @@ export const LiveVideo = {
             index: idx,
             id: firstQ.id || `q_${idx}`,
             sec: sec,
-            totalInMilestone: questions.length,
+            totalInMilestone: totalInMilestone,
             questions: questions,
             // Fallback tương thích
             question: firstQ.question || '',
@@ -536,28 +552,88 @@ export const LiveVideo = {
         const manifest = this.manifest || window.App?.manifest;
         const vInfo = manifest?.grades?.[grade]?.interactive_videos?.[videoFileName] ||
                       manifest?.grades?.[grade]?.interactive_videos?.[videoFileName.toLowerCase()];
-        const manifestCps = Array.isArray(vInfo?.checkpoints) ? vInfo.checkpoints.map(Number).filter(s => s > 5).sort((a, b) => a - b) : [];
-        
-        let allGradeQ = window.App?.gradeCache?.[grade] || [];
-        const lessonQuestions = allGradeQ.filter(q => q.lesson && lessonTitle && q.lesson.toLowerCase().includes(lessonTitle.toLowerCase()));
+        let manifestCps = Array.isArray(vInfo?.checkpoints) ? vInfo.checkpoints.map(Number).filter(s => s > 5).sort((a, b) => a - b) : [];
+        if (manifestCps.length === 0) {
+          manifestCps = [60, 120, 180, 240];
+        }
+
+        let allGradeQ = [];
+        if (window.App && typeof window.App.loadGradeData === 'function') {
+          allGradeQ = window.App.gradeCache?.[grade] || [];
+        }
+        if (allGradeQ.length === 0) {
+          try {
+            const gRes = await fetch(`data/grade_${grade}.json`);
+            if (gRes.ok) allGradeQ = await gRes.json();
+          } catch (e) {}
+        }
+        let lessonQuestions = allGradeQ.filter(q => {
+          if (q.video && q.video.toLowerCase() === videoFileName.toLowerCase()) return true;
+          if (lessonTitle && q.lesson && q.lesson.toLowerCase().includes(lessonTitle.toLowerCase())) return true;
+          return false;
+        });
+        if (lessonQuestions.length === 0) {
+          lessonQuestions = allGradeQ.slice(0, manifestCps.length * 4);
+        }
+
+        // Chia đều câu hỏi bài học cho các mốc dừng sao cho mỗi mốc có tối đa 4 câu trong checkpoint.questions
+        const totalCps = manifestCps.length;
+        const questionsPerMilestone = Math.min(4, Math.max(1, Math.ceil(lessonQuestions.length / totalCps)));
+        let globalCounter = 0;
 
         checkpoints = manifestCps.map((sec, idx) => {
-          const q = lessonQuestions[idx % (lessonQuestions.length || 1)] || {
-            id: `q_gen_${idx}`,
-            question: `Câu hỏi củng cố kiến thức tại mốc ${this.formatTime(sec)}`,
-            options: ['Phương án A', 'Phương án B', 'Phương án C', 'Phương án D'],
-            answer: 'A',
-            level: '1'
-          };
+          let pool = [];
+          if (lessonQuestions.length > 0) {
+            const start = idx * questionsPerMilestone;
+            pool = lessonQuestions.slice(start, start + questionsPerMilestone);
+            if (pool.length === 0) {
+              pool = [lessonQuestions[idx % lessonQuestions.length]];
+            }
+          }
+          if (pool.length === 0) {
+            pool = [
+              {
+                id: `q_gen_${idx}_0`,
+                question: `Câu hỏi củng cố kiến thức tại mốc ${this.formatTime(sec)}`,
+                options: ['Phương án A', 'Phương án B', 'Phương án C', 'Phương án D'],
+                answer: 'A',
+                level: '1'
+              }
+            ];
+          }
+
+          const milestonePool = pool.slice(0, 4);
+          const totalInMilestone = milestonePool.length;
+          const questions = milestonePool.map((q, subIdx) => {
+            const gIdx = globalCounter++;
+            return {
+              id: q.id || `q_${idx}_${subIdx}`,
+              globalIndex: gIdx,
+              checkpointIndex: idx,
+              subIndex: subIdx,
+              totalInMilestone: totalInMilestone,
+              qKey: `${idx}_${subIdx}`,
+              sec: sec,
+              question: q.question,
+              options: q.options || ['Phương án A', 'Phương án B', 'Phương án C', 'Phương án D'],
+              answer: q.answer || 'A',
+              level: q.level || '1',
+              timeLimit: parseInt(q.video_time || countdownSec || '20', 10)
+            };
+          });
+
+          const firstQ = questions[0] || {};
           return {
             index: idx,
-            id: q.id || `q_${idx}`,
+            id: firstQ.id || `q_${idx}`,
             sec: sec,
-            question: q.question,
-            options: q.options || [],
-            answer: q.answer,
-            level: q.level || '1',
-            timeLimit: parseInt(countdownSec || '20', 10)
+            totalInMilestone: totalInMilestone,
+            questions: questions,
+            question: firstQ.question || '',
+            options: firstQ.options || [],
+            answer: firstQ.answer || 'A',
+            level: firstQ.level || '1',
+            timeLimit: firstQ.timeLimit || parseInt(countdownSec || '20', 10)
           };
         });
       }
@@ -906,6 +982,7 @@ export const LiveVideo = {
       this.activeRoom = roomData;
       this.studentInfo = studentRecord;
       this.questionsList = roomData.checkpoints || [];
+      this.completedCheckpoints = new Set(Array.isArray(roomData.completedCheckpoints) ? roomData.completedCheckpoints.map(String) : []);
 
       // Mở Rạp Chiếu Phim Trực Tuyến & Hàng Đợi Phòng Chờ của Học Sinh
       await this.openStudentCinemaStage(roomData);
@@ -927,7 +1004,7 @@ export const LiveVideo = {
     this.isHost = true;
     this.activeRoom = room;
     this.questionsList = room.checkpoints || [];
-    this.completedCheckpoints = new Set();
+    this.completedCheckpoints = new Set(Array.isArray(room.completedCheckpoints) ? room.completedCheckpoints.map(String) : []);
     this.savedPlaybackTime = Number(room.currentTime || 0);
     this.isManualSeeking = false;
 
@@ -1611,6 +1688,11 @@ export const LiveVideo = {
       }
     }
 
+    if (Array.isArray(this.remoteState.completedCheckpoints)) {
+      if (!this.completedCheckpoints) this.completedCheckpoints = new Set();
+      this.remoteState.completedCheckpoints.forEach(cp => this.completedCheckpoints.add(String(cp)));
+    }
+
     if (this.isHost) {
       this.updateMasterUI(this.remoteState);
     } else {
@@ -1621,6 +1703,11 @@ export const LiveVideo = {
   handleRemoteStateUpdate(remote) {
     if (!remote || !remote.roomId) return;
     this.remoteState = remote;
+
+    if (Array.isArray(remote.completedCheckpoints)) {
+      if (!this.completedCheckpoints) this.completedCheckpoints = new Set();
+      remote.completedCheckpoints.forEach(cp => this.completedCheckpoints.add(String(cp)));
+    }
 
     if (this.isHost) {
       this.updateMasterUI(remote);
@@ -1960,13 +2047,18 @@ export const LiveVideo = {
     if (remote.state === 'question' && remote.currentQuestion) {
       if (!video.paused) video.pause();
       if (pausedOverlay) pausedOverlay.classList.add('hidden');
-      this.renderStudentQuestion(remote.currentQuestion, remote.responses?.[remote.currentQuestion.index], remote);
+      const q = remote.currentQuestion;
+      const qKey = q.qKey || `${q.index}_${q.subIndex || 0}`;
+      const responsesForQ = remote.responses?.[qKey] || remote.responses?.[remote.currentQuestion.index];
+      this.renderStudentQuestion(remote.currentQuestion, responsesForQ, remote);
       return;
     } else {
       if (questionModal) questionModal.classList.add('hidden');
       this.hasSubmittedCurrentQuestion = false;
       this.selectedAnswer = null;
       this.activeQuestionIdx = null;
+      this.activeQuestionKey = null;
+      this.currentRenderedQKey = null;
       if (this.countdownInterval) {
         clearInterval(this.countdownInterval);
         this.countdownInterval = null;
@@ -2086,6 +2178,15 @@ export const LiveVideo = {
       this.hasSubmittedCurrentQuestion = false;
       this.selectedAnswer = null;
       this.confettiPlayedForQ = false;
+      this.activeQuestionKey = qKey;
+      this.activeQuestionIdx = q.index;
+      if (submittedBanner) submittedBanner.classList.add('hidden');
+      if (resultBanner) resultBanner.classList.add('hidden');
+      if (this.countdownInterval) {
+        clearInterval(this.countdownInterval);
+        this.countdownInterval = null;
+      }
+      this.startQuestionCountdown(q);
     }
 
     if (qNumEl) {
@@ -2299,7 +2400,7 @@ export const LiveVideo = {
   },
 
   async submitStudentAnswer(qIndex, selectedOption, correctAnswer) {
-    const qKey = String(qIndex);
+    const qKey = String(qIndex !== undefined ? qIndex : '0');
     if (this.hasSubmittedCurrentQuestion || !this.activeRoom || !this.studentInfo) return;
 
     this.hasSubmittedCurrentQuestion = true;
@@ -2355,7 +2456,7 @@ export const LiveVideo = {
       // Đồng bộ lại tổng điểm tích lũy chính xác từ tất cả các mốc đã trả lời
       if (!this.remoteState) this.remoteState = { ...(this.activeRoom || {}) };
       if (!this.remoteState.responses) this.remoteState.responses = {};
-      if (!this.remoteState.responses[qIndex]) this.remoteState.responses[qIndex] = {};
+      if (!this.remoteState.responses[qKey]) this.remoteState.responses[qKey] = {};
       this.remoteState.responses[qKey][uid] = responsePayload;
 
       let totalCorrect = 0;
@@ -2680,6 +2781,10 @@ export const LiveVideo = {
       const hasNextInMilestone = (q.subIndex !== undefined) && ((q.subIndex + 1) < (q.totalInMilestone || 1));
       const isLastMilestone = (q.index + 1) >= totalMilestones;
 
+      const elapsed = Math.floor((Date.now() - (q.startTimestamp || q.timestamp || 0)) / 1000);
+      const totalSec = Number(q.countdown || q.timeLimit || 20);
+      const isExpired = elapsed >= totalSec;
+
       if (q.revealed) {
         if (btnReveal) btnReveal.classList.add('hidden');
 
@@ -2716,8 +2821,49 @@ export const LiveVideo = {
           statsPanel.classList.remove('hidden');
           this.renderMasterMilestoneStatsPanel(statsPanel, remote, qKey);
         }
+      } else if (isExpired) {
+        // HẾT GIỜ: Hiển thị cả 'Mở Đáp Án' VÀ 'Câu Tiếp Theo Trong Mốc' / 'Tiếp Tục Chiếu Video'
+        // để Thầy/Cô không bao giờ bị kẹt nếu muốn chuyển tiếp trực tiếp
+        if (btnReveal) {
+          btnReveal.classList.remove('hidden');
+          btnReveal.innerHTML = `<i class="fa-solid fa-eye"></i> Mở Đáp Án & Thống Kê`;
+        }
+
+        if (btnNextInMilestone) {
+          btnNextInMilestone.classList.toggle('hidden', !hasNextInMilestone);
+          if (hasNextInMilestone) {
+            btnNextInMilestone.innerHTML = `<i class="fa-solid fa-arrow-right"></i> Câu Tiếp Theo Trong Mốc (${(q.subIndex || 0) + 2}/${q.totalInMilestone})`;
+          }
+        }
+
+        if (btnResume) {
+          btnResume.classList.remove('hidden');
+          if (hasNextInMilestone) {
+            btnResume.innerHTML = `<i class="fa-solid fa-play"></i> Bỏ Qua & Tiếp Tục Chiếu Video`;
+            btnResume.className = 'px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer';
+          } else {
+            btnResume.innerHTML = `<i class="fa-solid fa-play"></i> Tiếp Tục Chiếu Video`;
+            btnResume.className = 'px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black transition flex items-center gap-1.5 shadow-lg shadow-blue-600/30 cursor-pointer';
+          }
+        }
+
+        if (btnJumpNext) {
+          btnJumpNext.classList.toggle('hidden', isLastMilestone);
+          if (!isLastMilestone) {
+            btnJumpNext.innerHTML = `<i class="fa-solid fa-forward-step"></i> Tới Mốc Dừng Kế Tiếp (#${q.index + 2})`;
+          }
+        }
+
+        if (btnFinishAll) {
+          btnFinishAll.classList.toggle('hidden', !isLastMilestone || hasNextInMilestone);
+        }
+
+        if (statsPanel) statsPanel.classList.add('hidden');
       } else {
-        if (btnReveal) btnReveal.classList.remove('hidden');
+        if (btnReveal) {
+          btnReveal.classList.remove('hidden');
+          btnReveal.innerHTML = `<i class="fa-solid fa-eye"></i> Mở Đáp Án Sớm & Thống Kê`;
+        }
         if (btnNextInMilestone) btnNextInMilestone.classList.add('hidden');
         if (btnResume) btnResume.classList.add('hidden');
         if (btnJumpNext) btnJumpNext.classList.add('hidden');
@@ -3431,14 +3577,13 @@ export const LiveVideo = {
         }
 
         // Bắt mốc dừng tự động: phạm vi rộng (từ q.sec - 0.4s đến q.sec + 1.2s), đảm bảo không bao giờ bỏ sót mốc và không lặp lại mốc đã xong
-        if (cur >= 5 && !video.paused) {
+        if (cur >= 5 && !video.paused && !this.isManualSeeking) {
           const nextQ = this.getCheckpointsList().find(q =>
             (cur >= q.sec - 0.4 && cur <= q.sec + 1.2) &&
             !this.isCheckpointCompleted(q) &&
             q.sec >= 5
           );
           if (nextQ) {
-            this.markCheckpointCompleted(nextQ);
             this.activeCheckpointSec = nextQ.sec;
             this.savedPlaybackTime = nextQ.sec;
             this.triggerMasterQuestion(nextQ);
@@ -3532,7 +3677,6 @@ export const LiveVideo = {
       this.activeCheckpointSec = targetQ.sec;
       try { video.currentTime = targetQ.sec; } catch (e) {}
 
-      this.markCheckpointCompleted(targetQ);
       this.triggerMasterQuestion(targetQ);
     };
 
@@ -3567,7 +3711,6 @@ export const LiveVideo = {
         if (thumb) thumb.style.left = `${pct}%`;
         if (curTimeText) curTimeText.textContent = this.formatTime(next.sec);
 
-        this.markCheckpointCompleted(next);
         this.triggerMasterQuestion(next);
       } else {
         if (confirm('Đã đến cuối các mốc câu hỏi trong bài giảng!\nThầy/Cô có muốn Dừng Live & Xuất Báo Cáo Tổng Kết ngay không?')) {
@@ -3687,21 +3830,20 @@ export const LiveVideo = {
         const curCheckpoint = this.remoteState?.currentQuestion || this.activeRoom?.currentQuestion;
         if (curCheckpoint) {
           this.markCheckpointCompleted(curCheckpoint);
+          const allCps = this.getCheckpointsList();
+          const targetCpIdx = curCheckpoint.checkpointIndex !== undefined ? curCheckpoint.checkpointIndex : curCheckpoint.index;
+          const cp = allCps.find(item => String(item.index) === String(targetCpIdx) || (item.sec !== undefined && item.sec === curCheckpoint.sec));
+          if (cp) this.markCheckpointCompleted(cp);
         }
 
         const cpSec = Number(curCheckpoint?.sec || 0);
-        const curSec = Math.max(
-          cpSec,
-          Number(video.currentTime || 0),
-          Number(this.savedPlaybackTime || 0)
-        );
-        // Bước qua hẳn mốc câu hỏi (+1.5s) để vượt qua ngưỡng kích hoạt mốc (q.sec + 1.2s)
+        // Tính toán nextTime = cpSec + 1.5s để bước hẳn qua ngưỡng kích hoạt mốc
         const nextTime = Math.min(
           video.duration || 9999,
-          Math.max(curSec + 1.0, cpSec + 1.5, (this.savedPlaybackTime || 0) + 0.8)
+          cpSec + 1.5
         );
 
-        // Khóa Anti-Reset Guard trong suốt thời gian tua và nạp lại luồng video
+        // Khóa Anti-Reset Guard trong 3s để ngăn remote playback patches hoặc browser stalls kéo currentTime về lại mốc hoặc 0
         this.isManualSeeking = true;
         if (this.manualSeekTimer) clearTimeout(this.manualSeekTimer);
         this.manualSeekTimer = setTimeout(() => {
@@ -3731,16 +3873,19 @@ export const LiveVideo = {
         if (curTimeText) curTimeText.textContent = this.formatTime(nextTime);
 
         // CẬP NHẬT CỤC BỘ TỨC THÌ TRÊN GIAO DIỆN GIÁO VIÊN (Optimistic Update)
+        const cpArray = Array.from(this.completedCheckpoints || []);
         if (!this.remoteState) this.remoteState = {};
         this.remoteState.state = 'playing';
         this.remoteState.currentQuestion = null;
         this.remoteState.currentTime = nextTime;
+        this.remoteState.completedCheckpoints = cpArray;
         this.remoteState.updatedAt = Date.now();
 
         if (this.activeRoom) {
           this.activeRoom.state = 'playing';
           this.activeRoom.currentQuestion = null;
           this.activeRoom.currentTime = nextTime;
+          this.activeRoom.completedCheckpoints = cpArray;
         }
         this.updateMasterUI(this.remoteState);
 
@@ -3752,6 +3897,7 @@ export const LiveVideo = {
             state: 'playing',
             currentQuestion: null,
             currentTime: nextTime,
+            completedCheckpoints: cpArray,
             updatedAt: Date.now()
           })
         }).catch(err => console.warn('Lỗi tiếp tục bài giảng:', err));
@@ -4078,13 +4224,19 @@ export const LiveVideo = {
       if (found) cp = found;
     }
 
-    this.markCheckpointCompleted(cp);
-    this.markCheckpointCompleted(checkpointOrQ);
-
     const qList = (cp && cp.questions && Array.isArray(cp.questions) && cp.questions.length > 0) ? cp.questions : [cp || checkpointOrQ];
-    const sIdx = Math.min(qList.length - 1, Math.max(0, Number(subIndex) || 0));
-    const targetQ = qList[sIdx] || cp || checkpointOrQ;
     const totalInMilestone = qList.length;
+
+    // Không đánh dấu hoàn thành mốc khi câu hỏi đầu tiên (subIndex 0) bắt đầu.
+    // Chỉ đánh dấu hoàn thành khi toàn bộ câu hỏi trong mốc kết thúc hoặc khi Giáo viên bấm Tiếp tục / Bỏ qua.
+    if (Number(subIndex) >= totalInMilestone && totalInMilestone > 0) {
+      this.markCheckpointCompleted(cp);
+      this.markCheckpointCompleted(checkpointOrQ);
+      return;
+    }
+
+    const sIdx = Math.min(totalInMilestone - 1, Math.max(0, Number(subIndex) || 0));
+    const targetQ = qList[sIdx] || cp || checkpointOrQ;
 
     const totalSec = parseInt(targetQ.timeLimit || targetQ.countdown || this.activeRoom?.countdownSec || '20', 10);
     const now = Date.now();
@@ -4235,9 +4387,9 @@ export const LiveVideo = {
           clearInterval(this.countdownInterval);
           this.countdownInterval = null;
         }
-        // Tự động mở đáp án & hiển thị thống kê mốc câu hỏi khi hết giờ trên máy Host
-        if (this.isHost && !q.revealed && typeof this.revealCurrentQuestionAnswer === 'function') {
-          this.revealCurrentQuestionAnswer();
+        // Khi hết giờ, cập nhật bảng điều khiển Master UI để hiển thị cả 'Mở Đáp Án' VÀ 'Câu Tiếp Theo Trong Mốc' / 'Tiếp Tục Chiếu Video'
+        if (this.isHost) {
+          this.updateMasterUI(this.remoteState || this.activeRoom);
         }
       }
     };
