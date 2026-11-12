@@ -10,15 +10,15 @@
  * - HỖ TRỢ THIẾT LẬP CÂU HỎI & MỐC DỪNG (Question & Checkpoint Editor): Cho phép Giáo viên & Admin tạo, sửa, xóa mốc dừng và câu hỏi trực tiếp trên web, tự động đồng bộ đám mây realtime!
  */
 
-import { Storage } from './storage.js?v=20261112_300';
-import { Auth } from './auth.js?v=20261112_300';
-import { escapeHtml } from './utils.js?v=20261112_300';
-import { Proctor } from './proctor.js?v=20261112_300';
+import { Storage } from './storage.js?v=20261112_305';
+import { Auth } from './auth.js?v=20261112_305';
+import { escapeHtml } from './utils.js?v=20261112_305';
+import { Proctor } from './proctor.js?v=20261112_305';
 
 async function getLiveVideo() {
   if (typeof window !== 'undefined' && window.LiveVideo) return window.LiveVideo;
   try {
-    const mod = await import('./live-video.js?v=20261112_300');
+    const mod = await import('./live-video.js?v=20261112_305');
     if (typeof window !== 'undefined') window.LiveVideo = mod.LiveVideo;
     return mod.LiveVideo;
   } catch (err) {
@@ -1502,11 +1502,15 @@ export const InteractiveVideo = {
       // 3. Chống tua qua mốc chưa hoàn thành (Anti-Skip / Anti-Scrubbing Guard)
       video.onseeking = () => {
         if (this.isDisqualified) return;
-        const nextCp = this.getNextUncompletedCheckpoint();
-        if (nextCp !== null && video.currentTime > nextCp + 0.8) {
+        const maxWatchedTime = Math.max(
+          Number(this.savedPlaybackTime || 0),
+          Number(this.lastAllowedTime || 0)
+        );
+        // Nếu học sinh cố tình dùng phím tắt hoặc thanh điều khiển khác để tua vượt quá đoạn đã học
+        if (video.currentTime > maxWatchedTime + 1.5) {
+          video.currentTime = maxWatchedTime;
           video.pause();
-          this.showToastNotification('⚠️ Không thể tua qua mốc câu hỏi chưa hoàn thành!', 'warning');
-          this.triggerCheckpointQuiz(nextCp);
+          this.showToastNotification('🔒 Không thể tua trước bài giảng! Em hãy xem bài giảng tuần tự để tiếp thu kiến thức.', 'warning');
         }
       };
 
@@ -1571,7 +1575,7 @@ export const InteractiveVideo = {
       };
     }
 
-    // Tua bài trên thanh Seekbar tùy chỉnh (có kiểm tra chống tua qua mốc)
+    // Tua bài trên thanh Seekbar tùy chỉnh (Khóa hoàn toàn tua tiến / nhảy mốc)
     const timelineTrack = document.getElementById('player-custom-timeline-track');
     if (timelineTrack) {
       timelineTrack.onclick = (e) => {
@@ -1581,14 +1585,21 @@ export const InteractiveVideo = {
         const percent = Math.max(0, Math.min(1, clickX / rect.width));
         const targetSec = percent * this.videoElem.duration;
 
-        const nextCp = this.getNextUncompletedCheckpoint();
-        if (nextCp !== null && targetSec > nextCp + 0.3) {
-          this.videoElem.currentTime = nextCp;
-          this.showToastNotification('⚠️ Bạn chỉ có thể tua lại phần đã học, không được tua qua câu hỏi chưa hoàn thành!', 'warning');
-          this.triggerCheckpointQuiz(nextCp);
-        } else {
-          this.videoElem.currentTime = targetSec;
+        // Tiến độ tối đa học sinh đã thực sự xem qua
+        const maxWatchedTime = Math.max(
+          Number(this.savedPlaybackTime || 0),
+          Number(this.lastAllowedTime || 0),
+          Number(this.videoElem.currentTime || 0)
+        );
+
+        // KHÓA TUYỆT ĐỐI TUA TIẾN: Không cho phép tua vượt quá đoạn đã học, không nhảy qua mốc, không mở câu hỏi
+        if (targetSec > maxWatchedTime + 1.0) {
+          this.showToastNotification('🔒 Em cần xem bài giảng tuần tự, không được bấm nhảy mốc hoặc tua nhanh!', 'warning');
+          return;
         }
+
+        // Cho phép tua lùi lại đoạn bài giảng đã xem để ôn lại kiến thức
+        this.videoElem.currentTime = Math.max(0, targetSec);
       };
     }
 
@@ -2905,14 +2916,22 @@ export const InteractiveVideo = {
     }
 
     if (chipsContainer) {
-      chipsContainer.innerHTML = sortedSecs.map(sec => {
+      chipsContainer.innerHTML = sortedSecs.map((sec, idx) => {
         const timeText = this.formatTime(sec);
         const qCount = this.checkpointsMap[sec]?.length || 0;
+        const isCompleted = this.completedCheckpoints.has(sec);
+        const btnStyle = isCompleted
+          ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-700 cursor-pointer hover:bg-emerald-100'
+          : 'bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700 cursor-not-allowed opacity-80';
+        const icon = isCompleted
+          ? '<i class="fa-solid fa-circle-check text-emerald-500 text-[10px]"></i>'
+          : '<i class="fa-solid fa-lock text-slate-400 text-[10px]"></i>';
+
         return `
-          <button type="button" data-jump-to-sec="${sec}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 dark:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600">
-            <i class="fa-solid fa-flag text-[10px] text-rose-500"></i>
-            <span>${timeText}</span>
-            <span class="px-1.5 py-0.2 rounded text-[10px] bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300">
+          <button type="button" data-jump-to-sec="${sec}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${btnStyle}" title="${isCompleted ? 'Xem lại mốc ' + (idx + 1) : 'Mốc ' + (idx + 1) + ' đang khóa (cần học bài tuần tự)'}">
+            ${icon}
+            <span>Mốc ${idx + 1}: ${timeText}</span>
+            <span class="px-1.5 py-0.2 rounded text-[10px] bg-white/70 dark:bg-slate-700">
               ${qCount} câu
             </span>
           </button>
@@ -2922,6 +2941,11 @@ export const InteractiveVideo = {
       chipsContainer.querySelectorAll('[data-jump-to-sec]').forEach(btn => {
         btn.onclick = () => {
           const sec = Number(btn.getAttribute('data-jump-to-sec'));
+          const isCompleted = this.completedCheckpoints.has(sec);
+          if (!isCompleted) {
+            this.showToastNotification('🔒 Mốc câu hỏi này chưa mở khóa! Em cần theo dõi bài giảng tuần tự để tới mốc.', 'warning');
+            return;
+          }
           if (this.videoElem) {
             this.videoElem.currentTime = Math.max(0, sec - 2);
             this.videoElem.play().catch(() => {});
