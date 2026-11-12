@@ -3,9 +3,9 @@
  * Ghi nhận & Vinh danh thành tích thi thử của học sinh theo Ngày / Tuần / Tháng / Năm học
  */
 
-import { Storage } from './storage.js?v=20261112_210';
-import { escapeHtml } from './utils.js?v=20261112_210';
-import { getAvatarDataUrl } from './avatars.js?v=20261112_210';
+import { Storage } from './storage.js?v=20261112_215';
+import { escapeHtml } from './utils.js?v=20261112_215';
+import { getAvatarDataUrl } from './avatars.js?v=20261112_215';
 
 export const Leaderboard = {
   container: null,

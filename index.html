@@ -14,13 +14,13 @@
   <meta property="og:title" content="TinHocHub - Cùng học Tin Học" />
   <meta property="og:description" content="Nền tảng học tập thông minh môn Tin học THPT với ngân hàng câu hỏi chọn lọc, bài giảng video tương tác và hệ thống thi trực tuyến hiện đại." />
   <meta property="og:url" content="https://on-tap.nghiaedu.workers.dev/" />
-  <meta property="og:image" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261112_210" />
-  <meta property="og:image:secure_url" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261112_210" />
+  <meta property="og:image" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261112_215" />
+  <meta property="og:image:secure_url" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261112_215" />
   <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="TinHocHub - Cùng học Tin Học" />
-  <meta property="og:image" content="https://on-tap.nghiaedu.workers.dev/assets/logo.png?v=20261112_210" />
+  <meta property="og:image" content="https://on-tap.nghiaedu.workers.dev/assets/logo.png?v=20261112_215" />
   <meta property="og:image:width" content="512" />
   <meta property="og:image:height" content="512" />
 
@@ -28,17 +28,17 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="TinHocHub - Cùng học Tin Học" />
   <meta name="twitter:description" content="Nền tảng học tập thông minh môn Tin học THPT với ngân hàng câu hỏi chọn lọc, bài giảng video tương tác và hệ thống thi trực tuyến hiện đại." />
-  <meta name="twitter:image" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261112_210" />
+  <meta name="twitter:image" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261112_215" />
 
   <!-- Schema.org / Microdata -->
   <meta itemprop="name" content="TinHocHub - Cùng học Tin Học" />
   <meta itemprop="description" content="Nền tảng học tập thông minh môn Tin học THPT với ngân hàng câu hỏi chọn lọc, bài giảng video tương tác và hệ thống thi trực tuyến hiện đại." />
-  <meta itemprop="image" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261112_210" />
+  <meta itemprop="image" content="https://on-tap.nghiaedu.workers.dev/assets/og-image.png?v=20261112_215" />
 
   <!-- Favicon & App Icons -->
-  <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon.png?v=20261112_210" />
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=20261112_210" />
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=20261112_210" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon.png?v=20261112_215" />
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=20261112_215" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=20261112_215" />
   <link rel="manifest" href="site.webmanifest" />
 
   <!-- Preconnect to video CDN (Archive.org & Google CDN) to accelerate media stream buffering -->
@@ -46,7 +46,7 @@
   <link rel="dns-prefetch" href="https://archive.org" />
 
   <!-- Tailwind CSS Compiled & Font Awesome -->
-  <link rel="stylesheet" href="css/tailwind.css?v=20261112_210" />
+  <link rel="stylesheet" href="css/tailwind.css?v=20261112_215" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   
   <!-- Canvas Confetti -->
@@ -62,12 +62,12 @@
   <!-- SheetJS & Mammoth được nạp trễ tự động theo nhu cầu qua js/lazy-libs.js -->
 
   <!-- Custom CSS -->
-  <link rel="stylesheet" href="css/style.css?v=20261112_210" />
+  <link rel="stylesheet" href="css/style.css?v=20261112_215" />
 
     <!-- Auto Cache Buster & Purge Engine -->
   <script>
     (function() {
-      var CURRENT_BUILD = '20261112_210';
+      var CURRENT_BUILD = '20261112_215';
       try {
         var lastBuild = localStorage.getItem('tinhoc_build_ver');
         if (lastBuild && lastBuild !== CURRENT_BUILD) {
@@ -200,7 +200,7 @@
         });
 
         // Nạp động module Auth để mở Google Popup ngay lập tức
-        import('./js/auth.js?v=20261112_210').then(function(mod) {
+        import('./js/auth.js?v=20261112_215').then(function(mod) {
           if (mod && mod.Auth) {
             window.Auth = mod.Auth;
             mod.Auth.signInWithGoogleFirebase();
@@ -342,60 +342,52 @@
 
   <!-- ==================== HEADER & NAVBAR ==================== -->
   <header id="app-header" class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 no-print transition-colors">
-    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
+    <div class="max-w-7xl mx-auto px-2.5 sm:px-4 lg:px-6 xl:px-8 h-16 flex items-center justify-between gap-1.5 sm:gap-2.5 xl:gap-4">
       
       <!-- Brand Logo -->
-      <a href="#" data-tab-target="home" class="flex items-center gap-2 sm:gap-3 group shrink-0">
-        <img src="assets/logo-icon.png?v=20261112_210" alt="TinHocHub Logo" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl object-contain bg-white shadow-md shadow-blue-500/15 border border-slate-200/70 dark:border-slate-700 group-hover:scale-105 transition p-0.5" />
+      <a href="#" data-tab-target="home" class="flex items-center gap-2 sm:gap-2.5 group shrink-0">
+        <img src="assets/logo-icon.png?v=20261112_215" alt="TinHocHub Logo" class="w-8 h-8 sm:w-9 sm:h-9 xl:w-10 xl:h-10 rounded-xl object-contain bg-white shadow-md shadow-blue-500/15 border border-slate-200/70 dark:border-slate-700 group-hover:scale-105 transition p-0.5" />
         <div>
           <span class="text-base sm:text-lg font-black tracking-tight text-blue-700 dark:text-blue-400 block leading-none">
             TinHoc<span class="text-emerald-500 dark:text-emerald-400">Hub</span>
           </span>
-          <span class="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider text-slate-400 hidden sm:block mt-0.5">
+          <span class="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider text-slate-400 hidden xl:block mt-0.5">
             Cùng học Tin Học
           </span>
         </div>
       </a>
 
       <!-- Desktop Navigation Menu (1024px+ Laptops & Desktops) -->
-      <nav id="desktop-nav" class="hidden lg:flex items-center gap-1 text-sm font-medium">
-        <button data-tab-target="home" class="px-3 py-2 rounded-xl text-blue-600 dark:text-blue-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
-          <i class="fa-solid fa-house text-xs"></i> Trang chủ
+      <nav id="desktop-nav" class="hidden lg:flex items-center gap-0.5 xl:gap-1 text-xs xl:text-sm font-medium shrink min-w-0">
+        <button data-tab-target="home" class="nav-tab-btn px-2 py-1.5 xl:px-3 xl:py-2 rounded-xl text-blue-600 dark:text-blue-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+          <i class="fa-solid fa-house text-xs"></i> <span>Trang chủ</span>
         </button>
-        <button data-tab-target="practice" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
-          <i class="fa-solid fa-book-open-reader text-xs"></i> Ôn tập
+        <button data-tab-target="practice" class="nav-tab-btn px-2 py-1.5 xl:px-3 xl:py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+          <i class="fa-solid fa-book-open-reader text-xs"></i> <span>Ôn tập</span>
         </button>
-        <button data-tab-target="exam-setup" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
-          <i class="fa-solid fa-pen-clip text-xs"></i> Kiểm tra
+        <button data-tab-target="exam-setup" class="nav-tab-btn px-2 py-1.5 xl:px-3 xl:py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+          <i class="fa-solid fa-pen-clip text-xs"></i> <span>Kiểm tra</span>
         </button>
-        <button data-tab-target="interactive-video" class="px-3 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
-          <i class="fa-solid fa-circle-play text-xs text-rose-500"></i> Video tương tác
+        <button data-tab-target="interactive-video" class="nav-tab-btn px-2 py-1.5 xl:px-3 xl:py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+          <i class="fa-solid fa-circle-play text-xs text-rose-500"></i> <span>Video<span class="hidden 2xl:inline"> tương tác</span></span>
         </button>
-        <button data-tab-target="arena" class="px-2.5 py-2 rounded-xl text-purple-600 dark:text-purple-400 font-bold hover:bg-purple-50 dark:hover:bg-purple-950/30 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
-          <i class="fa-solid fa-gamepad text-xs"></i> Đấu trường
+        <button data-tab-target="arena" class="nav-tab-btn px-2 py-1.5 xl:px-2.5 xl:py-2 rounded-xl text-purple-600 dark:text-purple-400 font-bold hover:bg-purple-50 dark:hover:bg-purple-950/30 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+          <i class="fa-solid fa-gamepad text-xs"></i> <span>Đấu trường</span>
         </button>
 
-        <button data-tab-target="leaderboard" class="px-2.5 py-2 rounded-xl text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-50 dark:hover:bg-amber-950/30 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
-          <i class="fa-solid fa-crown text-xs"></i> Vinh danh
+        <button data-tab-target="leaderboard" class="nav-tab-btn px-2 py-1.5 xl:px-2.5 xl:py-2 rounded-xl text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-50 dark:hover:bg-amber-950/30 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+          <i class="fa-solid fa-crown text-xs"></i> <span>Vinh danh</span>
         </button>
 
         <!-- Nút truy cập Lịch sử làm bài dành riêng cho Học sinh -->
-        <button data-tab-target="history" data-role-req="student" class="hidden px-3 py-2 rounded-xl text-cyan-600 dark:text-cyan-400 font-bold hover:bg-cyan-50 dark:hover:bg-cyan-950/30 transition items-center gap-1.5 shrink-0 whitespace-nowrap">
-          <i class="fa-solid fa-clock-rotate-left text-xs"></i> Lịch sử làm bài
-        </button>
-
-        <!-- Nút truy cập 1 chạm cho Giáo viên trên màn hình rộng -->
-        <button data-tab-target="exam-rooms" data-role-req="teacher" class="hidden px-2.5 py-2 rounded-xl text-emerald-600 dark:text-emerald-400 font-bold hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition items-center gap-1.5 shrink-0 whitespace-nowrap">
-          <i class="fa-solid fa-door-open text-xs"></i> Phòng thi
-        </button>
-        <button data-tab-target="gradebook" data-role-req="teacher" class="hidden px-2.5 py-2 rounded-xl text-indigo-600 dark:text-indigo-400 font-bold hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition items-center gap-1.5 shrink-0 whitespace-nowrap">
-          <i class="fa-solid fa-graduation-cap text-xs"></i> Sổ điểm
+        <button data-tab-target="history" data-role-req="student" class="nav-tab-btn hidden px-2 py-1.5 xl:px-3 xl:py-2 rounded-xl text-cyan-600 dark:text-cyan-400 font-bold hover:bg-cyan-50 dark:hover:bg-cyan-950/30 transition items-center gap-1.5 shrink-0 whitespace-nowrap">
+          <i class="fa-solid fa-clock-rotate-left text-xs"></i> <span>Lịch sử<span class="hidden 2xl:inline"> làm bài</span></span>
         </button>
 
         <!-- Menu Nghiệp vụ Giáo viên & Quản trị (Có đệm cầu nối pt-2 chống mất hover + Hỗ trợ bấm Click ghim mở) -->
-        <div id="teacher-nav-dropdown-wrap" data-role-req="teacher" class="hidden relative group/teacher-nav">
-          <button id="btn-teacher-nav-dropdown" type="button" aria-expanded="false" class="px-2.5 py-2 rounded-xl text-purple-600 dark:text-purple-400 font-bold hover:bg-purple-50 dark:hover:bg-purple-950/30 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap cursor-pointer">
-            <i class="fa-solid fa-chalkboard-user text-xs"></i> Nghiệp vụ GV <i id="icon-teacher-nav-chevron" class="fa-solid fa-chevron-down text-[10px] opacity-60 group-hover/teacher-nav:rotate-180 transition-transform"></i>
+        <div id="teacher-nav-dropdown-wrap" data-role-req="teacher" class="hidden relative group/teacher-nav shrink-0">
+          <button id="btn-teacher-nav-dropdown" type="button" aria-expanded="false" class="nav-tab-btn px-2 py-1.5 xl:px-2.5 xl:py-2 rounded-xl text-purple-600 dark:text-purple-400 font-bold hover:bg-purple-50 dark:hover:bg-purple-950/30 transition flex items-center gap-1.5 shrink-0 whitespace-nowrap cursor-pointer">
+            <i class="fa-solid fa-chalkboard-user text-xs"></i> <span><span class="hidden xl:inline">Nghiệp vụ </span>GV</span> <i id="icon-teacher-nav-chevron" class="fa-solid fa-chevron-down text-[10px] opacity-60 group-hover/teacher-nav:rotate-180 transition-transform"></i>
           </button>
           
           <!-- Lớp đệm trong suốt pt-2 nối liền nút và menu để di chuột xuống không bao giờ bị ngắt quãng -->
@@ -430,7 +422,7 @@
       </nav>
 
       <!-- Right Controls: Auth Profile, Grade Pill & Theme Toggle -->
-      <div class="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+      <div class="flex items-center gap-1 sm:gap-2 shrink-0">
         
         <!-- Google Auth Button (When NOT logged in) -->
         <button id="auth-btn-login" data-open-login-modal onclick="window.openLoginModal('login'); return false;" class="px-2.5 sm:px-3.5 py-1.5 rounded-2xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold hover:border-blue-500 hover:text-blue-600 transition flex items-center gap-1.5 sm:gap-2 shadow-sm shrink-0">
@@ -445,14 +437,15 @@
         </button>
 
         <!-- User Profile Pill & Dropdown (When Logged in) -->
-        <div id="auth-profile-menu" class="hidden relative">
-          <button id="btn-user-profile-pill" class="flex items-center gap-2 p-1 pl-2 sm:pr-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition border border-slate-200 dark:border-slate-700 text-left">
+        <div id="auth-profile-menu" class="hidden relative shrink-0">
+          <button id="btn-user-profile-pill" class="flex items-center gap-1.5 sm:gap-2 p-1 pl-1.5 sm:pl-2 sm:pr-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition border border-slate-200 dark:border-slate-700 text-left">
             <img id="auth-user-avatar" src="" alt="Avatar" class="w-7 h-7 rounded-xl object-cover ring-2 ring-blue-500/30 shrink-0" />
-            <div class="hidden sm:block leading-tight pr-1">
-              <span id="auth-user-name" class="text-xs font-bold text-slate-800 dark:text-white block max-w-[110px] truncate">Học sinh</span>
-              <span id="auth-user-badge" class="text-[10px] text-blue-600 dark:text-blue-400 font-semibold block">Lớp 12</span>
+            <div class="hidden sm:block leading-tight pr-0.5">
+              <span id="auth-user-name" class="text-xs font-bold text-slate-800 dark:text-white block max-w-[80px] sm:max-w-[105px] xl:max-w-[130px] truncate">Học sinh</span>
+              <span id="auth-user-badge" class="text-[10px] text-blue-600 dark:text-blue-400 font-semibold hidden xl:block">Lớp 12</span>
             </div>
             <i class="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
+          </button>
           </button>
 
           <!-- Dropdown menu -->
@@ -1693,7 +1686,7 @@
 
       <!-- Header thương hiệu TinHocHub -->
       <div class="text-center mb-6">
-        <img src="assets/logo.png?v=20261112_210" alt="TinHocHub - Cùng học Tin Học" class="w-20 h-20 rounded-2xl object-contain bg-white mx-auto mb-3 shadow-lg shadow-blue-500/15 border border-slate-200/70 dark:border-slate-700 p-1" />
+        <img src="assets/logo.png?v=20261112_215" alt="TinHocHub - Cùng học Tin Học" class="w-20 h-20 rounded-2xl object-contain bg-white mx-auto mb-3 shadow-lg shadow-blue-500/15 border border-slate-200/70 dark:border-slate-700 p-1" />
         <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[10px] font-black uppercase tracking-wider mb-2">
           <i class="fa-solid fa-shield-halved text-[9px]"></i> Yêu cầu xác thực tài khoản
         </div>
@@ -3535,13 +3528,13 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   <footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-8 no-print transition-colors">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center gap-4 text-xs text-slate-500 dark:text-slate-400">
       <div class="flex items-center gap-2">
-        <img src="assets/logo-icon.png?v=20261112_210" alt="TinHocHub" class="w-6 h-6 rounded-lg object-contain bg-white border border-slate-200 dark:border-slate-700 p-0.5" />
+        <img src="assets/logo-icon.png?v=20261112_215" alt="TinHocHub" class="w-6 h-6 rounded-lg object-contain bg-white border border-slate-200 dark:border-slate-700 p-0.5" />
         <span><strong>TinHocHub - Cùng học Tin Học</strong> • Nền tảng học tập & luyện thi Tin học THPT</span>
       </div>
 
       <div class="flex items-center gap-2">
         <button type="button" onclick="if('caches' in window){caches.keys().then(function(names){names.forEach(function(n){caches.delete(n);});});}localStorage.removeItem('tinhoc_build_ver');window.location.reload(true);" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition flex items-center gap-1.5 cursor-pointer text-[11px]" title="Dọn sạch cache & cập nhật tính năng mới nhất">
-          <i class="fa-solid fa-rotate text-[10px]"></i> Tải lại bản mới (v20261112_210)
+          <i class="fa-solid fa-rotate text-[10px]"></i> Tải lại bản mới (v20261112_215)
         </button>
       </div>
 
@@ -3557,7 +3550,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
   </div>
 
   <!-- Main Application Script (ES Modules) -->
-  <script type="module" src="js/app.js?v=20261112_210"></script>
+  <script type="module" src="js/app.js?v=20261112_215"></script>
 </body>
 </html>
 
