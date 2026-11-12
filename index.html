@@ -1913,7 +1913,7 @@
 
   <!-- ==================== MODAL: YÊU CẦU CẤP QUYỀN GV / ADMIN ==================== -->
   <div id="modal-upgrade-role" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative">
+    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[92dvh] overflow-y-auto">
       <button data-close-modal="modal-upgrade-role" aria-label="Đóng cửa sổ nâng cấp quyền" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
@@ -1996,7 +1996,7 @@
 
   <!-- ==================== MODAL: BẮT BUỘC ĐIỀN THÔNG TIN HỌC SINH ==================== -->
   <div id="modal-required-profile" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[90dvh] overflow-y-auto">
+    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[92dvh] overflow-y-auto">
       <button type="button" id="btn-close-profile-modal" data-close-modal="modal-required-profile" onclick="window.closeEditProfileModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition" title="Đóng">
         <i class="fa-solid fa-xmark"></i>
       </button>
@@ -2089,7 +2089,7 @@
 
   <!-- ==================== MODAL: CÀI ĐẶT XÁC THỰC GOOGLE BẰNG FIREBASE AUTH ==================== -->
   <div id="modal-firebase-config" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[90dvh] overflow-y-auto">
+    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[92dvh] overflow-y-auto">
       <button data-close-modal="modal-firebase-config" aria-label="Đóng cửa sổ cấu hình máy chủ" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
@@ -2175,7 +2175,7 @@
 
   <!-- ==================== MODAL: ĐĂNG NHẬP / ĐĂNG KÝ VỚI GOOGLE (GMAIL) ==================== -->
   <div id="modal-google-quick-prompt" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative">
+    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[92dvh] overflow-y-auto">
       <button data-close-modal="modal-google-quick-prompt" aria-label="Đóng hộp thoại đăng nhập nhanh" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
@@ -2367,27 +2367,50 @@
               </button>
             </div>
 
-            <!-- Thiết lập số lượng câu hỏi của đề thi -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
-              <div class="w-full sm:w-56 shrink-0">
-                <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Tổng số câu hỏi đề thi <span class="text-rose-500">*</span>
-                </label>
-                <div class="flex items-center gap-2">
-                  <input type="number" id="room-input-count" value="28" min="5" max="100" class="w-full px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500" />
-                  <span class="text-xs text-slate-400 font-bold shrink-0">câu</span>
+            <!-- Thiết lập số lượng câu hỏi của đề thi & Mẫu nhanh -->
+            <div class="p-3.5 sm:p-4 bg-slate-100/90 dark:bg-slate-900/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-3">
+              <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+                <!-- Cột trái: Tổng số câu hỏi -->
+                <div class="w-full md:w-56 shrink-0">
+                  <label for="room-input-count" class="block font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5 text-xs">
+                    <i class="fa-solid fa-list-ol text-emerald-600"></i>
+                    <span>Tổng số câu hỏi đề thi</span>
+                    <span class="text-rose-500">*</span>
+                  </label>
+                  <div class="relative flex items-center">
+                    <input type="number" id="room-input-count" value="28" min="5" max="100" class="w-full pl-3.5 pr-12 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 text-sm shadow-xs transition" />
+                    <span class="absolute right-3.5 text-xs text-slate-400 font-bold select-none pointer-events-none">câu</span>
+                  </div>
                 </div>
-              </div>
 
-              <!-- Quick presets for question counts -->
-              <div class="flex-1">
-                <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Số câu mẫu nhanh (chọn 1 chạm)</label>
-                <div class="flex flex-wrap items-center gap-1.5">
-                  <button type="button" data-preset-count="10" class="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 transition">10c (15p)</button>
-                  <button type="button" data-preset-count="20" class="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 transition">20c (30p)</button>
-                  <button type="button" data-preset-count="28" class="px-2.5 py-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 text-xs font-bold hover:bg-blue-200 transition">28c (Chuẩn Bộ)</button>
-                  <button type="button" data-preset-count="30" class="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 transition">30c (45p)</button>
-                  <button type="button" data-preset-count="40" class="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 transition">40c</button>
+                <!-- Cột phải: Số câu mẫu nhanh (chọn 1 chạm) -->
+                <div class="flex-1 min-w-0">
+                  <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5 text-xs">
+                    <i class="fa-solid fa-bolt-lightning text-amber-500"></i>
+                    <span>Số câu mẫu nhanh (chọn 1 chạm):</span>
+                  </label>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" data-preset-count="10" class="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold border border-slate-200 dark:border-slate-700 transition shadow-xs flex items-center gap-1.5 hover:scale-105 active:scale-95">
+                      <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                      <span>10c (15p)</span>
+                    </button>
+                    <button type="button" data-preset-count="20" class="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold border border-slate-200 dark:border-slate-700 transition shadow-xs flex items-center gap-1.5 hover:scale-105 active:scale-95">
+                      <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                      <span>20c (30p)</span>
+                    </button>
+                    <button type="button" data-preset-count="28" class="px-3.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-900/50 hover:bg-blue-100 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 text-xs font-black border border-blue-200 dark:border-blue-700 transition shadow-xs flex items-center gap-1.5 hover:scale-105 active:scale-95">
+                      <i class="fa-solid fa-award text-blue-600 dark:text-blue-400"></i>
+                      <span>28c (Chuẩn Bộ)</span>
+                    </button>
+                    <button type="button" data-preset-count="30" class="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold border border-slate-200 dark:border-slate-700 transition shadow-xs flex items-center gap-1.5 hover:scale-105 active:scale-95">
+                      <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                      <span>30c (45p)</span>
+                    </button>
+                    <button type="button" data-preset-count="40" class="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold border border-slate-200 dark:border-slate-700 transition shadow-xs flex items-center gap-1.5 hover:scale-105 active:scale-95">
+                      <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                      <span>40c</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2537,7 +2560,7 @@
                   <button type="button" id="btn-paste-sample-word" class="px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded-xl font-bold transition flex items-center gap-1.5 border border-blue-200 dark:border-blue-800">
                     <i class="fa-solid fa-paste"></i> Dán mẫu Word thử ngay
                   </button>
-                  <span id="label-import-word-filename" class="text-slate-400 italic">hoặc dán nội dung văn bản đề thi vào khung bên dưới:</span>
+                  <span id="label-import-word-filename" class="text-slate-400 italic w-full sm:w-auto break-all">hoặc dán nội dung văn bản đề thi vào khung bên dưới:</span>
                 </div>
 
                 <textarea id="textarea-room-import-word" rows="6" placeholder="Dán nội dung đề thi từ Word vào đây...
@@ -2582,7 +2605,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
                   <button type="button" id="btn-paste-sample-excel" class="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded-xl font-bold transition flex items-center gap-1.5 border border-emerald-200 dark:border-emerald-800">
                     <i class="fa-solid fa-paste"></i> Dán mẫu Excel thử ngay
                   </button>
-                  <span id="label-import-excel-filename" class="text-slate-400 italic">hoặc sao chép các hàng từ Excel rồi dán vào ô bên dưới:</span>
+                  <span id="label-import-excel-filename" class="text-slate-400 italic w-full sm:w-auto break-all">hoặc sao chép các hàng từ Excel rồi dán vào ô bên dưới:</span>
                 </div>
 
                 <textarea id="textarea-room-import-excel" rows="6" placeholder="Dán các dòng copy từ bảng Excel vào đây (phân cách bằng dấu Tab)..." class="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-xs focus:ring-2 focus:ring-emerald-500"></textarea>
@@ -2933,17 +2956,17 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
         </div>
 
         <!-- 7. Action buttons -->
-        <div class="pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between gap-3">
-          <button type="button" id="btn-cancel-manual-q" class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-100 transition">
+        <div class="pt-3 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <button type="button" id="btn-cancel-manual-q" class="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-100 transition text-center">
             Hủy
           </button>
 
-          <div class="flex items-center gap-2">
-            <button type="button" id="btn-save-and-add-another" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition flex items-center gap-1.5">
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+            <button type="button" id="btn-save-and-add-another" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition flex items-center justify-center gap-1.5">
               <i class="fa-solid fa-plus"></i> Lưu & Soạn Tiếp Câu Khác
             </button>
 
-            <button type="submit" id="btn-save-manual-q" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black shadow-md transition flex items-center gap-1.5">
+            <button type="submit" id="btn-save-manual-q" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black shadow-md transition flex items-center justify-center gap-1.5">
               <i class="fa-solid fa-check"></i> Lưu & Đưa Vào Đề Thi
             </button>
           </div>
@@ -2954,7 +2977,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
 
   <!-- ==================== MODAL: XEM BIÊN BẢN VI PHẠM (AUDIT LOGS) ==================== -->
   <div id="modal-violation-audit" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[90dvh] overflow-y-auto space-y-4">
+    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[92dvh] overflow-y-auto space-y-4">
       <button data-close-modal="modal-violation-audit" aria-label="Đóng cửa sổ nhật ký giám sát thi" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
@@ -2990,7 +3013,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
 
   <!-- ==================== MODAL: HỌC BẠ ĐIỆN TỬ & THEO DÕI TIẾN TRÌNH HỌC SINH ==================== -->
   <div id="modal-student-progress" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[90dvh] overflow-y-auto space-y-5">
+    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[92dvh] overflow-y-auto space-y-5">
       <button data-close-modal="modal-student-progress" aria-label="Đóng cửa sổ tiến độ học sinh" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
@@ -3107,7 +3130,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
 
       <!-- Action bar: Thêm câu hỏi / Khôi phục / Thống kê -->
       <div class="flex items-center justify-between gap-3 flex-wrap bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700">
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
           <button type="button" id="btn-vqe-open-add" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-blue-500/20 flex items-center gap-2">
             <i class="fa-solid fa-plus"></i> Thêm câu hỏi dừng mới
           </button>
@@ -3256,7 +3279,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
 
   <!-- ==================== MODAL: NHẬP URL VIDEO TÙY CHỈNH ==================== -->
   <div id="modal-video-custom-url" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative space-y-5">
+    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative space-y-5 max-h-[92dvh] overflow-y-auto">
       <button data-close-modal="modal-video-custom-url" aria-label="Đóng cửa sổ liên kết video" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
@@ -3305,7 +3328,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
 
   <!-- ==================== MODAL: QUẢN TRỊ VIÊN SỬA / THÊM TÀI KHOẢN ==================== -->
   <div id="modal-admin-user-editor" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto">
+    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[92dvh] overflow-y-auto">
       <button type="button" data-close-modal="modal-admin-user-editor" aria-label="Đóng cửa sổ sửa thông tin tài khoản" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
@@ -3401,7 +3424,7 @@ Câu 2: ... (tiếp tục)" class="w-full p-3 bg-slate-50 dark:bg-slate-900 bord
 
   <!-- ==================== MODAL: CHỈNH SỬA KẾT QUẢ BÀI THI & ĐIỂM SỐ ==================== -->
   <div id="modal-admin-result-editor" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto">
+    <div class="modal-box-adaptive bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 sm:p-8 relative max-h-[92dvh] overflow-y-auto">
       <button type="button" data-close-modal="modal-admin-result-editor" aria-label="Đóng cửa sổ sửa kết quả bài thi" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center text-sm transition">
         <i class="fa-solid fa-xmark"></i>
       </button>
