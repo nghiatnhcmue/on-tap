@@ -3,11 +3,11 @@
  * Hỗ trợ đề chuẩn Bộ GD&ĐT 2025, kiểm tra định kỳ 15p, 45p và tùy biến đề thi
  */
 
-import { Storage } from './storage.js?v=20261112_285';
-import { Auth } from './auth.js?v=20261112_285';
-import { escapeHtml } from './utils.js?v=20261112_285';
-import { Proctor } from './proctor.js?v=20261112_285';
-import { authedFetch } from './api.js?v=20261112_285';
+import { Storage } from './storage.js?v=20261112_290';
+import { Auth } from './auth.js?v=20261112_290';
+import { escapeHtml } from './utils.js?v=20261112_290';
+import { Proctor } from './proctor.js?v=20261112_290';
+import { authedFetch } from './api.js?v=20261112_290';
 
 /**
  * Fast KaTeX Math Rendering:
