@@ -10,13 +10,13 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261112_235';
-import { authedFetch } from './api.js?v=20261112_235';
-import { Storage } from './storage.js?v=20261112_235';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261112_235';
-import { escapeHtml } from './utils.js?v=20261112_235';
-import { Proctor } from './proctor.js?v=20261112_235';
-import { Gradebook } from './gradebook.js?v=20261112_235';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261112_240';
+import { authedFetch } from './api.js?v=20261112_240';
+import { Storage } from './storage.js?v=20261112_240';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261112_240';
+import { escapeHtml } from './utils.js?v=20261112_240';
+import { Proctor } from './proctor.js?v=20261112_240';
+import { Gradebook } from './gradebook.js?v=20261112_240';
 
 export const LiveVideo = {
   manifest: null,
@@ -599,7 +599,8 @@ export const LiveVideo = {
   async handleJoinRoomSubmit(customCode = null, options = {}) {
     const input = document.getElementById('live-join-input-code');
     const submitBtn = document.getElementById('btn-confirm-join-live-room');
-    const roomId = (customCode || input?.value || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    const rawCode = (customCode || input?.value || '').trim().toUpperCase();
+    const roomId = rawCode.replace(/\s+/g, '-').replace(/[^A-Z0-9_-]/g, '');
 
     if (!roomId) {
       alert('Vui lòng nhập Mã phòng live trực tuyến của Thầy/Cô!');
@@ -613,6 +614,7 @@ export const LiveVideo = {
       return;
     }
 
+    const user = Auth.getCurrentUser() || {};
     const isAdmin = Auth.isAdmin();
     const isTeacher = Auth.isTeacher();
     const isPrivileged = isAdmin || isTeacher;
@@ -630,28 +632,51 @@ export const LiveVideo = {
     try {
       const dbUrl = this.getBaseDbUrl();
       let resolvedRoomId = roomId;
-      let res = await authedFetch(`${dbUrl}/live_video_rooms/${resolvedRoomId}.json`, { cache: 'no-cache' });
-      if (!res.ok) throw new Error('Không thể kết nối máy chủ');
+      let roomData = null;
 
-      let roomData = await res.json();
-      // Hỗ trợ học sinh nhập mã rút gọn (VD: nhập "892" tự động khớp "LIVE-892")
-      if ((!roomData || !roomData.roomId) && !resolvedRoomId.startsWith('LIVE-')) {
-        const altId = `LIVE-${resolvedRoomId}`;
-        const altRes = await authedFetch(`${dbUrl}/live_video_rooms/${altId}.json`, { cache: 'no-cache' });
-        if (altRes.ok) {
-          const altData = await altRes.json();
-          if (altData && altData.roomId) {
-            resolvedRoomId = altId;
-            roomData = altData;
+      try {
+        let res = await authedFetch(`${dbUrl}/live_video_rooms/${resolvedRoomId}.json`, { cache: 'no-cache' });
+        if (res.ok) {
+          roomData = await res.json();
+        }
+
+        // Hỗ trợ học sinh nhập mã rút gọn hoặc định dạng khác (VD: "892" -> "LIVE-892", "LIVE892" -> "LIVE-892")
+        if (!roomData || !roomData.roomId) {
+          const candidateIds = [];
+          if (!resolvedRoomId.startsWith('LIVE-')) {
+            candidateIds.push(`LIVE-${resolvedRoomId}`);
+          }
+          if (/^LIVE[0-9]/.test(resolvedRoomId)) {
+            candidateIds.push(resolvedRoomId.replace(/^LIVE/, 'LIVE-'));
+          }
+          for (const altId of candidateIds) {
+            try {
+              const altRes = await authedFetch(`${dbUrl}/live_video_rooms/${altId}.json`, { cache: 'no-cache' });
+              if (altRes.ok) {
+                const altData = await altRes.json();
+                if (altData && altData.roomId) {
+                  resolvedRoomId = altId;
+                  roomData = altData;
+                  break;
+                }
+              }
+            } catch (e) {}
           }
         }
+      } catch (netErr) {
+        console.warn('Không thể kết nối Firebase RTDB, thử tìm trong bộ nhớ cục bộ:', netErr);
       }
 
       if (!roomData || !roomData.roomId) {
         try {
           const localRooms = JSON.parse(localStorage.getItem("tinhoc_live_video_rooms") || "{}");
-          if (localRooms[resolvedRoomId] || localRooms[`LIVE-${resolvedRoomId}`]) {
-            roomData = localRooms[resolvedRoomId] || localRooms[`LIVE-${resolvedRoomId}`];
+          const tryKeys = [resolvedRoomId, `LIVE-${resolvedRoomId}`, resolvedRoomId.replace(/^LIVE/, 'LIVE-')];
+          for (const k of tryKeys) {
+            if (localRooms[k]) {
+              resolvedRoomId = k;
+              roomData = localRooms[k];
+              break;
+            }
           }
         } catch (e) {}
       }
@@ -723,7 +748,7 @@ export const LiveVideo = {
       }
 
       // Đăng ký học sinh vào Hàng Đợi Truy Cập (Waiting Queue) trên Firebase
-      const studentUid = (user.email || user.username || `hs_${Date.now()}`).replace(/[.#$\[\]\/]/g, '_');
+      const studentUid = (user.uid || user.email || user.username || `hs_${Date.now()}`).replace(/[.#$\[\]\/]/g, '_');
       const existingStudents = roomData.students || {};
       const prevStudent = existingStudents[studentUid];
       const existingCount = Object.keys(existingStudents).length;
@@ -754,7 +779,16 @@ export const LiveVideo = {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(studentRecord)
-      });
+      }).catch(err => console.warn('Không thể ghi học sinh lên Firebase:', err));
+
+      try {
+        const localRooms = JSON.parse(localStorage.getItem("tinhoc_live_video_rooms") || "{}");
+        if (localRooms[resolvedRoomId]) {
+          if (!localRooms[resolvedRoomId].students) localRooms[resolvedRoomId].students = {};
+          localRooms[resolvedRoomId].students[studentUid] = studentRecord;
+          localStorage.setItem("tinhoc_live_video_rooms", JSON.stringify(localRooms));
+        }
+      } catch (e) {}
 
       this.isHost = false;
       this.activeRoom = roomData;
@@ -769,7 +803,7 @@ export const LiveVideo = {
     } finally {
       if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Tham Gia Ngay';
+        submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Vào Hàng Đợi Phòng Live';
       }
     }
   },
@@ -4352,7 +4386,7 @@ export const LiveVideo = {
   // 14. INJECT HTML MODALS: TẠO PHÒNG & NHẬP MÃ VÀO TRANG
   // =========================================================================
   injectLiveVideoModals() {
-    if (document.getElementById('modal-create-live-video-room')) return;
+    if (document.getElementById('modal-create-live-video-room') && document.getElementById('modal-join-live-video-room')) return;
 
     const div = document.createElement('div');
     div.innerHTML = `
