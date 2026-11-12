@@ -302,7 +302,7 @@ body.in-exam .mobile-bottom-bar {
 }
 
 .modal-box-adaptive {
-  width: min(94vw, 560px);
+  width: 100%;
   max-height: calc(100dvh - 2rem);
   margin: auto;
 }

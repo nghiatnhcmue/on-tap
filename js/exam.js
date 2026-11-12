@@ -3,11 +3,11 @@
  * Hỗ trợ đề chuẩn Bộ GD&ĐT 2025, kiểm tra định kỳ 15p, 45p và tùy biến đề thi
  */
 
-import { Storage } from './storage.js?v=20261112_215';
-import { Auth } from './auth.js?v=20261112_215';
-import { escapeHtml } from './utils.js?v=20261112_215';
-import { Proctor } from './proctor.js?v=20261112_215';
-import { authedFetch } from './api.js?v=20261112_215';
+import { Storage } from './storage.js?v=20261112_220';
+import { Auth } from './auth.js?v=20261112_220';
+import { escapeHtml } from './utils.js?v=20261112_220';
+import { Proctor } from './proctor.js?v=20261112_220';
+import { authedFetch } from './api.js?v=20261112_220';
 
 export const Exam = {
   questions: [],

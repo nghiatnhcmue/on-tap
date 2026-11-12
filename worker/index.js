@@ -94,7 +94,20 @@ export default {
 
     // 3. Phục vụ tài nguyên tĩnh qua Static Assets binding
     if (env.ASSETS && typeof env.ASSETS.fetch === 'function') {
-      return env.ASSETS.fetch(request);
+      const assetRes = await env.ASSETS.fetch(request);
+      // Chống cache cho trang chủ index.html để đảm bảo người dùng luôn nhận bản cập nhật mới nhất
+      if (url.pathname === '/' || url.pathname === '/index.html') {
+        const newHeaders = new Headers(assetRes.headers);
+        newHeaders.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        newHeaders.set('Pragma', 'no-cache');
+        newHeaders.set('Expires', '0');
+        return new Response(assetRes.body, {
+          status: assetRes.status,
+          statusText: assetRes.statusText,
+          headers: newHeaders
+        });
+      }
+      return assetRes;
     }
 
     return new Response('TinHocHub Worker: Static Assets binding (env.ASSETS) chưa sẵn sàng.', {
