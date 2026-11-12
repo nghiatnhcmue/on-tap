@@ -10,13 +10,13 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261112_260';
-import { authedFetch } from './api.js?v=20261112_260';
-import { Storage } from './storage.js?v=20261112_260';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261112_260';
-import { escapeHtml } from './utils.js?v=20261112_260';
-import { Proctor } from './proctor.js?v=20261112_260';
-import { Gradebook } from './gradebook.js?v=20261112_260';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261112_265';
+import { authedFetch } from './api.js?v=20261112_265';
+import { Storage } from './storage.js?v=20261112_265';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261112_265';
+import { escapeHtml } from './utils.js?v=20261112_265';
+import { Proctor } from './proctor.js?v=20261112_265';
+import { Gradebook } from './gradebook.js?v=20261112_265';
 
 export const LiveVideo = {
   manifest: null,
@@ -43,6 +43,7 @@ export const LiveVideo = {
   completedCheckpoints: new Set(),
   savedPlaybackTime: 0,
   isManualSeeking: false,
+  hasAttemptedAntiResetRecovery: false,
 
   init(manifest = null) {
     this.manifest = manifest;
@@ -2350,6 +2351,18 @@ export const LiveVideo = {
       }
     }
 
+    // 1b. Tự động phục hồi vị trí phát nếu video Thầy Cô bị trôi về 0:00 trong khi phòng học đang phát
+    if (remote.state === 'playing' && video && !this.isManualSeeking && !video.seeking) {
+      const remoteCur = Number(remote.currentTime || 0);
+      if (remoteCur > 5.0 && (video.currentTime || 0) < 1.5) {
+        console.warn('Master Console phát hiện video lệch vị trí so với phòng học, tự động đồng bộ lại:', remoteCur);
+        this.seekMasterVideo(remoteCur);
+        if (video.paused) {
+          video.play().catch(() => {});
+        }
+      }
+    }
+
     // 2. Cập nhật Hàng Đợi & Danh sách Học sinh
     const students = remote.students || {};
     const studentEntries = Object.values(students)
@@ -3206,14 +3219,22 @@ export const LiveVideo = {
         if (durTimeText) durTimeText.textContent = this.formatTime(dur);
 
         // BẢO VỆ CHỐNG RESET VỀ ĐẦU / 0:00 TOÀN DIỆN:
-        // Nếu video bị trôi/lùi về đầu (nhỏ hơn mốc đã lưu quá 2s) và không phải do Thầy Cô chủ động tua:
-        if (!this.isManualSeeking && this.savedPlaybackTime > 3 && cur < (this.savedPlaybackTime - 2.0)) {
-          console.warn('Live Master Video bị trôi/reset về đầu bài giảng (cur:', cur, '< saved:', this.savedPlaybackTime, '). Tự động khôi phục về đúng vị trí!');
-          try { video.currentTime = this.savedPlaybackTime; } catch (e) {}
+        // Chỉ can thiệp khi KHÔNG trong quá trình seeking và video không đang ở trạng thái seeking của trình duyệt
+        if (!this.isManualSeeking && !video.seeking && this.savedPlaybackTime > 3 && cur < (this.savedPlaybackTime - 2.5)) {
+          if (!this.hasAttemptedAntiResetRecovery) {
+            this.hasAttemptedAntiResetRecovery = true;
+            this.isManualSeeking = true;
+            console.warn('Live Master Video bị trôi/reset về đầu bài giảng (cur:', cur, '< saved:', this.savedPlaybackTime, '). Tự động khôi phục về đúng vị trí!');
+            try { video.currentTime = this.savedPlaybackTime; } catch (e) {}
+            setTimeout(() => {
+              this.isManualSeeking = false;
+              this.hasAttemptedAntiResetRecovery = false;
+            }, 2000);
+          }
           return;
         }
 
-        if (!this.isManualSeeking && cur > (this.savedPlaybackTime || 0)) {
+        if (!this.isManualSeeking && !video.seeking && cur > (this.savedPlaybackTime || 0)) {
           this.savedPlaybackTime = cur;
         }
 
@@ -3311,7 +3332,13 @@ export const LiveVideo = {
         const cur = Number(video.currentTime || 0);
         const next = this.getCheckpointsList().find(q => q.sec > cur + 1 && !this.isCheckpointCompleted(q)) || this.questionsList.find(q => q.sec > cur + 1 && !this.isCheckpointCompleted(q));
         if (next) {
-          video.currentTime = next.sec;
+          this.isManualSeeking = true;
+          if (this.manualSeekTimer) clearTimeout(this.manualSeekTimer);
+          this.manualSeekTimer = setTimeout(() => { this.isManualSeeking = false; }, 2500);
+
+          this.activeCheckpointSec = next.sec;
+          this.savedPlaybackTime = next.sec;
+          try { video.currentTime = next.sec; } catch (e) {}
           this.markCheckpointCompleted(next);
           this.triggerMasterQuestion(next);
         } else {
@@ -3400,6 +3427,10 @@ export const LiveVideo = {
             clearInterval(this.countdownInterval);
             this.countdownInterval = null;
           }
+          this.isManualSeeking = true;
+          if (this.manualSeekTimer) clearTimeout(this.manualSeekTimer);
+          this.manualSeekTimer = setTimeout(() => { this.isManualSeeking = false; }, 2500);
+
           this.activeQuestionIdx = nextQ.index;
           this.markCheckpointCompleted(nextQ);
           this.activeCheckpointSec = nextQ.sec;
@@ -3439,7 +3470,15 @@ export const LiveVideo = {
           Math.max(curSec + 1.0, cpSec + 1.5, (this.savedPlaybackTime || 0) + 0.8)
         );
 
+        // Khóa Anti-Reset Guard trong suốt thời gian tua và nạp lại luồng video
+        this.isManualSeeking = true;
+        if (this.manualSeekTimer) clearTimeout(this.manualSeekTimer);
+        this.manualSeekTimer = setTimeout(() => {
+          this.isManualSeeking = false;
+        }, 3000);
+
         this.savedPlaybackTime = nextTime;
+        this.activeCheckpointSec = nextTime;
 
         if (this.countdownInterval) {
           clearInterval(this.countdownInterval);
@@ -3449,6 +3488,16 @@ export const LiveVideo = {
 
         const qOverlay = document.getElementById('master-question-active-overlay');
         if (qOverlay) qOverlay.classList.add('hidden');
+
+        // Cập nhật ngay lập tức thanh tiến trình Master UI sang vị trí nextTime
+        const dur = video.duration || this.activeRoom?.videoDuration || 1;
+        const pct = Math.min(100, Math.max(0, (nextTime / dur) * 100));
+        const fill = document.getElementById('master-timeline-fill');
+        const thumb = document.getElementById('master-timeline-thumb');
+        const curTimeText = document.getElementById('master-time-current');
+        if (fill) fill.style.width = `${pct}%`;
+        if (thumb) thumb.style.left = `${pct}%`;
+        if (curTimeText) curTimeText.textContent = this.formatTime(nextTime);
 
         // CẬP NHẬT CỤC BỘ TỨC THÌ TRÊN GIAO DIỆN GIÁO VIÊN (Optimistic Update)
         if (!this.remoteState) this.remoteState = {};
@@ -3476,35 +3525,52 @@ export const LiveVideo = {
           })
         }).catch(err => console.warn('Lỗi tiếp tục bài giảng:', err));
 
-        // Áp dụng tua và phát video với cơ chế fallback bảo vệ chống reset về 0
-        const applySeekAndPlay = async () => {
+        // Tua và phát video an toàn (chờ seeked trước khi gọi play)
+        const executeSafeResume = async () => {
           try {
             video.currentTime = nextTime;
-          } catch (e) {}
-
-          try {
-            await video.play();
-          } catch (playErr) {
-            video.muted = true;
-            try {
-              await video.play();
-            } catch (e2) {}
+          } catch (e) {
+            console.warn('Lỗi gán currentTime:', e);
           }
 
-          // Kiểm tra và khắc phục nếu trình duyệt tự ý reset currentTime về đầu (< nextTime - 1.0)
-          setTimeout(() => {
-            if (video && !video.paused && video.currentTime < (nextTime - 1.0)) {
-              console.warn('Live Master Video bị reset sau khi bấm tiếp tục, tái thiết lập currentTime:', nextTime);
-              try { video.currentTime = nextTime; } catch (e3) {}
+          const startPlay = async () => {
+            try {
+              await video.play();
+            } catch (playErr) {
+              video.muted = true;
+              try { await video.play(); } catch (e2) {}
             }
-          }, 350);
+          };
+
+          if (video.seeking) {
+            const onSeeked = () => {
+              video.removeEventListener('seeked', onSeeked);
+              startPlay();
+            };
+            video.addEventListener('seeked', onSeeked, { once: true });
+            setTimeout(() => {
+              video.removeEventListener('seeked', onSeeked);
+              if (video.paused) startPlay();
+            }, 350);
+          } else {
+            await startPlay();
+          }
+
+          // Kiểm tra và khắc phục nếu trình duyệt tự ý reset currentTime về đầu (< nextTime - 1.5)
+          setTimeout(() => {
+            if (video && (video.currentTime < (nextTime - 1.5) || video.paused)) {
+              console.warn('Live Master Video cần đồng bộ lại sau khi bấm tiếp tục:', nextTime);
+              try { video.currentTime = nextTime; } catch (e3) {}
+              if (video.paused) video.play().catch(() => {});
+            }
+          }, 600);
         };
 
         if (video.readyState >= 1) {
-          applySeekAndPlay();
+          executeSafeResume();
         } else {
-          video.addEventListener('canplay', applySeekAndPlay, { once: true });
-          video.addEventListener('loadedmetadata', applySeekAndPlay, { once: true });
+          video.addEventListener('canplay', executeSafeResume, { once: true });
+          video.addEventListener('loadedmetadata', executeSafeResume, { once: true });
         }
       };
     }
@@ -4421,6 +4487,7 @@ export const LiveVideo = {
     this.completedCheckpoints = new Set();
     this.savedPlaybackTime = 0;
     this.isManualSeeking = false;
+    this.hasAttemptedAntiResetRecovery = false;
     const studentCinema = document.getElementById('live-student-cinema');
     if (studentCinema) studentCinema.remove();
   },
