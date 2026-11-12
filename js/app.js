@@ -3,54 +3,54 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261112_230';
-import { getAvatarDataUrl } from './avatars.js?v=20261112_230';
-import { authedFetch } from './api.js?v=20261112_230';
-import { Practice } from './practice.js?v=20261112_230';
-import { Exam } from './exam.js?v=20261112_230';
-import { Search } from './search.js?v=20261112_230';
-import { PrintManager } from './print.js?v=20261112_230';
-import { Auth } from './auth.js?v=20261112_230';
-import { escapeHtml } from './utils.js?v=20261112_230';
-import { Leaderboard } from './leaderboard.js?v=20261112_230';
-import { QuestionsManager } from './questions-manager.js?v=20261112_230';
-import { ExamRooms } from './exam-rooms.js?v=20261112_230';
-import { Proctor } from './proctor.js?v=20261112_230';
-import { Gradebook } from './gradebook.js?v=20261112_230';
-import { CloudSync } from './cloud-sync.js?v=20261112_230';
+import { Storage } from './storage.js?v=20261112_235';
+import { getAvatarDataUrl } from './avatars.js?v=20261112_235';
+import { authedFetch } from './api.js?v=20261112_235';
+import { Practice } from './practice.js?v=20261112_235';
+import { Exam } from './exam.js?v=20261112_235';
+import { Search } from './search.js?v=20261112_235';
+import { PrintManager } from './print.js?v=20261112_235';
+import { Auth } from './auth.js?v=20261112_235';
+import { escapeHtml } from './utils.js?v=20261112_235';
+import { Leaderboard } from './leaderboard.js?v=20261112_235';
+import { QuestionsManager } from './questions-manager.js?v=20261112_235';
+import { ExamRooms } from './exam-rooms.js?v=20261112_235';
+import { Proctor } from './proctor.js?v=20261112_235';
+import { Gradebook } from './gradebook.js?v=20261112_235';
+import { CloudSync } from './cloud-sync.js?v=20261112_235';
 
 // Dynamic loaders cho các module đồ sộ (chỉ tải khi mở tính năng tương ứng)
 async function getAdminManager() {
   if (window.AdminManager) return window.AdminManager;
-  const mod = await import('./admin-manager.js?v=20261112_230');
+  const mod = await import('./admin-manager.js?v=20261112_235');
   window.AdminManager = mod.AdminManager;
   return mod.AdminManager;
 }
 
 async function getInteractiveVideo() {
   if (window.InteractiveVideo) return window.InteractiveVideo;
-  const mod = await import('./interactive-video.js?v=20261112_230');
+  const mod = await import('./interactive-video.js?v=20261112_235');
   window.InteractiveVideo = mod.InteractiveVideo;
   return mod.InteractiveVideo;
 }
 
 async function getLiveVideo() {
   if (window.LiveVideo) return window.LiveVideo;
-  const mod = await import('./live-video.js?v=20261112_230');
+  const mod = await import('./live-video.js?v=20261112_235');
   window.LiveVideo = mod.LiveVideo;
   return mod.LiveVideo;
 }
 
 async function getArena() {
   if (window.Arena) return window.Arena;
-  const mod = await import('./arena.js?v=20261112_230');
+  const mod = await import('./arena.js?v=20261112_235');
   window.Arena = mod.default || mod.Arena;
   return window.Arena;
 }
 
 async function getRandomPicker() {
   if (window.RandomPicker) return window.RandomPicker;
-  const mod = await import('./random-picker.js?v=20261112_230');
+  const mod = await import('./random-picker.js?v=20261112_235');
   window.RandomPicker = mod.default || mod.RandomPicker;
   return window.RandomPicker;
 }
@@ -222,7 +222,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261112_230');
+      const res = await fetch('data/manifest.json?v=20261112_235');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
@@ -2393,9 +2393,11 @@ class App {
               </p>
             </div>
 
-            <button id="btn-clear-history" class="text-xs text-rose-300 hover:text-white font-bold px-3 py-1.5 bg-rose-950/50 hover:bg-rose-900/60 border border-rose-700/60 rounded-xl transition self-start sm:self-auto shrink-0 flex items-center gap-1.5">
-              <i class="fa-solid fa-trash-can text-[11px]"></i> Xóa lịch sử
-            </button>
+            ${Auth.isAdmin() ? `
+              <button id="btn-clear-history" class="text-xs text-rose-300 hover:text-white font-bold px-3 py-1.5 bg-rose-950/50 hover:bg-rose-900/60 border border-rose-700/60 rounded-xl transition self-start sm:self-auto shrink-0 flex items-center gap-1.5" title="Quyền Quản trị viên: Xóa dữ liệu lịch sử thi">
+                <i class="fa-solid fa-trash-can text-[11px]"></i> Xóa lịch sử (Admin)
+              </button>
+            ` : ''}
           </div>
 
           <!-- 4 KPI cá nhân -->

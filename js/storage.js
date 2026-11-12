@@ -1393,11 +1393,20 @@ export const Storage = {
   },
 
   clearExamHistory() {
+    if (typeof Auth !== 'undefined' && Auth.isStudent()) {
+      console.warn('Học sinh không có quyền xóa toàn bộ lịch sử thi.');
+      return false;
+    }
     localStorage.removeItem(STORAGE_KEYS.EXAM_HISTORY);
+    return true;
   },
 
   deleteExamResult(id) {
     if (!id) return false;
+    if (typeof Auth !== 'undefined' && Auth.isStudent()) {
+      console.warn('Học sinh không có quyền xóa bài thi trong lịch sử.');
+      return false;
+    }
     try {
       let history = this.getExamHistory();
       const targetItem = history.find(item => item.id === id);
