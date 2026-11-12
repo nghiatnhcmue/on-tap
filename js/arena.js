@@ -11,12 +11,12 @@ import defaultGameEngine, {
   SpeedRaceHandler,
   BossRaidHandler,
   ClassicKahootHandler
-} from './game-engine.js?v=20261112_245';
-import { Storage } from './storage.js?v=20261112_245';
-import { authedFetch } from './api.js?v=20261112_245';
-import { Auth } from './auth.js?v=20261112_245';
-import { CloudSync } from './cloud-sync.js?v=20261112_245';
-import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261112_245';
+} from './game-engine.js?v=20261112_250';
+import { Storage } from './storage.js?v=20261112_250';
+import { authedFetch } from './api.js?v=20261112_250';
+import { Auth } from './auth.js?v=20261112_250';
+import { CloudSync } from './cloud-sync.js?v=20261112_250';
+import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261112_250';
 import {
   AVATARS,
   AVATAR_CATEGORIES,
@@ -25,7 +25,7 @@ import {
   renderAvatarSVG,
   getAvatar,
   randomAvatarId
-} from './avatars.js?v=20261112_245';
+} from './avatars.js?v=20261112_250';
 
 // Định nghĩa an toàn tuyệt đối cho hàm escapeHtml trong scope của arena.js
 function escapeHtml(str) {
@@ -160,6 +160,28 @@ const Arena = {
     this.manifest = manifest;
     this.loadGradeFn = loadGradeFn;
 
+    // Lắng nghe thay đổi trạng thái xác thực để tự động làm mới giao diện
+    if (!this._authListenerRegistered) {
+      this._authListenerRegistered = true;
+      const authObj = (typeof window !== 'undefined' && window.Auth) ? window.Auth : (typeof Auth !== 'undefined' ? Auth : null);
+      if (authObj && typeof authObj.onAuthChange === 'function') {
+        authObj.onAuthChange(() => {
+          const arenaView = document.getElementById('view-arena');
+          if (arenaView && !arenaView.classList.contains('hidden') && this.container) {
+            this.renderMainView();
+          }
+        });
+      }
+      if (typeof window !== 'undefined') {
+        window.addEventListener('tinhoc-auth-changed', () => {
+          const arenaView = document.getElementById('view-arena');
+          if (arenaView && !arenaView.classList.contains('hidden') && this.container) {
+            this.renderMainView();
+          }
+        });
+      }
+    }
+
     // Kiểm tra query parameter ?game=XYZ hoặc ?pin=XYZ
     const urlParams = new URLSearchParams(window.location.search);
     const pinParam = urlParams.get('game') || urlParams.get('pin');
@@ -177,6 +199,31 @@ const Arena = {
     }
   },
 
+  checkIsTeacher() {
+    const authObj = (typeof window !== 'undefined' && window.Auth) ? window.Auth : (typeof Auth !== 'undefined' ? Auth : null);
+    if (authObj) {
+      if (typeof authObj.isAdmin === 'function' && authObj.isAdmin()) return true;
+      if (typeof authObj.isTeacher === 'function' && authObj.isTeacher()) return true;
+    }
+    try {
+      const raw = localStorage.getItem('tinhoc_user');
+      if (raw) {
+        const u = JSON.parse(raw);
+        const r = String(u.role || '').trim().toLowerCase();
+        const em = String(u.email || '').trim().toLowerCase();
+        if (r === 'admin' || r === 'teacher' || r === 'gv' || r === 'giao_vien' || r.includes('quản trị') || r.includes('giáo viên')) {
+          return true;
+        }
+        const adminCfg = (typeof Storage !== 'undefined' && typeof Storage.getAdminConfig === 'function') ? Storage.getAdminConfig() : {};
+        if (adminCfg.adminEmail && em === adminCfg.adminEmail.toLowerCase()) return true;
+        if (em.startsWith('admin') || em.includes('nghiatnhcmue') || em.includes('giaovien') || em.includes('gv')) {
+          return true;
+        }
+      }
+    } catch (e) {}
+    return false;
+  },
+
   getBaseDbUrl() {
     if (typeof Storage !== 'undefined' && typeof Storage.getFirebaseDbUrl === 'function') {
       const url = Storage.getFirebaseDbUrl();
@@ -188,8 +235,9 @@ const Arena = {
   },
 
   renderMainView() {
-    const isTeacher = typeof Auth !== 'undefined' && (Auth.isTeacher() || Auth.isAdmin());
-    const currentUser = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
+    const isTeacher = this.checkIsTeacher();
+    const authObj = (typeof window !== 'undefined' && window.Auth) ? window.Auth : (typeof Auth !== 'undefined' ? Auth : null);
+    const currentUser = (authObj && typeof authObj.getCurrentUser === 'function') ? authObj.getCurrentUser() : null;
     const savedPlayer = Storage.getArenaPlayer() || {};
 
     this.container.innerHTML = `
@@ -213,13 +261,11 @@ const Arena = {
             </p>
 
             <div class="pt-2 flex flex-wrap items-center gap-3">
-              ${isTeacher ? `
-                <button type="button" id="btn-open-create-arena" class="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-900 text-xs font-black transition flex items-center gap-2 shadow-lg shadow-black/20 hover:scale-[1.02] active:scale-[0.98]">
-                  <i class="fa-solid fa-crown text-base"></i> Tạo Đấu Trường Mới (Dành Cho Giáo Viên)
-                </button>
-              ` : ''}
+              <button type="button" id="btn-open-create-arena" data-role-req="teacher" class="${isTeacher ? '' : 'hidden '}px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-900 text-xs font-black transition flex items-center gap-2 shadow-lg shadow-black/20 hover:scale-[1.02] active:scale-[0.98] cursor-pointer">
+                <i class="fa-solid fa-crown text-base"></i> Tạo Đấu Trường Mới (Dành Cho Giáo Viên)
+              </button>
 
-              <button type="button" id="arena-btn-toggle-sound" class="w-10 h-10 rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md flex items-center justify-center text-white transition text-sm" title="Bật/Tắt âm thanh">
+              <button type="button" id="arena-btn-toggle-sound" class="w-10 h-10 rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md flex items-center justify-center text-white transition text-sm cursor-pointer" title="Bật/Tắt âm thanh">
                 ${this.isMuted ? '<i class="fa-solid fa-volume-xmark text-rose-300"></i>' : '<i class="fa-solid fa-volume-high text-emerald-300"></i>'}
               </button>
             </div>
@@ -304,11 +350,9 @@ const Arena = {
                   <button type="button" data-solo-arena-mode="resource_quest" class="flex-1 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer">
                     <i class="fa-solid fa-play"></i> Chơi Thử Ngay
                   </button>
-                  ${isTeacher ? `
-                    <button type="button" data-host-arena-mode="resource_quest" class="py-2 px-3 rounded-xl bg-white dark:bg-slate-700 hover:bg-amber-100 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-xs font-black transition flex items-center justify-center gap-1 cursor-pointer" title="Tạo phòng cho lớp">
-                      <i class="fa-solid fa-crown"></i> Tạo Phòng
-                    </button>
-                  ` : ''}
+                  <button type="button" data-host-arena-mode="resource_quest" data-role-req="teacher" class="${isTeacher ? '' : 'hidden '}py-2 px-3 rounded-xl bg-white dark:bg-slate-700 hover:bg-amber-100 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-xs font-black transition flex items-center justify-center gap-1 cursor-pointer" title="Tạo phòng cho lớp">
+                    <i class="fa-solid fa-crown"></i> Tạo Phòng
+                  </button>
                 </div>
               </div>
 
@@ -332,11 +376,9 @@ const Arena = {
                   <button type="button" data-solo-arena-mode="speed_race" class="flex-1 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer">
                     <i class="fa-solid fa-play"></i> Chơi Thử Ngay
                   </button>
-                  ${isTeacher ? `
-                    <button type="button" data-host-arena-mode="speed_race" class="py-2 px-3 rounded-xl bg-white dark:bg-slate-700 hover:bg-blue-100 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700 text-xs font-black transition flex items-center justify-center gap-1 cursor-pointer" title="Tạo phòng cho lớp">
-                      <i class="fa-solid fa-crown"></i> Tạo Phòng
-                    </button>
-                  ` : ''}
+                  <button type="button" data-host-arena-mode="speed_race" data-role-req="teacher" class="${isTeacher ? '' : 'hidden '}py-2 px-3 rounded-xl bg-white dark:bg-slate-700 hover:bg-blue-100 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700 text-xs font-black transition flex items-center justify-center gap-1 cursor-pointer" title="Tạo phòng cho lớp">
+                    <i class="fa-solid fa-crown"></i> Tạo Phòng
+                  </button>
                 </div>
               </div>
 
@@ -360,11 +402,9 @@ const Arena = {
                   <button type="button" data-solo-arena-mode="boss_hunt" class="flex-1 py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer">
                     <i class="fa-solid fa-play"></i> Chơi Thử Ngay
                   </button>
-                  ${isTeacher ? `
-                    <button type="button" data-host-arena-mode="boss_hunt" class="py-2 px-3 rounded-xl bg-white dark:bg-slate-700 hover:bg-rose-100 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-700 text-xs font-black transition flex items-center justify-center gap-1 cursor-pointer" title="Tạo phòng cho lớp">
-                      <i class="fa-solid fa-crown"></i> Tạo Phòng
-                    </button>
-                  ` : ''}
+                  <button type="button" data-host-arena-mode="boss_hunt" data-role-req="teacher" class="${isTeacher ? '' : 'hidden '}py-2 px-3 rounded-xl bg-white dark:bg-slate-700 hover:bg-rose-100 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-700 text-xs font-black transition flex items-center justify-center gap-1 cursor-pointer" title="Tạo phòng cho lớp">
+                    <i class="fa-solid fa-crown"></i> Tạo Phòng
+                  </button>
                 </div>
               </div>
 
@@ -388,18 +428,15 @@ const Arena = {
                   <button type="button" data-solo-arena-mode="classic" class="flex-1 py-2 px-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer">
                     <i class="fa-solid fa-play"></i> Chơi Thử Ngay
                   </button>
-                  ${isTeacher ? `
-                    <button type="button" data-host-arena-mode="classic" class="py-2 px-3 rounded-xl bg-white dark:bg-slate-700 hover:bg-purple-100 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700 text-xs font-black transition flex items-center justify-center gap-1 cursor-pointer" title="Tạo phòng cho lớp">
-                      <i class="fa-solid fa-crown"></i> Tạo Phòng
-                    </button>
-                  ` : ''}
+                  <button type="button" data-host-arena-mode="classic" data-role-req="teacher" class="${isTeacher ? '' : 'hidden '}py-2 px-3 rounded-xl bg-white dark:bg-slate-700 hover:bg-purple-100 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700 text-xs font-black transition flex items-center justify-center gap-1 cursor-pointer" title="Tạo phòng cho lớp">
+                    <i class="fa-solid fa-crown"></i> Tạo Phòng
+                  </button>
                 </div>
               </div>
             </div>
 
             <!-- Classroom Random Games Banner -->
-            ${isTeacher ? `
-<div class="p-4 rounded-2xl bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white border border-white/10 flex items-center justify-between gap-3 shadow-md">
+            <div data-role-req="teacher" class="${isTeacher ? '' : 'hidden '}p-4 rounded-2xl bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white border border-white/10 flex items-center justify-between gap-3 shadow-md">
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center text-xl shrink-0 animate-bounce">
                   🦆
@@ -413,7 +450,6 @@ const Arena = {
                 Mở Ngay ➔
               </button>
             </div>
-` : ''}
           </div>
         </div>
 
@@ -471,14 +507,14 @@ const Arena = {
                       <button type="button" data-quick-join-arena-pin="${escapeHtml(r.pin)}" class="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black transition cursor-pointer">
                         🚀 Vào Ngay
                       </button>
-                      ${isTeacher ? `
+                      <div data-role-req="teacher" class="${isTeacher ? '' : 'hidden '}flex items-center gap-1.5 shrink-0">
                         <button type="button" data-reopen-host-pin="${escapeHtml(r.pin)}" class="px-2.5 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-xs font-bold transition cursor-pointer" title="Mở màn hình Máy chiếu (Host)">
                           <i class="fa-solid fa-tv"></i> Host
                         </button>
                         <button type="button" data-delete-arena-room="${escapeHtml(r.pin)}" class="px-2.5 py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300 text-xs font-bold transition cursor-pointer" title="Đóng / Xóa phòng">
                           <i class="fa-solid fa-trash-can"></i>
                         </button>
-                      ` : ''}
+                      </div>
                     </div>
                   </div>
                 `;
@@ -518,11 +554,11 @@ const Arena = {
                           <i class="fa-solid fa-file-excel"></i> Excel
                         </button>
                       ` : ''}
-                      ${isTeacher ? `
+                      <div data-role-req="teacher" class="${isTeacher ? '' : 'hidden '}shrink-0">
                         <button type="button" data-delete-arena-hist="${escapeHtml(hid)}" class="px-2.5 py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300 text-xs font-bold transition cursor-pointer" title="Xóa lịch sử này">
                           <i class="fa-solid fa-trash-can"></i>
                         </button>
-                      ` : ''}
+                      </div>
                     </div>
                   </div>
                 `;

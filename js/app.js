@@ -3,54 +3,54 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261112_245';
-import { getAvatarDataUrl } from './avatars.js?v=20261112_245';
-import { authedFetch } from './api.js?v=20261112_245';
-import { Practice } from './practice.js?v=20261112_245';
-import { Exam } from './exam.js?v=20261112_245';
-import { Search } from './search.js?v=20261112_245';
-import { PrintManager } from './print.js?v=20261112_245';
-import { Auth } from './auth.js?v=20261112_245';
-import { escapeHtml } from './utils.js?v=20261112_245';
-import { Leaderboard } from './leaderboard.js?v=20261112_245';
-import { QuestionsManager } from './questions-manager.js?v=20261112_245';
-import { ExamRooms } from './exam-rooms.js?v=20261112_245';
-import { Proctor } from './proctor.js?v=20261112_245';
-import { Gradebook } from './gradebook.js?v=20261112_245';
-import { CloudSync } from './cloud-sync.js?v=20261112_245';
+import { Storage } from './storage.js?v=20261112_250';
+import { getAvatarDataUrl } from './avatars.js?v=20261112_250';
+import { authedFetch } from './api.js?v=20261112_250';
+import { Practice } from './practice.js?v=20261112_250';
+import { Exam } from './exam.js?v=20261112_250';
+import { Search } from './search.js?v=20261112_250';
+import { PrintManager } from './print.js?v=20261112_250';
+import { Auth } from './auth.js?v=20261112_250';
+import { escapeHtml } from './utils.js?v=20261112_250';
+import { Leaderboard } from './leaderboard.js?v=20261112_250';
+import { QuestionsManager } from './questions-manager.js?v=20261112_250';
+import { ExamRooms } from './exam-rooms.js?v=20261112_250';
+import { Proctor } from './proctor.js?v=20261112_250';
+import { Gradebook } from './gradebook.js?v=20261112_250';
+import { CloudSync } from './cloud-sync.js?v=20261112_250';
 
 // Dynamic loaders cho các module đồ sộ (chỉ tải khi mở tính năng tương ứng)
 async function getAdminManager() {
   if (window.AdminManager) return window.AdminManager;
-  const mod = await import('./admin-manager.js?v=20261112_245');
+  const mod = await import('./admin-manager.js?v=20261112_250');
   window.AdminManager = mod.AdminManager;
   return mod.AdminManager;
 }
 
 async function getInteractiveVideo() {
   if (window.InteractiveVideo) return window.InteractiveVideo;
-  const mod = await import('./interactive-video.js?v=20261112_245');
+  const mod = await import('./interactive-video.js?v=20261112_250');
   window.InteractiveVideo = mod.InteractiveVideo;
   return mod.InteractiveVideo;
 }
 
 async function getLiveVideo() {
   if (window.LiveVideo) return window.LiveVideo;
-  const mod = await import('./live-video.js?v=20261112_245');
+  const mod = await import('./live-video.js?v=20261112_250');
   window.LiveVideo = mod.LiveVideo;
   return mod.LiveVideo;
 }
 
 async function getArena() {
   if (window.Arena) return window.Arena;
-  const mod = await import('./arena.js?v=20261112_245');
+  const mod = await import('./arena.js?v=20261112_250');
   window.Arena = mod.default || mod.Arena;
   return window.Arena;
 }
 
 async function getRandomPicker() {
   if (window.RandomPicker) return window.RandomPicker;
-  const mod = await import('./random-picker.js?v=20261112_245');
+  const mod = await import('./random-picker.js?v=20261112_250');
   window.RandomPicker = mod.default || mod.RandomPicker;
   return window.RandomPicker;
 }
@@ -222,7 +222,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261112_245');
+      const res = await fetch('data/manifest.json?v=20261112_250');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
@@ -3512,6 +3512,14 @@ class App {
     const hubRoleLabel = document.getElementById('home-teacher-role-label');
     if (hubRoleLabel) {
       hubRoleLabel.textContent = Auth.getRoleLabel();
+    }
+
+    // Tự động làm mới và cập nhật giao diện Đấu trường nếu view đang mở
+    if (typeof window !== 'undefined' && window.Arena && typeof window.Arena.renderMainView === 'function') {
+      const arenaView = document.getElementById('view-arena');
+      if (arenaView && !arenaView.classList.contains('hidden')) {
+        window.Arena.renderMainView();
+      }
     }
   }
 

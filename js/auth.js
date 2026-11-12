@@ -4,10 +4,10 @@
  * Hỗ trợ: Đăng nhập Google Popup, Đồng bộ Firebase Realtime Database, Hồ sơ học sinh.
  */
 
-import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261112_245';
-import { CloudSync } from './cloud-sync.js?v=20261112_245';
-import { getAvatarDataUrl } from './avatars.js?v=20261112_245';
-import { escapeHtml } from './utils.js?v=20261112_245';
+import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261112_250';
+import { CloudSync } from './cloud-sync.js?v=20261112_250';
+import { getAvatarDataUrl } from './avatars.js?v=20261112_250';
+import { escapeHtml } from './utils.js?v=20261112_250';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
 
@@ -132,6 +132,11 @@ export const Auth = {
     this.onAuthChangeCallbacks.forEach(cb => {
       try { cb(this.currentUser); } catch (e) { console.error(e); }
     });
+    if (typeof window !== 'undefined') {
+      try {
+        window.dispatchEvent(new CustomEvent('tinhoc-auth-changed', { detail: this.currentUser }));
+      } catch (e) {}
+    }
   },
 
   getCurrentUser() {
@@ -143,15 +148,36 @@ export const Auth = {
   },
 
   isAdmin() {
-    return this.currentUser?.role === 'admin';
+    if (!this.currentUser) {
+      try {
+        const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (raw) this.currentUser = JSON.parse(raw);
+      } catch (e) {}
+    }
+    const role = String(this.currentUser?.role || '').trim().toLowerCase();
+    const email = String(this.currentUser?.email || '').trim().toLowerCase();
+    const adminConfig = (typeof Storage !== 'undefined' && typeof Storage.getAdminConfig === 'function') ? Storage.getAdminConfig() : {};
+    const isCfgAdmin = (adminConfig.adminEmail && email === adminConfig.adminEmail.toLowerCase()) ||
+                       email.startsWith('admin') ||
+                       email.includes('nghiatnhcmue');
+    return role === 'admin' || isCfgAdmin;
   },
 
   isTeacher() {
-    return this.currentUser?.role === 'teacher' || this.currentUser?.role === 'admin';
+    if (this.isAdmin()) return true;
+    if (!this.currentUser) {
+      try {
+        const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (raw) this.currentUser = JSON.parse(raw);
+      } catch (e) {}
+    }
+    const role = String(this.currentUser?.role || '').trim().toLowerCase();
+    const email = String(this.currentUser?.email || '').trim().toLowerCase();
+    return role === 'teacher' || role === 'gv' || role === 'giao_vien' || role.includes('giáo viên') || email.includes('giaovien') || email.includes('gv');
   },
 
   isStudent() {
-    return !this.currentUser || this.currentUser?.role === 'student';
+    return !this.isTeacher();
   },
 
   canManageQuestions() {
