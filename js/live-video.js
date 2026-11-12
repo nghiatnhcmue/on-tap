@@ -33,12 +33,18 @@ export const LiveVideo = {
   sortedCheckpoints: [],
   selectedAnswer: null,
   hasSubmittedCurrentQuestion: false,
+  hasSubmittedAnswer: false,
+  isSubmittingAnswer: false,
+  isJoining: false,
+  joiningSafetyTimer: null,
   activeQuestionIdx: null,
+  activeQuestionKey: null,
   confettiPlayedForQ: false,
   remoteState: null,
   lastSyncedTime: 0,
   countdownInterval: null,
   remainingSeconds: 0,
+  isCountdownExpired: false,
   lastBroadcastTime: 0,
   completedCheckpoints: new Set(),
   savedPlaybackTime: 0,
@@ -48,6 +54,31 @@ export const LiveVideo = {
   init(manifest = null) {
     this.manifest = manifest;
     this.bindGlobalEvents();
+    this.restoreStudentSession();
+  },
+
+  showToast(message, type = 'info') {
+    if (typeof document === 'undefined') return;
+    let toastContainer = document.getElementById('live-toast-container');
+    if (!toastContainer) {
+      toastContainer = document.createElement('div');
+      toastContainer.id = 'live-toast-container';
+      toastContainer.className = 'fixed bottom-6 right-6 z-[9999] flex flex-col gap-2 pointer-events-none max-w-sm';
+      document.body.appendChild(toastContainer);
+    }
+    const toast = document.createElement('div');
+    const colorClasses = type === 'warning'
+      ? 'bg-amber-500 text-slate-950 border-amber-300'
+      : (type === 'error' ? 'bg-rose-600 text-white border-rose-400' : 'bg-slate-900 text-white border-slate-700');
+    toast.className = `px-4 py-3 rounded-2xl shadow-2xl border text-xs font-bold flex items-center gap-2 pointer-events-auto transition-all duration-300 animate-slideUp ${colorClasses}`;
+    const icon = type === 'warning' ? 'fa-triangle-exclamation' : (type === 'error' ? 'fa-circle-xmark' : 'fa-circle-info');
+    toast.innerHTML = `<i class="fa-solid ${icon}"></i><span>${escapeHtml(message)}</span>`;
+    toastContainer.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(10px)';
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
   },
 
   // Tiện ích: Luôn trả về danh sách Checkpoints chuẩn dạng Array an toàn
@@ -727,48 +758,85 @@ export const LiveVideo = {
     if (!modalEl) return;
 
     const input = document.getElementById('live-join-input-code');
+    const submitBtn = document.getElementById('btn-confirm-join-live-room');
     if (input) {
+      input.disabled = false;
       input.value = defaultCode || '';
       setTimeout(() => input.focus(), 150);
+    }
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Vào Hàng Đợi Phòng Live';
     }
 
     modalEl.classList.remove('hidden');
   },
 
   async handleJoinRoomSubmit(customCode = null, options = {}) {
+    // 1. ATOMIC GUARD: Chống spam click và race condition
+    if (this.isJoining) {
+      console.warn('LiveVideo: Đang xử lý vào phòng, bỏ qua yêu cầu trùng lặp.');
+      return;
+    }
+    this.isJoining = true;
+
     const input = document.getElementById('live-join-input-code');
     const submitBtn = document.getElementById('btn-confirm-join-live-room');
-    const rawCode = String(customCode || input?.value || '').trim().toUpperCase();
-    const roomId = rawCode.replace(/[\s#]/g, '').replace(/[^A-Z0-9_-]/g, '');
+    const rawCode = String(customCode || input?.value || '').trim();
+    const roomId = rawCode.toUpperCase().replace(/[\s#]/g, '').replace(/[^A-Z0-9_\-]/g, '').slice(0, 32);
 
-    if (!roomId) {
-      alert('Em vui lòng nhập Mã phòng hoặc mã PIN do Thầy/Cô cung cấp để vào lớp học nhé!');
-      input?.focus();
-      return;
+    // 2. AUTO-RELEASE SAFETY LOCK: Tự động giải phóng sau 6s nếu mạng bị treo
+    if (this.joiningSafetyTimer) {
+      clearTimeout(this.joiningSafetyTimer);
     }
-
-    if (!Auth.isLoggedIn()) {
-      alert('Vui lòng đăng nhập hoặc cập nhật thông tin học sinh để vào lớp học trực tuyến!');
-      Auth.openLoginModal();
-      return;
-    }
-
-    const user = Auth.getCurrentUser() || {};
-    const isAdmin = Auth.isAdmin();
-    const isTeacher = Auth.isTeacher();
-    const isPrivileged = isAdmin || isTeacher;
-
-    if (!isPrivileged && !Auth.isProfileComplete()) {
-      Auth.openRequiredProfileModal();
-      return;
-    }
+    this.joiningSafetyTimer = setTimeout(() => {
+      if (this.isJoining) {
+        this.isJoining = false;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Vào Hàng Đợi Phòng Live';
+        }
+        if (input) {
+          input.disabled = false;
+        }
+        this.showToast('Kết nối đến phòng học đang bị chậm. Đã mở lại nút để em thử lại nhé!', 'warning');
+      }
+    }, 6000);
 
     if (submitBtn) {
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang vào lớp...';
     }
+    if (input) {
+      input.disabled = true;
+    }
 
     try {
+      if (!roomId) {
+        alert('Em vui lòng nhập Mã phòng hoặc mã PIN do Thầy/Cô cung cấp để vào lớp học nhé!');
+        if (input) {
+          input.disabled = false;
+          input.focus();
+        }
+        return;
+      }
+
+      if (!Auth.isLoggedIn()) {
+        alert('Vui lòng đăng nhập hoặc cập nhật thông tin học sinh để vào lớp học trực tuyến!');
+        Auth.openLoginModal();
+        return;
+      }
+
+      const user = Auth.getCurrentUser() || {};
+      const isAdmin = Auth.isAdmin();
+      const isTeacher = Auth.isTeacher();
+      const isPrivileged = isAdmin || isTeacher;
+
+      if (!isPrivileged && !Auth.isProfileComplete()) {
+        Auth.openRequiredProfileModal();
+        return;
+      }
+
       const dbUrl = this.getBaseDbUrl();
       let resolvedRoomId = roomId;
       let roomData = null;
@@ -935,9 +1003,23 @@ export const LiveVideo = {
         return;
       }
 
-      // Đăng ký học sinh vào Hàng Đợi Truy Cập (Waiting Queue) trên Firebase
-      const studentUid = (user.uid || user.email || user.username || `hs_${Date.now()}`).replace(/[.#$\[\]\/]/g, '_');
-      const existingStudents = roomData.students || {};
+      // Đăng ký học sinh vào Hàng Đợi Truy Cập (Waiting Queue) trên Firebase - Chống trùng lặp học sinh
+      let studentUid = (user.uid || user.email || user.username || '').replace(/[.#$\[\]\/]/g, '_');
+      if (!studentUid) {
+        let tempUid = null;
+        try {
+          tempUid = sessionStorage.getItem('tinhoc_temp_student_uid');
+        } catch (e) {}
+        if (!tempUid) {
+          tempUid = `hs_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+          try {
+            sessionStorage.setItem('tinhoc_temp_student_uid', tempUid);
+          } catch (e) {}
+        }
+        studentUid = tempUid;
+      }
+
+      const existingStudents = (roomData.students && typeof roomData.students === 'object') ? roomData.students : {};
       const prevStudent = existingStudents[studentUid];
       const existingCount = Object.keys(existingStudents).length;
       const queueOrder = prevStudent?.queueOrder || (existingCount + 1);
@@ -947,12 +1029,12 @@ export const LiveVideo = {
 
       const studentRecord = {
         uid: studentUid,
-        name: user.fullName || user.name || 'Học sinh',
-        email: user.email || '',
-        avatar: user.avatar || '',
-        school: user.school || '',
-        className: user.className || '',
-        grade: user.grade || '',
+        name: user.fullName || user.name || prevStudent?.name || 'Học sinh',
+        email: user.email || prevStudent?.email || '',
+        avatar: user.avatar || prevStudent?.avatar || '',
+        school: user.school || prevStudent?.school || '',
+        className: user.className || prevStudent?.className || '',
+        grade: user.grade || prevStudent?.grade || '',
         online: true,
         ready: prevStudent?.ready || false,
         queueOrder,
@@ -984,15 +1066,39 @@ export const LiveVideo = {
       this.questionsList = roomData.checkpoints || [];
       this.completedCheckpoints = new Set(Array.isArray(roomData.completedCheckpoints) ? roomData.completedCheckpoints.map(String) : []);
 
+      // Lưu phiên học sinh vào sessionStorage để F5 không bị mất
+      try {
+        sessionStorage.setItem('tinhoc_active_live_session', JSON.stringify({
+          roomId: resolvedRoomId,
+          studentUid: studentRecord.uid,
+          timestamp: Date.now()
+        }));
+        const curUrl = new URL(window.location.href);
+        if (curUrl.searchParams.get('live_video') !== resolvedRoomId) {
+          curUrl.searchParams.set('live_video', resolvedRoomId);
+          window.history.replaceState(null, '', curUrl.toString());
+        }
+      } catch (e) {}
+
       // Mở Rạp Chiếu Phim Trực Tuyến & Hàng Đợi Phòng Chờ của Học Sinh
       await this.openStudentCinemaStage(roomData);
     } catch (err) {
       console.error('Lỗi vào phòng Live Video:', err);
-      alert(`Không thể tham gia phòng: ${err.message}`);
+      if (!options?.isRestoring) {
+        alert(`Không thể tham gia phòng: ${err.message}`);
+      }
     } finally {
+      if (this.joiningSafetyTimer) {
+        clearTimeout(this.joiningSafetyTimer);
+        this.joiningSafetyTimer = null;
+      }
+      this.isJoining = false;
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Vào Hàng Đợi Phòng Live';
+      }
+      if (input) {
+        input.disabled = false;
       }
     }
   },
@@ -1986,22 +2092,28 @@ export const LiveVideo = {
   },
 
   // =========================================================================
-  // 7. CẬP NHẬT GIAO DIỆN HỌC SINH THEO TÍN HIỆU ĐIỀU PHỐI CỦA GIÁO VIÊN
+  // 7. CẬP NHẬT GIAO DIỆN HỌC SINH THEO TÍN HIỆU ĐIỀU PHỐI CỦA GIÁO VIÊN (ERROR BOUNDARY)
   // =========================================================================
   updateStudentUI(remote) {
-    const video = document.getElementById('live-student-video');
-    const waitingOverlay = document.getElementById('student-waiting-overlay');
-    const pausedOverlay = document.getElementById('student-paused-overlay');
-    const questionModal = document.getElementById('student-question-modal');
+    try {
+      if (!remote || typeof remote !== 'object' || Array.isArray(remote)) {
+        console.warn('LiveVideo: Remote payload không hợp lệ, bỏ qua cập nhật UI học sinh.');
+        return;
+      }
+      const video = document.getElementById('live-student-video');
+      const waitingOverlay = document.getElementById('student-waiting-overlay');
+      const pausedOverlay = document.getElementById('student-paused-overlay');
+      const questionModal = document.getElementById('student-question-modal');
 
-    if (!video) return;
+      if (!video) return;
 
-    const myUid = this.studentInfo?.uid;
-    const myRemoteStudent = myUid ? remote.students?.[myUid] : null;
-    const allStudentsList = Object.values(remote.students || {}).sort((a, b) => (a.queueOrder || 999) - (b.queueOrder || 999));
+      const myUid = this.studentInfo?.uid;
+      const rawStudents = (remote.students && typeof remote.students === 'object' && !Array.isArray(remote.students)) ? remote.students : {};
+      const myRemoteStudent = myUid ? rawStudents[myUid] : null;
+      const allStudentsList = Object.values(rawStudents).filter(s => s && typeof s === 'object').sort((a, b) => (Number(a.queueOrder) || 999) - (Number(b.queueOrder) || 999));
 
-    // Nếu học sinh đang ở trạng thái chờ duyệt trong hàng đợi (pending)
-    const isPendingApproval = remote.requireApproval && myRemoteStudent && myRemoteStudent.queueStatus === 'pending';
+      // Nếu học sinh đang ở trạng thái chờ duyệt trong hàng đợi (pending)
+      const isPendingApproval = remote.requireApproval && myRemoteStudent && myRemoteStudent.queueStatus === 'pending';
 
     // 0. Quản lý trạng thái nguồn phát Video Stream của Học Sinh (Tiết kiệm băng thông Wifi trường học)
     const isStreamOn = Boolean(remote.streamVideoToStudents);
@@ -2104,19 +2216,21 @@ export const LiveVideo = {
     }
 
     // 3. Trạng thái đang hỏi câu hỏi mốc dừng
-    if (remote.state === 'question' && remote.currentQuestion) {
+    if (remote.state === 'question' && remote.currentQuestion && typeof remote.currentQuestion === 'object') {
       try {
         video.pause();
       } catch (e) {}
       if (pausedOverlay) pausedOverlay.classList.add('hidden');
       const q = remote.currentQuestion;
       const qKey = q.qKey || `${q.index}_${q.subIndex || 0}`;
-      const responsesForQ = remote.responses?.[qKey] || remote.responses?.[remote.currentQuestion.index];
+      const responsesForQ = remote.responses?.[qKey] || remote.responses?.[remote.currentQuestion.index] || {};
       this.renderStudentQuestion(remote.currentQuestion, responsesForQ, remote);
       return;
     } else {
       if (questionModal) questionModal.classList.add('hidden');
       this.hasSubmittedCurrentQuestion = false;
+      this.hasSubmittedAnswer = false;
+      this.isSubmittingAnswer = false;
       this.selectedAnswer = null;
       this.activeQuestionIdx = null;
       this.activeQuestionKey = null;
@@ -2149,13 +2263,14 @@ export const LiveVideo = {
             if (video.paused) {
               video.muted = true;
               video.play().catch(e => {
-                console.warn('Autoplay on student:', e);
+                console.warn('Autoplay on student blocked by browser:', e);
+                this.showStudentTapToPlayOverlay();
               });
             }
           } else {
             try {
-        video.pause();
-      } catch (e) {}
+              video.pause();
+            } catch (e) {}
           }
         } catch (err) {}
       };
@@ -2191,6 +2306,9 @@ export const LiveVideo = {
         }
       }
     }
+    } catch (err) {
+      console.error('LiveVideo: Lỗi xử lý cập nhật trạng thái học sinh (Error Boundary):', err);
+    }
   },
 
   renderStudentQuestion(q, responsesForQ = {}, remote = null) {
@@ -2211,6 +2329,9 @@ export const LiveVideo = {
     if (this.currentRenderedQKey !== qKey) {
       this.currentRenderedQKey = qKey;
       this.hasSubmittedCurrentQuestion = false;
+      this.hasSubmittedAnswer = false;
+      this.isSubmittingAnswer = false;
+      this.isCountdownExpired = false;
       this.selectedAnswer = null;
       this.confettiPlayedForQ = false;
       this.activeQuestionKey = qKey;
@@ -2231,7 +2352,7 @@ export const LiveVideo = {
         qNumEl.textContent = (q.index || 0) + 1;
       }
     }
-    qText.textContent = q.question;
+    qText.textContent = q.question || 'Nội dung câu hỏi...';
 
     // Khởi động đồng hồ đếm ngược nếu chưa chạy cho câu hỏi này
     if (this.activeQuestionKey !== qKey || !this.countdownInterval) {
@@ -2241,29 +2362,37 @@ export const LiveVideo = {
     }
 
     const optionBtns = optionsGrid.querySelectorAll('.student-opt-btn');
-    const opts = q.options || [];
+    const opts = Array.isArray(q.options) ? q.options : [];
 
     // Kiểm tra xem học sinh này đã nộp bài trước đó chưa
     const myUid = this.studentInfo?.uid;
-    const responsesForCurrentQ = remote?.responses?.[qKey] || remote?.responses?.[q.index] || responsesForQ || {};
-    const prevSub = responsesForCurrentQ?.[myUid];
+    const responsesForCurrentQ = (remote?.responses?.[qKey] && typeof remote.responses[qKey] === 'object')
+      ? remote.responses[qKey]
+      : ((remote?.responses?.[q.index] && typeof remote.responses[q.index] === 'object')
+        ? remote.responses[q.index]
+        : (responsesForQ && typeof responsesForQ === 'object' ? responsesForQ : {}));
+    const prevSub = myUid ? responsesForCurrentQ?.[myUid] : null;
     if (prevSub && prevSub.selected) {
       this.hasSubmittedCurrentQuestion = true;
+      this.hasSubmittedAnswer = true;
       this.selectedAnswer = prevSub.selected;
     }
+
+    const isOptionLocked = Boolean(q.revealed || this.hasSubmittedAnswer || this.hasSubmittedCurrentQuestion || this.isCountdownExpired);
 
     optionBtns.forEach((btn, idx) => {
       const letter = btn.getAttribute('data-student-option');
       const label = btn.querySelector('.student-opt-label');
-      let text = opts[idx] || '';
+      let text = opts[idx] !== undefined ? String(opts[idx]) : '';
       text = text.replace(/^[A-Da-d][\.\:\)\s]+/, '').trim();
       if (label) label.textContent = text || `Phương án ${letter}`;
 
-      btn.disabled = !!(q.revealed || this.hasSubmittedCurrentQuestion);
+      btn.disabled = isOptionLocked;
 
-      btn.onclick = () => {
-        if (q.revealed || this.hasSubmittedCurrentQuestion) return;
-        this.submitStudentAnswer(qKey, letter, q.answer);
+      btn.onclick = (e) => {
+        if (e) e.preventDefault();
+        if (q.revealed || this.hasSubmittedAnswer || this.hasSubmittedCurrentQuestion || this.isSubmittingAnswer) return;
+        this.submitStudentAnswer(qKey, letter, q.answer, q);
       };
     });
 
@@ -2434,32 +2563,56 @@ export const LiveVideo = {
     }
   },
 
-  async submitStudentAnswer(qIndex, selectedOption, correctAnswer) {
+  async submitStudentAnswer(qIndex, selectedOption, correctAnswer, questionObj = null) {
     const qKey = String(qIndex !== undefined ? qIndex : '0');
-    if (this.hasSubmittedCurrentQuestion || !this.activeRoom || !this.studentInfo) return;
 
+    // 1. ATOMIC GUARD: Chống spam click và duplicate PATCHes
+    if (this.hasSubmittedAnswer || this.hasSubmittedCurrentQuestion || this.isSubmittingAnswer) {
+      return;
+    }
+
+    // 2. RACE CONDITION CHECK: Timer expiration or state transition
+    const curState = this.remoteState?.state || this.activeRoom?.state;
+    const curQ = this.remoteState?.currentQuestion || this.activeRoom?.currentQuestion || questionObj;
+    const isRevealed = Boolean(curQ?.revealed || (curState && curState !== 'question'));
+    const isTimerZero = Boolean(this.isCountdownExpired);
+
+    if (isRevealed || isTimerZero) {
+      // Đã hết giờ hoặc Thầy/Cô đã chuyển mốc câu hỏi
+      const banner = document.getElementById('student-submitted-banner');
+      if (banner) {
+        banner.classList.remove('hidden');
+        banner.innerHTML = '<i class="fa-solid fa-hourglass-end text-amber-400"></i> Đã hết thời gian cho mốc câu hỏi này!';
+        banner.className = 'p-3 rounded-2xl bg-amber-500/20 text-amber-300 font-bold text-xs sm:text-sm border border-amber-500/30';
+      }
+      const optionsGrid = document.getElementById('student-options-grid');
+      if (optionsGrid) {
+        optionsGrid.querySelectorAll('.student-opt-btn').forEach(btn => {
+          btn.disabled = true;
+          btn.classList.add('opacity-40');
+        });
+      }
+      return;
+    }
+
+    // Đánh dấu ngay lập tức
+    this.hasSubmittedAnswer = true;
     this.hasSubmittedCurrentQuestion = true;
+    this.isSubmittingAnswer = true;
     this.selectedAnswer = selectedOption;
 
-    const normAns = this.normalizeAnswerLetter(correctAnswer);
-    const normSel = this.normalizeAnswerLetter(selectedOption);
-    const isCorrect = (normSel === normAns);
-
-    const dbUrl = this.getBaseDbUrl();
-    const roomId = this.activeRoom.roomId;
-    const uid = this.studentInfo.uid;
-
-    // Highlight nút vừa chọn và khóa tất cả các nút
+    // 3. SYNCHRONOUS DOM LOCK & OPTIMISTIC STYLING
     const optionsGrid = document.getElementById('student-options-grid');
     if (optionsGrid) {
       optionsGrid.querySelectorAll('.student-opt-btn').forEach(btn => {
         btn.disabled = true;
-        if (btn.getAttribute('data-student-option') === selectedOption) {
-          btn.classList.add('ring-4', 'ring-white', 'shadow-2xl');
+        const btnOpt = btn.getAttribute('data-student-option');
+        if (btnOpt === selectedOption) {
+          btn.classList.add('ring-4', 'ring-white', 'shadow-2xl', 'scale-[1.02]');
           btn.classList.remove('opacity-40', 'opacity-50');
         } else {
           btn.classList.add('opacity-40');
-          btn.classList.remove('ring-4', 'ring-white', 'shadow-2xl');
+          btn.classList.remove('ring-4', 'ring-white', 'shadow-2xl', 'scale-[1.02]');
         }
       });
     }
@@ -2467,11 +2620,24 @@ export const LiveVideo = {
     const banner = document.getElementById('student-submitted-banner');
     if (banner) {
       banner.classList.remove('hidden');
-      banner.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i> Đã ghi nhận đáp án của em! Đang chờ Thầy/Cô mở thống kê mốc này...';
+      banner.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Đã ghi nhận lựa chọn <strong>${escapeHtml(selectedOption)}</strong> của em! Đang chờ Thầy/Cô mở thống kê...`;
       banner.className = 'p-3 rounded-2xl bg-white/10 text-emerald-400 font-bold text-xs sm:text-sm animate-pulse border border-emerald-500/30';
     }
 
+    if (!this.activeRoom || !this.studentInfo) {
+      this.isSubmittingAnswer = false;
+      return;
+    }
+
     try {
+      const normAns = this.normalizeAnswerLetter(correctAnswer);
+      const normSel = this.normalizeAnswerLetter(selectedOption);
+      const isCorrect = (normSel === normAns);
+
+      const dbUrl = this.getBaseDbUrl();
+      const roomId = this.activeRoom.roomId;
+      const uid = this.studentInfo.uid;
+
       const responsePayload = {
         studentUid: uid,
         studentName: this.studentInfo.name || 'Học sinh',
@@ -2496,7 +2662,7 @@ export const LiveVideo = {
 
       let totalCorrect = 0;
       Object.values(this.remoteState.responses).forEach(qResp => {
-        if (qResp && qResp[uid] && qResp[uid].isCorrect) {
+        if (qResp && typeof qResp === 'object' && qResp[uid] && qResp[uid].isCorrect) {
           totalCorrect++;
         }
       });
@@ -2510,7 +2676,9 @@ export const LiveVideo = {
         body: JSON.stringify({ score: totalScore, correctCount: totalCorrect, lastSeen: Date.now() })
       });
     } catch (err) {
-      console.warn('Lỗi gửi đáp án học sinh:', err);
+      console.warn('LiveVideo: Lỗi gửi đáp án học sinh:', err);
+    } finally {
+      this.isSubmittingAnswer = false;
     }
   },
 
@@ -4345,87 +4513,97 @@ export const LiveVideo = {
       clearInterval(this.countdownInterval);
       this.countdownInterval = null;
     }
+    if (!q || typeof q !== 'object') return;
 
+    this.isCountdownExpired = false;
     const startTs = Number(q.startTimestamp || q.timestamp || Date.now());
     const totalSec = Number(q.countdown || q.timeLimit || 20);
 
     const tick = () => {
-      const isCurRevealed = (this.remoteState?.currentQuestion?.qKey === q.qKey)
-        ? !!this.remoteState.currentQuestion.revealed
-        : !!q.revealed;
+      try {
+        const isCurRevealed = (this.remoteState?.currentQuestion?.qKey === q.qKey)
+          ? !!this.remoteState.currentQuestion.revealed
+          : !!q.revealed;
 
-      if (isCurRevealed) {
-        if (this.countdownInterval) {
-          clearInterval(this.countdownInterval);
-          this.countdownInterval = null;
+        if (isCurRevealed) {
+          if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+            this.countdownInterval = null;
+          }
+          this.remainingSeconds = 0;
+          const masterEl = document.getElementById('master-q-countdown');
+          if (masterEl) {
+            masterEl.textContent = 'ĐÃ MỞ ĐÁP ÁN & THỐNG KÊ';
+            masterEl.className = 'px-3 py-1 rounded-full bg-emerald-700 text-white text-xs font-black font-mono';
+          }
+          const studentEl = document.getElementById('student-q-countdown');
+          if (studentEl) {
+            studentEl.textContent = 'ĐÃ CHỐT MỐC';
+            studentEl.className = 'px-4 py-1.5 rounded-full bg-emerald-700 text-white text-base font-black font-mono shadow-lg';
+          }
+          return;
         }
+
+        const elapsed = Math.floor((Date.now() - startTs) / 1000);
+        const remaining = Math.max(0, totalSec - elapsed);
+        this.remainingSeconds = remaining;
+
+        // Cập nhật phía Thầy Cô (Master)
         const masterEl = document.getElementById('master-q-countdown');
         if (masterEl) {
-          masterEl.textContent = 'ĐÃ MỞ ĐÁP ÁN & THỐNG KÊ';
-          masterEl.className = 'px-3 py-1 rounded-full bg-emerald-700 text-white text-xs font-black font-mono';
-        }
-        const studentEl = document.getElementById('student-q-countdown');
-        if (studentEl) {
-          studentEl.textContent = 'ĐÃ CHỐT MỐC';
-          studentEl.className = 'px-4 py-1.5 rounded-full bg-emerald-700 text-white text-base font-black font-mono shadow-lg';
-        }
-        return;
-      }
-
-      const elapsed = Math.floor((Date.now() - startTs) / 1000);
-      const remaining = Math.max(0, totalSec - elapsed);
-
-      // Cập nhật phía Thầy Cô (Master)
-      const masterEl = document.getElementById('master-q-countdown');
-      if (masterEl) {
-        if (remaining > 0) {
-          masterEl.textContent = `${remaining}s`;
-          masterEl.className = remaining <= 5
-            ? 'px-3 py-1 rounded-full bg-rose-600 text-white text-sm font-black font-mono animate-ping'
-            : 'px-3 py-1 rounded-full bg-rose-600 text-white text-sm font-black font-mono';
-        } else {
-          masterEl.textContent = 'HẾT GIỜ';
-          masterEl.className = 'px-3 py-1 rounded-full bg-slate-700 text-white text-sm font-black font-mono';
-        }
-      }
-
-      // Cập nhật phía Học sinh (Student)
-      const studentEl = document.getElementById('student-q-countdown');
-      if (studentEl) {
-        if (remaining > 0) {
-          studentEl.textContent = `${remaining}s`;
-          studentEl.className = remaining <= 5
-            ? 'px-4 py-1.5 rounded-full bg-rose-500 text-white text-base font-black font-mono shadow-lg shadow-rose-500/50 animate-pulse'
-            : 'px-4 py-1.5 rounded-full bg-amber-500 text-slate-950 text-base font-black font-mono shadow-lg shadow-amber-500/30';
-        } else {
-          studentEl.textContent = 'HẾT GIỜ';
-          studentEl.className = 'px-4 py-1.5 rounded-full bg-slate-700 text-white text-base font-black font-mono';
-
-          if (!this.hasSubmittedCurrentQuestion && !q.revealed) {
-            const banner = document.getElementById('student-submitted-banner');
-            if (banner) {
-              banner.classList.remove('hidden');
-              banner.innerHTML = '<i class="fa-solid fa-hourglass-end text-amber-400"></i> Đã hết thời gian trả lời! Đang tổng hợp thống kê mốc câu hỏi...';
-              banner.className = 'p-3 rounded-2xl bg-amber-500/20 text-amber-300 font-bold text-xs sm:text-sm border border-amber-500/30';
-            }
-            const optionBtns = document.querySelectorAll('.student-opt-btn');
-            optionBtns.forEach(b => {
-              b.disabled = true;
-              b.classList.add('opacity-40', 'cursor-not-allowed');
-            });
+          if (remaining > 0) {
+            masterEl.textContent = `${remaining}s`;
+            masterEl.className = remaining <= 5
+              ? 'px-3 py-1 rounded-full bg-rose-600 text-white text-sm font-black font-mono animate-ping'
+              : 'px-3 py-1 rounded-full bg-rose-600 text-white text-sm font-black font-mono';
+          } else {
+            masterEl.textContent = 'HẾT GIỜ';
+            masterEl.className = 'px-3 py-1 rounded-full bg-slate-700 text-white text-sm font-black font-mono';
           }
         }
-      }
 
-      if (remaining <= 0) {
-        if (this.countdownInterval) {
-          clearInterval(this.countdownInterval);
-          this.countdownInterval = null;
+        // Cập nhật phía Học sinh (Student)
+        const studentEl = document.getElementById('student-q-countdown');
+        if (studentEl) {
+          if (remaining > 0) {
+            studentEl.textContent = `${remaining}s`;
+            studentEl.className = remaining <= 5
+              ? 'px-4 py-1.5 rounded-full bg-rose-500 text-white text-base font-black font-mono shadow-lg shadow-rose-500/50 animate-pulse'
+              : 'px-4 py-1.5 rounded-full bg-amber-500 text-slate-950 text-base font-black font-mono shadow-lg shadow-amber-500/30';
+          } else {
+            studentEl.textContent = 'HẾT GIỜ';
+            studentEl.className = 'px-4 py-1.5 rounded-full bg-slate-700 text-white text-base font-black font-mono';
+
+            if (!this.hasSubmittedAnswer && !this.hasSubmittedCurrentQuestion && !q.revealed) {
+              const banner = document.getElementById('student-submitted-banner');
+              if (banner) {
+                banner.classList.remove('hidden');
+                banner.innerHTML = '<i class="fa-solid fa-hourglass-end text-amber-400"></i> Đã hết thời gian trả lời! Đang tổng hợp thống kê mốc câu hỏi...';
+                banner.className = 'p-3 rounded-2xl bg-amber-500/20 text-amber-300 font-bold text-xs sm:text-sm border border-amber-500/30';
+              }
+              const optionBtns = document.querySelectorAll('.student-opt-btn');
+              optionBtns.forEach(b => {
+                b.disabled = true;
+                b.classList.add('opacity-40', 'cursor-not-allowed');
+              });
+            }
+          }
         }
-        // Khi hết giờ, cập nhật bảng điều khiển Master UI để hiển thị cả 'Mở Đáp Án' VÀ 'Câu Tiếp Theo Trong Mốc' / 'Tiếp Tục Chiếu Video'
-        if (this.isHost) {
-          this.updateMasterUI(this.remoteState || this.activeRoom);
+
+        if (remaining <= 0) {
+          this.remainingSeconds = 0;
+          this.isCountdownExpired = true;
+          if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+            this.countdownInterval = null;
+          }
+          // Khi hết giờ, cập nhật bảng điều khiển Master UI để hiển thị cả 'Mở Đáp Án' VÀ 'Câu Tiếp Theo Trong Mốc' / 'Tiếp Tục Chiếu Video'
+          if (this.isHost) {
+            this.updateMasterUI(this.remoteState || this.activeRoom);
+          }
         }
+      } catch (err) {
+        console.warn('LiveVideo: Lỗi tick đồng hồ đếm ngược:', err);
       }
     };
 
@@ -4783,6 +4961,7 @@ export const LiveVideo = {
     const video = document.getElementById('live-student-video');
     if (btnReady && video) {
       btnReady.onclick = () => {
+        if (btnReady.disabled) return;
         btnReady.disabled = true;
         btnReady.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-300"></i> Đã sẵn sàng trong hàng đợi! Sẽ tự phát khi Thầy/Cô bấm Bắt đầu';
         btnReady.className = 'mt-2 px-6 py-3 rounded-2xl bg-emerald-600/40 text-emerald-300 font-bold text-xs border border-emerald-500/30 flex items-center gap-2 mx-auto';
@@ -4832,14 +5011,22 @@ export const LiveVideo = {
       video.onerror = () => {
         if (!video.src || video.src === window.location.href || !video.getAttribute('src')) return;
         console.warn('Live Student Video load error for:', video.src);
-        if (video.src && (video.src.includes('archive.org/download/') || video.src.includes('.us.archive.org/'))) {
+        if (video.src && (video.src.includes('archive.org/download/') || video.src.includes('.us.archive.org/')) && !video._hasFallbackRetried) {
+          video._hasFallbackRetried = true;
           const corsUrl = `https://archive.org/cors/tinhoc-hub-thpt/${room.videoFileName}`;
           if (video.src !== corsUrl) {
             console.log('Chuyển Student sang nguồn Archive CORS trực tiếp:', corsUrl);
             video.src = corsUrl;
             video.load();
             video.play().catch(() => {});
+            return;
           }
+        }
+        // Fallback sang màn hình máy chiếu lớp học để học sinh không bị kẹt màn hình đen
+        const projView = document.getElementById('student-projector-companion-view');
+        if (projView) {
+          projView.classList.remove('hidden');
+          video.classList.add('hidden');
         }
       };
     }
@@ -4994,7 +5181,7 @@ export const LiveVideo = {
   cleanupSession() {
     this.cleanupSync();
     if (this.videoElem) {
-      this.videoElem.pause();
+      try { this.videoElem.pause(); } catch (e) {}
       this.videoElem = null;
     }
     this.activeRoom = null;
@@ -5004,6 +5191,25 @@ export const LiveVideo = {
     this.savedPlaybackTime = 0;
     this.isManualSeeking = false;
     this.hasAttemptedAntiResetRecovery = false;
+    this.hasSubmittedAnswer = false;
+    this.hasSubmittedCurrentQuestion = false;
+    this.isSubmittingAnswer = false;
+    this.isJoining = false;
+    if (this.joiningSafetyTimer) {
+      clearTimeout(this.joiningSafetyTimer);
+      this.joiningSafetyTimer = null;
+    }
+    try {
+      sessionStorage.removeItem('tinhoc_active_live_session');
+      if (typeof window !== 'undefined' && window.location) {
+        const curUrl = new URL(window.location.href);
+        if (curUrl.searchParams.has('live_video') || curUrl.searchParams.has('live_room')) {
+          curUrl.searchParams.delete('live_video');
+          curUrl.searchParams.delete('live_room');
+          window.history.replaceState(null, '', curUrl.toString());
+        }
+      }
+    } catch (e) {}
     const studentCinema = document.getElementById('live-student-cinema');
     if (studentCinema) studentCinema.remove();
   },
@@ -5219,5 +5425,48 @@ export const LiveVideo = {
         this.handleJoinRoomSubmit(code);
       }
     });
+
+    // Tự động kiểm tra và khôi phục phiên học nếu học sinh reload mid-session
+    setTimeout(() => {
+      this.restoreStudentSession();
+    }, 250);
+  },
+
+  async restoreStudentSession() {
+    try {
+      if (typeof window === 'undefined') return false;
+      const urlParams = new URLSearchParams(window.location.search);
+      const liveParam = urlParams.get('live_video') || urlParams.get('live_room');
+
+      let savedSession = null;
+      try {
+        const raw = sessionStorage.getItem('tinhoc_active_live_session');
+        if (raw) savedSession = JSON.parse(raw);
+      } catch (e) {}
+
+      const roomId = liveParam || savedSession?.roomId;
+      if (!roomId) return false;
+
+      // Nếu phiên lưu quá cũ (> 3 giờ), bỏ qua
+      if (savedSession && Date.now() - (savedSession.timestamp || 0) > 3 * 3600 * 1000) {
+        sessionStorage.removeItem('tinhoc_active_live_session');
+        if (!liveParam) return false;
+      }
+
+      if (this.activeRoom && this.activeRoom.roomId === roomId && document.getElementById('live-student-cinema')) {
+        return true;
+      }
+
+      console.log('LiveVideo: Khôi phục phiên học trực tuyến (reconnection/reload resiliency):', roomId);
+      await this.handleJoinRoomSubmit(roomId, { isRestoring: true });
+      return true;
+    } catch (err) {
+      console.warn('LiveVideo: Lỗi khôi phục phiên học:', err);
+      return false;
+    }
   }
 };
+
+if (typeof window !== 'undefined') {
+  window.LiveVideo = LiveVideo;
+}
