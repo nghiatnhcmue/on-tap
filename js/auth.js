@@ -4,10 +4,10 @@
  * Hỗ trợ: Đăng nhập Google Popup, Đồng bộ Firebase Realtime Database, Hồ sơ học sinh.
  */
 
-import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261112_240';
-import { CloudSync } from './cloud-sync.js?v=20261112_240';
-import { getAvatarDataUrl } from './avatars.js?v=20261112_240';
-import { escapeHtml } from './utils.js?v=20261112_240';
+import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261112_245';
+import { CloudSync } from './cloud-sync.js?v=20261112_245';
+import { getAvatarDataUrl } from './avatars.js?v=20261112_245';
+import { escapeHtml } from './utils.js?v=20261112_245';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
 
