@@ -3,9 +3,9 @@
  * Quản lý tính năng Ôn tập chuyên đề, luyện tập trắc nghiệm, đúng/sai, trả lời ngắn
  */
 
-import { Storage } from './storage.js?v=20261112_290';
-import { Auth } from './auth.js?v=20261112_290';
-import { escapeHtml } from './utils.js?v=20261112_290';
+import { Storage } from './storage.js?v=20261112_295';
+import { Auth } from './auth.js?v=20261112_295';
+import { escapeHtml } from './utils.js?v=20261112_295';
 
 /**
  * Fast KaTeX Math Rendering:

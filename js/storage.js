@@ -82,7 +82,7 @@ export const DEFAULT_SUBJECTS = ['Tin học', 'Chuyên đề Tin học', 'Công 
 // Cache tồn tại lâu dài, tự động vô hiệu khi có bản build mới (CURRENT_BUILD)
 // ============================================================================
 
-export const CURRENT_BUILD = '20261112_290';
+export const CURRENT_BUILD = '20261112_295';
 
 const IDB_CACHE_NAME = 'tinhochub_cache';
 const IDB_CACHE_VERSION = 1;
@@ -165,7 +165,7 @@ function getIdb() {
  * Trả về dữ liệu nếu tìm thấy và phiên bản khớp với expectedVersion.
  * Trả về null nếu không có, sai phiên bản, hoặc IndexedDB bị lỗi/bị chặn.
  * @param {string} key - Tên khóa tài sản (vd: 'grade_10', 'manifest')
- * @param {string} [expectedVersion] - Phiên bản mong muốn (vd: CURRENT_BUILD '20261112_290')
+ * @param {string} [expectedVersion] - Phiên bản mong muốn (vd: CURRENT_BUILD '20261112_295')
  * @returns {Promise<any|null>}
  */
 export async function getCachedJson(key, expectedVersion) {
@@ -233,7 +233,7 @@ export async function getCachedJson(key, expectedVersion) {
 /**
  * Lưu dữ liệu JSON vào IndexedDB cache kèm phiên bản và nhãn thời gian.
  * @param {string} key - Tên khóa tài sản (vd: 'grade_10', 'manifest')
- * @param {string} version - Phiên bản hiện tại (vd: CURRENT_BUILD '20261112_290')
+ * @param {string} version - Phiên bản hiện tại (vd: CURRENT_BUILD '20261112_295')
  * @param {any} data - Dữ liệu JSON cần cache
  * @returns {Promise<boolean>} Trả về true nếu thành công, false nếu thất bại/bị chặn
  */

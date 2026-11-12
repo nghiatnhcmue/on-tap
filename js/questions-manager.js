@@ -1,13 +1,13 @@
-﻿import { ensureXLSX } from './lazy-libs.js?v=20261112_290';
+﻿import { ensureXLSX } from './lazy-libs.js?v=20261112_295';
 /**
  * tinhoc-hub: Questions Manager (Quản Lý Câu Hỏi)
  * Dành cho Giáo viên (GV) & Quản trị viên (Admin)
  * Cho phép: Thêm, Sửa, Xóa câu hỏi trong ngân hàng đề, lọc và tìm kiếm trực quan.
  */
 
-import { Storage } from './storage.js?v=20261112_290';
-import { Auth } from './auth.js?v=20261112_290';
-import { escapeHtml } from './utils.js?v=20261112_290';
+import { Storage } from './storage.js?v=20261112_295';
+import { Auth } from './auth.js?v=20261112_295';
+import { escapeHtml } from './utils.js?v=20261112_295';
 
 export const QuestionsManager = {
   container: null,
