@@ -45,6 +45,25 @@ if (typeof window !== 'undefined') {
   window.hasMathDelimiters = hasMathDelimiters;
 }
 
+// Helpers an toàn: chống văng lỗi khi localStorage hoặc JSON bị hỏng
+function safeJsonParse(val, fallback = null) {
+  if (typeof val !== 'string') return val ?? fallback;
+  try {
+    return JSON.parse(val);
+  } catch {
+    return fallback;
+  }
+}
+
+function safeGetMasteredIds() {
+  try {
+    const ids = Storage.getMasteredQuestionIds();
+    return (ids instanceof Set) ? ids : new Set(Array.isArray(ids) ? ids : []);
+  } catch {
+    return new Set();
+  }
+}
+
 export const Exam = {
   questions: [],
   examQuestions: [], // Danh sách câu đã chọn cho đề thi
@@ -60,11 +79,14 @@ export const Exam = {
   isProctored: false,
   isDisqualified: false,
   disqualifiedReason: '',
+  isSubmitting: false,
+  hasSubmitted: false,
   _saveTimer: null,
+  _lastNavTime: 0,
 
   init(containerEl, allQuestions, manifest) {
     this.container = containerEl;
-    this.allQuestions = allQuestions;
+    this.allQuestions = Array.isArray(allQuestions) ? allQuestions : [];
     this.manifest = manifest;
     if (!this._beforeUnloadHandler) {
       this._beforeUnloadHandler = () => {
@@ -82,13 +104,19 @@ export const Exam = {
       clearTimeout(this._saveTimer);
       this._saveTimer = null;
     }
-    if (this.timerInterval) clearInterval(this.timerInterval);
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
     document.body.classList.remove('in-exam');
-    Proctor.stop();
+    try {
+      Proctor.stop();
+    } catch {}
     if (this._onExamKeyDown) {
       window.removeEventListener('keydown', this._onExamKeyDown);
       this._onExamKeyDown = null;
     }
+    this.closeSubmitConfirmationModal();
     this.examQuestions = [];
     this.userAnswers = {};
     this.flaggedQuestions = new Set();
@@ -101,6 +129,9 @@ export const Exam = {
     this.isProctored = false;
     this.isDisqualified = false;
     this.disqualifiedReason = '';
+    this.isSubmitting = false;
+    this.hasSubmitted = false;
+    this._lastNavTime = 0;
   },
 
   // --- TẠO ĐỀ THI ---
@@ -110,7 +141,12 @@ export const Exam = {
     const grade = config.grade || '12';
     const gradePool = this.allQuestions.filter(q => q.grade === grade);
 
-    const settings = Storage.getSettings();
+    let settings = {};
+    try {
+      settings = Storage.getSettings() || {};
+    } catch {
+      settings = {};
+    }
     const shouldShuffleQuestions = (config.shuffleQuestions !== undefined) ? !!config.shuffleQuestions : (settings.shuffleQuestions ?? true);
     const shouldShuffleOptions = (config.shuffleOptions !== undefined) ? !!config.shuffleOptions : (settings.shuffleOptions ?? true);
 
@@ -338,7 +374,7 @@ export const Exam = {
         pool = pool.filter(q => q.topic === config.topic);
       }
       if (config.excludeMastered) {
-        const masteredIds = Storage.getMasteredQuestionIds();
+        const masteredIds = safeGetMasteredIds();
         const unmastered = pool.filter(q => !masteredIds.has(q.id));
         if (unmastered.length > 0) pool = unmastered;
       }
@@ -370,7 +406,7 @@ export const Exam = {
 
       // Hỗ trợ CHẾ ĐỘ HỌC THÔNG MINH: Bỏ qua câu đã trả lời đúng (excludeMastered)
       if (config.excludeMastered) {
-        const masteredIds = Storage.getMasteredQuestionIds();
+        const masteredIds = safeGetMasteredIds();
         const unmastered = pool.filter(q => !masteredIds.has(q.id));
         if (unmastered.length > 0) {
           pool = unmastered;
@@ -447,50 +483,84 @@ export const Exam = {
   },
 
   resumeSavedSession(savedSession) {
-    if (!savedSession || !savedSession.examQuestions || savedSession.examQuestions.length === 0) return false;
-    this.resetState();
-    this.examConfig = savedSession.examConfig || { type: 'bgd_2025', title: 'Đề thi thử Tin học', grade: '12', duration: 50 };
-    this.examCode = savedSession.examCode || savedSession.examConfig?.examCode || '101';
-    this.examQuestions = savedSession.examQuestions;
-    this.userAnswers = savedSession.userAnswers || {};
-    this.flaggedQuestions = new Set(savedSession.flaggedQuestions || []);
-    this.currentIndex = savedSession.currentIndex || 0;
-    this.totalSeconds = savedSession.totalSeconds || 3000;
-    this.remainingSeconds = savedSession.remainingSeconds || 600;
-    this.isProctored = !!savedSession.isProctored;
-    this.maxViolations = savedSession.maxViolations || 3;
-    this.isDisqualified = false;
-    this.disqualifiedReason = '';
-    this.examState = 'taking';
+    try {
+      if (!savedSession) return false;
+      if (typeof savedSession === 'string') {
+        savedSession = safeJsonParse(savedSession, null);
+      }
+      if (!savedSession || typeof savedSession !== 'object') return false;
 
-    if (this.isProctored) {
-      const antiCheatCfg = {
-        ...(this.examConfig.antiCheat || { enabled: true, maxViolations: this.maxViolations }),
-        initialViolationCount: savedSession.violationCount || 0,
-        initialViolationLogs: savedSession.violationLogs || []
-      };
-      Proctor.init(antiCheatCfg,
-        (record, remaining, total) => {
-          const badgeEl = document.getElementById('proctor-violation-badge');
-          if (badgeEl) {
-            badgeEl.innerHTML = `Vi phạm: <strong class="text-white">${total}</strong>/${this.maxViolations}`;
-            badgeEl.className = 'text-[11px] font-mono px-2.5 py-1 rounded-lg bg-rose-600 text-white font-bold animate-pulse';
+      const rawQuestions = Array.isArray(savedSession.examQuestions) ? savedSession.examQuestions : [];
+      const validQuestions = rawQuestions.filter(q => q && typeof q === 'object' && q.id);
+      if (validQuestions.length === 0) return false;
+
+      this.resetState();
+      this.examConfig = (savedSession.examConfig && typeof savedSession.examConfig === 'object')
+        ? savedSession.examConfig
+        : { type: 'bgd_2025', title: 'Đề thi thử Tin học', grade: '12', duration: 50 };
+      this.examCode = String(savedSession.examCode || savedSession.examConfig?.examCode || '101');
+      this.examQuestions = validQuestions;
+      this.userAnswers = (savedSession.userAnswers && typeof savedSession.userAnswers === 'object' && !Array.isArray(savedSession.userAnswers))
+        ? savedSession.userAnswers
+        : {};
+
+      let flaggedArr = [];
+      if (Array.isArray(savedSession.flaggedQuestions)) {
+        flaggedArr = savedSession.flaggedQuestions;
+      } else if (savedSession.flaggedQuestions instanceof Set) {
+        flaggedArr = [...savedSession.flaggedQuestions];
+      }
+      this.flaggedQuestions = new Set(flaggedArr.filter(id => id !== undefined && id !== null));
+
+      const total = validQuestions.length;
+      const rawIndex = parseInt(savedSession.currentIndex, 10);
+      this.currentIndex = (Number.isFinite(rawIndex) && rawIndex >= 0 && rawIndex < total) ? rawIndex : 0;
+
+      const rawTotal = parseInt(savedSession.totalSeconds, 10);
+      this.totalSeconds = (Number.isFinite(rawTotal) && rawTotal > 0) ? rawTotal : 3000;
+
+      const rawRem = parseInt(savedSession.remainingSeconds, 10);
+      this.remainingSeconds = (Number.isFinite(rawRem) && rawRem > 0) ? Math.min(this.totalSeconds, rawRem) : 600;
+
+      this.isProctored = !!savedSession.isProctored;
+      this.maxViolations = Number.isFinite(savedSession.maxViolations) && savedSession.maxViolations > 0 ? savedSession.maxViolations : 3;
+      this.isDisqualified = false;
+      this.disqualifiedReason = '';
+      this.isSubmitting = false;
+      this.hasSubmitted = false;
+      this.examState = 'taking';
+
+      if (this.isProctored) {
+        const antiCheatCfg = {
+          ...(this.examConfig.antiCheat || { enabled: true, maxViolations: this.maxViolations }),
+          initialViolationCount: savedSession.violationCount || 0,
+          initialViolationLogs: savedSession.violationLogs || []
+        };
+        Proctor.init(antiCheatCfg,
+          (record, remaining, total) => {
+            const badgeEl = document.getElementById('proctor-violation-badge');
+            if (badgeEl) {
+              badgeEl.innerHTML = `Vi phạm: <strong class="text-white">${total}</strong>/${this.maxViolations}`;
+              badgeEl.className = 'text-[11px] font-mono px-2.5 py-1 rounded-lg bg-rose-600 text-white font-bold animate-pulse';
+            }
+            this.saveCurrentSession();
+          },
+          (logs) => {
+            this.terminateExamDueToCheating(logs);
           }
-          this.saveCurrentSession();
-        },
-        (logs) => {
-          this.terminateExamDueToCheating(logs);
-        }
-      );
-      Proctor.start();
-    }
+        );
+        Proctor.start();
+      }
 
-    this.examState = 'taking';
-    document.body.classList.add('in-exam');
-    this.saveCurrentSession(true);
-    this.startTimer();
-    this.renderExamInterface();
-    return true;
+      document.body.classList.add('in-exam');
+      this.saveCurrentSession(true);
+      this.startTimer();
+      this.renderExamInterface();
+      return true;
+    } catch (err) {
+      console.error('Lỗi khôi phục phiên làm bài:', err);
+      return false;
+    }
   },
 
   /**
@@ -500,25 +570,29 @@ export const Exam = {
    * Pass immediate=true for synchronous saves on start, resume, or beforeunload.
    */
   saveCurrentSession(immediate = false) {
-    if (this.examState !== 'taking') return;
+    if (this.examState !== 'taking' || this.hasSubmitted) return;
 
     const executeSave = () => {
       this._saveTimer = null;
-      if (this.examState !== 'taking') return;
-      Storage.saveActiveExamSession({
-        examConfig: this.examConfig,
-        examCode: this.examCode || '101',
-        examQuestions: this.examQuestions,
-        userAnswers: this.userAnswers,
-        flaggedQuestions: [...this.flaggedQuestions],
-        currentIndex: this.currentIndex,
-        totalSeconds: this.totalSeconds,
-        remainingSeconds: this.remainingSeconds,
-        isProctored: this.isProctored,
-        maxViolations: this.maxViolations,
-        violationCount: this.isProctored ? Proctor.violationCount : 0,
-        violationLogs: this.isProctored ? Proctor.violationLogs : []
-      });
+      if (this.examState !== 'taking' || this.hasSubmitted) return;
+      try {
+        Storage.saveActiveExamSession({
+          examConfig: this.examConfig,
+          examCode: this.examCode || '101',
+          examQuestions: this.examQuestions,
+          userAnswers: this.userAnswers,
+          flaggedQuestions: [...this.flaggedQuestions],
+          currentIndex: this.currentIndex,
+          totalSeconds: this.totalSeconds,
+          remainingSeconds: this.remainingSeconds,
+          isProctored: this.isProctored,
+          maxViolations: this.maxViolations,
+          violationCount: this.isProctored ? Proctor.violationCount : 0,
+          violationLogs: this.isProctored ? Proctor.violationLogs : []
+        });
+      } catch (e) {
+        console.warn('Lỗi lưu phiên làm bài vào Storage:', e);
+      }
     };
 
     if (immediate) {
@@ -566,9 +640,17 @@ export const Exam = {
       }
 
       if (this.remainingSeconds <= 0) {
-        clearInterval(this.timerInterval);
+        if (this.timerInterval) {
+          clearInterval(this.timerInterval);
+          this.timerInterval = null;
+        }
+        // Atomic race condition guard: If user already submitted or is currently submitting, do NOT trigger a second submit!
+        if (this.hasSubmitted || this.isSubmitting) {
+          return;
+        }
+        this.closeSubmitConfirmationModal();
         alert('Hết giờ làm bài! Hệ thống sẽ tự động nộp bài.');
-        this.submitExam();
+        this.submitExam(true, 'Hết giờ làm bài');
       }
     }, 1000);
   },
@@ -932,74 +1014,184 @@ export const Exam = {
     return '';
   },
 
+  safeNavigate(direction) {
+    if (this.isSubmitting || this.hasSubmitted) return;
+    const now = Date.now();
+    if (now - this._lastNavTime < 100) return; // 100ms throttle
+    this._lastNavTime = now;
+    if (direction === 'prev' && this.currentIndex > 0) {
+      this.currentIndex--;
+      this.saveCurrentSession();
+      this.renderExamInterface();
+    } else if (direction === 'next' && this.currentIndex < this.examQuestions.length - 1) {
+      this.currentIndex++;
+      this.saveCurrentSession();
+      this.renderExamInterface();
+    }
+  },
+
+  showSubmitConfirmationModal() {
+    if (this.isSubmitting || this.hasSubmitted) return;
+
+    // Chống Modal Spam: Nếu modal xác nhận đã mở, không chèn thêm backdrop trùng lặp
+    const existing = document.getElementById('exam-confirm-submit-modal');
+    if (existing) {
+      existing.classList.remove('hidden');
+      return;
+    }
+
+    const total = this.examQuestions.length;
+    const answeredCount = Object.keys(this.userAnswers).length;
+    const unansweredCount = total - answeredCount;
+
+    const modal = document.createElement('div');
+    modal.id = 'exam-confirm-submit-modal';
+    modal.className = 'fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn';
+    modal.innerHTML = `
+      <div class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl ${unansweredCount > 0 ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400' : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'} flex items-center justify-center text-xl shrink-0">
+            <i class="fa-solid ${unansweredCount > 0 ? 'fa-triangle-exclamation' : 'fa-clipboard-check'}"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-800 dark:text-white">
+              Xác nhận nộp bài thi
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+              Mã đề: <span class="font-mono font-bold">${escapeHtml(this.examCode || '101')}</span> • ${total} câu hỏi
+            </p>
+          </div>
+        </div>
+
+        <div class="p-3.5 bg-slate-50 dark:bg-slate-700/50 rounded-2xl border border-slate-100 dark:border-slate-700 text-xs space-y-1.5">
+          <div class="flex justify-between items-center text-slate-700 dark:text-slate-200">
+            <span>Đã hoàn thành:</span>
+            <span class="font-bold font-mono text-emerald-600 dark:text-emerald-400">${answeredCount} / ${total} câu</span>
+          </div>
+          ${unansweredCount > 0 ? `
+            <div class="flex justify-between items-center text-rose-600 dark:text-rose-400 font-bold">
+              <span>Chưa trả lời:</span>
+              <span class="font-mono">${unansweredCount} câu</span>
+            </div>
+            <p class="text-[11px] text-amber-600 dark:text-amber-400 pt-1 border-t border-slate-200 dark:border-slate-600 italic">
+              <i class="fa-solid fa-circle-info mr-1"></i> Các câu chưa trả lời sẽ không được tính điểm. Bạn có chắc chắn muốn nộp bài ngay bây giờ?
+            </p>
+          ` : `
+            <p class="text-[11px] text-emerald-600 dark:text-emerald-400 pt-1 border-t border-slate-200 dark:border-slate-600">
+              <i class="fa-solid fa-circle-check mr-1"></i> Bạn đã trả lời tất cả câu hỏi!
+            </p>
+          `}
+        </div>
+
+        <div class="flex items-center justify-end gap-2.5 pt-2">
+          <button type="button" id="btn-cancel-submit-exam" class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold transition">
+            Quay lại làm tiếp
+          </button>
+          <button type="button" id="btn-confirm-submit-exam" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition flex items-center gap-1.5">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <span>Nộp bài ngay</span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const cancelBtn = modal.querySelector('#btn-cancel-submit-exam');
+    const confirmBtn = modal.querySelector('#btn-confirm-submit-exam');
+
+    if (cancelBtn) {
+      cancelBtn.onclick = () => {
+        if (this.isSubmitting) return;
+        this.closeSubmitConfirmationModal();
+      };
+    }
+
+    if (confirmBtn) {
+      confirmBtn.onclick = async () => {
+        if (this.isSubmitting || this.hasSubmitted) return;
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Đang nộp bài...';
+        if (cancelBtn) cancelBtn.disabled = true;
+        await this.submitExam();
+      };
+    }
+
+    modal.onclick = (e) => {
+      if (e.target === modal && !this.isSubmitting) {
+        this.closeSubmitConfirmationModal();
+      }
+    };
+  },
+
+  closeSubmitConfirmationModal() {
+    const modals = document.querySelectorAll('#exam-confirm-submit-modal');
+    modals.forEach(m => m.remove());
+  },
+
   bindExamEvents(currentQ) {
     // Fullscreen Toggle in Proctor mode
     const fsBtn = this.container.querySelector('#btn-toggle-fullscreen');
     if (fsBtn) {
-      fsBtn.addEventListener('click', () => {
+      fsBtn.onclick = () => {
         Proctor.requestFullscreen();
-      });
+      };
     }
 
-    // Mobile Drawer Open / Close
+    // Mobile Drawer Open / Close (dùng onclick và stopPropagation chống click spam & nhân bản backdrop)
     const openMobilePaletteBtn = this.container.querySelector('#btn-open-mobile-palette');
     const closeMobilePaletteBtn = this.container.querySelector('#btn-close-mobile-palette');
     const mobilePaletteDrawer = this.container.querySelector('#mobile-palette-drawer');
 
     if (openMobilePaletteBtn && mobilePaletteDrawer) {
-      openMobilePaletteBtn.addEventListener('click', () => {
+      openMobilePaletteBtn.onclick = (e) => {
+        e.stopPropagation();
         mobilePaletteDrawer.classList.remove('hidden');
-      });
+      };
     }
 
     if (closeMobilePaletteBtn && mobilePaletteDrawer) {
-      closeMobilePaletteBtn.addEventListener('click', () => {
+      closeMobilePaletteBtn.onclick = (e) => {
+        e.stopPropagation();
         mobilePaletteDrawer.classList.add('hidden');
-      });
+      };
     }
 
     if (mobilePaletteDrawer) {
-      mobilePaletteDrawer.addEventListener('click', (e) => {
+      mobilePaletteDrawer.onclick = (e) => {
         if (e.target === mobilePaletteDrawer) {
           mobilePaletteDrawer.classList.add('hidden');
         }
-      });
+      };
     }
 
-    // Jump Palette
+    // Jump Palette (chống spam chuyển câu làm nghẽn KaTeX DOM)
     this.container.querySelectorAll('[data-jump-idx]').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.onclick = () => {
+        if (this.isSubmitting || this.hasSubmitted) return;
         const idx = parseInt(btn.getAttribute('data-jump-idx'), 10);
-        if (this.currentIndex !== idx) {
+        if (this.currentIndex !== idx && Number.isFinite(idx) && idx >= 0 && idx < this.examQuestions.length) {
+          const now = Date.now();
+          if (now - this._lastNavTime < 80) return;
+          this._lastNavTime = now;
           this.currentIndex = idx;
           this.saveCurrentSession();
           this.renderExamInterface();
         }
-      });
+      };
     });
 
-    // Prev / Next
+    // Prev / Next (được điều tiết qua safeNavigate chống spam)
     const prevBtn = this.container.querySelector('#btn-exam-prev');
     const nextBtn = this.container.querySelector('#btn-exam-next');
-    if (prevBtn) prevBtn.addEventListener('click', () => {
-      if (this.currentIndex > 0) {
-        this.currentIndex--;
-        this.saveCurrentSession();
-        this.renderExamInterface();
-      }
-    });
-    if (nextBtn) nextBtn.addEventListener('click', () => {
-      if (this.currentIndex < this.examQuestions.length - 1) {
-        this.currentIndex++;
-        this.saveCurrentSession();
-        this.renderExamInterface();
-      }
-    });
+    if (prevBtn) prevBtn.onclick = () => this.safeNavigate('prev');
+    if (nextBtn) nextBtn.onclick = () => this.safeNavigate('next');
 
     // Flag toggle (Lightweight - Zero Layout Thrashing)
     const flagBtn = this.container.querySelector('#btn-flag-q');
     if (flagBtn) {
-      flagBtn.addEventListener('click', () => {
+      flagBtn.onclick = () => {
+        if (this.isSubmitting || this.hasSubmitted) return;
         if (this.flaggedQuestions.has(currentQ.id)) {
           this.flaggedQuestions.delete(currentQ.id);
         } else {
@@ -1013,18 +1205,19 @@ export const Exam = {
           <span>${isFlagged ? 'Đã gắn cờ' : 'Gắn cờ xem lại'}</span>
         `;
         this.updatePaletteButtonStatus(this.currentIndex);
-      });
+      };
     }
 
     // MCQ select (Lightweight Option Selection - Zero Layout Thrashing)
     const mcqBtns = this.container.querySelectorAll('[data-exam-mcq]');
     mcqBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.onclick = () => {
+        if (this.isSubmitting || this.hasSubmitted) return;
         const letter = btn.getAttribute('data-exam-mcq');
         this.userAnswers[currentQ.id] = { chosen: letter };
         this.saveCurrentSession(); // Debounced 250ms
 
-        // Update styling directly on target element and sibling options without full DOM re-render
+        // Cập nhật giao diện trực tiếp trên phần tử mục tiêu và các lựa chọn cùng câu
         mcqBtns.forEach(b => {
           const isTarget = (b === btn);
           b.classList.toggle('selected', isTarget);
@@ -1042,22 +1235,23 @@ export const Exam = {
 
         this.updatePaletteButtonStatus(this.currentIndex);
         this.updateAnsweredCounter();
-      });
+      };
     });
 
     // TF select (Lightweight Option Selection - Zero Layout Thrashing)
     const tfBtns = this.container.querySelectorAll('[data-exam-tf]');
     tfBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.onclick = () => {
+        if (this.isSubmitting || this.hasSubmitted) return;
         const idx = parseInt(btn.getAttribute('data-exam-tf'), 10);
         const val = btn.getAttribute('data-val');
         
-        let existing = this.userAnswers[currentQ.id] ? this.userAnswers[currentQ.id].choices : ['', '', '', ''];
+        let existing = this.userAnswers[currentQ.id] ? [...this.userAnswers[currentQ.id].choices] : ['', '', '', ''];
         existing[idx] = val;
-        this.userAnswers[currentQ.id] = { choices: [...existing] };
+        this.userAnswers[currentQ.id] = { choices: existing };
         this.saveCurrentSession(); // Debounced 250ms
 
-        // Update styling directly on the row's buttons without full DOM re-render
+        // Cập nhật trực tiếp nút trên hàng mà không re-render toàn bộ DOM
         const rowBtns = this.container.querySelectorAll(`[data-exam-tf="${idx}"]`);
         rowBtns.forEach(b => {
           const bVal = b.getAttribute('data-val');
@@ -1070,13 +1264,14 @@ export const Exam = {
 
         this.updatePaletteButtonStatus(this.currentIndex);
         this.updateAnsweredCounter();
-      });
+      };
     });
 
     // TLN input
     const tlnInput = this.container.querySelector('#exam-tln-input');
     if (tlnInput) {
-      tlnInput.addEventListener('input', (e) => {
+      tlnInput.oninput = (e) => {
+        if (this.isSubmitting || this.hasSubmitted) return;
         const val = e.target.value;
         if (val.trim()) {
           this.userAnswers[currentQ.id] = { input: val };
@@ -1086,48 +1281,34 @@ export const Exam = {
         this.saveCurrentSession(); // Debounced 250ms
         this.updatePaletteButtonStatus(this.currentIndex);
         this.updateAnsweredCounter();
-      });
+      };
     }
 
-    // Nộp bài
+    // Nộp bài: Mở Modal xác nhận nộp bài (chống spam nhiều lần)
     const submitBtn = this.container.querySelector('#btn-submit-exam');
     if (submitBtn) {
-      submitBtn.addEventListener('click', () => {
-        const total = this.examQuestions.length;
-        const answeredCount = Object.keys(this.userAnswers).length;
-        const unansweredCount = total - answeredCount;
-
-        let confirmMsg = `Bạn đã hoàn thành ${answeredCount}/${total} câu hỏi.`;
-        if (unansweredCount > 0) {
-          confirmMsg += `\nCòn ${unansweredCount} câu chưa trả lời!\nBạn có chắc chắn muốn nộp bài ngay bây giờ?`;
-        } else {
-          confirmMsg += `\nBạn có muốn nộp bài để xem kết quả không?`;
-        }
-
-        if (confirm(confirmMsg)) {
-          this.submitExam();
-        }
-      });
+      submitBtn.onclick = () => {
+        if (this.isSubmitting || this.hasSubmitted) return;
+        this.showSubmitConfirmationModal();
+      };
     }
 
     // Phím tắt điều hướng câu hỏi (Mũi tên Trái / Phải)
     if (!this._onExamKeyDown) {
       this._onExamKeyDown = (e) => {
-        if (this.examState !== 'taking') return;
+        if (this.examState !== 'taking' || this.isSubmitting || this.hasSubmitted) return;
         const tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
         if (tag === 'input' || tag === 'textarea') return;
 
         if (e.key === 'ArrowLeft') {
           if (this.currentIndex > 0) {
             e.preventDefault();
-            this.currentIndex--;
-            this.renderExamInterface();
+            this.safeNavigate('prev');
           }
         } else if (e.key === 'ArrowRight') {
           if (this.currentIndex < this.examQuestions.length - 1) {
             e.preventDefault();
-            this.currentIndex++;
-            this.renderExamInterface();
+            this.safeNavigate('next');
           }
         }
       };
@@ -1136,52 +1317,80 @@ export const Exam = {
   },
 
   terminateExamDueToCheating(logs) {
+    if (this.isDisqualified || this.hasSubmitted || this.isSubmitting) return;
     this.isDisqualified = true;
     this.disqualifiedReason = `Đình chỉ thi do vi phạm quy chế quá ${this.maxViolations} lần cho phép (rời khỏi màn hình làm bài)`;
+    this.closeSubmitConfirmationModal();
+    const warnModals = document.querySelectorAll('#proctor-warning-modal');
+    warnModals.forEach(m => m.remove());
     this.submitExam(true, this.disqualifiedReason, logs);
   },
 
   // --- NỘP BÀI & CHẤM ĐIỂM ---
   async submitExam(isForced = false, forceReason = '', forcedLogs = null) {
+    // Khóa nguyên tử (Atomic Lock): chống gửi trùng lặp & xung đột race-condition với Timer
+    if (this.hasSubmitted || this.isSubmitting) {
+      return;
+    }
+    this.isSubmitting = true;
+
     if (this._saveTimer) {
       clearTimeout(this._saveTimer);
       this._saveTimer = null;
     }
-    if (this.timerInterval) clearInterval(this.timerInterval);
-    document.body.classList.remove('in-exam');
-    this.examState = 'submitted';
-    if (this._onExamKeyDown) {
-      window.removeEventListener('keydown', this._onExamKeyDown);
-      this._onExamKeyDown = null;
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
     }
 
-    if (this.isProctored) {
-      Proctor.stop();
+    // Cập nhật trạng thái giao diện nút nộp bài sang loading
+    const submitBtn = document.getElementById('btn-submit-exam');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.setAttribute('disabled', 'true');
+      submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
+      submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Đang nộp...';
     }
+
+    const confirmBtn = document.getElementById('btn-confirm-submit-exam');
+    const cancelBtn = document.getElementById('btn-cancel-submit-exam');
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+      confirmBtn.setAttribute('disabled', 'true');
+      confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Đang nộp bài...';
+    }
+    if (cancelBtn) {
+      cancelBtn.disabled = true;
+      cancelBtn.setAttribute('disabled', 'true');
+    }
+
+    // Hàm phục hồi khóa và nút bấm khi gặp sự cố mạng
+    const restoreButtonsOnFailure = () => {
+      this.isSubmitting = false;
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.removeAttribute('disabled');
+        submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+        submitBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> <span class="hidden sm:inline">Nộp bài</span>';
+      }
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.removeAttribute('disabled');
+        confirmBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> <span>Nộp bài ngay</span>';
+      }
+      if (cancelBtn) {
+        cancelBtn.disabled = false;
+        cancelBtn.removeAttribute('disabled');
+      }
+      this.closeSubmitConfirmationModal();
+    };
 
     const timeSpent = this.isUnlimitedTime ? (this.elapsedSeconds || 0) : (this.totalSeconds - Math.max(0, this.remainingSeconds));
     const isDisqualified = this.isDisqualified || isForced;
     const disqualifiedReason = this.disqualifiedReason || forceReason || '';
     const violationLogs = forcedLogs || (this.isProctored ? Proctor.violationLogs : []);
     const violationCount = this.isProctored ? Proctor.violationCount : 0;
-    const user = Auth.currentUser;
-
-    // Hiển thị giao diện nộp bài đang chấm điểm
-    if (this.container) {
-      this.container.innerHTML = `
-        <div class="py-24 text-center space-y-4 animate-fadeIn">
-          <div class="w-16 h-16 rounded-3xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-3xl mx-auto shadow-sm">
-            <i class="fa-solid fa-spinner fa-spin"></i>
-          </div>
-          <h3 class="text-base font-bold text-slate-800 dark:text-white">
-            Đang nộp bài và chấm điểm trên máy chủ...
-          </h3>
-          <p class="text-xs text-slate-400 max-w-md mx-auto">
-            Hệ thống đang đối chiếu bài làm với ngân hàng đề và tính điểm tự động theo quy chế Bộ GD&ĐT.
-          </p>
-        </div>
-      `;
-    }
+    const user = (typeof Auth !== 'undefined') ? Auth.currentUser : null;
 
     let totalScore = 0;
     let rawScore = 0;
@@ -1192,10 +1401,11 @@ export const Exam = {
     let submissionId = null;
     let isSyncedByWorker = false;
     let serverGraded = false;
+    let networkFailed = false;
 
     // Chuẩn bị payload nộp bài gửi lên Cloudflare Worker
     const payload = {
-      roomId: this.examConfig.roomId || null,
+      roomId: this.examConfig?.roomId || null,
       examConfig: this.examConfig,
       examCode: this.examCode || '101',
       timeSpentSeconds: timeSpent,
@@ -1219,7 +1429,7 @@ export const Exam = {
 
     try {
       const abortCtrl = new AbortController();
-      const timeoutTimer = setTimeout(() => abortCtrl.abort(), 4000); // Timeout 4s bảo vệ chống treo spinner
+      const timeoutTimer = setTimeout(() => abortCtrl.abort(), 5000); // 5s timeout bảo vệ chống treo spinner
       const res = await authedFetch('/api/exam/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1227,6 +1437,7 @@ export const Exam = {
         signal: abortCtrl.signal
       });
       clearTimeout(timeoutTimer);
+
       if (res && res.ok) {
         const sRes = await res.json();
         if (sRes && sRes.success) {
@@ -1240,171 +1451,232 @@ export const Exam = {
           isSyncedByWorker = true;
           serverGraded = true;
         }
+      } else if (res && !res.ok) {
+        if (res.status === 404 && !this.examConfig?.roomId) {
+          console.warn('/api/exam/submit không tìm thấy (404), tự động chuyển sang chấm cục bộ.');
+        } else {
+          networkFailed = true;
+        }
       }
     } catch (err) {
-      console.warn('Không thể kết nối Worker API hoặc quá hạn (timeout), tự chấm ngoại tuyến:', err);
+      console.warn('Không thể kết nối Worker API hoặc quá hạn (5s timeout):', err);
+      networkFailed = true;
     }
 
-    // Nếu không kết nối được Worker (học ngoại tuyến), fallback chấm cục bộ
-    if (!serverGraded) {
-      const isBgdFormat = (this.examConfig.type === 'bgd_2025');
-      this.examQuestions.forEach(q => {
-        const userAns = this.userAnswers[q.id];
-        let itemScore = 0;
-        let isCorrect = false;
+    // Nếu mạng lỗi hoặc quá hạn 5s khi nộp bài thủ công:
+    // Mở khóa an toàn và kích hoạt lại các nút bấm kèm thông báo thân thiện
+    if (networkFailed && !isForced) {
+      restoreButtonsOnFailure();
+      alert('Không thể nộp bài do mất kết nối mạng hoặc máy chủ phản hồi chậm (quá 5 giây). Bài làm của bạn đã được lưu tạm an toàn. Vui lòng kiểm tra lại kết nối mạng và bấm "Nộp bài" lại!');
+      return;
+    }
 
-        if (['1', '2', '3', '4'].includes(q.level)) {
-          const correctAns = q.displayAnswer || q.answer;
-          const chosen = userAns ? (userAns.chosenLetter || userAns.chosen) : null;
-          if (chosen === correctAns) {
-            isCorrect = true;
-            correctCount++;
-            itemScore = isBgdFormat ? 0.25 : (10 / this.examQuestions.length);
+    try {
+      // Đánh dấu nộp bài thành công hoàn tất
+      this.hasSubmitted = true;
+      this.isSubmitting = false;
+      this.closeSubmitConfirmationModal();
+      document.body.classList.remove('in-exam');
+      this.examState = 'submitted';
+
+      if (this._onExamKeyDown) {
+        window.removeEventListener('keydown', this._onExamKeyDown);
+        this._onExamKeyDown = null;
+      }
+
+      if (this.isProctored) {
+        try {
+          Proctor.stop();
+        } catch {}
+      }
+
+      // Nếu không kết nối được Worker (học ngoại tuyến), fallback chấm cục bộ
+      if (!serverGraded) {
+        const isBgdFormat = (this.examConfig?.type === 'bgd_2025');
+        this.examQuestions.forEach(q => {
+          const userAns = this.userAnswers[q.id];
+          let itemScore = 0;
+          let isCorrect = false;
+
+          if (['1', '2', '3', '4'].includes(q.level)) {
+            const correctAns = q.displayAnswer || q.answer;
+            const chosen = userAns ? (userAns.chosenLetter || userAns.chosen) : null;
+            if (chosen === correctAns) {
+              isCorrect = true;
+              correctCount++;
+              itemScore = isBgdFormat ? 0.25 : (10 / this.examQuestions.length);
+            }
+            part1Score += itemScore;
+            details.push({
+              questionId: q.id,
+              question: q,
+              userChoice: chosen,
+              correctAnswer: correctAns,
+              isCorrect,
+              score: itemScore
+            });
+          } else if (q.level === 'DS') {
+            const correctParts = (q.answer || 'Đ,Đ,Đ,Đ').split(',');
+            const choices = (userAns && userAns.choices) ? userAns.choices : ['', '', '', ''];
+            let correctSub = 0;
+            for (let i = 0; i < 4; i++) {
+              if (choices[i] && choices[i] === correctParts[i]) correctSub++;
+            }
+            const pointMap = [0, 0.1, 0.25, 0.5, 1.0];
+            itemScore = pointMap[correctSub];
+            isCorrect = (correctSub === 4);
+            if (correctSub >= 2) correctCount += (correctSub / 4);
+            part2Score += itemScore;
+            details.push({
+              questionId: q.id,
+              question: q,
+              choices,
+              correctParts,
+              correctSub,
+              isCorrect,
+              score: itemScore
+            });
+          } else if (q.level === 'TLN') {
+            const inputVal = (userAns && (userAns.input || userAns.userInput)) ? String(userAns.input || userAns.userInput).trim() : '';
+            const normUser = inputVal.toLowerCase().replace(/\s+/g, '');
+            const normAns = (q.answer || '').toLowerCase().replace(/\s+/g, '');
+            if (normUser && normUser === normAns) {
+              isCorrect = true;
+              correctCount++;
+              itemScore = isBgdFormat ? 0.25 : (10 / this.examQuestions.length);
+            }
+            details.push({
+              questionId: q.id,
+              question: q,
+              userInput: inputVal,
+              correctAnswer: q.answer,
+              isCorrect,
+              score: itemScore
+            });
           }
-          part1Score += itemScore;
-          details.push({
-            questionId: q.id,
-            question: q,
-            userChoice: chosen,
-            correctAnswer: correctAns,
-            isCorrect,
-            score: itemScore
-          });
-        } else if (q.level === 'DS') {
-          const correctParts = (q.answer || 'Đ,Đ,Đ,Đ').split(',');
-          const choices = (userAns && userAns.choices) ? userAns.choices : ['', '', '', ''];
-          let correctSub = 0;
-          for (let i = 0; i < 4; i++) {
-            if (choices[i] && choices[i] === correctParts[i]) correctSub++;
+          totalScore += itemScore;
+        });
+
+        rawScore = Math.min(10, Math.max(0, Math.round(totalScore * 100) / 100));
+        totalScore = isDisqualified ? 0.0 : rawScore;
+      }
+
+      // Tự động ghi nhận câu thành thạo (Mastered) hoặc câu hay sai (Wrong) theo lô (1 lần ghi)
+      const correctQuestions = [];
+      const wrongQuestions = [];
+      details.forEach(item => {
+        const q = this.examQuestions.find(eq => eq.id === item.questionId) || item.question;
+        if (q) {
+          if (item.isCorrect) {
+            correctQuestions.push(q);
+          } else {
+            wrongQuestions.push(q);
           }
-          const pointMap = [0, 0.1, 0.25, 0.5, 1.0];
-          itemScore = pointMap[correctSub];
-          isCorrect = (correctSub === 4);
-          if (correctSub >= 2) correctCount += (correctSub / 4);
-          part2Score += itemScore;
-          details.push({
-            questionId: q.id,
-            question: q,
-            choices,
-            correctParts,
-            correctSub,
-            isCorrect,
-            score: itemScore
-          });
-        } else if (q.level === 'TLN') {
-          const inputVal = (userAns && (userAns.input || userAns.userInput)) ? String(userAns.input || userAns.userInput).trim() : '';
-          const normUser = inputVal.toLowerCase().replace(/\s+/g, '');
-          const normAns = (q.answer || '').toLowerCase().replace(/\s+/g, '');
-          if (normUser && normUser === normAns) {
-            isCorrect = true;
-            correctCount++;
-            itemScore = isBgdFormat ? 0.25 : (10 / this.examQuestions.length);
-          }
-          details.push({
-            questionId: q.id,
-            question: q,
-            userInput: inputVal,
-            correctAnswer: q.answer,
-            isCorrect,
-            score: itemScore
-          });
         }
-        totalScore += itemScore;
       });
-
-      rawScore = Math.min(10, Math.max(0, Math.round(totalScore * 100) / 100));
-      totalScore = isDisqualified ? 0.0 : rawScore;
-    }
-
-    // Tự động ghi nhận câu thành thạo (Mastered) hoặc câu hay sai (Wrong) theo lô (1 lần ghi)
-    const correctQuestions = [];
-    const wrongQuestions = [];
-    details.forEach(item => {
-      const q = this.examQuestions.find(eq => eq.id === item.questionId) || item.question;
-      if (q) {
-        if (item.isCorrect) {
-          correctQuestions.push(q);
-        } else {
-          wrongQuestions.push(q);
+      if (correctQuestions.length > 0 || wrongQuestions.length > 0) {
+        try {
+          Storage.recordMasteredAndWrongBatch(correctQuestions, wrongQuestions);
+        } catch (e) {
+          console.warn('Lỗi ghi nhận mastered/wrong batch:', e);
         }
       }
-    });
-    if (correctQuestions.length > 0 || wrongQuestions.length > 0) {
-      Storage.recordMasteredAndWrongBatch(correctQuestions, wrongQuestions);
+
+      this.examResult = {
+        _batchRecorded: true,
+        id: submissionId || ('exam_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6)),
+        title: this.examConfig?.title || 'Đề thi thử Tin học',
+        type: this.examConfig?.type || 'bgd_2025',
+        grade: this.examConfig?.grade || '12',
+        examCode: this.examCode || '101',
+        topic: this.examConfig?.topic || null,
+        lesson: this.examConfig?.lesson || null,
+        contentScope: this.examConfig?.contentScope || null,
+        selectedLessons: this.examConfig?.selectedLessons || null,
+        selectedTopics: this.examConfig?.selectedTopics || null,
+        resultDisplayMode: this.examConfig?.resultDisplayMode || 'both',
+        score: totalScore,
+        rawScore,
+        part1Score: Math.round(part1Score * 100) / 100,
+        part2Score: Math.round(part2Score * 100) / 100,
+        totalQuestions: this.examQuestions.length,
+        correctCount: Math.round(correctCount),
+        timeSpentSeconds: timeSpent,
+        studentName: user?.fullName || 'Thí sinh tự do',
+        studentClass: user?.className || '',
+        studentSchool: user?.school || '',
+        studentEmail: user?.email || '',
+        roomId: this.examConfig?.roomId || null,
+        roomTitle: this.examConfig?.roomTitle || null,
+        isProctored: this.isProctored,
+        violationCount,
+        violationLogs,
+        isDisqualified,
+        disqualifiedReason,
+        isSyncedByWorker,
+        details
+      };
+
+      // Lưu vào LocalStorage an toàn
+      try {
+        Storage.saveExamResult(this.examResult);
+      } catch (e) {
+        console.warn('Lỗi lưu kết quả bài thi:', e);
+      }
+
+      // Kích hoạt pháo hoa chúc mừng nếu đạt điểm cao và không bị đình chỉ
+      if (!isDisqualified && totalScore >= 8.0 && window.confetti) {
+        try {
+          window.confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        } catch (e) {}
+      }
+
+      this.renderResultView();
+    } catch (fatalErr) {
+      console.error('Lỗi nghiêm trọng khi nộp bài:', fatalErr);
+      if (!this.hasSubmitted) {
+        restoreButtonsOnFailure();
+        alert('Đã xảy ra lỗi trong quá trình xử lý nộp bài. Vui lòng bấm Nộp bài lại!');
+      }
     }
-
-    this.examResult = {
-      _batchRecorded: true,
-      id: submissionId || ('exam_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6)),
-      title: this.examConfig.title,
-      type: this.examConfig.type,
-      grade: this.examConfig.grade,
-      examCode: this.examCode || '101',
-      topic: this.examConfig.topic || null,
-      lesson: this.examConfig.lesson || null,
-      contentScope: this.examConfig.contentScope || null,
-      selectedLessons: this.examConfig.selectedLessons || null,
-      selectedTopics: this.examConfig.selectedTopics || null,
-      resultDisplayMode: this.examConfig.resultDisplayMode || 'both',
-      score: totalScore,
-      rawScore,
-      part1Score: Math.round(part1Score * 100) / 100,
-      part2Score: Math.round(part2Score * 100) / 100,
-      totalQuestions: this.examQuestions.length,
-      correctCount: Math.round(correctCount),
-      timeSpentSeconds: timeSpent,
-      studentName: user?.fullName || 'Thí sinh tự do',
-      studentClass: user?.className || '',
-      studentSchool: user?.school || '',
-      studentEmail: user?.email || '',
-      roomId: this.examConfig.roomId || null,
-      roomTitle: this.examConfig.roomTitle || null,
-      isProctored: this.isProctored,
-      violationCount,
-      violationLogs,
-      isDisqualified,
-      disqualifiedReason,
-      isSyncedByWorker,
-      details
-    };
-
-    // Lưu vào LocalStorage
-    Storage.saveExamResult(this.examResult);
-
-    // Kích hoạt pháo hoa chúc mừng nếu đạt điểm cao và không bị đình chỉ
-    if (!isDisqualified && totalScore >= 8.0 && window.confetti) {
-      window.confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-    }
-
-    this.renderResultView();
   },
 
   viewSavedResult(savedItem) {
-    if (!savedItem) return;
-    this.resetState();
-    this.examState = 'submitted';
-    this.examConfig = {
-      type: savedItem.totalQuestions === 28 ? 'bgd_2025' : (savedItem.type || 'custom'),
-      title: savedItem.title || 'Đề thi thử Tin học',
-      grade: savedItem.grade || '12',
-      duration: 50,
-      count: savedItem.totalQuestions || 28,
-      examCode: savedItem.examCode || '101',
-      topic: savedItem.topic || null,
-      lesson: savedItem.lesson || null,
-      resultDisplayMode: savedItem.resultDisplayMode || 'both'
-    };
-    this.examCode = savedItem.examCode || '101';
-    this.examResult = {
-      ...savedItem,
-      type: savedItem.type || (savedItem.totalQuestions === 28 ? 'bgd_2025' : 'custom'),
-      examCode: savedItem.examCode || '101',
-      topic: savedItem.topic || null,
-      lesson: savedItem.lesson || null,
-      resultDisplayMode: savedItem.resultDisplayMode || 'both',
-      details: savedItem.details || []
-    };
-    this.renderResultView();
+    try {
+      if (!savedItem) return;
+      if (typeof savedItem === 'string') {
+        savedItem = safeJsonParse(savedItem, null);
+      }
+      if (!savedItem || typeof savedItem !== 'object') return;
+      this.resetState();
+      this.examState = 'submitted';
+      this.hasSubmitted = true;
+      this.isSubmitting = false;
+      this.examConfig = {
+        type: savedItem.totalQuestions === 28 ? 'bgd_2025' : (savedItem.type || 'custom'),
+        title: savedItem.title || 'Đề thi thử Tin học',
+        grade: savedItem.grade || '12',
+        duration: 50,
+        count: savedItem.totalQuestions || 28,
+        examCode: savedItem.examCode || '101',
+        topic: savedItem.topic || null,
+        lesson: savedItem.lesson || null,
+        resultDisplayMode: savedItem.resultDisplayMode || 'both'
+      };
+      this.examCode = savedItem.examCode || '101';
+      this.examResult = {
+        ...savedItem,
+        type: savedItem.type || (savedItem.totalQuestions === 28 ? 'bgd_2025' : 'custom'),
+        examCode: savedItem.examCode || '101',
+        topic: savedItem.topic || null,
+        lesson: savedItem.lesson || null,
+        resultDisplayMode: savedItem.resultDisplayMode || 'both',
+        details: Array.isArray(savedItem.details) ? savedItem.details : []
+      };
+      this.renderResultView();
+    } catch (e) {
+      console.error('Lỗi xem bài thi đã lưu:', e);
+    }
   },
 
   // --- HIỂN THỊ KẾT QUẢ & PHÂN TÍCH ĐỀ THI ---
@@ -1809,23 +2081,32 @@ export const Exam = {
 
     const deleteBtn = this.container.querySelector('#btn-delete-saved-exam');
     if (deleteBtn) {
-      deleteBtn.addEventListener('click', () => {
+      let isDeleting = false;
+      deleteBtn.onclick = () => {
+        if (isDeleting) return;
         const isPrivilegedUser = typeof Auth !== 'undefined' && (Auth.isAdmin() || Auth.isTeacher());
         if (!isPrivilegedUser) {
           alert('Học sinh không có quyền xóa lịch sử bài thi!');
           return;
         }
-        const id = deleteBtn.getAttribute('data-exam-id');
-        if (confirm('Thầy/Cô có chắc chắn muốn xóa bài thi này khỏi lịch sử và hệ thống không?')) {
-          const res = Storage.deleteExamResult(id);
-          if (res) {
-            alert('Đã xóa bài thi thành công!');
-            window.dispatchEvent(new CustomEvent('nav-to-tab', { detail: 'history' }));
-          } else {
-            alert('Không thể xóa bài thi. Vui lòng kiểm tra lại quyền hạn!');
+        isDeleting = true;
+        try {
+          const id = deleteBtn.getAttribute('data-exam-id');
+          if (confirm('Thầy/Cô có chắc chắn muốn xóa bài thi này khỏi lịch sử và hệ thống không?')) {
+            const res = Storage.deleteExamResult(id);
+            if (res) {
+              alert('Đã xóa bài thi thành công!');
+              window.dispatchEvent(new CustomEvent('nav-to-tab', { detail: 'history' }));
+            } else {
+              alert('Không thể xóa bài thi. Vui lòng kiểm tra lại quyền hạn!');
+            }
           }
+        } catch (e) {
+          console.warn('Lỗi khi xóa bài thi:', e);
+        } finally {
+          isDeleting = false;
         }
-      });
+      };
     }
 
     // Filter review items
