@@ -31,6 +31,9 @@ const CORS_HEADERS = {
   'Access-Control-Max-Age': '86400'
 };
 
+// Cache tạm thời thông tin câu hỏi phòng thi để tăng tốc độ chấm điểm
+const roomAnswersCache = new Map();
+
 /**
  * Tạo phản hồi JSON chuẩn kèm CORS
  */
@@ -196,23 +199,35 @@ export default {
           return jsonResponse({ error: 'Bad Request', message: 'Thiếu dữ liệu nộp bài' }, 400);
         }
 
-        // Lấy thêm đáp án của câu hỏi tùy chỉnh phòng thi nếu có
+        // Lấy thêm đáp án của câu hỏi tùy chỉnh phòng thi nếu có (kèm cache in-memory 60s và timeout 2.5s)
         let customAnswersMap = {};
         const roomId = body.roomId || null;
 
         if (roomId) {
-          try {
-            const roomRes = await fetch(`${dbUrl.replace(/\/$/, '')}/exam_rooms/${encodeURIComponent(roomId)}.json?auth=${encodeURIComponent(token)}`);
-            if (roomRes.ok) {
-              const roomData = await roomRes.json();
-              if (roomData && Array.isArray(roomData.fixedQuestions)) {
-                roomData.fixedQuestions.forEach(q => {
-                  if (q && q.id) customAnswersMap[q.id] = q;
-                });
+          const cachedRoom = roomAnswersCache.get(roomId);
+          if (cachedRoom && cachedRoom.expiresAt > Date.now()) {
+            customAnswersMap = cachedRoom.map;
+          } else {
+            try {
+              const roomCtrl = new AbortController();
+              const roomTimeout = setTimeout(() => roomCtrl.abort(), 2500);
+              const roomRes = await fetch(
+                `${dbUrl.replace(/\/$/, '')}/exam_rooms/${encodeURIComponent(roomId)}.json?auth=${encodeURIComponent(token)}`,
+                { signal: roomCtrl.signal }
+              );
+              clearTimeout(roomTimeout);
+              if (roomRes.ok) {
+                const roomData = await roomRes.json();
+                if (roomData && Array.isArray(roomData.fixedQuestions)) {
+                  roomData.fixedQuestions.forEach(q => {
+                    if (q && q.id) customAnswersMap[q.id] = q;
+                  });
+                }
+                roomAnswersCache.set(roomId, { map: customAnswersMap, expiresAt: Date.now() + 60000 });
               }
+            } catch (e) {
+              console.warn('[Worker] Không thể nạp phòng thi từ RTDB:', e.message);
             }
-          } catch (e) {
-            console.warn('[Worker] Không thể nạp phòng thi từ RTDB:', e.message);
           }
         }
 
@@ -248,15 +263,23 @@ export default {
           details: gradeResult.details
         };
 
-        // Ghi nhận kết quả thi vào /exam_history trên RTDB
-        try {
-          await fetch(`${dbUrl.replace(/\/$/, '')}/exam_history/${encodeURIComponent(submissionId)}.json?auth=${encodeURIComponent(token)}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(examHistoryEntry)
-          });
-        } catch (e) {
-          console.warn('[Worker] Lỗi mạng khi ghi exam_history:', e.message);
+        // Ghi nhận kết quả thi vào /exam_history trên RTDB (dùng ctx.waitUntil không chặn phản hồi của học sinh)
+        const saveHistoryPromise = (async () => {
+          try {
+            await fetch(`${dbUrl.replace(/\/$/, '')}/exam_history/${encodeURIComponent(submissionId)}.json?auth=${encodeURIComponent(token)}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(examHistoryEntry)
+            });
+          } catch (e) {
+            console.warn('[Worker] Lỗi mạng khi ghi exam_history:', e.message);
+          }
+        })();
+
+        if (ctx && typeof ctx.waitUntil === 'function') {
+          ctx.waitUntil(saveHistoryPromise);
+        } else {
+          await saveHistoryPromise;
         }
 
         return jsonResponse({

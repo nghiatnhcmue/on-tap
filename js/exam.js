@@ -3,11 +3,11 @@
  * Hỗ trợ đề chuẩn Bộ GD&ĐT 2025, kiểm tra định kỳ 15p, 45p và tùy biến đề thi
  */
 
-import { Storage } from './storage.js?v=20261112_220';
-import { Auth } from './auth.js?v=20261112_220';
-import { escapeHtml } from './utils.js?v=20261112_220';
-import { Proctor } from './proctor.js?v=20261112_220';
-import { authedFetch } from './api.js?v=20261112_220';
+import { Storage } from './storage.js?v=20261112_225';
+import { Auth } from './auth.js?v=20261112_225';
+import { escapeHtml } from './utils.js?v=20261112_225';
+import { Proctor } from './proctor.js?v=20261112_225';
+import { authedFetch } from './api.js?v=20261112_225';
 
 export const Exam = {
   questions: [],
@@ -1066,11 +1066,15 @@ export const Exam = {
     };
 
     try {
+      const abortCtrl = new AbortController();
+      const timeoutTimer = setTimeout(() => abortCtrl.abort(), 4000); // Timeout 4s bảo vệ chống treo spinner
       const res = await authedFetch('/api/exam/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: abortCtrl.signal
       });
+      clearTimeout(timeoutTimer);
       if (res && res.ok) {
         const sRes = await res.json();
         if (sRes && sRes.success) {
@@ -1086,7 +1090,7 @@ export const Exam = {
         }
       }
     } catch (err) {
-      console.warn('Không thể kết nối Worker API, tự chấm ngoại tuyến:', err);
+      console.warn('Không thể kết nối Worker API hoặc quá hạn (timeout), tự chấm ngoại tuyến:', err);
     }
 
     // Nếu không kết nối được Worker (học ngoại tuyến), fallback chấm cục bộ
@@ -1160,20 +1164,25 @@ export const Exam = {
       totalScore = isDisqualified ? 0.0 : rawScore;
     }
 
-    // Tự động ghi nhận câu thành thạo (Mastered) hoặc câu hay sai (Wrong)
+    // Tự động ghi nhận câu thành thạo (Mastered) hoặc câu hay sai (Wrong) theo lô (1 lần ghi)
+    const correctQuestions = [];
+    const wrongQuestions = [];
     details.forEach(item => {
       const q = this.examQuestions.find(eq => eq.id === item.questionId) || item.question;
       if (q) {
         if (item.isCorrect) {
-          Storage.recordMasteredQuestion(q.id, q.grade, q.topic, q.lesson);
+          correctQuestions.push(q);
         } else {
-          Storage.removeMasteredQuestion(q.id);
-          Storage.recordWrongQuestion(q);
+          wrongQuestions.push(q);
         }
       }
     });
+    if (correctQuestions.length > 0 || wrongQuestions.length > 0) {
+      Storage.recordMasteredAndWrongBatch(correctQuestions, wrongQuestions);
+    }
 
     this.examResult = {
+      _batchRecorded: true,
       id: submissionId || ('exam_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6)),
       title: this.examConfig.title,
       type: this.examConfig.type,

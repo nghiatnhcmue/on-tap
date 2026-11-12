@@ -1368,15 +1368,20 @@ export const Storage = {
       // Tự động ghi nhận chuỗi ngày học tập
       this.recordDailyActivity();
 
-      // Tự động lưu các câu trả lời sai vào Ngân hàng câu hay sai
-      if (Array.isArray(result.details)) {
+      // Tự động lưu các câu trả lời sai vào Ngân hàng câu hay sai theo lô tối ưu
+      if (Array.isArray(result.details) && !result._batchRecorded) {
+        const correctList = [];
+        const wrongList = [];
         result.details.forEach(d => {
           if (!d.isCorrect && d.question) {
-            this.recordWrongQuestion(d.question);
-          } else if (d.isCorrect && d.question?.id) {
-            this.markWrongQuestionResolved(d.question.id);
+            wrongList.push(d.question);
+          } else if (d.isCorrect && (d.question || d.questionId)) {
+            correctList.push(d.question || { id: d.questionId });
           }
         });
+        if (correctList.length > 0 || wrongList.length > 0) {
+          this.recordMasteredAndWrongBatch(correctList, wrongList);
+        }
       }
 
       this.notifyUserProgressChanged();
@@ -1619,6 +1624,60 @@ export const Storage = {
       ids.add(id);
     }
     return ids;
+  },
+
+  recordMasteredAndWrongBatch(correctList = [], wrongList = []) {
+    try {
+      const allMastered = this.getAllMasteredQuestions();
+      let wrongItems = this.getWrongQuestions();
+      const resolvedIds = new Set();
+
+      correctList.forEach(q => {
+        if (!q || !q.id) return;
+        allMastered[q.id] = {
+          masteredAt: new Date().toISOString(),
+          grade: q.grade || null,
+          topic: q.topic || null,
+          lesson: q.lesson || null
+        };
+        resolvedIds.add(q.id);
+      });
+
+      if (resolvedIds.size > 0) {
+        wrongItems = wrongItems.filter(item => !resolvedIds.has(item.id));
+      }
+
+      wrongList.forEach(q => {
+        if (!q || !q.id) return;
+        delete allMastered[q.id];
+        const idx = wrongItems.findIndex(item => item.id === q.id);
+        if (idx >= 0) {
+          wrongItems[idx].wrongCount = (wrongItems[idx].wrongCount || 1) + 1;
+          wrongItems[idx].lastWrongAt = new Date().toISOString();
+        } else {
+          wrongItems.unshift({
+            id: q.id,
+            grade: q.grade,
+            topic: q.topic,
+            lesson: q.lesson,
+            level: q.level,
+            question: q.question,
+            options: q.options,
+            answer: q.answer,
+            wrongCount: 1,
+            lastWrongAt: new Date().toISOString()
+          });
+        }
+      });
+
+      if (wrongItems.length > 200) wrongItems = wrongItems.slice(0, 200);
+
+      localStorage.setItem(STORAGE_KEYS.MASTERED_QUESTIONS, JSON.stringify(allMastered));
+      localStorage.setItem(STORAGE_KEYS.WRONG_QUESTIONS, JSON.stringify(wrongItems));
+      this.notifyUserProgressChanged();
+    } catch (e) {
+      console.warn('Error in recordMasteredAndWrongBatch:', e);
+    }
   },
 
   recordMasteredQuestion(questionId, grade = null, topic = null, lesson = null) {
