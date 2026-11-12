@@ -137,45 +137,53 @@ export const Auth = {
   },
 
   setupAuthGuards() {
-    if (typeof document === 'undefined') return;
+    if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
 
     // 1. Guard form login
     const formLogin = document.getElementById('form-login-direct');
-    if (formLogin && !formLogin.dataset.authGuarded) {
-      formLogin.dataset.authGuarded = 'true';
-      formLogin.addEventListener('submit', (e) => {
-        if (this.isSubmitting) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          this.showToast('Đang xử lý đăng nhập, vui lòng chờ trong giây lát...', 'warning');
-          return;
-        }
-        const idInput = document.getElementById('login-input-identity');
-        if (idInput) idInput.value = idInput.value.trim();
-      }, true);
+    if (formLogin) {
+      if (!formLogin.dataset) formLogin.dataset = {};
+      if (!formLogin.dataset.authGuarded) {
+        formLogin.dataset.authGuarded = 'true';
+        formLogin.addEventListener('submit', (e) => {
+          if (this.isSubmitting) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            this.showToast('Đang xử lý đăng nhập, vui lòng chờ trong giây lát...', 'warning');
+            return;
+          }
+          const idInput = document.getElementById('login-input-identity');
+          if (idInput) idInput.value = idInput.value.trim();
+        }, true);
+      }
     }
 
     // 2. Guard form register
     const formRegister = document.getElementById('form-register-account');
-    if (formRegister && !formRegister.dataset.authGuarded) {
-      formRegister.dataset.authGuarded = 'true';
-      formRegister.addEventListener('submit', (e) => {
-        if (this.isSubmitting) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          this.showToast('Đang xử lý đăng ký, vui lòng chờ trong giây lát...', 'warning');
-          return;
-        }
-        const nameInput = document.getElementById('reg-input-fullname');
-        if (nameInput) nameInput.value = nameInput.value.trim().replace(/\s+/g, ' ');
-        const emailInput = document.getElementById('reg-input-email');
-        if (emailInput) emailInput.value = emailInput.value.trim();
-      }, true);
+    if (formRegister) {
+      if (!formRegister.dataset) formRegister.dataset = {};
+      if (!formRegister.dataset.authGuarded) {
+        formRegister.dataset.authGuarded = 'true';
+        formRegister.addEventListener('submit', (e) => {
+          if (this.isSubmitting) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            this.showToast('Đang xử lý đăng ký, vui lòng chờ trong giây lát...', 'warning');
+            return;
+          }
+          const nameInput = document.getElementById('reg-input-fullname');
+          if (nameInput) nameInput.value = nameInput.value.trim().replace(/\s+/g, ' ');
+          const emailInput = document.getElementById('reg-input-email');
+          if (emailInput) emailInput.value = emailInput.value.trim();
+        }, true);
+      }
     }
 
     // 3. Guard Google Auth buttons
     const googleBtns = document.querySelectorAll('#btn-firebase-google-signin, #btn-firebase-google-signup, [data-trigger-google-firebase]');
     googleBtns.forEach(btn => {
+      if (!btn) return;
+      if (!btn.dataset) btn.dataset = {};
       if (!btn.dataset.authGuarded) {
         btn.dataset.authGuarded = 'true';
         btn.addEventListener('click', (e) => {
