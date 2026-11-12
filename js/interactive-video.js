@@ -10,10 +10,22 @@
  * - HỖ TRỢ THIẾT LẬP CÂU HỎI & MỐC DỪNG (Question & Checkpoint Editor): Cho phép Giáo viên & Admin tạo, sửa, xóa mốc dừng và câu hỏi trực tiếp trên web, tự động đồng bộ đám mây realtime!
  */
 
-import { Storage } from './storage.js?v=20261112_225';
-import { Auth } from './auth.js?v=20261112_225';
-import { escapeHtml } from './utils.js?v=20261112_225';
-import { Proctor } from './proctor.js?v=20261112_225';
+import { Storage } from './storage.js?v=20261112_230';
+import { Auth } from './auth.js?v=20261112_230';
+import { escapeHtml } from './utils.js?v=20261112_230';
+import { Proctor } from './proctor.js?v=20261112_230';
+
+async function getLiveVideo() {
+  if (typeof window !== 'undefined' && window.LiveVideo) return window.LiveVideo;
+  try {
+    const mod = await import('./live-video.js?v=20261112_230');
+    if (typeof window !== 'undefined') window.LiveVideo = mod.LiveVideo;
+    return mod.LiveVideo;
+  } catch (err) {
+    console.error('Không thể nạp module LiveVideo:', err);
+    return null;
+  }
+}
 
 export const InteractiveVideo = {
   container: null,
@@ -739,19 +751,28 @@ export const InteractiveVideo = {
     // Nút Tạo / Vào Phòng Live Video Thời Gian Thực
     const btnCreateLive = document.getElementById('btn-open-create-live-room');
     if (btnCreateLive) {
-      btnCreateLive.onclick = () => {
+      btnCreateLive.onclick = async () => {
         if (!Auth.isTeacher() && !Auth.isAdmin()) {
           alert('Chức năng tạo phòng học video trực tuyến chỉ dành riêng cho Giáo viên (GV) và Quản trị viên (Admin)!\nHọc sinh chỉ có quyền tham gia phòng học do Thầy/Cô cung cấp.');
           return;
         }
-        if (window.LiveVideo) window.LiveVideo.openCreateModal();
+        const lv = await getLiveVideo();
+        if (lv) {
+          if (!lv.manifest && this.manifest) lv.manifest = this.manifest;
+          if (typeof lv.openCreateModal === 'function') {
+            await lv.openCreateModal();
+          }
+        }
       };
     }
 
     const btnJoinLive = document.getElementById('btn-open-join-live-room');
     if (btnJoinLive) {
-      btnJoinLive.onclick = () => {
-        if (window.LiveVideo) window.LiveVideo.openJoinModal();
+      btnJoinLive.onclick = async () => {
+        const lv = await getLiveVideo();
+        if (lv && typeof lv.openJoinModal === 'function') {
+          lv.openJoinModal();
+        }
       };
     }
 

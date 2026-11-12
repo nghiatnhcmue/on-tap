@@ -10,13 +10,13 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261112_225';
-import { authedFetch } from './api.js?v=20261112_225';
-import { Storage } from './storage.js?v=20261112_225';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261112_225';
-import { escapeHtml } from './utils.js?v=20261112_225';
-import { Proctor } from './proctor.js?v=20261112_225';
-import { Gradebook } from './gradebook.js?v=20261112_225';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261112_230';
+import { authedFetch } from './api.js?v=20261112_230';
+import { Storage } from './storage.js?v=20261112_230';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261112_230';
+import { escapeHtml } from './utils.js?v=20261112_230';
+import { Proctor } from './proctor.js?v=20261112_230';
+import { Gradebook } from './gradebook.js?v=20261112_230';
 
 export const LiveVideo = {
   manifest: null,
@@ -4357,7 +4357,7 @@ export const LiveVideo = {
     const div = document.createElement('div');
     div.innerHTML = `
       <!-- MODAL TẠO PHÒNG LIVE VIDEO DÀNH CHO GIÁO VIÊN -->
-      <div id="modal-create-live-video-room" data-role-req="teacher" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+      <div id="modal-create-live-video-room" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 hidden">
         <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 animate-scaleUp max-h-[92vh] overflow-y-auto">
           
           <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
