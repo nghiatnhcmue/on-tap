@@ -3,7 +3,7 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261112_285';
+import { Storage, CURRENT_BUILD, getCachedJson, setCachedJson } from './storage.js?v=20261112_285';
 import { getAvatarDataUrl } from './avatars.js?v=20261112_285';
 import { authedFetch } from './api.js?v=20261112_285';
 import { Practice } from './practice.js?v=20261112_285';
@@ -22,40 +22,41 @@ import { CloudSync } from './cloud-sync.js?v=20261112_285';
 // Dynamic loaders cho các module đồ sộ (chỉ tải khi mở tính năng tương ứng)
 async function getAdminManager() {
   if (window.AdminManager) return window.AdminManager;
-  const mod = await import('./admin-manager.js?v=20261112_285');
+  const mod = await import(`./admin-manager.js?v=${CURRENT_BUILD}`);
   window.AdminManager = mod.AdminManager;
   return mod.AdminManager;
 }
 
 async function getInteractiveVideo() {
   if (window.InteractiveVideo) return window.InteractiveVideo;
-  const mod = await import('./interactive-video.js?v=20261112_285');
+  const mod = await import(`./interactive-video.js?v=${CURRENT_BUILD}`);
   window.InteractiveVideo = mod.InteractiveVideo;
   return mod.InteractiveVideo;
 }
 
 async function getLiveVideo() {
   if (window.LiveVideo) return window.LiveVideo;
-  const mod = await import('./live-video.js?v=20261112_285');
+  const mod = await import(`./live-video.js?v=${CURRENT_BUILD}`);
   window.LiveVideo = mod.LiveVideo;
   return mod.LiveVideo;
 }
 
 async function getArena() {
   if (window.Arena) return window.Arena;
-  const mod = await import('./arena.js?v=20261112_285');
+  const mod = await import(`./arena.js?v=${CURRENT_BUILD}`);
   window.Arena = mod.default || mod.Arena;
   return window.Arena;
 }
 
 async function getRandomPicker() {
   if (window.RandomPicker) return window.RandomPicker;
-  const mod = await import('./random-picker.js?v=20261112_285');
+  const mod = await import(`./random-picker.js?v=${CURRENT_BUILD}`);
   window.RandomPicker = mod.default || mod.RandomPicker;
   return window.RandomPicker;
 }
 
 if (typeof window !== 'undefined') {
+  window.CURRENT_BUILD = CURRENT_BUILD;
   window.Auth = Auth;
   window.Storage = Storage;
   window.Practice = Practice;
@@ -219,13 +220,28 @@ class App {
     }
   }
 
-  // --- DATA LOADING ---
+  // --- DATA LOADING & CLIENT PERSISTENT CACHE ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261112_285');
+      // 1. Kiểm tra cache IndexedDB trước (0ms latency, zero network bandwidth)
+      const cached = await Storage.getCachedJson('manifest', CURRENT_BUILD);
+      if (cached && typeof cached === 'object' && cached.grades) {
+        this.manifest = cached;
+        this.updateManifestBadges();
+        if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
+        return this.manifest;
+      }
+
+      // 2. Cache miss: tải qua mạng với cache-busting chuẩn
+      const res = await fetch(`data/manifest.json?v=${CURRENT_BUILD}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
+
+      // 3. Lưu vào IndexedDB cache chạy ngầm (không chặn flow)
+      Storage.setCachedJson('manifest', CURRENT_BUILD, this.manifest).catch(() => {});
+      return this.manifest;
     } catch (e) {
       console.error('Không thể nạp file manifest.json', e);
     }
@@ -233,19 +249,48 @@ class App {
 
   async loadGradeData(grade) {
     if (!this.rawGradeCache) this.rawGradeCache = {};
-    if (this.rawGradeCache[grade]) {
-      const customized = Storage.applyCustomizations(grade, this.rawGradeCache[grade]);
+    const cleanGrade = String(grade).replace(/^grade_/, '').replace(/\.json$/, '');
+    if (this.rawGradeCache[grade] || this.rawGradeCache[cleanGrade]) {
+      const raw = this.rawGradeCache[grade] || this.rawGradeCache[cleanGrade];
+      const customized = Storage.applyCustomizations(cleanGrade, raw);
       this.gradeCache[grade] = customized;
+      this.gradeCache[cleanGrade] = customized;
       return customized;
     }
+
+    const cacheKey = `grade_${cleanGrade}`;
+
+    // 1. Kiểm tra cache IndexedDB trước (0ms latency, zero network bandwidth!)
+    try {
+      const cached = await Storage.getCachedJson(cacheKey, CURRENT_BUILD);
+      if (cached && Array.isArray(cached) && cached.length > 0) {
+        this.rawGradeCache[grade] = cached;
+        this.rawGradeCache[cleanGrade] = cached;
+        const customized = Storage.applyCustomizations(cleanGrade, cached);
+        this.gradeCache[grade] = customized;
+        this.gradeCache[cleanGrade] = customized;
+        return customized;
+      }
+    } catch (cacheErr) {
+      console.warn(`[Cache] Không thể đọc cache IndexedDB cho ${cacheKey}:`, cacheErr);
+    }
+
+    // 2. Cache miss: hiển thị loading và tải qua mạng với cache-busting
     this.showGlobalLoading(true);
     try {
-      const res = await fetch(`data/grade_${grade}.json`);
+      const res = await fetch(`data/grade_${cleanGrade}.json?v=${CURRENT_BUILD}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       this.rawGradeCache[grade] = data;
+      this.rawGradeCache[cleanGrade] = data;
       this.showGlobalLoading(false);
-      const customized = Storage.applyCustomizations(grade, data);
+
+      // Lưu vào cache IndexedDB chạy ngầm (không chặn flow)
+      Storage.setCachedJson(cacheKey, CURRENT_BUILD, data).catch(() => {});
+
+      const customized = Storage.applyCustomizations(cleanGrade, data);
       this.gradeCache[grade] = customized;
+      this.gradeCache[cleanGrade] = customized;
       return customized;
     } catch (e) {
       this.showGlobalLoading(false);

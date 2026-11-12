@@ -76,12 +76,250 @@ export const DEFAULT_SCHOOLS_DATA = {
 
 export const DEFAULT_SUBJECTS = ['Tin học', 'Chuyên đề Tin học', 'Công nghệ'];
 
+// ============================================================================
+// INDEXEDDB CLIENT-SIDE CACHE CHO TÀI NGUYÊN LỚN (JSON ASSETS)
+// Tối ưu hóa băng thông trường học: grade_10.json, grade_11.json, grade_12.json, manifest.json
+// Cache tồn tại lâu dài, tự động vô hiệu khi có bản build mới (CURRENT_BUILD)
+// ============================================================================
+
+export const CURRENT_BUILD = '20261112_285';
+
+const IDB_CACHE_NAME = 'tinhochub_cache';
+const IDB_CACHE_VERSION = 1;
+const IDB_CACHE_STORE = 'json_cache';
+
+let _idbPromise = null;
+
+function getIdbFactory() {
+  try {
+    if (typeof window !== 'undefined' && window.indexedDB) {
+      return window.indexedDB;
+    }
+    if (typeof indexedDB !== 'undefined') {
+      return indexedDB;
+    }
+  } catch (_) {}
+  return null;
+}
+
+function getIdb() {
+  const idbFactory = getIdbFactory();
+  if (!idbFactory) {
+    return Promise.resolve(null);
+  }
+
+  if (_idbPromise) {
+    return _idbPromise;
+  }
+
+  _idbPromise = new Promise((resolve) => {
+    try {
+      const request = idbFactory.open(IDB_CACHE_NAME, IDB_CACHE_VERSION);
+
+      request.onupgradeneeded = (event) => {
+        try {
+          const db = event.target.result;
+          if (!db.objectStoreNames.contains(IDB_CACHE_STORE)) {
+            db.createObjectStore(IDB_CACHE_STORE, { keyPath: 'key' });
+          }
+        } catch (upgradeErr) {
+          console.warn('[IndexedDB Cache] Lỗi tạo objectStore:', upgradeErr);
+        }
+      };
+
+      request.onsuccess = (event) => {
+        const db = event.target.result;
+        db.onversionchange = () => {
+          try { db.close(); } catch (_) {}
+          _idbPromise = null;
+        };
+        db.onclose = () => {
+          _idbPromise = null;
+        };
+        resolve(db);
+      };
+
+      request.onerror = (err) => {
+        console.warn('[IndexedDB Cache] Không thể mở IndexedDB (chế độ ẩn danh hoặc bị chặn):', err);
+        _idbPromise = null;
+        resolve(null);
+      };
+
+      request.onblocked = () => {
+        console.warn('[IndexedDB Cache] Kết nối IndexedDB bị chặn bởi phiên làm việc khác');
+        _idbPromise = null;
+        resolve(null);
+      };
+    } catch (e) {
+      console.warn('[IndexedDB Cache] Ngoại lệ khi mở IndexedDB:', e);
+      _idbPromise = null;
+      resolve(null);
+    }
+  });
+
+  return _idbPromise;
+}
+
+/**
+ * Đọc dữ liệu JSON từ IndexedDB cache.
+ * Trả về dữ liệu nếu tìm thấy và phiên bản khớp với expectedVersion.
+ * Trả về null nếu không có, sai phiên bản, hoặc IndexedDB bị lỗi/bị chặn.
+ * @param {string} key - Tên khóa tài sản (vd: 'grade_10', 'manifest')
+ * @param {string} [expectedVersion] - Phiên bản mong muốn (vd: CURRENT_BUILD '20261112_285')
+ * @returns {Promise<any|null>}
+ */
+export async function getCachedJson(key, expectedVersion) {
+  if (!key) return null;
+  const cleanKey = String(key).trim();
+  try {
+    const db = await getIdb();
+    if (!db) return null;
+
+    return await new Promise((resolve) => {
+      try {
+        const tx = db.transaction(IDB_CACHE_STORE, 'readonly');
+        tx.onerror = () => resolve(null);
+        tx.onabort = () => resolve(null);
+
+        const store = tx.objectStore(IDB_CACHE_STORE);
+        const req = store.get(cleanKey);
+
+        const checkRecord = (record, targetKey) => {
+          if (!record || record.data === undefined || record.data === null) {
+            return false;
+          }
+          if (expectedVersion && record.version !== expectedVersion) {
+            // Bản ghi cũ: kích hoạt xóa ngầm để dọn dẹp bộ nhớ
+            try {
+              const delTx = db.transaction(IDB_CACHE_STORE, 'readwrite');
+              delTx.objectStore(IDB_CACHE_STORE).delete(targetKey);
+            } catch (_) {}
+            return false;
+          }
+          return true;
+        };
+
+        req.onsuccess = () => {
+          const record = req.result;
+          if (checkRecord(record, cleanKey)) {
+            return resolve(record.data);
+          }
+          // Thử key phụ tương thích (vd: 'grade_10.json' <-> 'grade_10')
+          const altKey = cleanKey.endsWith('.json')
+            ? cleanKey.replace(/\.json$/i, '')
+            : `${cleanKey}.json`;
+          const altReq = store.get(altKey);
+          altReq.onsuccess = () => {
+            const altRecord = altReq.result;
+            if (checkRecord(altRecord, altKey)) {
+              return resolve(altRecord.data);
+            }
+            resolve(null);
+          };
+          altReq.onerror = () => resolve(null);
+        };
+
+        req.onerror = () => resolve(null);
+      } catch (txErr) {
+        _idbPromise = null;
+        resolve(null);
+      }
+    });
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Lưu dữ liệu JSON vào IndexedDB cache kèm phiên bản và nhãn thời gian.
+ * @param {string} key - Tên khóa tài sản (vd: 'grade_10', 'manifest')
+ * @param {string} version - Phiên bản hiện tại (vd: CURRENT_BUILD '20261112_285')
+ * @param {any} data - Dữ liệu JSON cần cache
+ * @returns {Promise<boolean>} Trả về true nếu thành công, false nếu thất bại/bị chặn
+ */
+export async function setCachedJson(key, version, data) {
+  if (!key || data === undefined || data === null) return false;
+  const cleanKey = String(key).trim();
+  try {
+    const db = await getIdb();
+    if (!db) return false;
+
+    return await new Promise((resolve) => {
+      try {
+        const tx = db.transaction(IDB_CACHE_STORE, 'readwrite');
+        tx.onerror = () => resolve(false);
+        tx.onabort = () => resolve(false);
+
+        const store = tx.objectStore(IDB_CACHE_STORE);
+        const record = {
+          key: cleanKey,
+          version: String(version || ''),
+          data,
+          timestamp: Date.now()
+        };
+        const req = store.put(record);
+
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => resolve(false);
+      } catch (txErr) {
+        _idbPromise = null;
+        resolve(false);
+      }
+    });
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * Xóa cache JSON cụ thể hoặc toàn bộ kho cache IndexedDB
+ * @param {string} [key] - Khóa cần xóa, để trống nếu xóa toàn bộ
+ * @returns {Promise<boolean>}
+ */
+export async function clearJsonCache(key) {
+  try {
+    const db = await getIdb();
+    if (!db) return false;
+
+    return await new Promise((resolve) => {
+      try {
+        const tx = db.transaction(IDB_CACHE_STORE, 'readwrite');
+        tx.onerror = () => resolve(false);
+        tx.onabort = () => resolve(false);
+
+        const store = tx.objectStore(IDB_CACHE_STORE);
+        const req = key ? store.delete(String(key).trim()) : store.clear();
+
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => resolve(false);
+      } catch (txErr) {
+        _idbPromise = null;
+        resolve(false);
+      }
+    });
+  } catch (e) {
+    return false;
+  }
+}
 
 export const Storage = {
   cloudSync: null,
 
   getCloudSync() {
     return this.cloudSync || (typeof window !== 'undefined' ? window.CloudSync : null);
+  },
+
+  // --- CLIENT-SIDE INDEXEDDB CACHE CHO JSON ASSETS ---
+  getCachedJson(key, expectedVersion) {
+    return getCachedJson(key, expectedVersion);
+  },
+
+  setCachedJson(key, version, data) {
+    return setCachedJson(key, version, data);
+  },
+
+  clearJsonCache(key) {
+    return clearJsonCache(key);
   },
 
   // --- CẤU HÌNH VIDEO BÀI GIẢNG & ARCHIVE.ORG S3 ---
