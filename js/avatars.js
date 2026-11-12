@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TinHocHub - Avatar Studio (Linh Thú Blooks vẽ bằng SVG thuần)
  * Mỗi nhân vật được ghép từ các bộ phận vector (thân, tai, mắt, miệng, hoa văn, phụ kiện)
  * => nét sắc ở mọi kích thước, không cần tải ảnh ngoài, nhẹ và đồng bộ phong cách.

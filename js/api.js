@@ -1,4 +1,4 @@
-/**
+﻿/**
  * js/api.js - Tầng mạng bảo mật cho TinHocHub (Firebase Auth Token Helper)
  * Tự động đính kèm Firebase ID Token vào mọi request gửi tới Firebase Realtime Database
  * Tuân thủ chuẩn ES Modules thuần.

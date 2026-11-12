@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TinHocHub - Decoupled Game Engine & Strategy Adapters
  * Architecture: Pluggable Game Modes over Decoupled Question Sets
  * Strictly separates educational data (question banks/sessions) from gamification layers.

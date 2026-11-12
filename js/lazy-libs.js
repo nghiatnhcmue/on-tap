@@ -1,4 +1,4 @@
-/**
+﻿/**
  * js/lazy-libs.js
  * Quản lý tải trễ (lazy-load) theo nhu cầu các thư viện bên ngoài nặng
  * (SheetJS ~276KB, Mammoth ~117KB) để tối ưu hóa First Load cho học sinh.

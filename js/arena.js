@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TinHocHub - Arena: Đấu Trường Game Trí Tuệ (Blooket & Wayground Style + LMS Chỉnh Chu)
  * Kiến trúc Pluggable Game Modes over Decoupled Question Sets:
  * Tách biệt hoàn toàn ngân hàng câu hỏi giáo dục khỏi lớp cơ chế gamification.
@@ -11,12 +11,12 @@ import defaultGameEngine, {
   SpeedRaceHandler,
   BossRaidHandler,
   ClassicKahootHandler
-} from './game-engine.js?v=20261112_265';
-import { Storage } from './storage.js?v=20261112_265';
-import { authedFetch } from './api.js?v=20261112_265';
-import { Auth } from './auth.js?v=20261112_265';
-import { CloudSync } from './cloud-sync.js?v=20261112_265';
-import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261112_265';
+} from './game-engine.js?v=20261112_270';
+import { Storage } from './storage.js?v=20261112_270';
+import { authedFetch } from './api.js?v=20261112_270';
+import { Auth } from './auth.js?v=20261112_270';
+import { CloudSync } from './cloud-sync.js?v=20261112_270';
+import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261112_270';
 import {
   AVATARS,
   AVATAR_CATEGORIES,
@@ -25,7 +25,7 @@ import {
   renderAvatarSVG,
   getAvatar,
   randomAvatarId
-} from './avatars.js?v=20261112_265';
+} from './avatars.js?v=20261112_270';
 
 // Định nghĩa an toàn tuyệt đối cho hàm escapeHtml trong scope của arena.js
 function escapeHtml(str) {

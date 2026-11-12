@@ -1,4 +1,4 @@
-/**
+﻿/**
  * tinhoc-hub: Utilities
  * Hàm tiện ích xử lý chuỗi, an toàn HTML cho môn Tin học (HTML, code, toán tử so sánh)
  */

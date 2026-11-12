@@ -1,12 +1,12 @@
-import { ensureXLSX, ensureMammoth } from './lazy-libs.js?v=20261112_265';
+﻿import { ensureXLSX, ensureMammoth } from './lazy-libs.js?v=20261112_270';
 /**
  * TIN HỌC HUB - EXAM ROOMS & ASSIGNMENT CONTROLLER
  * Quản lý giao đề thi theo khung giờ, trường học, lớp học, mật khẩu và chống gian lận cho Giáo viên & Admin
  */
 
-import { Storage } from './storage.js?v=20261112_265';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261112_265';
-import { escapeHtml } from './utils.js?v=20261112_265';
+import { Storage } from './storage.js?v=20261112_270';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261112_270';
+import { escapeHtml } from './utils.js?v=20261112_270';
 
 export const ExamRooms = {
   container: null,

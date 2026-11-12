@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TinHocHub - RandomPicker (Bộ Công Cụ Random & 9 Mini-Game Lớp Học Đỉnh Cao)
  * Tích hợp 9 tựa game ngẫu nhiên phục vụ giảng dạy, gọi học sinh & chia nhóm:
  * 1. 🦆 Đua Vịt Đường Sông (Duck Race Track with SVG Ducks & Live Commentary)
@@ -12,9 +12,9 @@
  * 9. 👥 Chia Nhóm Tự Động (Group / Team Generator with Random Mascot Names)
  */
 
-import { Storage } from './storage.js?v=20261112_265';
-import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261112_265';
-import { AVATARS, renderAvatar } from './avatars.js?v=20261112_265';
+import { Storage } from './storage.js?v=20261112_270';
+import { escapeHtml as importedEscapeHtml } from './utils.js?v=20261112_270';
+import { AVATARS, renderAvatar } from './avatars.js?v=20261112_270';
 
 function escapeHtml(str) {
   if (typeof importedEscapeHtml === 'function') return importedEscapeHtml(str);

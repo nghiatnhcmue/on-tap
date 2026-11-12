@@ -1,9 +1,9 @@
-/**
+﻿/**
  * tinhoc-hub: Print & PDF Generator
  * Tạo đề thi in ấn chuẩn A4 kèm phiếu đáp án dành cho giáo viên và học sinh
  */
 
-import { escapeHtml } from './utils.js?v=20261112_265';
+import { escapeHtml } from './utils.js?v=20261112_270';
 
 export const PrintManager = {
   generatePrintView(options) {

@@ -1,13 +1,13 @@
-/**
+﻿/**
  * tinhoc-hub: Auth & User Management (Firebase Google Authentication)
  * Quản lý xác thực tài khoản Google trực tiếp qua Google Firebase Authentication.
  * Hỗ trợ: Đăng nhập Google Popup, Đồng bộ Firebase Realtime Database, Hồ sơ học sinh.
  */
 
-import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261112_265';
-import { CloudSync } from './cloud-sync.js?v=20261112_265';
-import { getAvatarDataUrl } from './avatars.js?v=20261112_265';
-import { escapeHtml } from './utils.js?v=20261112_265';
+import { Storage, DEFAULT_FIREBASE_API_KEY } from './storage.js?v=20261112_270';
+import { CloudSync } from './cloud-sync.js?v=20261112_270';
+import { getAvatarDataUrl } from './avatars.js?v=20261112_270';
+import { escapeHtml } from './utils.js?v=20261112_270';
 
 const AUTH_STORAGE_KEY = 'tinhoc_user';
 

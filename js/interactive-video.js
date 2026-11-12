@@ -1,4 +1,4 @@
-/**
+﻿/**
  * tinhoc-hub: Interactive Video Module (js/interactive-video.js)
  * Học Tin học qua Video Bài Giảng Tương Tác Đa Nền Tảng:
  * - Tự động dừng tại các mốc thời gian trong ngân hàng đề mà không bị bỏ sót frame.
@@ -10,15 +10,15 @@
  * - HỖ TRỢ THIẾT LẬP CÂU HỎI & MỐC DỪNG (Question & Checkpoint Editor): Cho phép Giáo viên & Admin tạo, sửa, xóa mốc dừng và câu hỏi trực tiếp trên web, tự động đồng bộ đám mây realtime!
  */
 
-import { Storage } from './storage.js?v=20261112_265';
-import { Auth } from './auth.js?v=20261112_265';
-import { escapeHtml } from './utils.js?v=20261112_265';
-import { Proctor } from './proctor.js?v=20261112_265';
+import { Storage } from './storage.js?v=20261112_270';
+import { Auth } from './auth.js?v=20261112_270';
+import { escapeHtml } from './utils.js?v=20261112_270';
+import { Proctor } from './proctor.js?v=20261112_270';
 
 async function getLiveVideo() {
   if (typeof window !== 'undefined' && window.LiveVideo) return window.LiveVideo;
   try {
-    const mod = await import('./live-video.js?v=20261112_265');
+    const mod = await import('./live-video.js?v=20261112_270');
     if (typeof window !== 'undefined') window.LiveVideo = mod.LiveVideo;
     return mod.LiveVideo;
   } catch (err) {
