@@ -1162,8 +1162,8 @@ export const InteractiveVideo = {
           <!-- Sân Khấu Phát Video Toàn Khung (100% Full-Width Cinema Stage) -->
           <div id="interactive-player-stage" class="relative w-full aspect-video lg:max-h-[76vh] rounded-3xl overflow-hidden bg-slate-950 shadow-2xl border border-slate-800 flex flex-col justify-end group select-none mx-auto">
             
-            <!-- Thẻ Video HTML5 (Bật preload="auto" để nạp trước luồng dữ liệu mượt mà) -->
-            <video id="interactive-video-elem" class="absolute inset-0 w-full h-full object-contain cursor-pointer" playsinline preload="auto" src="${escapeHtml(videoUrl)}">
+            <!-- Thẻ Video HTML5 (Dùng preload="metadata" để tối ưu băng thông đường truyền, tránh nạp trước toàn bộ MP4) -->
+            <video id="interactive-video-elem" class="absolute inset-0 w-full h-full object-contain cursor-pointer" playsinline preload="metadata" src="${escapeHtml(videoUrl)}">
               Trình duyệt không hỗ trợ thẻ video HTML5.
             </video>
 
