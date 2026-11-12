@@ -1,4 +1,4 @@
-import { authedFetch } from './api.js?v=20261112_255';
+import { authedFetch } from './api.js?v=20261112_260';
 /**
  * tinhoc-hub: Admin Manager (Quản Trị Hệ Thống)
  * Chỉ dành riêng cho Quản trị viên (Admin).
@@ -6,10 +6,10 @@ import { authedFetch } from './api.js?v=20261112_255';
  * Cơ sở dữ liệu đám mây, Tải lên Video bài giảng Archive.org S3, Dọn dẹp/Sao lưu.
  */
 
-import { Storage } from './storage.js?v=20261112_255';
-import { Auth } from './auth.js?v=20261112_255';
-import { escapeHtml } from './utils.js?v=20261112_255';
-import { CloudSync, DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261112_255';
+import { Storage } from './storage.js?v=20261112_260';
+import { Auth } from './auth.js?v=20261112_260';
+import { escapeHtml } from './utils.js?v=20261112_260';
+import { CloudSync, DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261112_260';
 
 export const AdminManager = {
   container: null,

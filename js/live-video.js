@@ -10,13 +10,13 @@
  * - Tổng kết buổi học: Bục vinh danh Podium Top 1-2-3, lưu vào Sổ điểm lớp (Gradebook) và xuất Excel BOM tiếng Việt.
  */
 
-import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261112_255';
-import { authedFetch } from './api.js?v=20261112_255';
-import { Storage } from './storage.js?v=20261112_255';
-import { Auth, SCHOOLS_DATA } from './auth.js?v=20261112_255';
-import { escapeHtml } from './utils.js?v=20261112_255';
-import { Proctor } from './proctor.js?v=20261112_255';
-import { Gradebook } from './gradebook.js?v=20261112_255';
+import { DEFAULT_FIREBASE_DB_URL } from './cloud-sync.js?v=20261112_260';
+import { authedFetch } from './api.js?v=20261112_260';
+import { Storage } from './storage.js?v=20261112_260';
+import { Auth, SCHOOLS_DATA } from './auth.js?v=20261112_260';
+import { escapeHtml } from './utils.js?v=20261112_260';
+import { Proctor } from './proctor.js?v=20261112_260';
+import { Gradebook } from './gradebook.js?v=20261112_260';
 
 export const LiveVideo = {
   manifest: null,
@@ -302,17 +302,35 @@ export const LiveVideo = {
 
       const manifest = this.manifest || window.App?.manifest || window.AppInstance?.manifest;
       const gData = manifest?.grades?.[curGrade]?.interactive_videos || {};
+      const allGradeQ = (window.App && window.App.gradeCache?.[curGrade]) || [];
       const lessonsList = [];
 
       Object.keys(gData).forEach(vname => {
         const v = gData[vname];
         const videoFileName = v.video || vname;
         const cps = Array.isArray(v.checkpoints) ? v.checkpoints : [];
+        const customQ = Storage.getCustomVideoQuestions(curGrade, videoFileName);
+        
+        let qCount = 0;
+        if (customQ && Array.isArray(customQ) && customQ.length > 0) {
+          qCount = customQ.filter(q => q.video_stop !== null && q.video_stop !== undefined).length;
+        } else if (allGradeQ && allGradeQ.length > 0) {
+          qCount = allGradeQ.filter(q => q.video && q.video.toLowerCase() === videoFileName.toLowerCase() && q.video_stop !== null && q.video_stop !== undefined).length;
+        }
+        if (!qCount && cps.length > 0) {
+          qCount = cps.length * 4;
+        }
+
+        const milestones = cps.length;
+        const qPerMilestone = milestones > 0 ? Math.round(qCount / milestones) : 4;
+
         lessonsList.push({
           topic: v.topic || '',
           lesson: v.lesson || vname,
           video: videoFileName,
-          checkpoints: cps.length
+          milestones: milestones,
+          totalQuestions: qCount,
+          qPerMilestone: qPerMilestone
         });
       });
 
@@ -329,7 +347,7 @@ export const LiveVideo = {
           }
           html += `
             <option value="${escapeHtml(l.video)}" data-topic="${escapeHtml(l.topic)}" data-lesson="${escapeHtml(l.lesson)}">
-              ${escapeHtml(l.lesson)} (${l.checkpoints} câu hỏi dừng)
+              ${escapeHtml(l.lesson)} (${l.milestones} mốc dừng • ${l.qPerMilestone} câu/mốc = ${l.totalQuestions} câu)
             </option>
           `;
         });

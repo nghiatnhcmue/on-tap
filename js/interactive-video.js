@@ -10,15 +10,15 @@
  * - HỖ TRỢ THIẾT LẬP CÂU HỎI & MỐC DỪNG (Question & Checkpoint Editor): Cho phép Giáo viên & Admin tạo, sửa, xóa mốc dừng và câu hỏi trực tiếp trên web, tự động đồng bộ đám mây realtime!
  */
 
-import { Storage } from './storage.js?v=20261112_255';
-import { Auth } from './auth.js?v=20261112_255';
-import { escapeHtml } from './utils.js?v=20261112_255';
-import { Proctor } from './proctor.js?v=20261112_255';
+import { Storage } from './storage.js?v=20261112_260';
+import { Auth } from './auth.js?v=20261112_260';
+import { escapeHtml } from './utils.js?v=20261112_260';
+import { Proctor } from './proctor.js?v=20261112_260';
 
 async function getLiveVideo() {
   if (typeof window !== 'undefined' && window.LiveVideo) return window.LiveVideo;
   try {
-    const mod = await import('./live-video.js?v=20261112_255');
+    const mod = await import('./live-video.js?v=20261112_260');
     if (typeof window !== 'undefined') window.LiveVideo = mod.LiveVideo;
     return mod.LiveVideo;
   } catch (err) {
@@ -118,6 +118,7 @@ export const InteractiveVideo = {
   getLessonVideosForCurrentGrade() {
     const list = [];
     const gData = this.manifest?.grades?.[this.currentGrade]?.interactive_videos || {};
+    const allGradeQ = (window.App && window.App.gradeCache?.[this.currentGrade]) || [];
     
     Object.keys(gData).forEach(vname => {
       const v = gData[vname];
@@ -126,8 +127,15 @@ export const InteractiveVideo = {
       // Kiểm tra xem giáo viên đã tạo câu hỏi tùy biến cho bài này chưa
       const customQ = Storage.getCustomVideoQuestions(this.currentGrade, videoFileName);
       let cps = Array.isArray(v.checkpoints) ? [...v.checkpoints] : [];
-      if (customQ && Array.isArray(customQ)) {
+      let totalQ = 0;
+      if (customQ && Array.isArray(customQ) && customQ.length > 0) {
         cps = Array.from(new Set(customQ.map(q => Math.floor(Number(q.video_stop))))).sort((a, b) => a - b);
+        totalQ = customQ.length;
+      } else if (allGradeQ && allGradeQ.length > 0) {
+        totalQ = allGradeQ.filter(q => q.video && q.video.toLowerCase() === videoFileName.toLowerCase() && q.video_stop !== null && q.video_stop !== undefined).length;
+      }
+      if (!totalQ && cps.length > 0) {
+        totalQ = cps.length * 4;
       }
 
       const hasLocal = !!(this.localVideoMap[videoFileName] || this.localVideoMap[videoFileName.toLowerCase()]);
@@ -139,6 +147,7 @@ export const InteractiveVideo = {
         lesson: v.lesson || '',
         topic: v.topic || '',
         checkpoints: cps,
+        totalQuestions: totalQ,
         hasCustomQuestions: !!customQ,
         hasLocalVideo: hasLocal,
         hasCustomUrl: hasCustomUrl
@@ -609,7 +618,7 @@ export const InteractiveVideo = {
                   <div class="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-xs">
                     <div class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-bold">
                       <i class="fa-solid fa-bullseye text-rose-500"></i>
-                      <span>${v.checkpoints.length} điểm dừng</span>
+                      <span>${v.checkpoints.length} mốc dừng (${v.totalQuestions || (v.checkpoints.length * 4)} câu hỏi)</span>
                     </div>
 
                     ${hasCompleted ? `
@@ -1115,7 +1124,7 @@ export const InteractiveVideo = {
             <!-- Tiến độ mốc dừng -->
             <div class="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-xs font-bold border border-indigo-200 dark:border-indigo-800 flex items-center gap-1.5">
               <i class="fa-solid fa-bullseye text-rose-500"></i>
-              <span id="player-checkpoints-status">0 / ${sortedCheckpoints.length} mốc</span>
+              <span id="player-checkpoints-status">0 / ${sortedCheckpoints.length} mốc (${this.totalQuestionsInLesson} câu)</span>
             </div>
 
             <!-- Nút Toàn Màn Hình Rạp Chiếu -->
@@ -1257,7 +1266,7 @@ export const InteractiveVideo = {
                   <i class="fa-solid fa-route text-blue-600"></i> Lộ Trình Điểm Dừng
                 </h4>
                 <span class="text-[11px] font-bold text-slate-400">
-                  ${sortedCheckpoints.length} mốc kiến thức
+                  ${sortedCheckpoints.length} mốc (${this.totalQuestionsInLesson} câu hỏi)
                 </span>
               </div>
               <div id="player-roadmap-steps-container" class="space-y-2.5 max-h-60 overflow-y-auto pr-1">
@@ -2870,7 +2879,7 @@ export const InteractiveVideo = {
     const statusEl = document.getElementById('player-checkpoints-status');
 
     if (statusEl) {
-      statusEl.textContent = `${this.completedCheckpoints.size} / ${sortedSecs.length} điểm dừng`;
+      statusEl.textContent = `${this.completedCheckpoints.size} / ${sortedSecs.length} mốc (${this.totalQuestionsInLesson || (sortedSecs.length * 4)} câu)`;
     }
 
     if (chipsContainer) {

@@ -3,54 +3,54 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage } from './storage.js?v=20261112_255';
-import { getAvatarDataUrl } from './avatars.js?v=20261112_255';
-import { authedFetch } from './api.js?v=20261112_255';
-import { Practice } from './practice.js?v=20261112_255';
-import { Exam } from './exam.js?v=20261112_255';
-import { Search } from './search.js?v=20261112_255';
-import { PrintManager } from './print.js?v=20261112_255';
-import { Auth } from './auth.js?v=20261112_255';
-import { escapeHtml } from './utils.js?v=20261112_255';
-import { Leaderboard } from './leaderboard.js?v=20261112_255';
-import { QuestionsManager } from './questions-manager.js?v=20261112_255';
-import { ExamRooms } from './exam-rooms.js?v=20261112_255';
-import { Proctor } from './proctor.js?v=20261112_255';
-import { Gradebook } from './gradebook.js?v=20261112_255';
-import { CloudSync } from './cloud-sync.js?v=20261112_255';
+import { Storage } from './storage.js?v=20261112_260';
+import { getAvatarDataUrl } from './avatars.js?v=20261112_260';
+import { authedFetch } from './api.js?v=20261112_260';
+import { Practice } from './practice.js?v=20261112_260';
+import { Exam } from './exam.js?v=20261112_260';
+import { Search } from './search.js?v=20261112_260';
+import { PrintManager } from './print.js?v=20261112_260';
+import { Auth } from './auth.js?v=20261112_260';
+import { escapeHtml } from './utils.js?v=20261112_260';
+import { Leaderboard } from './leaderboard.js?v=20261112_260';
+import { QuestionsManager } from './questions-manager.js?v=20261112_260';
+import { ExamRooms } from './exam-rooms.js?v=20261112_260';
+import { Proctor } from './proctor.js?v=20261112_260';
+import { Gradebook } from './gradebook.js?v=20261112_260';
+import { CloudSync } from './cloud-sync.js?v=20261112_260';
 
 // Dynamic loaders cho các module đồ sộ (chỉ tải khi mở tính năng tương ứng)
 async function getAdminManager() {
   if (window.AdminManager) return window.AdminManager;
-  const mod = await import('./admin-manager.js?v=20261112_255');
+  const mod = await import('./admin-manager.js?v=20261112_260');
   window.AdminManager = mod.AdminManager;
   return mod.AdminManager;
 }
 
 async function getInteractiveVideo() {
   if (window.InteractiveVideo) return window.InteractiveVideo;
-  const mod = await import('./interactive-video.js?v=20261112_255');
+  const mod = await import('./interactive-video.js?v=20261112_260');
   window.InteractiveVideo = mod.InteractiveVideo;
   return mod.InteractiveVideo;
 }
 
 async function getLiveVideo() {
   if (window.LiveVideo) return window.LiveVideo;
-  const mod = await import('./live-video.js?v=20261112_255');
+  const mod = await import('./live-video.js?v=20261112_260');
   window.LiveVideo = mod.LiveVideo;
   return mod.LiveVideo;
 }
 
 async function getArena() {
   if (window.Arena) return window.Arena;
-  const mod = await import('./arena.js?v=20261112_255');
+  const mod = await import('./arena.js?v=20261112_260');
   window.Arena = mod.default || mod.Arena;
   return window.Arena;
 }
 
 async function getRandomPicker() {
   if (window.RandomPicker) return window.RandomPicker;
-  const mod = await import('./random-picker.js?v=20261112_255');
+  const mod = await import('./random-picker.js?v=20261112_260');
   window.RandomPicker = mod.default || mod.RandomPicker;
   return window.RandomPicker;
 }
@@ -222,7 +222,7 @@ class App {
   // --- DATA LOADING ---
   async loadManifest() {
     try {
-      const res = await fetch('data/manifest.json?v=20261112_255');
+      const res = await fetch('data/manifest.json?v=20261112_260');
       this.manifest = await res.json();
       this.updateManifestBadges();
       if (window.LiveVideo) window.LiveVideo.manifest = this.manifest;
