@@ -9,6 +9,42 @@ import { escapeHtml } from './utils.js?v=20261112_285';
 import { Proctor } from './proctor.js?v=20261112_285';
 import { authedFetch } from './api.js?v=20261112_285';
 
+/**
+ * Fast KaTeX Math Rendering:
+ * Before invoking KaTeX rendering, checks if text or element contains math delimiters ('$', '\(', '\[').
+ * If no math delimiters are present, skips KaTeX rendering completely (eliminates DOM parsing for 95%+ of questions).
+ */
+export function hasMathDelimiters(target) {
+  if (!target) return false;
+  const str = typeof target === 'string' ? target : (target.textContent || target.innerText || '');
+  return str.includes('$') || str.includes('\\(') || str.includes('\\[');
+}
+
+export function renderMath(element) {
+  if (!element || !hasMathDelimiters(element)) return;
+  const renderer = (typeof window !== 'undefined') && (window.renderMathInElement || window.katex?.renderMathInElement);
+  if (typeof renderer === 'function') {
+    try {
+      renderer(element, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false },
+          { left: '\\(', right: '\\)', display: false },
+          { left: '\\[', right: '\\]', display: true }
+        ],
+        throwOnError: false
+      });
+    } catch (e) {
+      console.warn('[KaTeX] render error:', e);
+    }
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.renderMath = renderMath;
+  window.hasMathDelimiters = hasMathDelimiters;
+}
+
 export const Exam = {
   questions: [],
   examQuestions: [], // Danh sách câu đã chọn cho đề thi
@@ -24,15 +60,28 @@ export const Exam = {
   isProctored: false,
   isDisqualified: false,
   disqualifiedReason: '',
+  _saveTimer: null,
 
   init(containerEl, allQuestions, manifest) {
     this.container = containerEl;
     this.allQuestions = allQuestions;
     this.manifest = manifest;
+    if (!this._beforeUnloadHandler) {
+      this._beforeUnloadHandler = () => {
+        if (this.examState === 'taking') {
+          this.saveCurrentSession(true);
+        }
+      };
+      window.addEventListener('beforeunload', this._beforeUnloadHandler);
+    }
     this.resetState();
   },
 
   resetState() {
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer);
+      this._saveTimer = null;
+    }
     if (this.timerInterval) clearInterval(this.timerInterval);
     document.body.classList.remove('in-exam');
     Proctor.stop();
@@ -391,7 +440,7 @@ export const Exam = {
     this.remainingSeconds = this.totalSeconds;
     this.examState = 'taking';
     document.body.classList.add('in-exam');
-    this.saveCurrentSession();
+    this.saveCurrentSession(true);
     this.startTimer();
     this.renderExamInterface();
     return true;
@@ -438,27 +487,50 @@ export const Exam = {
 
     this.examState = 'taking';
     document.body.classList.add('in-exam');
+    this.saveCurrentSession(true);
     this.startTimer();
     this.renderExamInterface();
     return true;
   },
 
-  saveCurrentSession() {
+  /**
+   * Debounced Auto-Save:
+   * Debounce saving exam state to localStorage (250ms) so rapid option clicking
+   * or navigation doesn't block the UI thread with synchronous disk I/O.
+   * Pass immediate=true for synchronous saves on start, resume, or beforeunload.
+   */
+  saveCurrentSession(immediate = false) {
     if (this.examState !== 'taking') return;
-    Storage.saveActiveExamSession({
-      examConfig: this.examConfig,
-      examCode: this.examCode || '101',
-      examQuestions: this.examQuestions,
-      userAnswers: this.userAnswers,
-      flaggedQuestions: [...this.flaggedQuestions],
-      currentIndex: this.currentIndex,
-      totalSeconds: this.totalSeconds,
-      remainingSeconds: this.remainingSeconds,
-      isProctored: this.isProctored,
-      maxViolations: this.maxViolations,
-      violationCount: this.isProctored ? Proctor.violationCount : 0,
-      violationLogs: this.isProctored ? Proctor.violationLogs : []
-    });
+
+    const executeSave = () => {
+      this._saveTimer = null;
+      if (this.examState !== 'taking') return;
+      Storage.saveActiveExamSession({
+        examConfig: this.examConfig,
+        examCode: this.examCode || '101',
+        examQuestions: this.examQuestions,
+        userAnswers: this.userAnswers,
+        flaggedQuestions: [...this.flaggedQuestions],
+        currentIndex: this.currentIndex,
+        totalSeconds: this.totalSeconds,
+        remainingSeconds: this.remainingSeconds,
+        isProctored: this.isProctored,
+        maxViolations: this.maxViolations,
+        violationCount: this.isProctored ? Proctor.violationCount : 0,
+        violationLogs: this.isProctored ? Proctor.violationLogs : []
+      });
+    };
+
+    if (immediate) {
+      if (this._saveTimer) {
+        clearTimeout(this._saveTimer);
+        this._saveTimer = null;
+      }
+      executeSave();
+    } else {
+      if (this._saveTimer) clearTimeout(this._saveTimer);
+      this._saveTimer = setTimeout(executeSave, 250);
+    }
   },
 
   sampleQuestions(pool, count, shouldShuffle = true) {
@@ -728,6 +800,38 @@ export const Exam = {
 
     this.updateTimerDisplay();
     this.bindExamEvents(currentQ);
+    renderMath(this.container);
+  },
+
+  updatePaletteButtonStatus(idx) {
+    const q = this.examQuestions[idx];
+    if (!q) return;
+    const isAnswered = !!this.userAnswers[q.id];
+    const flagged = this.flaggedQuestions.has(q.id);
+    const isCurrent = (idx === this.currentIndex);
+
+    const buttons = this.container.querySelectorAll(`[data-jump-idx="${idx}"]`);
+    buttons.forEach(btn => {
+      btn.classList.toggle('answered', isAnswered);
+      btn.classList.toggle('unanswered', !isAnswered);
+      btn.classList.toggle('flagged', flagged);
+      btn.classList.toggle('active', isCurrent);
+    });
+  },
+
+  updateAnsweredCounter() {
+    const total = this.examQuestions.length;
+    const answeredCount = Object.keys(this.userAnswers).length;
+    const countStr = `${answeredCount}/${total}`;
+
+    const mobileBtnSpan = this.container.querySelector('#btn-open-mobile-palette span');
+    if (mobileBtnSpan) mobileBtnSpan.textContent = countStr;
+
+    const desktopCounter = this.container.querySelector('.lg\\:col-span-1 h4 span.font-mono');
+    if (desktopCounter) desktopCounter.textContent = countStr;
+
+    const drawerSub = this.container.querySelector('#mobile-palette-drawer h4 + span');
+    if (drawerSub) drawerSub.textContent = `Đã làm: ${countStr}`;
   },
 
   renderPaletteButtons() {
@@ -866,8 +970,11 @@ export const Exam = {
     this.container.querySelectorAll('[data-jump-idx]').forEach(btn => {
       btn.addEventListener('click', () => {
         const idx = parseInt(btn.getAttribute('data-jump-idx'), 10);
-        this.currentIndex = idx;
-        this.renderExamInterface();
+        if (this.currentIndex !== idx) {
+          this.currentIndex = idx;
+          this.saveCurrentSession();
+          this.renderExamInterface();
+        }
       });
     });
 
@@ -877,17 +984,19 @@ export const Exam = {
     if (prevBtn) prevBtn.addEventListener('click', () => {
       if (this.currentIndex > 0) {
         this.currentIndex--;
+        this.saveCurrentSession();
         this.renderExamInterface();
       }
     });
     if (nextBtn) nextBtn.addEventListener('click', () => {
       if (this.currentIndex < this.examQuestions.length - 1) {
         this.currentIndex++;
+        this.saveCurrentSession();
         this.renderExamInterface();
       }
     });
 
-    // Flag toggle
+    // Flag toggle (Lightweight - Zero Layout Thrashing)
     const flagBtn = this.container.querySelector('#btn-flag-q');
     if (flagBtn) {
       flagBtn.addEventListener('click', () => {
@@ -897,22 +1006,46 @@ export const Exam = {
           this.flaggedQuestions.add(currentQ.id);
         }
         this.saveCurrentSession();
-        this.renderExamInterface();
+        const isFlagged = this.flaggedQuestions.has(currentQ.id);
+        flagBtn.className = `text-xs px-3 py-1.5 rounded-xl border transition flex items-center gap-1.5 ${isFlagged ? 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-slate-50 dark:bg-slate-700 text-slate-500 border-slate-200 dark:border-slate-600 hover:text-amber-500'}`;
+        flagBtn.innerHTML = `
+          <i class="${isFlagged ? 'fa-solid' : 'fa-regular'} fa-flag"></i>
+          <span>${isFlagged ? 'Đã gắn cờ' : 'Gắn cờ xem lại'}</span>
+        `;
+        this.updatePaletteButtonStatus(this.currentIndex);
       });
     }
 
-    // MCQ select
+    // MCQ select (Lightweight Option Selection - Zero Layout Thrashing)
     const mcqBtns = this.container.querySelectorAll('[data-exam-mcq]');
     mcqBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const letter = btn.getAttribute('data-exam-mcq');
         this.userAnswers[currentQ.id] = { chosen: letter };
-        this.saveCurrentSession();
-        this.renderExamInterface();
+        this.saveCurrentSession(); // Debounced 250ms
+
+        // Update styling directly on target element and sibling options without full DOM re-render
+        mcqBtns.forEach(b => {
+          const isTarget = (b === btn);
+          b.classList.toggle('selected', isTarget);
+          const badge = b.querySelector('span');
+          if (badge) {
+            if (isTarget) {
+              badge.classList.remove('bg-slate-200', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-300');
+              badge.classList.add('bg-blue-600', 'text-white');
+            } else {
+              badge.classList.remove('bg-blue-600', 'text-white');
+              badge.classList.add('bg-slate-200', 'dark:bg-slate-700', 'text-slate-700', 'dark:text-slate-300');
+            }
+          }
+        });
+
+        this.updatePaletteButtonStatus(this.currentIndex);
+        this.updateAnsweredCounter();
       });
     });
 
-    // TF select
+    // TF select (Lightweight Option Selection - Zero Layout Thrashing)
     const tfBtns = this.container.querySelectorAll('[data-exam-tf]');
     tfBtns.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -922,8 +1055,21 @@ export const Exam = {
         let existing = this.userAnswers[currentQ.id] ? this.userAnswers[currentQ.id].choices : ['', '', '', ''];
         existing[idx] = val;
         this.userAnswers[currentQ.id] = { choices: [...existing] };
-        this.saveCurrentSession();
-        this.renderExamInterface();
+        this.saveCurrentSession(); // Debounced 250ms
+
+        // Update styling directly on the row's buttons without full DOM re-render
+        const rowBtns = this.container.querySelectorAll(`[data-exam-tf="${idx}"]`);
+        rowBtns.forEach(b => {
+          const bVal = b.getAttribute('data-val');
+          if (bVal === val) {
+            b.className = `px-4 py-2 rounded-xl text-xs font-bold border transition ${val === 'Đ' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-rose-600 text-white border-rose-600 shadow-sm'}`;
+          } else {
+            b.className = `px-4 py-2 rounded-xl text-xs font-bold border transition bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 ${bVal === 'Đ' ? 'hover:border-blue-400' : 'hover:border-rose-400'}`;
+          }
+        });
+
+        this.updatePaletteButtonStatus(this.currentIndex);
+        this.updateAnsweredCounter();
       });
     });
 
@@ -937,7 +1083,9 @@ export const Exam = {
         } else {
           delete this.userAnswers[currentQ.id];
         }
-        this.saveCurrentSession();
+        this.saveCurrentSession(); // Debounced 250ms
+        this.updatePaletteButtonStatus(this.currentIndex);
+        this.updateAnsweredCounter();
       });
     }
 
@@ -995,6 +1143,10 @@ export const Exam = {
 
   // --- NỘP BÀI & CHẤM ĐIỂM ---
   async submitExam(isForced = false, forceReason = '', forcedLogs = null) {
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer);
+      this._saveTimer = null;
+    }
     if (this.timerInterval) clearInterval(this.timerInterval);
     document.body.classList.remove('in-exam');
     this.examState = 'submitted';
@@ -1547,6 +1699,7 @@ export const Exam = {
     `;
 
     this.bindResultEvents();
+    renderMath(this.container);
   },
 
   renderReviewItems(details, filter) {
@@ -1687,6 +1840,7 @@ export const Exam = {
         const listEl = this.container.querySelector('#review-list');
         if (listEl) {
           listEl.innerHTML = this.renderReviewItems(this.examResult.details, f);
+          renderMath(listEl);
         }
       });
     });

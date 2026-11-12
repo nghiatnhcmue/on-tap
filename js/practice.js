@@ -7,6 +7,42 @@ import { Storage } from './storage.js?v=20261112_285';
 import { Auth } from './auth.js?v=20261112_285';
 import { escapeHtml } from './utils.js?v=20261112_285';
 
+/**
+ * Fast KaTeX Math Rendering:
+ * Before invoking KaTeX rendering, checks if text or element contains math delimiters ('$', '\(', '\[').
+ * If no math delimiters are present, skips KaTeX rendering completely (eliminates DOM parsing for 95%+ of questions).
+ */
+export function hasMathDelimiters(target) {
+  if (!target) return false;
+  const str = typeof target === 'string' ? target : (target.textContent || target.innerText || '');
+  return str.includes('$') || str.includes('\\(') || str.includes('\\[');
+}
+
+export function renderMath(element) {
+  if (!element || !hasMathDelimiters(element)) return;
+  const renderer = (typeof window !== 'undefined') && (window.renderMathInElement || window.katex?.renderMathInElement);
+  if (typeof renderer === 'function') {
+    try {
+      renderer(element, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false },
+          { left: '\\(', right: '\\)', display: false },
+          { left: '\\[', right: '\\]', display: true }
+        ],
+        throwOnError: false
+      });
+    } catch (e) {
+      console.warn('[KaTeX] render error:', e);
+    }
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.renderMath = renderMath;
+  window.hasMathDelimiters = hasMathDelimiters;
+}
+
 export const Practice = {
   questions: [],
   rawFilteredQuestions: [],
@@ -249,6 +285,7 @@ export const Practice = {
     `;
 
     this.bindEventsSingle(q);
+    renderMath(this.container);
   },
 
   renderMCQOptions(q, userAns) {
@@ -480,6 +517,7 @@ export const Practice = {
     `;
 
     this.bindEventsList(pageQuestions, currentPage, pageSize);
+    renderMath(this.container);
   },
 
   renderPersonalNoteBox(q) {
@@ -549,6 +587,80 @@ export const Practice = {
     return `<span class="px-2.5 py-0.5 rounded-lg text-xs font-semibold ${item.cls}">${item.label}</span>`;
   },
 
+  /**
+   * Lightweight Option Selection (Zero Layout Thrashing):
+   * Updates option styles and displays feedback directly in the DOM
+   * without re-rendering the entire question list or single question.
+   */
+  applyMCQOptionSelection(cardOrContainer, q, chosen, correctAns, isCorrect) {
+    const optionBtns = cardOrContainer.querySelectorAll('.mcq-option-btn');
+    optionBtns.forEach(btn => {
+      btn.disabled = true;
+      btn.setAttribute('disabled', 'true');
+      const optLetter = btn.getAttribute('data-opt');
+
+      // Reset dynamic classes
+      btn.className = 'mcq-option-btn w-full text-left p-4 rounded-xl border transition flex items-start';
+
+      const existingIcon = btn.querySelector('span');
+      if (optLetter === correctAns) {
+        btn.classList.add('border-emerald-500', 'bg-emerald-50', 'dark:bg-emerald-950/30', 'text-emerald-900', 'dark:text-emerald-200');
+        if (existingIcon) {
+          existingIcon.className = 'w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs bg-emerald-500 text-white shrink-0 mr-3';
+          existingIcon.innerHTML = '<i class="fa-solid fa-check"></i>';
+        }
+      } else if (optLetter === chosen && !isCorrect) {
+        btn.classList.add('border-rose-500', 'bg-rose-50', 'dark:bg-rose-950/30', 'text-rose-900', 'dark:text-rose-200');
+        if (existingIcon) {
+          existingIcon.className = 'w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs bg-rose-500 text-white shrink-0 mr-3';
+          existingIcon.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        }
+      } else {
+        btn.classList.add('opacity-60', 'border-slate-200', 'dark:border-slate-700', 'bg-slate-50', 'dark:bg-slate-800/30');
+      }
+    });
+
+    const existingBanner = cardOrContainer.querySelector('.mcq-feedback-banner');
+    if (!existingBanner) {
+      const banner = document.createElement('div');
+      banner.className = `mcq-feedback-banner p-4 rounded-xl ${isCorrect ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300' : 'bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300'} text-sm animate-pulse-subtle mt-4`;
+      banner.innerHTML = `
+        <div class="font-bold flex items-center gap-2 mb-1">
+          <i class="${isCorrect ? 'fa-solid fa-circle-check text-emerald-500' : 'fa-solid fa-circle-xmark text-rose-500'}"></i>
+          ${isCorrect ? 'Chính xác!' : `Chưa chính xác! Đáp án đúng là: ${escapeHtml(correctAns)}`}
+        </div>
+        <div class="text-xs opacity-90">
+          ${isCorrect ? 'Bạn đã nắm vững kiến thức câu hỏi này.' : 'Hãy xem lại lý thuyết trong bài để khắc sâu kiến thức.'}
+        </div>
+      `;
+
+      const optionsContainer = optionBtns[0]?.parentElement;
+      if (optionsContainer && optionsContainer.parentNode) {
+        if (optionsContainer.nextSibling) {
+          optionsContainer.parentNode.insertBefore(banner, optionsContainer.nextSibling);
+        } else {
+          optionsContainer.parentNode.appendChild(banner);
+        }
+      } else {
+        cardOrContainer.appendChild(banner);
+      }
+      renderMath(banner);
+    }
+  },
+
+  updateSingleStatsDisplay() {
+    const statsContainer = this.container.querySelector('.flex.items-center.gap-3.text-xs');
+    if (!statsContainer) return;
+    const spans = statsContainer.querySelectorAll('span');
+    spans.forEach(span => {
+      if (span.classList.contains('text-emerald-600') || span.classList.contains('text-emerald-400')) {
+        span.innerHTML = `<i class="fa-solid fa-check mr-1"></i>${this.sessionStats.correct} đúng`;
+      } else if (span.classList.contains('text-rose-600') || span.classList.contains('text-rose-400')) {
+        span.innerHTML = `<i class="fa-solid fa-xmark mr-1"></i>${this.sessionStats.wrong} sai`;
+      }
+    });
+  },
+
   handleCheckTf(qId) {
     const q = this.filteredQuestions.find(item => item.id === qId);
     if (!q || this.userAnswers[qId]) return;
@@ -577,7 +689,51 @@ export const Practice = {
     else this.sessionStats.wrong++;
     Storage.recordPracticeResult(correctSubCount === 4, q);
 
-    this.render();
+    const card = this.container.querySelector(`#q-card-${qId}`) || (this.viewMode === 'single' ? this.container : null);
+    if (card) {
+      this.applyTfResult(card, q, choices, correctParts, correctSubCount, points);
+      if (this.viewMode === 'single') this.updateSingleStatsDisplay();
+    } else {
+      this.render();
+    }
+  },
+
+  applyTfResult(cardOrContainer, q, choices, correctParts, correctSubCount, points) {
+    const tfBtns = cardOrContainer.querySelectorAll(`[data-tf-qid="${q.id}"]`);
+    tfBtns.forEach(btn => {
+      btn.disabled = true;
+      btn.setAttribute('disabled', 'true');
+    });
+
+    for (let idx = 0; idx < 4; idx++) {
+      const rowContainer = tfBtns[idx * 2]?.closest('.flex.items-center.gap-2');
+      if (rowContainer && !rowContainer.querySelector('.tf-ans-tag')) {
+        const correctVal = correctParts[idx] || 'Đ';
+        const userChoice = choices[idx];
+        const tag = document.createElement('span');
+        tag.className = `tf-ans-tag ml-2 text-xs font-bold ${userChoice === correctVal ? 'text-emerald-500' : 'text-rose-500'}`;
+        tag.textContent = `(Đ/A: ${correctVal})`;
+        rowContainer.appendChild(tag);
+      }
+    }
+
+    const checkBtn = cardOrContainer.querySelector(`[data-check-tf="${q.id}"]`);
+    const checkBtnContainer = checkBtn ? checkBtn.closest('.pt-2.flex.justify-end') : null;
+    const resultBox = document.createElement('div');
+    resultBox.className = 'tf-feedback-banner p-4 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 text-sm mt-4';
+    resultBox.innerHTML = `
+      <span class="font-bold">Kết quả:</span> Bạn trả lời đúng ${correctSubCount} / 4 ý. 
+      Điểm theo quy chế Bộ GD&ĐT: <span class="font-bold text-blue-600 dark:text-blue-400">${points} / 1.0 điểm</span>.
+    `;
+    if (checkBtnContainer && checkBtnContainer.parentNode) {
+      checkBtnContainer.parentNode.replaceChild(resultBox, checkBtnContainer);
+    } else {
+      const tfGroup = cardOrContainer.querySelector('.space-y-3\\.5, .space-y-4');
+      if (tfGroup && tfGroup.parentNode) {
+        tfGroup.parentNode.insertBefore(resultBox, tfGroup.nextSibling);
+      }
+    }
+    renderMath(resultBox);
   },
 
   handleCheckTln(qId) {
@@ -597,16 +753,58 @@ export const Practice = {
     else this.sessionStats.wrong++;
     Storage.recordPracticeResult(isCorrect, q);
 
-    this.render();
+    const card = this.container.querySelector(`#q-card-${qId}`) || (this.viewMode === 'single' ? this.container : null);
+    if (card) {
+      this.applyTlnResult(card, q, val, isCorrect);
+      if (this.viewMode === 'single') this.updateSingleStatsDisplay();
+    } else {
+      this.render();
+    }
+  },
+
+  applyTlnResult(cardOrContainer, q, val, isCorrect) {
+    const inputEl = cardOrContainer.querySelector(`[data-tln-input="${q.id}"]`);
+    if (inputEl) {
+      inputEl.disabled = true;
+      inputEl.setAttribute('disabled', 'true');
+      inputEl.className = `w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border ${isCorrect ? 'border-emerald-500 text-emerald-800 dark:text-emerald-300' : 'border-rose-500 text-rose-800 dark:text-rose-300'} rounded-xl text-sm font-medium focus:outline-none`;
+    }
+
+    const checkBtn = cardOrContainer.querySelector(`[data-check-tln="${q.id}"]`);
+    const checkBtnContainer = checkBtn ? checkBtn.closest('.pt-2.flex.justify-end') : null;
+
+    const resultBox = document.createElement('div');
+    resultBox.className = `tln-feedback-banner p-4 rounded-xl ${isCorrect ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300' : 'bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300'} text-sm mt-4`;
+    resultBox.innerHTML = `
+      <div class="font-bold flex items-center gap-2 mb-1">
+        <i class="${isCorrect ? 'fa-solid fa-circle-check text-emerald-500' : 'fa-solid fa-circle-xmark text-rose-500'}"></i>
+        ${isCorrect ? 'Chính xác!' : `Chưa chính xác! Đáp án đúng là: <span class="font-mono">${escapeHtml(q.answer)}</span>`}
+      </div>
+      <div class="text-xs opacity-90">
+        ${isCorrect ? 'Câu trả lời của bạn trùng khớp hoàn toàn với đáp án chuẩn.' : 'Hãy chú ý định dạng chuỗi, từ khóa hoặc khoảng trắng theo yêu cầu bài học.'}
+      </div>
+    `;
+
+    if (checkBtnContainer && checkBtnContainer.parentNode) {
+      checkBtnContainer.parentNode.replaceChild(resultBox, checkBtnContainer);
+    } else {
+      const inputGroup = cardOrContainer.querySelector('.space-y-4, .space-y-3');
+      if (inputGroup && inputGroup.parentNode) {
+        inputGroup.parentNode.insertBefore(resultBox, inputGroup.nextSibling);
+      }
+    }
+    renderMath(resultBox);
   },
 
   bindEventsSingle(q) {
-    // Bookmark
+    // Bookmark (Lightweight)
     const bmBtn = this.container.querySelector('#btn-toggle-bookmark');
     if (bmBtn) {
       bmBtn.addEventListener('click', () => {
-        Storage.toggleBookmark(q);
-        this.render();
+        const isNowBookmarked = Storage.toggleBookmark(q);
+        bmBtn.className = `p-2 rounded-xl transition ${isNowBookmarked ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-500' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-amber-500'}`;
+        bmBtn.title = isNowBookmarked ? 'Bỏ lưu' : 'Lưu câu hỏi này';
+        bmBtn.innerHTML = `<i class="${isNowBookmarked ? 'fa-solid' : 'fa-regular'} fa-bookmark"></i>`;
       });
     }
 
@@ -646,10 +844,11 @@ export const Practice = {
       window.addEventListener('keydown', this._onPracticeKeyDown);
     }
 
-    // MCQ answer choice
+    // MCQ answer choice (Lightweight - Zero Layout Thrashing)
     const mcqBtns = this.container.querySelectorAll('.mcq-option-btn');
     mcqBtns.forEach(btn => {
       btn.addEventListener('click', () => {
+        if (this.userAnswers[q.id]) return;
         const chosen = btn.getAttribute('data-opt');
         const correctAns = q.displayAnswer || q.answer || 'A';
         const isCorrect = (chosen === correctAns);
@@ -660,7 +859,8 @@ export const Practice = {
         else this.sessionStats.wrong++;
         Storage.recordPracticeResult(isCorrect, q);
 
-        this.render();
+        this.applyMCQOptionSelection(this.container, q, chosen, correctAns, isCorrect);
+        this.updateSingleStatsDisplay();
       });
     });
 
@@ -729,19 +929,19 @@ export const Practice = {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
-    // Bookmarks in list
+    // Bookmarks in list (Lightweight)
     this.container.querySelectorAll('.btn-list-bookmark').forEach(btn => {
       btn.addEventListener('click', () => {
         const qId = btn.getAttribute('data-bookmark-id');
         const targetQ = questions.find(item => item.id === qId);
         if (targetQ) {
-          Storage.toggleBookmark(targetQ);
-          this.render();
+          const isNowBookmarked = Storage.toggleBookmark(targetQ);
+          btn.innerHTML = `<i class="${isNowBookmarked ? 'fa-solid text-amber-500' : 'fa-regular'} fa-bookmark"></i>`;
         }
       });
     });
 
-    // MCQ clicks in list
+    // MCQ clicks in list (Lightweight - Zero Layout Thrashing)
     this.container.querySelectorAll('.mcq-option-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const card = btn.closest('[id^="q-card-"]');
@@ -760,7 +960,7 @@ export const Practice = {
         else this.sessionStats.wrong++;
         Storage.recordPracticeResult(isCorrect, targetQ);
 
-        this.render();
+        this.applyMCQOptionSelection(card, targetQ, chosen, correctAns, isCorrect);
       });
     });
 
