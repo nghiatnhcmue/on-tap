@@ -1019,6 +1019,7 @@ export const LiveVideo = {
     const origin = window.location.origin + window.location.pathname;
     const shareLink = `${origin}?live_video=${encodeURIComponent(room.roomId)}`;
     const videoUrl = this.resolveVideoStreamingUrl(room.videoFileName);
+    const isStreamOn = Boolean(room.streamVideoToStudents);
 
     container.innerHTML = `
       <div id="live-master-console" class="space-y-6 animate-fadeIn pb-12">
@@ -1052,9 +1053,10 @@ export const LiveVideo = {
 
             <!-- Cụm Nút Điều Khiển Nhanh Phòng Live (Bắt đầu / Tạm dừng / Tiếp tục / Dừng phòng) -->
             <div class="flex items-center gap-2.5 flex-wrap">
-              <button type="button" id="btn-master-toggle-student-stream" class="px-3.5 py-2.5 rounded-xl bg-indigo-600/60 hover:bg-indigo-600 text-white text-xs font-bold transition flex items-center gap-1.5 border border-indigo-400/40 cursor-pointer shadow-md" title="Bấm để chuyển đổi giữa Chế độ Máy chiếu lớp học (Tắt video máy HS) và Phát video trên máy HS">
-                <i class="fa-solid fa-desktop text-amber-300"></i>
-                <span id="master-stream-status-text">Máy chiếu: Video HS <strong>TẮT</strong></span>
+              <button type="button" id="btn-master-toggle-student-stream" class="px-3.5 py-2.5 rounded-xl ${isStreamOn ? 'bg-rose-600/80 hover:bg-rose-600 border-rose-400/50' : 'bg-indigo-600/60 hover:bg-indigo-600 border-indigo-400/40'} text-white text-xs font-bold transition flex items-center gap-1.5 border cursor-pointer shadow-md" title="Bấm để chuyển đổi giữa Chế độ Máy chiếu lớp học (Tắt video máy HS) và Phát video trên máy HS">
+                <span id="master-stream-status-text" class="flex items-center gap-1.5">
+                  ${isStreamOn ? '<i class="fa-solid fa-video text-white"></i> Video máy HS: <strong>ĐANG BẬT</strong>' : '<i class="fa-solid fa-chalkboard text-amber-300"></i> Máy Chiếu: Video HS <strong>TẮT</strong>'}
+                </span>
               </button>
               <button type="button" id="btn-master-header-start-pause" class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black transition flex items-center gap-2 shadow-lg cursor-pointer">
                 <i class="fa-solid fa-play"></i> Bắt Đầu Phòng Live
@@ -1271,9 +1273,9 @@ export const LiveVideo = {
                   <button type="button" id="btn-master-trigger-current-q" class="px-3.5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black transition shadow-lg shadow-amber-500/25 flex items-center gap-1.5 cursor-pointer" title="Dừng video và mở câu hỏi mốc hiện tại">
                     <i class="fa-solid fa-circle-question"></i> Mở Mốc Câu Hỏi Ngay
                   </button>
-                  <button type="button" id="btn-master-deck-toggle-stream" class="px-3.5 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border border-indigo-400/50 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 shadow-sm" title="Chuyển đổi: Phát video trên thiết bị HS hoặc Tắt để dùng Máy Chiếu lớp học">
+                  <button type="button" id="btn-master-deck-toggle-stream" class="px-3.5 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border ${isStreamOn ? 'border-rose-500/50 bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60' : 'border-indigo-400/50 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60'} shadow-sm" title="Chuyển đổi: Phát video trên thiết bị HS hoặc Tắt để dùng Máy Chiếu lớp học">
                     <span id="master-deck-stream-content" class="flex items-center gap-1.5">
-                      <i class="fa-solid fa-chalkboard text-indigo-500"></i> Máy chiếu: Video HS <strong>TẮT</strong>
+                      ${isStreamOn ? '<i class="fa-solid fa-video text-rose-500"></i> Trực Tuyến: Video HS <strong class="px-1.5 py-0.5 rounded-md bg-rose-200 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200 text-[11px]">BẬT</strong>' : '<i class="fa-solid fa-chalkboard text-indigo-500"></i> Máy chiếu: Video HS <strong class="px-1.5 py-0.5 rounded-md bg-indigo-200 dark:bg-indigo-900/80 text-indigo-800 dark:text-indigo-200 text-[11px]">TẮT</strong>'}
                     </span>
                   </button>
                   <button type="button" id="btn-master-deck-fullscreen" class="px-3.5 py-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-700 text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Phóng to video toàn màn hình cho cả lớp cùng xem (Phím F)">
@@ -1360,6 +1362,11 @@ export const LiveVideo = {
     container.classList.remove('hidden');
 
     const videoUrl = this.resolveVideoStreamingUrl(room.videoFileName);
+    const isStreamOn = Boolean(room.streamVideoToStudents);
+    const videoSrcAttr = isStreamOn ? `src="${escapeHtml(videoUrl)}"` : 'src=""';
+    const videoPreloadAttr = isStreamOn ? 'preload="metadata"' : 'preload="none"';
+    const videoHiddenClass = isStreamOn ? '' : 'hidden';
+    const projectorHiddenClass = isStreamOn ? 'hidden' : '';
 
     container.innerHTML = `
       <div id="live-student-cinema" class="fixed inset-0 z-50 bg-black text-white flex flex-col justify-between overflow-hidden select-none">
@@ -1388,10 +1395,10 @@ export const LiveVideo = {
 
         <!-- Sân khấu Video chính (KHÔNG có thanh điều khiển tua cá nhân) -->
         <div class="relative w-full h-full flex items-center justify-center bg-black">
-          <video id="live-student-video" src="${escapeHtml(videoUrl)}" playsinline preload="auto" class="w-full h-full object-contain cursor-pointer"></video>
+          <video id="live-student-video" ${videoSrcAttr} playsinline ${videoPreloadAttr} class="w-full h-full object-contain cursor-pointer ${videoHiddenClass}"></video>
 
           <!-- GIAO DIỆN MÁY CHIẾU LỚP HỌC (PROJECTOR COMPANION VIEW KHI TẮT VIDEO MÁY HS) -->
-          <div id="student-projector-companion-view" class="hidden absolute inset-0 bg-gradient-to-br from-slate-950 via-indigo-950/90 to-slate-900 p-6 flex flex-col items-center justify-center text-center z-15 overflow-y-auto space-y-6">
+          <div id="student-projector-companion-view" class="${projectorHiddenClass} absolute inset-0 bg-gradient-to-br from-slate-950 via-indigo-950/90 to-slate-900 p-6 flex flex-col items-center justify-center text-center z-15 overflow-y-auto space-y-6">
             <div class="relative">
               <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-tr from-indigo-600/30 to-rose-600/30 border-2 border-indigo-400/40 flex items-center justify-center text-4xl sm:text-5xl shadow-2xl text-indigo-300">
                 <i class="fa-solid fa-chalkboard-user"></i>
@@ -1996,6 +2003,57 @@ export const LiveVideo = {
     // Nếu học sinh đang ở trạng thái chờ duyệt trong hàng đợi (pending)
     const isPendingApproval = remote.requireApproval && myRemoteStudent && myRemoteStudent.queueStatus === 'pending';
 
+    // 0. Quản lý trạng thái nguồn phát Video Stream của Học Sinh (Tiết kiệm băng thông Wifi trường học)
+    const isStreamOn = Boolean(remote.streamVideoToStudents);
+    const projectorView = document.getElementById('student-projector-companion-view');
+
+    if (!isStreamOn) {
+      // Khi streamVideoToStudents === false (Chế độ Máy Chiếu Lớp Học):
+      // Dừng video, xóa src, đặt preload="none" và gọi load() để hủy ngay lập tức các yêu cầu mạng đang nạp, giải phóng 100% Wifi lớp học.
+      try {
+        video.pause();
+      } catch (e) {}
+      if (video.getAttribute('src') || video.src) {
+        video.removeAttribute('src');
+        video.src = '';
+        video.preload = 'none';
+        try {
+          video.load(); // Immediately abort active network requests and free school Wi-Fi
+        } catch (e) {}
+      }
+      video.classList.add('hidden');
+
+      if (projectorView) {
+        projectorView.classList.remove('hidden');
+        const scoreEl = document.getElementById('student-projector-score');
+        const correctEl = document.getElementById('student-projector-correct');
+        const progEl = document.getElementById('student-projector-progress-text');
+        
+        if (scoreEl) scoreEl.textContent = `${myRemoteStudent?.score || this.studentInfo?.score || 0}đ`;
+        if (correctEl) correctEl.textContent = `${myRemoteStudent?.correctCount || this.studentInfo?.correctCount || 0}/${remote.totalQuestions || 0}`;
+        if (progEl) {
+          const answeredMilestones = Object.keys(remote.responses || {}).length;
+          progEl.textContent = `${answeredMilestones}/${remote.totalQuestions || 0} mốc`;
+        }
+      }
+    } else {
+      // Khi streamVideoToStudents === true (Chế độ Trực Tuyến Độc Lập):
+      // Nạp động src="${videoUrl}" và đặt preload="metadata"
+      const targetVideoUrl = this.resolveVideoStreamingUrl(remote.videoFileName || this.activeRoom?.videoFileName);
+      const currentSrc = video.getAttribute('src');
+      if (targetVideoUrl && (!currentSrc || currentSrc !== targetVideoUrl)) {
+        video.setAttribute('src', targetVideoUrl);
+        video.src = targetVideoUrl;
+        video.preload = 'metadata';
+        try {
+          video.load();
+        } catch (e) {}
+      }
+      if (projectorView) projectorView.classList.add('hidden');
+      video.classList.remove('hidden');
+      video.muted = true; // Luôn mute video máy HS để chống tiếng hú trong phòng
+    }
+
     // 1. Trạng thái kết thúc buổi học
     if (remote.state === 'finished') {
       this.renderStudentEndSessionPodium(remote);
@@ -2007,7 +2065,9 @@ export const LiveVideo = {
       if (waitingOverlay) waitingOverlay.classList.remove('hidden');
       if (pausedOverlay) pausedOverlay.classList.add('hidden');
       if (questionModal) questionModal.classList.add('hidden');
-      if (!video.paused) video.pause();
+      try {
+        video.pause();
+      } catch (e) {}
 
       const orderBadge = document.getElementById('student-queue-order-badge');
       const totalBadge = document.getElementById('student-queue-total-badge');
@@ -2045,7 +2105,9 @@ export const LiveVideo = {
 
     // 3. Trạng thái đang hỏi câu hỏi mốc dừng
     if (remote.state === 'question' && remote.currentQuestion) {
-      if (!video.paused) video.pause();
+      try {
+        video.pause();
+      } catch (e) {}
       if (pausedOverlay) pausedOverlay.classList.add('hidden');
       const q = remote.currentQuestion;
       const qKey = q.qKey || `${q.index}_${q.subIndex || 0}`;
@@ -2065,32 +2127,8 @@ export const LiveVideo = {
       }
     }
 
-    // 4. Quản lý Chế độ Máy chiếu Lớp học vs Phát video trên máy HS
-    const isStreamOn = Boolean(remote.streamVideoToStudents);
-    const projectorView = document.getElementById('student-projector-companion-view');
-
+    // 4. Đồng bộ thời gian và trạng thái phát bài giảng
     if (!isStreamOn) {
-      // CHẾ ĐỘ MÁY CHIẾU LỚP HỌC (Mặc định khuyến nghị):
-      // Tắt hoàn toàn video trên máy học sinh để tiết kiệm 100% băng thông wifi lớp học và chống ồn ào
-      if (!video.paused) video.pause();
-      video.classList.add('hidden');
-
-      if (projectorView) {
-        projectorView.classList.remove('hidden');
-        const myUid = this.studentInfo?.uid;
-        const myStudent = myUid ? remote.students?.[myUid] : null;
-        const scoreEl = document.getElementById('student-projector-score');
-        const correctEl = document.getElementById('student-projector-correct');
-        const progEl = document.getElementById('student-projector-progress-text');
-        
-        if (scoreEl) scoreEl.textContent = `${myStudent?.score || this.studentInfo?.score || 0}đ`;
-        if (correctEl) correctEl.textContent = `${myStudent?.correctCount || this.studentInfo?.correctCount || 0}/${remote.totalQuestions || 0}`;
-        if (progEl) {
-          const answeredMilestones = Object.keys(remote.responses || {}).length;
-          progEl.textContent = `${answeredMilestones}/${remote.totalQuestions || 0} mốc`;
-        }
-      }
-
       if (remote.state === 'playing') {
         if (waitingOverlay) waitingOverlay.classList.add('hidden');
         if (pausedOverlay) pausedOverlay.classList.add('hidden');
@@ -2098,11 +2136,6 @@ export const LiveVideo = {
         if (pausedOverlay) pausedOverlay.classList.remove('hidden');
       }
     } else {
-      // CHẾ ĐỘ TRỰC TUYẾN ĐỘC LẬP:
-      if (projectorView) projectorView.classList.add('hidden');
-      video.classList.remove('hidden');
-      video.muted = true; // Luôn mute video máy HS để chống tiếng hú trong phòng
-
       const applyPreciseSync = (targetSec, shouldPlay) => {
         try {
           if (!isNaN(targetSec) && isFinite(targetSec)) {
@@ -2120,7 +2153,9 @@ export const LiveVideo = {
               });
             }
           } else {
-            if (!video.paused) video.pause();
+            try {
+        video.pause();
+      } catch (e) {}
           }
         } catch (err) {}
       };
@@ -4763,22 +4798,27 @@ export const LiveVideo = {
           }).catch(() => {});
         }
 
-        // Tương tác trước để kích hoạt quyền Autoplay âm thanh
-        video.play().then(() => {
-          if (this.remoteState?.state !== 'playing') {
-            video.pause();
-          }
-        }).catch(() => {
-          video.muted = true;
+        // Tương tác trước để kích hoạt quyền Autoplay âm thanh (chỉ khi đang bật stream tới máy HS)
+        const isStreamOn = Boolean(this.remoteState?.streamVideoToStudents ?? this.activeRoom?.streamVideoToStudents);
+        if (isStreamOn && (video.src || video.getAttribute('src'))) {
           video.play().then(() => {
-            if (this.remoteState?.state !== 'playing') video.pause();
-          }).catch(() => {});
-        });
+            if (this.remoteState?.state !== 'playing') {
+              video.pause();
+            }
+          }).catch(() => {
+            video.muted = true;
+            video.play().then(() => {
+              if (this.remoteState?.state !== 'playing') video.pause();
+            }).catch(() => {});
+          });
+        }
       };
     }
 
     if (video) {
       video.onclick = () => {
+        const isStreamOn = Boolean(this.remoteState?.streamVideoToStudents ?? this.activeRoom?.streamVideoToStudents);
+        if (!isStreamOn) return;
         if (video.muted) {
           video.muted = false;
           video.volume = 1.0;
@@ -4790,6 +4830,7 @@ export const LiveVideo = {
       };
 
       video.onerror = () => {
+        if (!video.src || video.src === window.location.href || !video.getAttribute('src')) return;
         console.warn('Live Student Video load error for:', video.src);
         if (video.src && (video.src.includes('archive.org/download/') || video.src.includes('.us.archive.org/'))) {
           const corsUrl = `https://archive.org/cors/tinhoc-hub-thpt/${room.videoFileName}`;
