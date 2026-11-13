@@ -2094,11 +2094,11 @@ export const Exam = {
           const id = deleteBtn.getAttribute('data-exam-id');
           if (confirm('Thầy/Cô có chắc chắn muốn xóa bài thi này khỏi lịch sử và hệ thống không?')) {
             const res = Storage.deleteExamResult(id);
-            if (res) {
-              alert('Đã xóa bài thi thành công!');
+            if (res.success) {
+              alert(res.message);
               window.dispatchEvent(new CustomEvent('nav-to-tab', { detail: 'history' }));
             } else {
-              alert('Không thể xóa bài thi. Vui lòng kiểm tra lại quyền hạn!');
+              alert(res.message || 'Không thể xóa bài thi. Vui lòng kiểm tra lại quyền hạn!');
             }
           }
         } catch (e) {
@@ -2134,7 +2134,7 @@ export const Exam = {
       if (typeof alert === 'function') alert('Học sinh không có quyền xóa lịch sử bài thi!');
       return false;
     }
-    return Storage.deleteExamResult(id);
+    return Storage.deleteExamResult(id)?.success ?? false;
   }
 };
 

@@ -82,7 +82,7 @@ export const DEFAULT_SUBJECTS = ['Tin học', 'Chuyên đề Tin học', 'Công 
 // Cache tồn tại lâu dài, tự động vô hiệu khi có bản build mới (CURRENT_BUILD)
 // ============================================================================
 
-export const CURRENT_BUILD = '20261112_305';
+export const CURRENT_BUILD = '20261113_306';
 
 const IDB_CACHE_NAME = 'tinhochub_cache';
 const IDB_CACHE_VERSION = 1;
@@ -804,7 +804,7 @@ export const Storage = {
   },
 
   updateAccount(emailOrUid, updatedData) {
-    if (!emailOrUid || !updatedData) return null;
+    if (!emailOrUid || !updatedData) return { success: false, message: 'Thiếu thông tin cập nhật!' };
     try {
       const target = String(emailOrUid).trim().toLowerCase();
       let list = this.getAccountsList();
@@ -813,7 +813,7 @@ export const Storage = {
         (u.uid && u.uid.toLowerCase() === target) ||
         (u.username && u.username.toLowerCase() === target)
       );
-      if (!user) return null;
+      if (!user) return { success: false, message: 'Không tìm thấy tài khoản!' };
 
       if (updatedData.fullName !== undefined) user.fullName = String(updatedData.fullName).trim();
       if (updatedData.email !== undefined && String(updatedData.email).trim()) {
@@ -853,15 +853,15 @@ export const Storage = {
         } catch (e) {}
       }
 
-      return user;
+      return { success: true, message: 'Đã cập nhật thông tin tài khoản thành công!', account: user };
     } catch (e) {
       console.error('Error updating account', e);
-      return null;
+      return { success: false, message: 'Lỗi khi cập nhật tài khoản: ' + e.message };
     }
   },
 
   deleteAccount(emailOrUid) {
-    if (!emailOrUid) return false;
+    if (!emailOrUid) return { success: false, message: 'Thiếu thông tin tài khoản!' };
     try {
       const target = String(emailOrUid).trim().toLowerCase();
       let list = this.getAccountsList();
@@ -870,7 +870,7 @@ export const Storage = {
         (u.uid && u.uid.toLowerCase() === target) ||
         (u.username && u.username.toLowerCase() === target)
       );
-      if (!userToDelete) return false;
+      if (!userToDelete) return { success: false, message: 'Không tìm thấy tài khoản!' };
 
       const filtered = list.filter(u =>
         (u.email && u.email.toLowerCase() === target) ? false :
@@ -886,10 +886,10 @@ export const Storage = {
         cs.deleteAccountFromCloud(userToDelete.email || userToDelete.uid || userToDelete.username).catch(() => {});
       }
 
-      return true;
+      return { success: true, message: 'Đã xóa tài khoản thành công!' };
     } catch (e) {
       console.error('Error deleting account', e);
-      return false;
+      return { success: false, message: 'Lỗi khi xóa tài khoản: ' + e.message };
     }
   },
 
@@ -1659,7 +1659,7 @@ export const Storage = {
   },
 
   deleteExamResult(id) {
-    if (!id) return false;
+    if (!id) return { success: false, message: 'Thiếu ID bài thi!' };
     const authObj = (typeof window !== 'undefined' && window.Auth) ? window.Auth : (typeof Auth !== 'undefined' ? Auth : null);
     const isAllowed = authObj && (
       (typeof authObj.isAdmin === 'function' && authObj.isAdmin()) ||
@@ -1667,12 +1667,12 @@ export const Storage = {
     );
     if (!isAllowed) {
       console.warn('Học sinh không có quyền xóa bài thi trong lịch sử.');
-      return false;
+      return { success: false, message: 'Học sinh không có quyền xóa bài thi!' };
     }
     try {
       let history = this.getExamHistory();
       const targetItem = history.find(item => item.id === id);
-      if (!targetItem) return false;
+      if (!targetItem) return { success: false, message: 'Không tìm thấy bài thi!' };
 
       history = history.filter(item => item.id !== id);
       localStorage.setItem(STORAGE_KEYS.EXAM_HISTORY, JSON.stringify(history));
@@ -1682,19 +1682,19 @@ export const Storage = {
         cs.deleteExamResultFromCloud(targetItem).catch(() => {});
       }
       this.notifyUserProgressChanged();
-      return true;
+      return { success: true, message: 'Đã xóa bài thi thành công!' };
     } catch (e) {
       console.error('Error deleting exam result', e);
-      return false;
+      return { success: false, message: 'Lỗi khi xóa bài thi: ' + e.message };
     }
   },
 
   updateExamResult(id, updatedData) {
-    if (!id || !updatedData) return null;
+    if (!id || !updatedData) return { success: false, message: 'Thiếu dữ liệu cập nhật!' };
     try {
       const history = this.getExamHistory();
       const idx = history.findIndex(item => item.id === id);
-      if (idx < 0) return null;
+      if (idx < 0) return { success: false, message: 'Không tìm thấy bài thi!' };
 
       const item = history[idx];
       if (updatedData.score !== undefined) {
@@ -1749,10 +1749,10 @@ export const Storage = {
         cs.pushExamResultToCloud(item).catch(() => {});
       }
       this.notifyUserProgressChanged();
-      return item;
+      return { success: true, message: 'Đã cập nhật kết quả bài thi thành công!', item };
     } catch (e) {
       console.error('Error updating exam result', e);
-      return null;
+      return { success: false, message: 'Lỗi khi cập nhật bài thi: ' + e.message };
     }
   },
 
@@ -1764,7 +1764,7 @@ export const Storage = {
     );
     if (!isAllowed) {
       console.warn('Học sinh không có quyền xóa hàng loạt kết quả thi.');
-      return false;
+      return { success: false, message: 'Học sinh không có quyền xóa hàng loạt kết quả thi!' };
     }
     try {
       let history = this.getExamHistory();
@@ -1777,7 +1777,7 @@ export const Storage = {
         toDelete = history.filter(idsOrFilterFn);
         history = history.filter(item => !idsOrFilterFn(item));
       } else {
-        return false;
+        return { success: false, message: 'Tham số không hợp lệ!' };
       }
 
       localStorage.setItem(STORAGE_KEYS.EXAM_HISTORY, JSON.stringify(history));
@@ -1789,10 +1789,10 @@ export const Storage = {
         });
       }
       this.notifyUserProgressChanged();
-      return toDelete.length;
+      return { success: true, message: `Đã xóa ${toDelete.length} bài thi thành công!`, count: toDelete.length };
     } catch (e) {
       console.error('Error bulk deleting exam results', e);
-      return false;
+      return { success: false, message: 'Lỗi khi xóa hàng loạt: ' + e.message };
     }
   },
 

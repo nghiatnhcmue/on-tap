@@ -3,7 +3,7 @@
  * Hệ thống Ôn tập & Thi thử Tin học THPT - Chuẩn GDPT 2018
  */
 
-import { Storage, CURRENT_BUILD, getCachedJson, setCachedJson } from './storage.js?v=20261112_305';
+import { Storage, CURRENT_BUILD, getCachedJson, setCachedJson } from './storage.js?v=20261113_306';
 import { getAvatarDataUrl } from './avatars.js?v=20261112_305';
 import { authedFetch } from './api.js?v=20261112_305';
 import { Practice } from './practice.js?v=20261112_305';
