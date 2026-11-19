@@ -75,6 +75,65 @@ export const InteractiveVideo = {
   editingQuestionId: null,
   grabbedVideoTime: 0,
 
+  // Cache kết quả shuffle phương án (reset khi tải video mới)
+  _shuffleCache: {},
+
+  /**
+   * Xáo ngẫu nhiên phương án của câu hỏi, dùng seeded shuffle để
+   * cùng một câu hỏi trong cùng session luôn hiển thị cùng thứ tự.
+   * KHÔNG mutate object q gốc.
+   * @param {Object} q - câu hỏi với q.options (string[]) và q.answer ('A'|'B'|'C'|'D')
+   * @returns {{ displayOptions: string[], displayAnswer: string }}
+   */
+  shuffleQuestionOptions(q) {
+    if (!q || !q.options || q.options.length < 2) {
+      return { displayOptions: q ? (q.options || []) : [], displayAnswer: q ? (q.answer || 'A') : 'A' };
+    }
+
+    // Tạo cache key từ nội dung câu hỏi + lesson id
+    const qKey = (q.question || '') + '|' + (this.activeLesson?.id || '') + '|' + (q.answer || '');
+
+    // Tái dùng cache nếu đã shuffle trong session này
+    if (this._shuffleCache[qKey]) {
+      return this._shuffleCache[qKey];
+    }
+
+    // Hash chuỗi đơn giản để tạo seed ổn định
+    let seed = 0;
+    for (let ci = 0; ci < qKey.length; ci++) {
+      seed = ((seed << 5) - seed + qKey.charCodeAt(ci)) | 0;
+    }
+    seed = seed >>> 0; // unsigned 32-bit
+
+    // PRNG LCG (Linear Congruential Generator) có seed
+    function lcgRand() {
+      seed = (seed * 1664525 + 1013904223) & 0xffffffff;
+      seed = seed >>> 0;
+      return seed / 0x100000000;
+    }
+
+    // Lưu text đáp án đúng
+    const correctLetterIdx = ['A', 'B', 'C', 'D'].indexOf((q.answer || 'A').toUpperCase());
+    const correctText = q.options[correctLetterIdx] ?? q.options[0];
+
+    // Fisher-Yates shuffle trên bản copy của indices
+    const indices = q.options.map((_, i) => i);
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(lcgRand() * (i + 1));
+      const tmp = indices[i];
+      indices[i] = indices[j];
+      indices[j] = tmp;
+    }
+
+    const displayOptions = indices.map(i => q.options[i]);
+    const newCorrectIdx = displayOptions.indexOf(correctText);
+    const displayAnswer = ['A', 'B', 'C', 'D'][newCorrectIdx] || 'A';
+
+    const result = { displayOptions, displayAnswer };
+    this._shuffleCache[qKey] = result;
+    return result;
+  },
+
   async init(containerEl, manifest = null, loadGradeFn = null, initialGrade = '12') {
     this.container = containerEl;
     this.manifest = manifest;
@@ -992,6 +1051,7 @@ export const InteractiveVideo = {
     this.totalQuestionsInLesson = videoQuestions.length;
     this.correctCount = 0;
     this.sessionDetails = [];
+    this._shuffleCache = {}; // Reset cache khi tải bài học mới
     this.isDisqualified = false;
     this.disqualifiedLogs = [];
     this.violationCount = 0;
@@ -2048,6 +2108,10 @@ export const InteractiveVideo = {
     this.countdownSeconds = timeLimit;
     this.totalCountdownSeconds = timeLimit;
 
+    // Xáo phương án và lưu đáp án đã map lại
+    const { displayOptions, displayAnswer } = this.shuffleQuestionOptions(q);
+    this._currentDisplayAnswer = displayAnswer;
+
     const timeFormatted = this.formatTime(this.currentCheckpointSec);
 
     overlayContent.innerHTML = `
@@ -2100,7 +2164,7 @@ export const InteractiveVideo = {
 
         <!-- Phương án trả lời -->
         <div id="quiz-options-container" class="space-y-2.5 pt-1">
-          ${(q.options || []).map((opt, i) => {
+          ${(displayOptions).map((opt, i) => {
             const letter = ['A', 'B', 'C', 'D'][i];
             return `
               <button type="button" data-quiz-choice="${letter}" class="w-full text-left p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition flex items-start gap-3 group">
@@ -2233,7 +2297,7 @@ export const InteractiveVideo = {
       });
     }
 
-    const isCorrect = userChoice && q.answer && userChoice.toUpperCase() === q.answer.toUpperCase();
+    const isCorrect = userChoice && this._currentDisplayAnswer && userChoice.toUpperCase() === this._currentDisplayAnswer.toUpperCase();
 
     // Điểm cộng mỗi câu = 10.0 / totalQuestions
     const pointPerQuestion = 10.0 / Math.max(1, this.totalQuestionsInLesson);
@@ -2248,11 +2312,14 @@ export const InteractiveVideo = {
       liveScoreEl.textContent = `${this.scoreEarned.toFixed(1)} / 10.0 đ`;
     }
 
+    // Lấy displayAnswer đã cache (đáp án đúng sau khi shuffle)
+    const displayAnswer = this._currentDisplayAnswer || q.answer || 'A';
+
     // Highlight các phương án đúng / sai
     if (container) {
       container.querySelectorAll('[data-quiz-choice]').forEach(btn => {
         const choice = btn.getAttribute('data-quiz-choice');
-        if (choice === q.answer) {
+        if (choice === displayAnswer) {
           btn.classList.add('border-emerald-500', 'bg-emerald-50', 'dark:bg-emerald-950/40', 'text-emerald-800', 'dark:text-emerald-300');
           btn.querySelector('span')?.classList.add('bg-emerald-600', 'text-white');
         } else if (choice === userChoice && !isCorrect) {
@@ -2280,16 +2347,16 @@ export const InteractiveVideo = {
           <div class="font-black flex items-center gap-2 text-sm text-rose-700 dark:text-rose-300">
             <i class="fa-solid fa-circle-xmark text-base"></i> ${userChoice ? 'Chưa chính xác!' : 'Hết thời gian trả lời!'}
           </div>
-          <p class="leading-relaxed">Đáp án đúng là <b>${escapeHtml(q.answer)}</b>.</p>
+          <p class="leading-relaxed">Đáp án đúng là <b>${escapeHtml(displayAnswer)}</b>.</p>
         `;
       }
     }
 
-    // Ghi nhận nhật ký phiên làm bài
+    // Ghi nhận nhật ký phiên làm bài (correctAnswer giữ nguyên theo displayAnswer đã shuffle)
     this.sessionDetails.push({
       question: q,
       userAnswer: userChoice,
-      correctAnswer: q.answer,
+      correctAnswer: displayAnswer,
       isCorrect: !!isCorrect
     });
 
