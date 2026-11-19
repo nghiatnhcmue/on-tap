@@ -83,7 +83,7 @@ export const DEFAULT_SUBJECTS = ['Tin học', 'Chuyên đề Tin học', 'Công 
 // Cache tồn tại lâu dài, tự động vô hiệu khi có bản build mới (CURRENT_BUILD)
 // ============================================================================
 
-export const CURRENT_BUILD = '20261119_309';
+export const CURRENT_BUILD = '20261119_310';
 
 const IDB_CACHE_NAME = 'tinhochub_cache';
 const IDB_CACHE_VERSION = 1;
