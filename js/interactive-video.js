@@ -50,6 +50,8 @@ export const InteractiveVideo = {
   totalQuestionsInLesson: 0,
   correctCount: 0,
   sessionDetails: [],
+  currentSessionExamId: null,
+  _onBeforeUnload: null,
   videoElem: null,
   playerStageElem: null,
 
@@ -1044,18 +1046,53 @@ export const InteractiveVideo = {
     this.activeLesson = lesson;
     this.activeQuestions = videoQuestions;
     this.checkpointsMap = checkpointsMap;
-    this.completedCheckpoints = new Set();
-    this.currentCheckpointSec = null;
-    this.savedPlaybackTime = 0;
-    this.scoreEarned = 0;
     this.totalQuestionsInLesson = videoQuestions.length;
-    this.correctCount = 0;
-    this.sessionDetails = [];
     this._shuffleCache = {}; // Reset cache khi tải bài học mới
     this.isDisqualified = false;
     this.disqualifiedLogs = [];
     this.violationCount = 0;
-    this.lastAllowedTime = 0;
+    this.currentCheckpointSec = null;
+
+    // Kiểm tra phiên học dở dang trước đó
+    const activeSession = Storage.getActiveVideoSession(lesson.video);
+    let shouldResume = false;
+    if (activeSession && activeSession.completedCheckpoints && activeSession.completedCheckpoints.length > 0) {
+      const confirmResume = confirm(
+        'Bạn có phiên học dở dang trước đó (Đã hoàn thành ' + activeSession.completedCheckpoints.length + ' mốc tại ' + this.formatTime(activeSession.savedPlaybackTime || 0) + '). Bạn có muốn HỌC TIẾP không?\n- Chọn OK để tiếp tục học tiếp\n- Chọn Cancel để học lại từ đầu.'
+      );
+      if (confirmResume) {
+        shouldResume = true;
+      } else {
+        Storage.clearActiveVideoSession(lesson.video);
+      }
+    }
+
+    if (shouldResume) {
+      this.completedCheckpoints = new Set(activeSession.completedCheckpoints);
+      this.savedPlaybackTime = activeSession.savedPlaybackTime || 0;
+      this.lastAllowedTime = Math.max(activeSession.savedPlaybackTime || 0, activeSession.lastAllowedTime || 0);
+      this.correctCount = activeSession.correctCount || 0;
+      this.sessionDetails = activeSession.sessionDetails || [];
+      const pointPerQuestion = 10.0 / Math.max(1, this.totalQuestionsInLesson);
+      this.scoreEarned = Number((this.correctCount * pointPerQuestion).toFixed(1));
+      this.currentSessionExamId = activeSession.examId || ('iv_sess_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6));
+    } else {
+      this.completedCheckpoints = new Set();
+      this.savedPlaybackTime = 0;
+      this.scoreEarned = 0;
+      this.correctCount = 0;
+      this.sessionDetails = [];
+      this.lastAllowedTime = 0;
+      this.currentSessionExamId = 'iv_sess_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    }
+
+    if (this._onBeforeUnload) {
+      window.removeEventListener('beforeunload', this._onBeforeUnload);
+    }
+    this._onBeforeUnload = () => {
+      this.saveCurrentSessionProgress(true);
+    };
+    window.addEventListener('beforeunload', this._onBeforeUnload);
 
     // Khởi động hệ thống Giám sát Chống Gian Lận (Proctor Engine)
     this.startProctorMonitoring();
@@ -1200,13 +1237,13 @@ export const InteractiveVideo = {
             <!-- Điểm số trực tiếp -->
             <div class="px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-xs font-black border border-amber-200 dark:border-amber-800 flex items-center gap-1.5">
               <i class="fa-solid fa-star text-amber-500"></i>
-              <span id="player-live-score">0.0 / 10.0 đ</span>
+              <span id="player-live-score">${(this.scoreEarned || 0).toFixed(1)} / 10.0 đ</span>
             </div>
 
             <!-- Tiến độ mốc dừng -->
             <div class="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-xs font-bold border border-indigo-200 dark:border-indigo-800 flex items-center gap-1.5">
               <i class="fa-solid fa-bullseye text-rose-500"></i>
-              <span id="player-checkpoints-status">0 / ${sortedCheckpoints.length} mốc (${this.totalQuestionsInLesson} câu)</span>
+              <span id="player-checkpoints-status">${this.completedCheckpoints ? this.completedCheckpoints.size : 0} / ${sortedCheckpoints.length} mốc (${this.totalQuestionsInLesson} câu)</span>
             </div>
 
             <!-- Nút Toàn Màn Hình Rạp Chiếu -->
@@ -1512,6 +1549,7 @@ export const InteractiveVideo = {
     if (btnBack) {
       btnBack.onclick = () => {
         if (confirm('Bạn có chắc muốn thoát phòng học video? Điểm số đến hiện tại sẽ được lưu trữ.')) {
+          this.saveCurrentSessionProgress();
           this.cleanupActivePlayer();
           this.activeLesson = null;
           this.render();
@@ -1525,6 +1563,21 @@ export const InteractiveVideo = {
     this.playerStageElem = stage;
 
     if (video) {
+      // Khôi phục vị trí phát khi tải bài học dở dang
+      let restoredPlayback = false;
+      const restorePlaybackPos = () => {
+        if (restoredPlayback) return;
+        if (this.savedPlaybackTime > 0) {
+          restoredPlayback = true;
+          try {
+            video.currentTime = this.savedPlaybackTime;
+            this.updatePlayerTimeUI(this.savedPlaybackTime, video.duration);
+          } catch (e) {
+            console.warn('Lỗi khôi phục vị trí phát:', e);
+          }
+        }
+      };
+
       // 0. Quản lý trạng thái đang đệm / tải video (Buffer Spinner & Indicator)
       const bufferIndicator = document.getElementById('player-buffering-indicator');
       const showBuffering = () => {
@@ -1539,7 +1592,10 @@ export const InteractiveVideo = {
       video.onloadstart = () => {
         if (bufferIndicator) bufferIndicator.classList.remove('hidden');
       };
-      video.oncanplay = hideBuffering;
+      video.oncanplay = () => {
+        hideBuffering();
+        restorePlaybackPos();
+      };
       video.onplaying = hideBuffering;
       video.onpause = hideBuffering;
       video.onseeking = showBuffering;
@@ -1550,9 +1606,14 @@ export const InteractiveVideo = {
 
       // 1. Khi metadata tải xong: khởi tạo thời lượng và cờ pins
       video.onloadedmetadata = () => {
+        restorePlaybackPos();
         this.updateTimelinePins();
         this.updatePlayerTimeUI(video.currentTime, video.duration);
       };
+
+      if (video.readyState >= 1) {
+        restorePlaybackPos();
+      }
 
       // 2. Cập nhật thời gian liên tục: BẮT CHẶN MỐC DỪNG KHÔNG BỎ SÓT FRAME NÀO
       video.ontimeupdate = () => {
@@ -2006,6 +2067,10 @@ export const InteractiveVideo = {
   },
 
   cleanupActivePlayer() {
+    if (this._onBeforeUnload) {
+      window.removeEventListener('beforeunload', this._onBeforeUnload);
+      this._onBeforeUnload = null;
+    }
     if (this.countdownInterval) {
       clearInterval(this.countdownInterval);
       this.countdownInterval = null;
@@ -2020,6 +2085,7 @@ export const InteractiveVideo = {
     }
     this.savedPlaybackTime = 0;
     this.currentCheckpointSec = null;
+    this.currentSessionExamId = null;
     // Dừng hệ thống giám sát thi
     Proctor.stop();
   },
@@ -2360,6 +2426,9 @@ export const InteractiveVideo = {
       isCorrect: !!isCorrect
     });
 
+    // Tự động lưu tiến trình phiên học sau câu trả lời
+    this.saveCurrentSessionProgress(true);
+
     // Hiện nút tiếp tục
     const actionArea = document.getElementById('quiz-action-area');
     if (actionArea) {
@@ -2381,6 +2450,9 @@ export const InteractiveVideo = {
   finishCurrentCheckpoint() {
     const cpSec = Number(this.currentCheckpointSec);
     this.completedCheckpoints.add(cpSec);
+
+    // Tự động lưu tiến trình phiên học sau khi hoàn thành mốc
+    this.saveCurrentSessionProgress(true);
 
     // Ẩn overlay
     const overlay = document.getElementById('video-quiz-overlay');
@@ -2423,6 +2495,56 @@ export const InteractiveVideo = {
   },
 
   // ==========================================
+  // 6.5. LƯU TIẾN TRÌNH & ĐIỂM SỐ PHIÊN HỌC TẠM THỜI (DỞ DANG)
+  // ==========================================
+  saveCurrentSessionProgress(silent = false) {
+    if (!this.activeLesson) return;
+
+    const currentScore = this.totalQuestionsInLesson > 0
+      ? Number(((this.correctCount / this.totalQuestionsInLesson) * 10).toFixed(1))
+      : 0;
+
+    const playbackTime = Math.max(
+      Number(this.savedPlaybackTime || 0),
+      Number(this.videoElem?.currentTime || 0)
+    );
+    this.savedPlaybackTime = playbackTime;
+
+    const sessionData = {
+      savedPlaybackTime: playbackTime,
+      lastAllowedTime: Math.max(Number(this.lastAllowedTime || 0), playbackTime),
+      completedCheckpoints: Array.from(this.completedCheckpoints || []),
+      correctCount: this.correctCount || 0,
+      totalQuestions: this.totalQuestionsInLesson || 0,
+      sessionDetails: this.sessionDetails || [],
+      score: currentScore,
+      examId: this.currentSessionExamId || null
+    };
+
+    Storage.saveActiveVideoSession(this.activeLesson.video, sessionData);
+
+    if (this.sessionDetails && this.sessionDetails.length > 0) {
+      const examResult = {
+        id: this.currentSessionExamId || undefined,
+        title: `Video tương tác: ${this.activeLesson.lesson} (Đang học)`,
+        grade: String(this.currentGrade),
+        score: currentScore,
+        totalQuestions: this.totalQuestionsInLesson,
+        correctCount: this.correctCount,
+        timeSpentSeconds: Math.round(playbackTime),
+        examType: 'interactive_video',
+        lesson: this.activeLesson.lesson,
+        topic: this.activeLesson.topic,
+        status: 'in_progress',
+        details: this.sessionDetails
+      };
+
+      Storage.saveExamResult(examResult);
+      Storage.recordVideoProgress(this.activeLesson.video, currentScore, this.totalQuestionsInLesson, this.sessionDetails);
+    }
+  },
+
+  // ==========================================
   // 7. KẾT THÚC BÀI GIẢNG VÀ TRUYỀN ĐIỂM THỜI GIAN THỰC LÊN CLOUD
   // ==========================================
   handleVideoEnded() {
@@ -2434,6 +2556,7 @@ export const InteractiveVideo = {
 
     // Lưu điểm vào Storage & tự động bắn lên Firebase Cloud Database
     const examResult = {
+      id: this.currentSessionExamId || undefined,
       title: `Video tương tác: ${lesson.lesson}`,
       grade: String(this.currentGrade),
       score: finalScore,
@@ -2443,17 +2566,25 @@ export const InteractiveVideo = {
       examType: 'interactive_video',
       lesson: lesson.lesson,
       topic: lesson.topic,
+      status: 'completed',
       details: this.sessionDetails
     };
 
     Storage.saveExamResult(examResult);
     Storage.recordVideoProgress(lesson.video, finalScore, this.totalQuestionsInLesson, this.sessionDetails);
 
+    // Xóa phiên học dở dang khi hoàn thành 100% bài
+    Storage.clearActiveVideoSession(lesson.video);
+
     // Hiển thị modal chúc mừng hoàn thành bài giảng
     this.showCompletionModal(finalScore);
   },
 
   showCompletionModal(score) {
+    if (this.activeLesson?.video) {
+      Storage.clearActiveVideoSession(this.activeLesson.video);
+    }
+
     const overlay = document.getElementById('video-quiz-overlay');
     const content = document.getElementById('video-quiz-content');
     if (!overlay || !content) return;

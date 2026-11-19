@@ -15,6 +15,7 @@ const STORAGE_KEYS = {
   ADMIN_CONFIG: 'tinhoc_admin_config',
   EXAM_ROOMS: 'tinhoc_exam_rooms',
   ACTIVE_EXAM_SESSION: 'tinhoc_active_exam_session',
+  ACTIVE_VIDEO_SESSIONS: 'tinhoc_active_video_sessions',
   WRONG_QUESTIONS: 'tinhoc_wrong_questions',
   MASTERED_QUESTIONS: 'tinhoc_mastered_questions',
   USER_NOTES: 'tinhoc_user_notes',
@@ -1599,13 +1600,19 @@ export const Storage = {
         violationLogs: result.violationLogs || [],
         isDisqualified: !!result.isDisqualified,
         disqualifiedReason: result.disqualifiedReason || '',
+        status: result.status || 'completed',
         details: result.details || [], // danh sách câu hỏi và câu trả lời
         isArenaGame: !!result.isArenaGame,
         arenaPin: result.arenaPin || null,
         gameMode: result.gameMode || null,
         blookName: result.blookName || null
       };
-      history.unshift(entry);
+      const existingIdx = result.id ? history.findIndex(h => h.id === result.id) : -1;
+      if (existingIdx !== -1) {
+        history[existingIdx] = entry;
+      } else {
+        history.unshift(entry);
+      }
       // Giữ tối đa 2000 bài thi trên thiết bị để Sổ điểm của Giáo viên luôn đầy đủ
       if (history.length > 2000) history.pop();
       localStorage.setItem(STORAGE_KEYS.EXAM_HISTORY, JSON.stringify(history));
@@ -1828,6 +1835,47 @@ export const Storage = {
 
   clearActiveExamSession() {
     localStorage.removeItem(STORAGE_KEYS.ACTIVE_EXAM_SESSION);
+  },
+
+  saveActiveVideoSession(videoFile, sessionData) {
+    if (!videoFile || !sessionData) return;
+    try {
+      const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVE_VIDEO_SESSIONS) || '{}');
+      all[videoFile] = {
+        ...sessionData,
+        videoFile,
+        savedAt: Date.now()
+      };
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_VIDEO_SESSIONS, JSON.stringify(all));
+    } catch (e) {
+      console.error('Error saving active video session', e);
+    }
+  },
+
+  getActiveVideoSession(videoFile) {
+    if (!videoFile) return null;
+    try {
+      const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVE_VIDEO_SESSIONS) || '{}');
+      const sess = all[videoFile];
+      if (!sess) return null;
+      if (Date.now() - (sess.savedAt || 0) > 7 * 24 * 3600 * 1000) {
+        delete all[videoFile];
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_VIDEO_SESSIONS, JSON.stringify(all));
+        return null;
+      }
+      return sess;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  clearActiveVideoSession(videoFile) {
+    if (!videoFile) return;
+    try {
+      const all = JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVE_VIDEO_SESSIONS) || '{}');
+      delete all[videoFile];
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_VIDEO_SESSIONS, JSON.stringify(all));
+    } catch (e) {}
   },
 
   // --- NGÂN HÀNG CÂU HỎI HAY SAI (SMART MISTAKE BANK) ---
