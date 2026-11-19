@@ -50,6 +50,14 @@ export const LiveVideo = {
   savedPlaybackTime: 0,
   isManualSeeking: false,
   hasAttemptedAntiResetRecovery: false,
+  _renderScheduled: false,
+  _renderTimer: null,
+  _lastRenderTime: 0,
+  _cachedStudentsFingerprint: '',
+  _cachedPollFingerprint: '',
+  _cachedQueueFingerprint: '',
+  _cachedMiniLbFingerprint: '',
+  _cachedPeersFingerprint: '',
 
   init(manifest = null) {
     this.manifest = manifest;
@@ -1732,13 +1740,20 @@ export const LiveVideo = {
           }
         } catch (err) {}
       });
+      this.eventSource.onerror = () => {
+        // Khi SSE gặp sự cố hoặc tạm ngắt, Fallback Polling bên dưới sẽ gánh tải
+      };
     } catch (e) {
-      console.warn('LiveVideo: SSE không được hỗ trợ, sử dụng short polling:', e);
+      console.warn('LiveVideo: SSE không được hỗ trợ, sử dụng short polling fallback:', e);
     }
 
-    // 2. Short Polling liên tục (1.5s) đảm bảo 100% không bao giờ mất tín hiệu đồng bộ
+    // 2. Fallback Polling thông minh (12s): Chỉ chạy khi SSE bị ngắt kết nối để chống nghẽn mạng & CPU
     this.pollTimer = setInterval(async () => {
       try {
+        // Nếu SSE đang kết nối mượt mà (OPEN = 1), bỏ qua polling để tiết kiệm 100% băng thông và CPU
+        if (this.eventSource && this.eventSource.readyState === 1) {
+          return;
+        }
         const res = await authedFetch(roomUrl, { cache: 'no-cache' });
         if (res.ok) {
           const remote = await res.json();
@@ -1747,9 +1762,9 @@ export const LiveVideo = {
           }
         }
       } catch (err) {}
-    }, 1500);
+    }, 12000);
 
-    // 3. Heartbeat điểm danh trực tuyến (Host mỗi 15 giây, Học sinh mỗi 8 giây)
+    // 3. Heartbeat điểm danh trực tuyến (Host mỗi 15 giây, Học sinh mỗi 15s + jitter)
     if (this.isHost) {
       this.heartbeatTimer = setInterval(async () => {
         try {
@@ -1761,6 +1776,7 @@ export const LiveVideo = {
         } catch (e) {}
       }, 15000);
     } else if (this.studentInfo) {
+      const studentJitter = Math.floor(Math.random() * 3000);
       this.heartbeatTimer = setInterval(async () => {
         try {
           const uid = this.studentInfo.uid;
@@ -1770,8 +1786,98 @@ export const LiveVideo = {
             body: JSON.stringify(Date.now())
           });
         } catch (e) {}
-      }, 8000);
+      }, 15000 + studentJitter);
     }
+  },
+
+  // Bộ điều tiết Render qua requestAnimationFrame (RAF Coalescing & Throttling)
+  scheduleThrottledRender() {
+    if (this._renderScheduled) return;
+    this._renderScheduled = true;
+
+    const now = performance.now();
+    const elapsed = now - (this._lastRenderTime || 0);
+    const throttleLimit = 350; // Tối đa 1 lần render mỗi 350ms (~3 fps) giải phóng 100% Main Thread
+    const delay = Math.max(0, throttleLimit - elapsed);
+
+    if (this._renderTimer) clearTimeout(this._renderTimer);
+    this._renderTimer = setTimeout(() => {
+      this._renderTimer = null;
+      requestAnimationFrame(() => {
+        this._renderScheduled = false;
+        this._lastRenderTime = performance.now();
+        if (this.isHost) {
+          this.updateMasterUI(this.remoteState);
+        } else {
+          this.updateStudentUI(this.remoteState);
+        }
+      });
+    }, delay);
+  },
+
+  // Cập nhật số người online nhanh gọn, KHÔNG re-render toàn bộ DOM
+  updateOnlineCounterOnly() {
+    if (!this.isHost) return;
+    const onlineCounter = document.getElementById('master-online-counter');
+    if (!onlineCounter || !this.remoteState?.students) return;
+    const now = Date.now();
+    const students = Object.values(this.remoteState.students).filter(s => s && s.queueStatus !== 'kicked');
+    const active = students.filter(s => (now - (s.lastSeen || s.joinedAt || 0)) < 60000);
+    onlineCounter.textContent = `${students.length} HS (${active.length} online)`;
+  },
+
+  // Chỉ đồng bộ phát video cho học sinh, KHÔNG re-render câu hỏi hay bảng xếp hạng
+  syncStudentVideoOnly() {
+    if (this.isHost || !this.remoteState) return;
+    const video = document.getElementById('live-student-video');
+    if (!video || !this.remoteState.streamVideoToStudents) return;
+    if (this.remoteState.state === 'playing') {
+      let expectedTime = Number(this.remoteState.currentTime || 0);
+      if (this.remoteState.updatedAt) {
+        const elapsedSec = (Date.now() - this.remoteState.updatedAt) / 1000;
+        if (elapsedSec > 0 && elapsedSec < 1800) {
+          expectedTime += elapsedSec;
+        }
+      }
+      this.applySmoothSync(video, expectedTime, true);
+    } else if (this.remoteState.state === 'paused') {
+      this.applySmoothSync(video, Number(this.remoteState.currentTime || 0), false);
+    }
+  },
+
+  // Thuật toán vi chỉnh tốc độ phát mượt mà (Smooth Playback Rate Sync), chống khựng đơ video
+  applySmoothSync(video, targetSec, shouldPlay) {
+    if (!video || isNaN(targetSec) || !isFinite(targetSec)) return;
+    try {
+      const diff = video.currentTime - targetSec; // > 0: HS chạy nhanh hơn Host; < 0: HS chạy chậm hơn Host
+      const absDiff = Math.abs(diff);
+
+      if (absDiff > 4.0) {
+        // Lệch lớn (> 4 giây): Bắt buộc seek trực tiếp
+        video.currentTime = targetSec;
+        video.playbackRate = 1.0;
+      } else if (absDiff > 0.4 && shouldPlay) {
+        // Lệch vừa phải (0.4s - 4.0s): Vi chỉnh tốc độ mượt mà không làm xả buffer video
+        video.playbackRate = diff > 0 ? 0.94 : 1.06;
+      } else {
+        // Đã bám sát khung hình
+        video.playbackRate = 1.0;
+      }
+
+      if (shouldPlay) {
+        if (video.paused) {
+          video.muted = true;
+          video.play().catch(e => {
+            console.warn('Autoplay on student blocked by browser:', e);
+            this.showStudentTapToPlayOverlay();
+          });
+        }
+      } else {
+        if (!video.paused) {
+          video.pause();
+        }
+      }
+    } catch (err) {}
   },
 
   // Phân tích và ghép nối cây dữ liệu Firebase Stream thời gian thực
@@ -1807,11 +1913,23 @@ export const LiveVideo = {
       this.remoteState.completedCheckpoints.forEach(cp => this.completedCheckpoints.add(String(cp)));
     }
 
-    if (this.isHost) {
-      this.updateMasterUI(this.remoteState);
-    } else {
-      this.updateStudentUI(this.remoteState);
+    // LỌC ĐƯỜNG DẪN THÔNG MINH (Path Filtering):
+    // 1. Nếu chỉ là heartbeat lastSeen, chỉ cập nhật counter, tuyệt đối không re-render UI
+    if (path && path.includes('/lastSeen')) {
+      this.updateOnlineCounterOnly();
+      return;
     }
+
+    // 2. Nếu chỉ là vị trí video currentTime, chỉ vi chỉnh video, không re-render danh sách/biểu đồ
+    if (path && (path.includes('/currentTime') || path === '/currentTime' || path === 'currentTime')) {
+      if (!this.isHost) {
+        this.syncStudentVideoOnly();
+      }
+      return;
+    }
+
+    // 3. Với các thay đổi quan trọng khác (câu hỏi, trạng thái phòng, nộp bài, duyệt học sinh...) -> đưa vào hàng đợi RAF điều tiết
+    this.scheduleThrottledRender();
   },
 
   handleRemoteStateUpdate(remote) {
@@ -1823,11 +1941,7 @@ export const LiveVideo = {
       remote.completedCheckpoints.forEach(cp => this.completedCheckpoints.add(String(cp)));
     }
 
-    if (this.isHost) {
-      this.updateMasterUI(remote);
-    } else {
-      this.updateStudentUI(remote);
-    }
+    this.scheduleThrottledRender();
   },
 
   // =========================================================================
@@ -2203,13 +2317,17 @@ export const LiveVideo = {
       }
 
       if (peersList) {
-        peersList.innerHTML = allStudentsList.slice(0, 18).map((s, idx) => `
-          <span class="px-2.5 py-1 rounded-full ${s.uid === myUid ? 'bg-rose-600 text-white font-black' : 'bg-white/10 text-slate-200 font-semibold'} text-[11px] flex items-center gap-1">
-            <span class="text-amber-300 font-mono">#${s.queueOrder || (idx + 1)}</span>
-            <span>${escapeHtml(s.name)}</span>
-            ${s.ready ? '<i class="fa-solid fa-circle-check text-emerald-400 text-[10px]"></i>' : ''}
-          </span>
-        `).join('');
+        const peersFp = allStudentsList.slice(0, 18).map(s => `${s.uid}:${s.ready ? 1 : 0}:${s.queueOrder || 0}`).join('|');
+        if (this._cachedPeersFingerprint !== peersFp) {
+          this._cachedPeersFingerprint = peersFp;
+          peersList.innerHTML = allStudentsList.slice(0, 18).map((s, idx) => `
+            <span class="px-2.5 py-1 rounded-full ${s.uid === myUid ? 'bg-rose-600 text-white font-black' : 'bg-white/10 text-slate-200 font-semibold'} text-[11px] flex items-center gap-1">
+              <span class="text-amber-300 font-mono">#${s.queueOrder || (idx + 1)}</span>
+              <span>${escapeHtml(s.name)}</span>
+              ${s.ready ? '<i class="fa-solid fa-circle-check text-emerald-400 text-[10px]"></i>' : ''}
+            </span>
+          `).join('');
+        }
       }
       return;
     } else {
@@ -2251,31 +2369,6 @@ export const LiveVideo = {
         if (pausedOverlay) pausedOverlay.classList.remove('hidden');
       }
     } else {
-      const applyPreciseSync = (targetSec, shouldPlay) => {
-        try {
-          if (!isNaN(targetSec) && isFinite(targetSec)) {
-            const diff = Math.abs(video.currentTime - targetSec);
-            const threshold = shouldPlay ? 1.2 : 0.3;
-            if (diff > threshold) {
-              video.currentTime = targetSec;
-            }
-          }
-          if (shouldPlay) {
-            if (video.paused) {
-              video.muted = true;
-              video.play().catch(e => {
-                console.warn('Autoplay on student blocked by browser:', e);
-                this.showStudentTapToPlayOverlay();
-              });
-            }
-          } else {
-            try {
-              video.pause();
-            } catch (e) {}
-          }
-        } catch (err) {}
-      };
-
       if (remote.state === 'playing') {
         if (waitingOverlay) waitingOverlay.classList.add('hidden');
         if (pausedOverlay) pausedOverlay.classList.add('hidden');
@@ -2291,19 +2384,19 @@ export const LiveVideo = {
         }
 
         if (video.readyState >= 1) {
-          applyPreciseSync(expectedTime, true);
+          this.applySmoothSync(video, expectedTime, true);
         } else {
-          video.addEventListener('loadedmetadata', () => applyPreciseSync(expectedTime, true), { once: true });
-          video.addEventListener('canplay', () => applyPreciseSync(expectedTime, true), { once: true });
+          video.addEventListener('loadedmetadata', () => this.applySmoothSync(video, expectedTime, true), { once: true });
+          video.addEventListener('canplay', () => this.applySmoothSync(video, expectedTime, true), { once: true });
         }
       } else if (remote.state === 'paused') {
         if (pausedOverlay) pausedOverlay.classList.remove('hidden');
         const targetTime = Number(remote.currentTime || 0);
         if (video.readyState >= 1) {
-          applyPreciseSync(targetTime, false);
+          this.applySmoothSync(video, targetTime, false);
         } else {
-          video.addEventListener('loadedmetadata', () => applyPreciseSync(targetTime, false), { once: true });
-          video.addEventListener('canplay', () => applyPreciseSync(targetTime, false), { once: true });
+          video.addEventListener('loadedmetadata', () => this.applySmoothSync(video, targetTime, false), { once: true });
+          video.addEventListener('canplay', () => this.applySmoothSync(video, targetTime, false), { once: true });
         }
       }
     }
@@ -2874,96 +2967,104 @@ export const LiveVideo = {
     }
 
     if (lobbyQueueList && remote.state === 'waiting') {
-      if (studentEntries.length === 0) {
-        lobbyQueueList.innerHTML = `
-          <div class="col-span-full py-8 text-center text-slate-400 text-xs border border-dashed border-white/15 rounded-2xl">
-            <i class="fa-solid fa-user-clock text-2xl mb-1.5 text-amber-400/80 block"></i>
-            Đang chờ học sinh nhập mã <strong>${escapeHtml(remote.roomId)}</strong> để xếp hàng vào lớp...
-          </div>
-        `;
-      } else {
-        lobbyQueueList.innerHTML = studentEntries.map((s, idx) => {
-          const isPending = s.queueStatus === 'pending';
-          return `
-            <div class="p-2.5 rounded-2xl ${isPending ? 'bg-amber-500/15 border border-amber-400/50' : 'bg-white/10 border border-white/15'} flex items-center justify-between gap-2 text-xs">
-              <div class="flex items-center gap-2 min-w-0">
-                <span class="w-6 h-6 rounded-lg bg-amber-400 text-slate-950 font-black font-mono text-[11px] flex items-center justify-center shrink-0">
-                  #${s.queueOrder || (idx + 1)}
-                </span>
-                <div class="min-w-0">
-                  <div class="font-bold text-white truncate">${escapeHtml(s.name)}</div>
-                  <div class="text-[10px] text-slate-300 flex items-center gap-1">
-                    <span>${escapeHtml(s.className || 'HS')}</span>
-                    <span>•</span>
-                    ${isPending
-                      ? '<span class="text-amber-300 font-bold">⏳ Chờ duyệt</span>'
-                      : (s.ready ? '<span class="text-emerald-300 font-bold">✅ Sẵn sàng</span>' : '<span class="text-cyan-300">Đang đợi</span>')}
-                  </div>
-                </div>
-              </div>
-              <div class="flex items-center gap-1 shrink-0">
-                ${isPending ? `
-                  <button type="button" data-admit-uid="${escapeHtml(s.uid)}" class="px-2 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[10px] cursor-pointer">
-                    Duyệt
-                  </button>
-                ` : ''}
-                <button type="button" data-kick-uid="${escapeHtml(s.uid)}" class="w-6 h-6 rounded-lg bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white text-[10px] flex items-center justify-center cursor-pointer" title="Mời ra khỏi hàng đợi">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-              </div>
+      const queueFp = studentEntries.map(s => `${s.uid}:${s.queueStatus}:${s.ready ? 1 : 0}:${s.queueOrder || 0}`).join('|');
+      if (this._cachedQueueFingerprint !== queueFp) {
+        this._cachedQueueFingerprint = queueFp;
+        if (studentEntries.length === 0) {
+          lobbyQueueList.innerHTML = `
+            <div class="col-span-full py-8 text-center text-slate-400 text-xs border border-dashed border-white/15 rounded-2xl">
+              <i class="fa-solid fa-user-clock text-2xl mb-1.5 text-amber-400/80 block"></i>
+              Đang chờ học sinh nhập mã <strong>${escapeHtml(remote.roomId)}</strong> để xếp hàng vào lớp...
             </div>
           `;
-        }).join('');
+        } else {
+          lobbyQueueList.innerHTML = studentEntries.map((s, idx) => {
+            const isPending = s.queueStatus === 'pending';
+            return `
+              <div class="p-2.5 rounded-2xl ${isPending ? 'bg-amber-500/15 border border-amber-400/50' : 'bg-white/10 border border-white/15'} flex items-center justify-between gap-2 text-xs">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="w-6 h-6 rounded-lg bg-amber-400 text-slate-950 font-black font-mono text-[11px] flex items-center justify-center shrink-0">
+                    #${s.queueOrder || (idx + 1)}
+                  </span>
+                  <div class="min-w-0">
+                    <div class="font-bold text-white truncate">${escapeHtml(s.name)}</div>
+                    <div class="text-[10px] text-slate-300 flex items-center gap-1">
+                      <span>${escapeHtml(s.className || 'HS')}</span>
+                      <span>•</span>
+                      ${isPending
+                        ? '<span class="text-amber-300 font-bold">⏳ Chờ duyệt</span>'
+                        : (s.ready ? '<span class="text-emerald-300 font-bold">✅ Sẵn sàng</span>' : '<span class="text-cyan-300">Đang đợi</span>')}
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                  ${isPending ? `
+                    <button type="button" data-admit-uid="${escapeHtml(s.uid)}" class="px-2 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[10px] cursor-pointer">
+                      Duyệt
+                    </button>
+                  ` : ''}
+                  <button type="button" data-kick-uid="${escapeHtml(s.uid)}" class="w-6 h-6 rounded-lg bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white text-[10px] flex items-center justify-center cursor-pointer" title="Mời ra khỏi hàng đợi">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('');
 
-        lobbyQueueList.querySelectorAll('[data-admit-uid]').forEach(btn => {
-          btn.onclick = () => this.admitStudent(remote.roomId, btn.getAttribute('data-admit-uid'));
-        });
-        lobbyQueueList.querySelectorAll('[data-kick-uid]').forEach(btn => {
-          btn.onclick = () => this.kickStudent(remote.roomId, btn.getAttribute('data-kick-uid'));
-        });
+          lobbyQueueList.querySelectorAll('[data-admit-uid]').forEach(btn => {
+            btn.onclick = () => this.admitStudent(remote.roomId, btn.getAttribute('data-admit-uid'));
+          });
+          lobbyQueueList.querySelectorAll('[data-kick-uid]').forEach(btn => {
+            btn.onclick = () => this.kickStudent(remote.roomId, btn.getAttribute('data-kick-uid'));
+          });
+        }
       }
     }
 
-    // 2b. Danh sách học sinh bên cột phải
+    // 2b. Danh sách học sinh bên cột phải (Dirty-checking chống hủy diệt DOM)
     if (studentsList) {
-      if (studentEntries.length === 0) {
-        studentsList.innerHTML = `
-          <div class="p-6 text-center text-xs text-slate-400">
-            <i class="fa-solid fa-users text-2xl mb-2 opacity-50 block"></i>
-            Chưa có học sinh nào trong hàng đợi.<br />
-            Thầy/Cô gửi mã <strong>${escapeHtml(remote.roomId)}</strong> để học sinh tham gia nhé!
-          </div>
-        `;
-      } else {
-        studentsList.innerHTML = studentEntries.map((s, idx) => {
-          const isOnline = (now - (s.lastSeen || s.joinedAt || 0)) < 30000;
-          const isPending = s.queueStatus === 'pending';
-          return `
-            <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs">
-              <div class="flex items-center gap-2 min-w-0">
-                <span class="w-5 h-5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-mono font-black text-[10px] flex items-center justify-center shrink-0">
-                  #${s.queueOrder || (idx + 1)}
-                </span>
-                <span class="w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-slate-400'} shrink-0"></span>
-                <span class="font-bold text-slate-800 dark:text-white truncate">${escapeHtml(s.name)}</span>
-                <span class="text-[10px] text-slate-400">(${escapeHtml(s.className || 'HS')})</span>
-              </div>
-              <div class="flex items-center gap-1.5 shrink-0">
-                ${isPending ? `
-                  <button type="button" data-side-admit-uid="${escapeHtml(s.uid)}" class="px-2 py-0.5 rounded bg-emerald-500 text-slate-950 font-black text-[10px] cursor-pointer">Duyệt</button>
-                ` : `
-                  <span class="px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 font-black text-[11px] font-mono">
-                    ${s.score || 0}đ
-                  </span>
-                `}
-              </div>
+      const studentsFp = studentEntries.map(s => `${s.uid}:${s.queueStatus}:${s.score || 0}:${(now - (s.lastSeen || s.joinedAt || 0)) < 30000 ? 1 : 0}`).join('|');
+      if (this._cachedStudentsFingerprint !== studentsFp) {
+        this._cachedStudentsFingerprint = studentsFp;
+        if (studentEntries.length === 0) {
+          studentsList.innerHTML = `
+            <div class="p-6 text-center text-xs text-slate-400">
+              <i class="fa-solid fa-users text-2xl mb-2 opacity-50 block"></i>
+              Chưa có học sinh nào trong hàng đợi.<br />
+              Thầy/Cô gửi mã <strong>${escapeHtml(remote.roomId)}</strong> để học sinh tham gia nhé!
             </div>
           `;
-        }).join('');
+        } else {
+          studentsList.innerHTML = studentEntries.map((s, idx) => {
+            const isOnline = (now - (s.lastSeen || s.joinedAt || 0)) < 30000;
+            const isPending = s.queueStatus === 'pending';
+            return `
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="w-5 h-5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-mono font-black text-[10px] flex items-center justify-center shrink-0">
+                    #${s.queueOrder || (idx + 1)}
+                  </span>
+                  <span class="w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-slate-400'} shrink-0"></span>
+                  <span class="font-bold text-slate-800 dark:text-white truncate">${escapeHtml(s.name)}</span>
+                  <span class="text-[10px] text-slate-400">(${escapeHtml(s.className || 'HS')})</span>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  ${isPending ? `
+                    <button type="button" data-side-admit-uid="${escapeHtml(s.uid)}" class="px-2 py-0.5 rounded bg-emerald-500 text-slate-950 font-black text-[10px] cursor-pointer">Duyệt</button>
+                  ` : `
+                    <span class="px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 font-black text-[11px] font-mono">
+                      ${s.score || 0}đ
+                    </span>
+                  `}
+                </div>
+              </div>
+            `;
+          }).join('');
 
-        studentsList.querySelectorAll('[data-side-admit-uid]').forEach(btn => {
-          btn.onclick = () => this.admitStudent(remote.roomId, btn.getAttribute('data-side-admit-uid'));
-        });
+          studentsList.querySelectorAll('[data-side-admit-uid]').forEach(btn => {
+            btn.onclick = () => this.admitStudent(remote.roomId, btn.getAttribute('data-side-admit-uid'));
+          });
+        }
       }
     }
 
@@ -2982,29 +3083,34 @@ export const LiveVideo = {
     const miniLeaderboard = document.getElementById('master-mini-leaderboard');
     if (miniLeaderboard) {
       if (latestMilestoneIdx >= 0 && studentEntries.length > 0) {
-        const cumStats = this.computeMilestoneStats(remote, latestMilestoneIdx);
-        const top5 = cumStats.leaderboard.slice(0, 6);
-        miniLeaderboard.innerHTML = `
-          <div class="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between text-[11px] mb-1.5">
-            <span class="font-bold text-slate-700 dark:text-slate-300">Tỷ lệ đúng lũy kế (M1➔M${cumStats.completedMilestonesCount}):</span>
-            <strong class="font-mono font-black text-emerald-600 dark:text-emerald-400">${cumStats.overallAccuracyPct}%</strong>
-          </div>
-          ${top5.map((s, idx) => {
-            const medal = idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : `#${idx + 1}`));
-            return `
-              <div class="flex items-center justify-between p-1.5 rounded-lg bg-white/60 dark:bg-slate-800/60 border border-amber-500/10 text-xs">
-                <div class="flex items-center gap-1.5 truncate">
-                  <span class="font-bold">${medal}</span>
-                  <span class="font-bold truncate text-slate-800 dark:text-slate-200">${escapeHtml(s.name)}</span>
+        const responsesCount = Object.keys(remote.responses || {}).length;
+        const miniLbFp = `${latestMilestoneIdx}:${studentEntries.length}:${responsesCount}:${studentEntries.map(s => `${s.uid}:${s.score || 0}`).join(',')}`;
+        if (this._cachedMiniLbFingerprint !== miniLbFp) {
+          this._cachedMiniLbFingerprint = miniLbFp;
+          const cumStats = this.computeMilestoneStats(remote, latestMilestoneIdx);
+          const top5 = cumStats.leaderboard.slice(0, 6);
+          miniLeaderboard.innerHTML = `
+            <div class="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between text-[11px] mb-1.5">
+              <span class="font-bold text-slate-700 dark:text-slate-300">Tỷ lệ đúng lũy kế (M1➔M${cumStats.completedMilestonesCount}):</span>
+              <strong class="font-mono font-black text-emerald-600 dark:text-emerald-400">${cumStats.overallAccuracyPct}%</strong>
+            </div>
+            ${top5.map((s, idx) => {
+              const medal = idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : `#${idx + 1}`));
+              return `
+                <div class="flex items-center justify-between p-1.5 rounded-lg bg-white/60 dark:bg-slate-800/60 border border-amber-500/10 text-xs">
+                  <div class="flex items-center gap-1.5 truncate">
+                    <span class="font-bold">${medal}</span>
+                    <span class="font-bold truncate text-slate-800 dark:text-slate-200">${escapeHtml(s.name)}</span>
+                  </div>
+                  <div class="flex items-center gap-2 shrink-0 font-mono">
+                    <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">${s.correctUpToNow}/${cumStats.completedMilestonesCount} đúng</span>
+                    <span class="font-black text-amber-600 dark:text-amber-400">${s.scoreUpToNow}đ</span>
+                  </div>
                 </div>
-                <div class="flex items-center gap-2 shrink-0 font-mono">
-                  <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">${s.correctUpToNow}/${cumStats.completedMilestonesCount} đúng</span>
-                  <span class="font-black text-amber-600 dark:text-amber-400">${s.scoreUpToNow}đ</span>
-                </div>
-              </div>
-            `;
-          }).join('')}
-        `;
+              `;
+            }).join('')}
+          `;
+        }
       }
     }
 
@@ -3294,6 +3400,12 @@ export const LiveVideo = {
     });
 
     const normCorrect = correctAnswer ? this.normalizeAnswerLetter(correctAnswer) : null;
+    const pollFp = `${containerId}:${list.length}:${normCorrect || ''}:${tally.A}:${tally.B}:${tally.C}:${tally.D}`;
+    if (container._cachedPollFp === pollFp) {
+      return; // Dữ liệu bình chọn không đổi, bỏ qua re-render DOM để bảo vệ hiệu năng
+    }
+    container._cachedPollFp = pollFp;
+
     const colors = {
       A: { bar: 'from-rose-500 to-rose-600', text: 'text-rose-400' },
       B: { bar: 'from-blue-500 to-indigo-600', text: 'text-blue-400' },
@@ -5228,6 +5340,17 @@ export const LiveVideo = {
   },
 
   cleanupSync() {
+    if (this._renderTimer) {
+      clearTimeout(this._renderTimer);
+      this._renderTimer = null;
+    }
+    this._renderScheduled = false;
+    this._cachedStudentsFingerprint = '';
+    this._cachedPollFingerprint = '';
+    this._cachedQueueFingerprint = '';
+    this._cachedMiniLbFingerprint = '';
+    this._cachedPeersFingerprint = '';
+
     if (this.masterFsKeyHandler) {
       window.removeEventListener('keydown', this.masterFsKeyHandler);
       this.masterFsKeyHandler = null;
