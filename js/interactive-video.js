@@ -44,8 +44,8 @@ export const InteractiveVideo = {
   currentCheckpointQuestions: [],
   currentQuestionIdx: 0,
   countdownInterval: null,
-  countdownSeconds: 15,
-  totalCountdownSeconds: 15,
+  countdownSeconds: 60,
+  totalCountdownSeconds: 60,
   scoreEarned: 0,
   totalQuestionsInLesson: 0,
   correctCount: 0,
@@ -2104,7 +2104,7 @@ export const InteractiveVideo = {
     if (!overlayContent) return;
 
     // Thời gian đếm ngược
-    const timeLimit = Math.max(10, Number(q.video_time) || 15);
+    const timeLimit = Math.max(10, Number(q.video_time) && Number(q.video_time) > 15 ? Number(q.video_time) : 60);
     this.countdownSeconds = timeLimit;
     this.totalCountdownSeconds = timeLimit;
 
@@ -2215,10 +2215,10 @@ export const InteractiveVideo = {
         const offset = 125.6 * (1 - this.countdownSeconds / this.totalCountdownSeconds);
         circle.style.strokeDashoffset = offset;
 
-        if (this.countdownSeconds <= 4) {
+        if (this.countdownSeconds <= 10) {
           circle.classList.remove('text-blue-600', 'text-amber-500');
           circle.classList.add('text-rose-600');
-        } else if (this.countdownSeconds <= 8) {
+        } else if (this.countdownSeconds <= 20) {
           circle.classList.remove('text-blue-600');
           circle.classList.add('text-amber-500');
         }
@@ -2639,7 +2639,7 @@ export const InteractiveVideo = {
           <div class="space-y-3">
             ${items.map(({ question: q, originalIndex: idx }) => {
               const levelLabel = q.level === 'DS' ? 'Đúng / Sai' : `Mức ${q.level}`;
-              const timeLimit = q.video_time || 15;
+              const timeLimit = (q.video_time && Number(q.video_time) > 15) ? q.video_time : 60;
 
               return `
                 <div class="p-3.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 group">
@@ -2790,7 +2790,7 @@ export const InteractiveVideo = {
       if (inputId) inputId.value = String(idx);
       if (formTitle) formTitle.innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Chỉnh Sửa Câu Hỏi (Mốc ${q.video_stop}s)`;
       if (inputStopSec) inputStopSec.value = q.video_stop;
-      if (inputTimeLimit) inputTimeLimit.value = q.video_time || 15;
+      if (inputTimeLimit) inputTimeLimit.value = (q.video_time && Number(q.video_time) > 15) ? q.video_time : 60;
       if (inputLevel) inputLevel.value = q.level || '1';
       if (inputQText) inputQText.value = q.question || '';
       if (optA) optA.value = q.options?.[0] || '';
@@ -2806,7 +2806,7 @@ export const InteractiveVideo = {
       if (inputId) inputId.value = '';
       if (formTitle) formTitle.innerHTML = `<i class="fa-solid fa-plus-circle"></i> Thêm Câu Hỏi Dừng Mới`;
       if (inputStopSec) inputStopSec.value = prefillSec !== '' ? prefillSec : (this.grabbedVideoTime > 0 ? this.grabbedVideoTime : '');
-      if (inputTimeLimit) inputTimeLimit.value = '15';
+      if (inputTimeLimit) inputTimeLimit.value = '60';
       if (inputLevel) inputLevel.value = '1';
       if (inputQText) inputQText.value = '';
       if (optA) optA.value = '';
@@ -2829,7 +2829,7 @@ export const InteractiveVideo = {
 
   saveQuestionFromEditor() {
     const stopSecRaw = document.getElementById('vqe-input-stop-sec')?.value;
-    const timeLimit = parseInt(document.getElementById('vqe-input-time-limit')?.value, 10) || 15;
+    const timeLimit = parseInt(document.getElementById('vqe-input-time-limit')?.value, 10) || 60;
     const level = document.getElementById('vqe-input-level')?.value || '1';
     const questionText = document.getElementById('vqe-input-question-text')?.value.trim();
     const optA = document.getElementById('vqe-opt-A')?.value.trim();

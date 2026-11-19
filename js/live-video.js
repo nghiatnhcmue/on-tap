@@ -496,7 +496,7 @@ export const LiveVideo = {
     const school = schoolSel?.value || 'all';
     const grade = gradeSel?.value || '12';
     const className = classSel?.value || 'all';
-    const countdownSec = parseInt(countdownSel?.value || '20', 10);
+    const countdownSec = parseInt(countdownSel?.value || '60', 10);
     const title = (titleInput?.value || '').trim() || `Lớp học trực tuyến: ${lessonTitle}`;
 
     if (submitBtn) {
@@ -568,7 +568,7 @@ export const LiveVideo = {
               options: q.options || [],
               answer: q.answer,
               level: q.level || '1',
-              timeLimit: parseInt(q.video_time || countdownSec || '20', 10)
+              timeLimit: parseInt((q.video_time && q.video_time > 15 ? q.video_time : countdownSec) || '60', 10)
             };
           });
           const firstQ = questions[0] || {};
@@ -583,7 +583,7 @@ export const LiveVideo = {
             options: firstQ.options || [],
             answer: firstQ.answer || 'A',
             level: firstQ.level || '1',
-            timeLimit: firstQ.timeLimit || parseInt(countdownSec || '20', 10)
+            timeLimit: firstQ.timeLimit || parseInt(countdownSec || '60', 10)
           };
         });
       } else {
@@ -657,7 +657,7 @@ export const LiveVideo = {
               options: q.options || ['Phương án A', 'Phương án B', 'Phương án C', 'Phương án D'],
               answer: q.answer || 'A',
               level: q.level || '1',
-              timeLimit: parseInt(q.video_time || countdownSec || '20', 10)
+              timeLimit: parseInt((q.video_time && q.video_time > 15 ? q.video_time : countdownSec) || '60', 10)
             };
           });
 
@@ -672,7 +672,7 @@ export const LiveVideo = {
             options: firstQ.options || [],
             answer: firstQ.answer || 'A',
             level: firstQ.level || '1',
-            timeLimit: firstQ.timeLimit || parseInt(countdownSec || '20', 10)
+            timeLimit: firstQ.timeLimit || parseInt(countdownSec || '60', 10)
           };
         });
       }
@@ -1274,7 +1274,7 @@ export const LiveVideo = {
                   </div>
                   <div class="flex items-center gap-2">
                     <span class="text-xs text-slate-300 font-mono">Trạng thái:</span>
-                    <span id="master-q-countdown" class="px-3 py-1 rounded-full bg-rose-600 text-white text-xs sm:text-sm font-black font-mono">20s</span>
+                    <span id="master-q-countdown" class="px-3 py-1 rounded-full bg-rose-600 text-white text-xs sm:text-sm font-black font-mono">60s</span>
                   </div>
                 </div>
 
@@ -1624,7 +1624,7 @@ export const LiveVideo = {
               <div class="flex items-center gap-3">
                 <span class="text-xs text-slate-400 font-medium">Thời gian còn lại:</span>
                 <span id="student-q-countdown" class="px-4 py-1.5 rounded-full bg-amber-500 text-slate-950 text-base font-black font-mono shadow-lg shadow-amber-500/30">
-                  20s
+                  60s
                 </span>
               </div>
             </div>
@@ -3163,7 +3163,7 @@ export const LiveVideo = {
       const isLastMilestone = (q.index + 1) >= totalMilestones;
 
       const elapsed = Math.floor((Date.now() - (q.startTimestamp || q.timestamp || 0)) / 1000);
-      const totalSec = Number(q.countdown || q.timeLimit || 20);
+      const totalSec = Number(q.countdown || q.timeLimit || 60);
       const isExpired = elapsed >= totalSec;
 
       if (q.revealed) {
@@ -4625,7 +4625,7 @@ export const LiveVideo = {
     const sIdx = Math.min(totalInMilestone - 1, Math.max(0, Number(subIndex) || 0));
     const targetQ = qList[sIdx] || cp || checkpointOrQ;
 
-    const totalSec = parseInt(targetQ.timeLimit || targetQ.countdown || this.activeRoom?.countdownSec || '20', 10);
+    const totalSec = Number(targetQ.countdown || targetQ.timeLimit || this.activeRoom?.countdownSec || 60);
     const now = Date.now();
     const cpIndex = cp?.index !== undefined ? Number(cp.index) : (Number(targetQ.checkpointIndex ?? targetQ.index) || 0);
     const qKey = targetQ.qKey || `${cpIndex}_${sIdx}`;
@@ -4701,7 +4701,7 @@ export const LiveVideo = {
 
     this.isCountdownExpired = false;
     const startTs = Number(q.startTimestamp || q.timestamp || Date.now());
-    const totalSec = Number(q.countdown || q.timeLimit || 20);
+    const totalSec = Number(q.countdown || q.timeLimit || 60);
 
     const tick = () => {
       try {
@@ -5508,9 +5508,9 @@ export const LiveVideo = {
               </label>
               <select id="live-input-countdown" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-white">
                 <option value="15">15 giây (Nhanh - Tạo phản xạ)</option>
-                <option value="20" selected>20 giây (Chuẩn cân đối)</option>
-                <option value="30">30 giây (Thoải mái đọc kỹ)</option>
-                <option value="45">45 giây (Dành cho câu hỏi dài)</option>
+                <option value="20">20 giây (Chuẩn trắc nghiệm)</option>
+                <option value="30">30 giây (Thư thả)</option>
+                <option value="60" selected>60 giây (1 phút - Tiêu chuẩn)</option>
               </select>
             </div>
 
