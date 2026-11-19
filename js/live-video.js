@@ -1064,6 +1064,7 @@ export const LiveVideo = {
       this.activeRoom = roomData;
       this.studentInfo = studentRecord;
       this.questionsList = roomData.checkpoints || [];
+      this._shuffleCache = {};
       this.completedCheckpoints = new Set(Array.isArray(roomData.completedCheckpoints) ? roomData.completedCheckpoints.map(String) : []);
 
       // Lưu phiên học sinh vào sessionStorage để F5 không bị mất
@@ -2311,6 +2312,64 @@ export const LiveVideo = {
     }
   },
 
+  /**
+   * Tính hash số từ chuỗi (djb2-lite) để làm seed PRNG.
+   * @param {string} str
+   * @returns {number} số nguyên dương 32-bit
+   */
+  _hashStr(str) {
+    let h = 5381;
+    for (let i = 0; i < str.length; i++) {
+      h = ((h << 5) + h + str.charCodeAt(i)) >>> 0;
+    }
+    return h >>> 0;
+  },
+
+  /**
+   * Xáo trộn phương án câu hỏi bằng Fisher-Yates seeded (LCG).
+   * KHÔNG mutate q gốc.
+   * @param {{ question: string, options: string[], answer: string }} q
+   * @param {string} sessionSeed  roomId hoặc chuỗi rỗng
+   * @returns {{ displayOptions: string[], displayAnswer: string }}
+   */
+  shuffleQuestionOptions(q, sessionSeed = '') {
+    const opts = Array.isArray(q.options) ? q.options : [];
+    const letters = ['A', 'B', 'C', 'D'];
+    const correctLetter = (q.answer || 'A').toUpperCase();
+    const correctIdx = letters.indexOf(correctLetter);
+
+    // Nếu ít hơn 2 phương án hoặc không xác định được đáp án đúng, trả về nguyên
+    if (opts.length < 2 || correctIdx < 0) {
+      return { displayOptions: opts.slice(), displayAnswer: correctLetter };
+    }
+
+    const correctText = opts[correctIdx];
+
+    // Seed từ nội dung câu hỏi + roomId để:
+    // - Mọi học sinh trong cùng phòng thấy cùng thứ tự
+    // - Khác phòng → thứ tự khác
+    let seed = this._hashStr(String(q.question || '') + String(sessionSeed));
+
+    // LCG PRNG: seed = (seed * 1664525 + 1013904223) & 0xffffffff
+    function lcgNext() {
+      seed = ((seed * 1664525) + 1013904223) >>> 0;
+      return seed;
+    }
+
+    // Fisher-Yates shuffle trên mảng index
+    const indices = opts.map((_, i) => i);
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = lcgNext() % (i + 1);
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+
+    const displayOptions = indices.map(i => opts[i]);
+    const newCorrectIdx = displayOptions.indexOf(correctText);
+    const displayAnswer = letters[newCorrectIdx] || correctLetter;
+
+    return { displayOptions, displayAnswer };
+  },
+
   renderStudentQuestion(q, responsesForQ = {}, remote = null) {
     const modal = document.getElementById('student-question-modal');
     const qNumEl = document.getElementById('student-q-number');
@@ -2362,7 +2421,16 @@ export const LiveVideo = {
     }
 
     const optionBtns = optionsGrid.querySelectorAll('.student-opt-btn');
-    const opts = Array.isArray(q.options) ? q.options : [];
+
+    // Lấy roomId để làm seed shuffle (giống nhau cho mọi học sinh trong cùng phòng)
+    const roomIdSeed = this.activeRoom?.roomId || remote?.roomId || '';
+
+    // Lấy hoặc tính shuffle từ cache để re-render không đổi thứ tự
+    if (!this._shuffleCache) this._shuffleCache = {};
+    if (!this._shuffleCache[qKey]) {
+      this._shuffleCache[qKey] = this.shuffleQuestionOptions(q, roomIdSeed);
+    }
+    const { displayOptions, displayAnswer } = this._shuffleCache[qKey];
 
     // Kiểm tra xem học sinh này đã nộp bài trước đó chưa
     const myUid = this.studentInfo?.uid;
@@ -2383,7 +2451,7 @@ export const LiveVideo = {
     optionBtns.forEach((btn, idx) => {
       const letter = btn.getAttribute('data-student-option');
       const label = btn.querySelector('.student-opt-label');
-      let text = opts[idx] !== undefined ? String(opts[idx]) : '';
+      let text = displayOptions[idx] !== undefined ? String(displayOptions[idx]) : '';
       text = text.replace(/^[A-Da-d][\.\:\)\s]+/, '').trim();
       if (label) label.textContent = text || `Phương án ${letter}`;
 
@@ -2392,7 +2460,9 @@ export const LiveVideo = {
       btn.onclick = (e) => {
         if (e) e.preventDefault();
         if (q.revealed || this.hasSubmittedAnswer || this.hasSubmittedCurrentQuestion || this.isSubmittingAnswer) return;
-        this.submitStudentAnswer(qKey, letter, q.answer, q);
+        // Dùng displayAnswer (đã map theo thứ tự shuffle) để tính isCorrect đúng
+        const cached = this._shuffleCache[qKey] || this.shuffleQuestionOptions(q, roomIdSeed);
+        this.submitStudentAnswer(qKey, letter, cached.displayAnswer, q);
       };
     });
 
@@ -2410,7 +2480,9 @@ export const LiveVideo = {
       if (resultBanner) resultBanner.classList.remove('hidden');
 
       const myAnswer = this.selectedAnswer || prevSub?.selected;
-      const normAns = this.normalizeAnswerLetter(q.answer);
+      // So sánh với displayAnswer (đã shuffle) vì học sinh nộp theo thứ tự hiển thị
+      const cachedShuf = this._shuffleCache?.[qKey] || this.shuffleQuestionOptions(q, this.activeRoom?.roomId || remote?.roomId || '');
+      const normAns = this.normalizeAnswerLetter(cachedShuf.displayAnswer);
       const normMy = this.normalizeAnswerLetter(myAnswer);
       const isCorrect = (normMy && normMy === normAns);
 
